@@ -91,6 +91,28 @@ internal sealed class CapturingSink : ILogEventSink
 }
 public sealed class ObservabilityBehaviorTests
 {
+    private sealed class UnavailableCollector : BaseExporter<Activity>
+    { public override ExportResult Export(in Batch<Activity> batch) => throw new IOException("collector unavailable"); }
+    [Fact] public async Task CollectorFailure_RequestsComplete_AndWarningIsRateLimited()
+    {
+        var sink = new CapturingSink();
+        using var log = new LoggerConfiguration().WriteTo.Sink(sink).CreateLogger();
+        using var loggerFactory = new LoggerFactory([new Serilog.Extensions.Logging.SerilogLoggerProvider(log, dispose: false)]);
+        using var exporter = new SafeExporter<Activity>(new UnavailableCollector(), new ExporterWarningGate(loggerFactory.CreateLogger<ExporterWarningGate>()));
+        using var metrics = new ServerMetrics();
+        var middleware = new RequestLoggingMiddleware(async c =>
+        {
+            var batch = default(Batch<Activity>);
+            Assert.Equal(ExportResult.Failure, exporter.Export(batch));
+            Assert.Equal(ExportResult.Failure, exporter.Export(batch));
+            await c.Response.WriteAsync("request completed");
+        });
+        var context = new DefaultHttpContext(); context.Response.Body = new MemoryStream();
+        await middleware.InvokeAsync(context, NullLogger<RequestLoggingMiddleware>.Instance, metrics);
+        Assert.Equal(200, context.Response.StatusCode);
+        Assert.Equal("request completed", System.Text.Encoding.UTF8.GetString(((MemoryStream)context.Response.Body).ToArray()));
+        Assert.Single(sink.Events); Assert.Equal(LogEventLevel.Warning, sink.Events[0].Level);
+    }
     [Theory] [InlineData(false)] [InlineData(true)]
     public void ConsoleDevelopmentOnly_FileAlwaysRedacted(bool development)
     {
@@ -209,7 +231,7 @@ public sealed class ObservabilityBehaviorTests
             listener.RecordObservableInstruments(); Assert.Equal(1, metrics.CommandsInProgress);
         }
         Assert.Equal(0, metrics.CommandsInProgress); Assert.Equal(3, metrics.IntakeInProgress);
-        Assert.Equal(19, produced.Count);
+        Assert.Equal(18, produced.Count);
         Assert.All(keys, key => Assert.Contains(key, new[] { "outcome", "commandType", "source", "worker" }));
     }
 }
