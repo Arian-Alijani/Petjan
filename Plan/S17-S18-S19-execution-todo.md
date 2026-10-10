@@ -202,7 +202,8 @@ These were confirmed against the live tree; **do not re-derive**:
   Wire `AddAnimoraFiles()` + worker registration in `Program.cs`.
   `build.sh fast` compiles. → **push** `feat(server): S17 file store, valet key, endpoints, reconciliation worker`.
 
-- [~] **S17-T5 — Tests (authored; pure run locally, PG-gated authored-not-run).**
+- [x] **S17-T5 — Tests (authored; pure run locally, PG-gated authored-not-run).**
+  Completed 2026-10-10: real HTTP offset/resend/hash/download/range/cross-tenant assertions and explicit zero-ref/staging/CAS/temp orphan cases authored, not executed.
   Create `tests/Animora.Server.Tests/Files/`:
   pure — `FileLifecycleTests.AllowedAndForbiddenTransitions_Table`,
   `ValetKeyServiceTests.RoundTrip_BoundToTenantUserDeviceFileOp`,

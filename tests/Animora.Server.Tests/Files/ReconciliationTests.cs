@@ -39,7 +39,32 @@ public sealed class ReconciliationTests(PgFixture pg) : IClassFixture<PgFixture>
             await using var provider = services.BuildServiceProvider(); using var admission = new SemaphoreBackgroundAdmission();
             using var worker = new FileReconciliationWorker(provider.GetRequiredService<IServiceScopeFactory>(),admission,new FileMaintenanceStore(source),store,
                 TimeProvider.System,new WorkerHeartbeat(TimeProvider.System),NullLogger<FileReconciliationWorker>.Instance,new Animora.Server.Observability.ServerMetrics());
+            // Zero-ref grace starts at dereference, not at initial publication.
+            string garbageHash = new('c', 64), orphanHash = new('d', 64);
+            db.BlobRefs.Add(new BlobRef { Sha256 = garbageHash, RefCount = 0, SizeBytes = 1,
+                FirstSeenUtc = DateTimeOffset.UtcNow.AddDays(-2), UnreferencedUtc = DateTimeOffset.UtcNow.AddDays(-2) });
+            await db.SaveChangesAsync();
+            Directory.CreateDirectory(Path.GetDirectoryName(store.Blob(garbageHash))!);
+            await File.WriteAllTextAsync(store.Blob(garbageHash), "x");
+            Directory.CreateDirectory(Path.GetDirectoryName(store.Blob(orphanHash))!);
+            await File.WriteAllTextAsync(store.Blob(orphanHash), "orphan");
+            File.SetLastWriteTimeUtc(store.Blob(orphanHash), DateTime.UtcNow.AddHours(-2));
+            string abandonedTemp = store.Blob(row.Sha256!) + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            await File.WriteAllTextAsync(abandonedTemp, "partial");
+            File.SetLastWriteTimeUtc(abandonedTemp, DateTime.UtcNow.AddHours(-2));
+            string freshTemp = store.Blob(row.Sha256!) + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            await File.WriteAllTextAsync(freshTemp, "active");
+            string unknown = Path.Combine(store.Root, "operator-notes.tmp"); await File.WriteAllTextAsync(unknown, "keep");
+            File.SetLastWriteTimeUtc(unknown, DateTime.UtcNow.AddDays(-2));
+            string stagingOrphan = store.Staging(FileStoreTests.Tenant, FileStoreTests.Upload);
+            Directory.CreateDirectory(Path.GetDirectoryName(stagingOrphan)!); await File.WriteAllTextAsync(stagingOrphan, "orphan");
+            File.SetLastWriteTimeUtc(stagingOrphan, DateTime.UtcNow.AddHours(-2));
             await worker.RunOnceAsync(); db.ChangeTracker.Clear();
+            Assert.False(File.Exists(store.Blob(garbageHash))); Assert.False(await db.BlobRefs.AnyAsync(x => x.Sha256 == garbageHash));
+            Assert.False(File.Exists(store.Blob(orphanHash))); Assert.False(File.Exists(stagingOrphan));
+            Assert.False(File.Exists(abandonedTemp)); Assert.True(File.Exists(freshTemp)); Assert.True(File.Exists(unknown));
+            Assert.True(File.Exists(store.Blob(row.Sha256!)));
+            Assert.Contains(await db.BlobRefs.ToListAsync(), x => x.Sha256 == row.Sha256 && x.RefCount > 0);
             Assert.Equal(FileState.Abandoned,(await db.FileObjects.SingleAsync(x=>x.Id==staged.Id)).State);
             Assert.Equal(FileState.Mismatch,(await db.FileObjects.SingleAsync(x=>x.Id==row.Id)).State);
             Assert.Contains(await db.SecurityAudit.ToListAsync(),x=>x.Action=="files.reconcile.bitrot");
