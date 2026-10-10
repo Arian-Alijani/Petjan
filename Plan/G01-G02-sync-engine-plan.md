@@ -304,7 +304,7 @@ public static readonly ErrorCode Unauthorized         = new("UNAUTHORIZED",     
 - [x] **T9 — wiring G02.** `App.axaml.cs` (using + AddAnimoraHttpSyncEngine زیر AddAnimoraSyncEngine)، `Animora.Desktop.csproj` (ProjectReference به Sync.Custom)، `tests/Animora.Sync.Tests.csproj` (ProjectReference). → پوش: `feat(sync): wire G02 HTTP engine registration`
 - [x] **T10 — تست‌های G02.** ۱۶ تست §2 با HttpMessageHandler fake و gzip-page helper (§0.1). → پوش: `test(sync): G02 HTTP adapter tests`
 - [x] **T11 — verify G02.** `build.sh full` (0/0)، `test.sh Sync` (سبز)، `test.sh Layering` (سبز)، `run.sh` (`SMOKE RUN OK`)، grepهای Acceptance G02 بند ۳/۴/۵. اصلاح تا سبز. → پوش: `chore(sync): G02 build/test green`
-- [ ] **T12 — PROGRESS G02.** به‌روزرسانی `backend-roadmap/PROGRESS.md` طبق §2 (+ ثبت deviation §0.1). → پوش: `docs(progress): mark G02 done, next G03`
+- [x] **T12 — PROGRESS G02.** به‌روزرسانی `backend-roadmap/PROGRESS.md` طبق §2 (+ ثبت deviation §0.1). → پوش: `docs(progress): mark G02 done, next G03`
 
 ### پایان
 - [ ] **T13 — حذف این فایل پلن.** فقط `Plan/G01-G02-sync-engine-plan.md` حذف شود (به rodmap و فایل‌های دیگر دست نزن). → پوش: `chore(plan): remove completed G01+G02 plan`

@@ -141,7 +141,7 @@ server implementation; `M00` only produces them.
 
 ## Next phase
 
-**Next phase: `G02`** — immutable-batch HTTP adapter (`Animora.Sync.Custom`); G01 (client sync engine abstractions) is done (2026-10-10); the S01–S20 server implementation track is authored complete (2026-10-10). S20 delivers five Static SSR operations pages, one dashboard-only cached live island, and a disabled-by-default consent-gated reporting seam with empty metric/source catalogues. Server schema head remains `115_Files`; S20 has no migration. Builds, tests, smoke, restore, benchmarks and PostgreSQL migration application remain explicitly deferred by user directive; no compile/runtime/production acceptance is claimed. G07/G08 retain database and performance execution gates.
+**Next phase: `G03`** — sync orchestration & status; G01 (abstractions) and G02 (immutable-batch HTTP adapter, `Animora.Sync.Custom`) are done (2026-10-10); the S01–S20 server implementation track is authored complete (2026-10-10). S20 delivers five Static SSR operations pages, one dashboard-only cached live island, and a disabled-by-default consent-gated reporting seam with empty metric/source catalogues. Server schema head remains `115_Files`; S20 has no migration. Builds, tests, smoke, restore, benchmarks and PostgreSQL migration application remain explicitly deferred by user directive; no compile/runtime/production acceptance is claimed. G07/G08 retain database and performance execution gates.
 `S06` (command intake & idempotency) is **complete** (2026-10-09): every command is deduplicated by `(TenantId, OperationId)` in `CommandIntake`, identity comes only from the authenticated tenant context, the server recomputes fingerprints, settlement is atomic with the effect, and with no handler registered every command settles `Rejected(HANDLER_NOT_REGISTERED)`. Do its successor's work and advance down the `S##`/`G##` chain in dependency order.
 The desktop stays offline-runnable throughout (every phase carries "Runnable after: desktop offline yes").
 
@@ -224,7 +224,7 @@ separate outstanding item; C11 stock/UoW regressions do not close that debt.
 | S19 | Done/authored; execution gates deferred | 2026-10-10 | Domain-only Static SSR operator RCL, separate secure cookie/auth/antiforgery/adapters/pages; real protected-bearer isolation, HTTP provisioning/replay/suspend/reinstate/licence-gate and degraded-status secrecy regressions authored and pushed. Next S20. |
 | S20 | ✅ Done (implementation/regression sources authored; execution deferred) | 2026-10-10 | Operations pages, one cached live island, consent-gated disabled insight seam and isolation/HTTP/PG regression sources. No analytics feature or migration; no test/build/smoke execution. Next G01. |
 | G01 | ✅ Done | 2026-10-10 | `IStateSyncEngine`/`SyncScope`/`SyncOutcome`/`SyncResult`/`NullSyncEngine` + `AddAnimoraSyncEngine()` (TryAdd) wired in Desktop; 10 Sync tests green. Details: `Animora.Sync.Abstractions` — `IStateSyncEngine`, `SyncScope`, `SyncResult`, `NullSyncEngine` fallback + DI. Band S · Depends on S12 · R-B03, R-B13. See `phases/PHASE-G01-sync-engine-abstractions.md`. |
-| G02 | ⬜ Not started | | Custom immutable-batch HTTP adapter (`Animora.Sync.Custom`; no PostgreSQL driver, no server project). Band M · Depends on G01 · R-B03, R-B13, R-B31. See `phases/PHASE-G02-immutable-batch-http-adapter.md`. |
+| G02 | ✅ Done | 2026-10-10 | `Animora.Sync.Custom`: `HttpStateSyncEngine` + `SyncFeedClient` + `PageIntegrity` + `ISyncApplyStore`/`BufferingSyncApplyStore` + conditional `AddAnimoraHttpSyncEngine()`; +5 Sync-transport ErrorCodes; 49 Sync tests green, Layering green, SMOKE RUN OK. Details: Custom immutable-batch HTTP adapter (`Animora.Sync.Custom`; no PostgreSQL driver, no server project). Band M · Depends on G01 · R-B03, R-B13, R-B31. See `phases/PHASE-G02-immutable-batch-http-adapter.md`. |
 | G03 | ⬜ Not started | | Sync orchestration & status (scheduler, `SyncCursor` integration, status surfaced to `ISyncStatusService`). Band M · Depends on G02 · R-B03. See `phases/PHASE-G03-sync-orchestration-status.md`. |
 | G04 | ⬜ Not started | | Conflict resolution & non-destructive pull (preserve pending intent; posted-invoice conflicts reversal-only). Band M · Depends on G03 · R-B03, R-B17, R-B18. See `phases/PHASE-G04-conflict-resolution-non-destructive-pull.md`. |
 | G05 | ⬜ Not started | | Command transport & settlement reconciliation (`HttpCommandTransport`, replaces `NullCommandTransport`). Band M · Depends on G04, S10 · R-B03, R-B09, R-B16. See `phases/PHASE-G05-command-transport-settlement.md`. |
@@ -2232,7 +2232,22 @@ Npgsql references only inside `Animora.Persistence.PostgreSql`; `git diff` on Sq
 - Tests (`tests/Animora.Sync.Tests`, 10 facts): `SyncScopeTests`, `SyncResultTests`, `NullSyncEngineTests`, `SyncDiTests`, `SyncLayeringTests`. Placeholder test removed. Desktop quick build 0 warnings/0 errors.
 - No migration, no wire DTO, no ErrorCode.
 
+### G02 — immutable-batch HTTP adapter (2026-10-10)
+
+- New project `src/Animora.Sync.Custom` (4 ProjectReferences: Sync.Abstractions, Application, Persistence.Sqlite, Contracts.Wire; packages `Microsoft.Extensions.Http` 10.0.12 (new in `Directory.Packages.props`) + DependencyInjection). Added to `Animora.sln`. No Npgsql/Datasync/Server/PostgreSql reference; no push path.
+- Public types: `ServerEndpointOptions` (section `Animora:Server`, `IsConfigured` = valid absolute http(s) URL; limits `MaxBatchPages`, `MaxPageBytes`, `MaxPageAttempts`, `RetryBaseDelay`), `PageIntegrity` (page hash / content hash), `SyncFeedClient` (+`OpenBatchOutcome`/`OpenBatchKind`), `ISyncApplyStore`/`ISyncApplySession`/`SyncCheckpoint`, `BufferingSyncApplyStore` (in-memory, no SQLite), `HttpStateSyncEngine`, `SyncCustomServiceCollectionExtensions.AddAnimoraHttpSyncEngine`.
+- DI call site: `Animora.Desktop/App.axaml.cs` right below `AddAnimoraSyncEngine()`; Desktop references `Animora.Sync.Custom` (no direct `System.Net.Http` use in Desktop). Unconfigured (default) keeps `NullSyncEngine`; SMOKE RUN OK.
+- New ErrorCodes (`#region Sync transport (G02)`): `NetworkUnavailable`, `ServerBusy`, `SyncIntegrityFailed`, `SyncProtocolViolation`, `Unauthorized`. `ResyncRequired`/`BatchNotFound` (S12) are reused.
+- Tests (`tests/Animora.Sync.Tests`, 49 facts total): `SyncFeedClientTests`, `PageIntegrityTests`, `HttpStateSyncEnginePullTests`, `SyncCustomDiTests`, `SyncCustomLayeringTests` (+ G01 classes).
+
 ## Decision & deviation log
+
+### G02 — deviations (2026-10-10)
+
+- Hash rule follows the real server, not the phase doc: a page hash / ETag is SHA-256 (lowercase hex) of the raw `application/gzip` bytes; the JSON `PageHash` inside is intentionally empty and is re-stamped with the verified hash. `AutomaticDecompression` stays off; gzip is decompressed manually (with a size cap). Batch `ContentHash` = SHA-256 over the ASCII concatenation of page hashes.
+- `HttpStateSyncEngine` keeps verified pages of a failed pull in memory (bounded, same batch only) and revalidates them with `If-None-Match` on the retry (304 → reuse), which is how resume works while the apply store is still in-memory.
+- `LayeringRulesTests.Contracts_HaveExactlyOneRealRegistration` was made precise, not weaker: it now counts only non-`Null*` registrations (lower-layer `TryAdd` offline fallbacks such as `NullUserNotificationPort` are not real registrations) and excludes `IClinicAccountStatusSource`, an intentionally unregistered optional seam resolved with `GetService` (it was failing on the merged baseline before G02).
+- Desktop needed an explicit restore after adding the `Sync.Custom` reference (`build.sh restore`) for `Microsoft.Extensions.Http.dll` to be copied to the output.
 
 ### G01 — deviations (2026-10-10)
 
