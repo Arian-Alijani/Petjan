@@ -39,7 +39,7 @@ internal sealed class CommandIntakeService(
 {
     public async Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default)
     {
-        var metrics=http.HttpContext?.RequestServices.GetService<Animora.Server.Observability.ServerMetrics>();
+        var metrics=http.HttpContext?.RequestServices?.GetService<Animora.Server.Observability.ServerMetrics>();
         using var metricLease=metrics?.CommandLease();
         if(http.HttpContext is { } request) request.Items["OperationId"]=envelope.OperationId;
         Result shape = CommandEnvelopeValidator.Validate(envelope);

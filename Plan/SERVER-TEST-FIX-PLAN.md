@@ -108,7 +108,7 @@ scripts/git/push.sh "fix(server): cap DB pool budget to 12 in appsettings (R1)"
 
 ---
 
-## TASK 2 — رفع R2: null `IServiceProvider` در CommandIntakeService — [ ]
+## TASK 2 — رفع R2: null `IServiceProvider` در CommandIntakeService — [x]
 
 **فایل:** `src/Animora.Server/Commands/CommandIntakeService.cs` — **خط 42**
 **علت دقیق (کشف‌شده):** خط ۴۲ این است:
@@ -323,7 +323,7 @@ scripts/git/push.sh "chore(plan): remove completed server-test fix plan"
 
 - [x] TASK 0 — محیط آماده (SDK + PG)
 - [x] TASK 1 — appsettings pool ≤12 (R1) + push
-- [ ] TASK 2 — null-guard RequestServices (R2) + push
+- [x] TASK 2 — null-guard RequestServices (R2) + push
 - [ ] TASK 3 — allow-list Licensing در source-scan (R4) + push
 - [ ] TASK 4 — sync snapshot/migration (R3) + push
 - [ ] TASK 5 — تأیید R5 و بقیه + push در صورت تغییر
