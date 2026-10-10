@@ -29,6 +29,10 @@ public static class ErrorCodes
     public static readonly ErrorCode PermissionDenied =
         new("PERMISSION_DENIED", ErrorCode.Forbidden);
 
+    /// <summary>The request is refused because the actor is not an authorized operator/vendor principal.</summary>
+    public static readonly ErrorCode Forbidden =
+        new("FORBIDDEN", ErrorCode.Forbidden);
+
     /// <summary>The requested permission code is not in the catalog (B04a); fail closed.</summary>
     public static readonly ErrorCode PermissionUnknown =
         new("PERMISSION_UNKNOWN", ErrorCode.Forbidden);

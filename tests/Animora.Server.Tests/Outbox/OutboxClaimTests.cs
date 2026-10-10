@@ -4,6 +4,7 @@ using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Persistence.PostgreSql.Outbox;
 using Animora.Persistence.PostgreSql.Replication;
+using Animora.Server.Tests.HandlersS09;
 using Animora.Server.Tests.Persistence;
 using Animora.Server.Tests.Sync;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ namespace Animora.Server.Tests.Outbox;
 
 public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
 {
+    private static readonly FakeClock Clock = new(DateTimeOffset.UtcNow);
     internal static OutboxDbContext Context(SyncPgRig rig) => new(new DbContextOptionsBuilder<OutboxDbContext>().UseNpgsql(rig.Source).Options);
     internal static async Task Seed(SyncPgRig rig, int count)
     {
@@ -56,7 +58,7 @@ public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
             var envelope = CommandEnvelope.Create(operation, rig.Tenant, operation, operation, "test.update", "Tenant", rig.Tenant, "{}", "test", DateTimeOffset.UtcNow, 1);
             var settled = new SettlementResult(operation, SettlementOutcome.Accepted, null, null, rig.Tenant, null,
                 DateTimeOffset.UtcNow, FinancialEffect.None, null);
-            Assert.True((await new ServerOutbox(db).AppendAsync(envelope, settled)).IsSuccess);
+            Assert.True((await new ServerOutbox(db, Clock).AppendAsync(envelope, settled)).IsSuccess);
             Assert.Single(db.ChangeTracker.Entries<OutboxMessage>());
             await db.SaveChangesAsync(); await tx.RollbackAsync();
         }
@@ -75,7 +77,7 @@ public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
         await using (var tx = await db.Database.BeginTransactionAsync())
         {
             await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE public.\"Tenants\" SET \"DisplayName\"='changed' WHERE \"Id\"={rig.Tenant}");
-            var outbox = new ServerOutbox(db);
+            var outbox = new ServerOutbox(db, Clock);
             await outbox.AppendAsync(envelope, settlement); await outbox.AppendAsync(envelope, settlement);
             Assert.Single(db.ChangeTracker.Entries<OutboxMessage>());
             await db.SaveChangesAsync(); await tx.CommitAsync();
@@ -96,7 +98,7 @@ public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
             "{}", "test", DateTimeOffset.UtcNow, 1);
         var settlement = new SettlementResult(operation, SettlementOutcome.Accepted, null, null, rig.Tenant, null,
             DateTimeOffset.UtcNow, FinancialEffect.None, null);
-        Assert.True((await new ServerOutbox(db).AppendAsync(envelope, settlement)).IsSuccess);
+        Assert.True((await new ServerOutbox(db, Clock).AppendAsync(envelope, settlement)).IsSuccess);
         Assert.Empty(db.ChangeTracker.Entries<OutboxMessage>());
     }
 

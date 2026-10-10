@@ -56,7 +56,7 @@ public sealed class S08ConcurrencyTests(PgFixture pg) : IClassFixture<PgFixture>
         await a.Db.Database.MigrateAsync();
         var owner = Owner.Register(tenant, "Owner", "09120000000", a.Intake.Clock);
         var pet = Pet.Register(tenant, owner.Id, "Pet", PetSpecies.Dog, a.Intake.Clock);
-        var membership = StaffMembership.Join(tenant, doctor, StaffRole.Doctor, a.Intake.Clock);
+        var membership = StaffMembership.Create(tenant, doctor, StaffRole.Doctor, a.Intake.Clock);
         membership.SetWorkingHours(480, 1200, 127);
         a.Db.AddRange(owner, pet, membership); await a.Db.SaveChangesAsync(); a.Db.ChangeTracker.Clear();
         var command = new BookAppointmentCommand(new DateOnly(2026, 10, 9), 600, 30, "CHECKUP", doctor, pet.Id, owner.Id, null);

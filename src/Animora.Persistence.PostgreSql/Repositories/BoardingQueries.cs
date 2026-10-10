@@ -101,7 +101,7 @@ public sealed class BoardingQueries(AnimoraServerDbContext db) : IBoardingQuerie
          where pet.Id == petId
          select new BoardingKnownPetReadModel(pet.Id, pet.Name, pet.Species.ToString(),
              pet.Breed ?? "", owner.FullName, owner.PhonePrimary, owner.Id))
-        .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        .FirstOrDefaultAsync(ct);
 
     public async Task<BoardingHistoryResult> GetHistoryAsync(BoardingHistoryCriteria criteria, CancellationToken ct)
     {

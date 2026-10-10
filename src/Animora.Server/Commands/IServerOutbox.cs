@@ -10,4 +10,8 @@ internal sealed class CommandServerOutbox(ServerOutbox outbox) : IServerOutbox
 {
     public Task<Result> AppendAsync(CommandEnvelope envelope, SettlementResult settlement, CancellationToken ct = default) =>
         outbox.AppendAsync(envelope, settlement, ct);
+
+    public Task<Result> EnqueueAsync(string messageType, string tenantId, string payloadJson, string correlationId,
+        CancellationToken ct = default) =>
+        outbox.EnqueueAsync(messageType, tenantId, payloadJson, correlationId, ct);
 }

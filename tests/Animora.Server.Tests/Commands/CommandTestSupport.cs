@@ -208,4 +208,7 @@ internal sealed class FakeOutbox : IServerOutbox
     public int Calls { get; private set; }
     public Task<Result> AppendAsync(CommandEnvelope envelope, SettlementResult settlement, CancellationToken ct = default)
     { Calls++; return Task.FromResult(Result.Ok()); }
+    public Task<Result> EnqueueAsync(string messageType, string tenantId, string payloadJson, string correlationId,
+        CancellationToken ct = default)
+    { Calls++; return Task.FromResult(Result.Ok()); }
 }

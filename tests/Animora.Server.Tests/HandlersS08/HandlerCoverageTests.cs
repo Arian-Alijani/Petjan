@@ -22,7 +22,7 @@ public sealed class HandlerCoverageTests
         var catalog = builder.Build();
         foreach (var wire in CommandTypes.All.Where(t => new[] { "scheduling.", "boarding." }.Any(p => t.StartsWith(p, StringComparison.Ordinal))))
         {
-            Assert.DoesNotContain(wire, ReservedCommandTypes.All);
+            Assert.DoesNotContain(wire, (IEnumerable<string>)ReservedCommandTypes.All);
             Assert.True(catalog.Entries.TryGetValue(wire, out var candidates), wire);
             Assert.NotNull(CommandPermissionTable.RequiredFor(wire));
             foreach (var candidate in candidates!)

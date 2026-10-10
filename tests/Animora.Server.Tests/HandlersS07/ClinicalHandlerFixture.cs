@@ -57,7 +57,7 @@ internal sealed class ClinicalHandlerFixture : IDisposable
         var clock = Intake.Clock;
         Owner = Animora.Domain.Patients.Owner.Register(Intake.TenantId, "Owner", "09120000000", clock); Owners.Add(Owner);
         Pet = Animora.Domain.Patients.Pet.Register(Intake.TenantId, Owner.Id, "Fluffy", PetSpecies.Dog, clock); Pets.Add(Pet);
-        Memberships.Add(StaffMembership.Join(Intake.TenantId, DoctorId, StaffRole.Doctor, clock));
+        Memberships.Add(StaffMembership.Create(Intake.TenantId, DoctorId, StaffRole.Doctor, clock));
         Ticket = ReceptionQueueEntry.Create(Intake.TenantId, Pet.Id, Owner.Id, QueueSource.WalkIn, 1, clock);
         Ticket.Call(DoctorId, clock); Queue.Add(Ticket);
         Visit = Animora.Domain.Clinical.Visit.Open(Intake.TenantId, Pet.Id, Owner.Id, DoctorId, VisitReason.Checkup, clock);

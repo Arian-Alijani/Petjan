@@ -9,8 +9,8 @@ public sealed class LedgerImmutabilityTests
     {
         var now = DateTimeOffset.UtcNow;
         var result = JournalEntry.Create("tenant", "JV-1", "1405", JournalSource.Sales,
-            [new JournalLine("a", AccountCodes.Cash, EntrySide.Debit, Money.Irt(100), null, null),
-             new JournalLine("b", AccountCodes.SalesRevenue, EntrySide.Credit, Money.Irt(90), null, null)], "Memo", "user", now);
+            [new JournalLine("a", AccountCodes.CashOnHand, EntrySide.Debit, Money.Irt(100), null, null),
+             new JournalLine("b", AccountCodes.ServiceRevenue, EntrySide.Credit, Money.Irt(90), null, null)], "Memo", "user", now);
         Assert.Equal(ErrorCodes.JournalUnbalanced, result.Error);
         Assert.DoesNotContain(typeof(JournalEntry).GetMethods(), m => m.DeclaringType == typeof(JournalEntry)
             && m.Name is "Update" or "Edit" or "Delete");

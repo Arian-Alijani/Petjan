@@ -17,6 +17,18 @@ scratch off the tiny tmpfs, caps memory). No manual env needed.
 | Run longer | `scripts/sandbox/run.sh --seconds 10` | |
 | Run, skip build | `scripts/sandbox/run.sh --no-build` | |
 | Clean output | `scripts/sandbox/clean.sh` | bin/obj. `--all` also clears caches. |
+| **Server+DB: install PostgreSQL** | `scripts/sandbox/install-postgres.sh` | local throwaway PG 17 under `.sandbox/pg`, test-tuned. `status\|stop\|restart\|nuke`. |
+| **Server+DB: build only** | `scripts/sandbox/server-test.sh --build-only` | server/DB/"S" tree only — NO desktop. |
+| **Server+DB: test on real DB** | `scripts/sandbox/server-test.sh --require-pg` | runs `Animora.Server.Tests` against a REAL PostgreSQL; `--require-pg` fails (not skips) if DB missing. `--all` adds Persistence+Sync. |
+
+## Server / database (Track S) testing
+The server track (`Animora.Server`, `Animora.Persistence.PostgreSql`,
+`Animora.Server.Licensing`, `Animora.Web.Admin`) has PostgreSQL-gated tests
+(`[PgFact]` via `PgFixture` → `ANIMORA_PG_TEST_CONNECTION`). `install-postgres.sh`
+stands up a real local cluster and writes the connection string to
+`.sandbox/pg/connection.env`; `server-test.sh` sources it so the gated tests hit a
+real DB instead of skipping. These scripts **never build the desktop app** or its
+dependent test projects (`Animora.Domain.Tests`, `Animora.Application.Tests`).
 
 ## Reading results
 - Exit `0` = success. Nonzero = failure (real dotnet exit code).
