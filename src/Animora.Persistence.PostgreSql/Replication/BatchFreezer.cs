@@ -84,7 +84,8 @@ public sealed class BatchFreezer(IFeedContextFactory factory, IBackgroundAdmissi
             if (state.Epoch != position.Epoch || state.Generation != position.Generation)
                 return new("ResyncRequired", Resync: new("EPOCH_CHANGED", state.Epoch));
             var already = await write.Set<FeedBatchRow>().SingleOrDefaultAsync(x => x.BatchId == id, ct).ConfigureAwait(false);
-            if (already is not null) return Ready(already);
+            if (already is not null) return already.State == FeedBatchState.Ready ? Ready(already)
+                : new("ResyncRequired", Resync: new("BEYOND_RETENTION", position.Epoch));
             int buffered = 0;
             await foreach (var page in pages.ReadMetadata(ct).ConfigureAwait(false))
             {

@@ -64,6 +64,43 @@ public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
         Assert.Equal(position.LastSequence, (await new FeedPositionReader(db).GetAsync(rig.Tenant)).LastSequence);
     }
     [PgFact]
+    public async Task EnqueueFillsCommitPosition_ExactlyOneMessage()
+    {
+        await using var rig = new SyncPgRig(pg.ConnectionString); await rig.Initialize(); await using var db = rig.Factory.Create();
+        var operation = IdGenerator.NewId(DateTimeOffset.UtcNow);
+        var envelope = CommandEnvelope.Create(operation, rig.Tenant, operation, operation, "test.update", "Tenant", rig.Tenant,
+            "{}", "test", DateTimeOffset.UtcNow, 1);
+        var settlement = new SettlementResult(operation, SettlementOutcome.Accepted, null, null, rig.Tenant, null,
+            DateTimeOffset.UtcNow, FinancialEffect.None, null);
+        await using (var tx = await db.Database.BeginTransactionAsync())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE public.\"Tenants\" SET \"DisplayName\"='changed' WHERE \"Id\"={rig.Tenant}");
+            var outbox = new ServerOutbox(db);
+            await outbox.AppendAsync(envelope, settlement); await outbox.AppendAsync(envelope, settlement);
+            Assert.Single(db.ChangeTracker.Entries<OutboxMessage>());
+            await db.SaveChangesAsync(); await tx.CommitAsync();
+        }
+        db.ChangeTracker.Clear(); var message = await db.Set<OutboxMessage>().SingleAsync();
+        using var payload = JsonDocument.Parse(message.PayloadJson);
+        var position = await new FeedPositionReader(db).GetAsync(rig.Tenant);
+        Assert.Equal(position.LastSequence, payload.RootElement.GetProperty("lastSequence").GetInt64());
+        Assert.Equal(rig.Tenant, payload.RootElement.GetProperty("tenantId").GetString());
+    }
+    [PgFact]
+    public async Task UnreplicatedAcceptedOutcome_EnqueuesNothing()
+    {
+        await using var rig = new SyncPgRig(pg.ConnectionString); await rig.Initialize(); await using var db = rig.Factory.Create();
+        var operation = IdGenerator.NewId(DateTimeOffset.UtcNow);
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var envelope = CommandEnvelope.Create(operation, rig.Tenant, operation, operation, "test.noop", "Tenant", rig.Tenant,
+            "{}", "test", DateTimeOffset.UtcNow, 1);
+        var settlement = new SettlementResult(operation, SettlementOutcome.Accepted, null, null, rig.Tenant, null,
+            DateTimeOffset.UtcNow, FinancialEffect.None, null);
+        Assert.True((await new ServerOutbox(db).AppendAsync(envelope, settlement)).IsSuccess);
+        Assert.Empty(db.ChangeTracker.Entries<OutboxMessage>());
+    }
+
+    [PgFact]
     public async Task Redelivery_ConsumerEffectRunsOnce()
     {
         await using var rig = new SyncPgRig(pg.ConnectionString); await rig.Initialize(); await Seed(rig, 1);
