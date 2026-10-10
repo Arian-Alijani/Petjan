@@ -15,7 +15,9 @@ public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
     internal static OutboxDbContext Context(SyncPgRig rig) => new(new DbContextOptionsBuilder<OutboxDbContext>().UseNpgsql(rig.Source).Options);
     internal static async Task Seed(SyncPgRig rig, int count)
     {
-        await using var db = Context(rig); var now = DateTimeOffset.UtcNow;
+        await using var db = Context(rig);
+        await db.Messages.ExecuteDeleteAsync(); await db.Consumed.ExecuteDeleteAsync();
+        var now = DateTimeOffset.UtcNow;
         for (int i = 0; i < count; i++) db.Messages.Add(new() { TenantId = rig.Tenant, Id = IdGenerator.NewId(now),
             MessageType = "test.message", CreatedUtc = now, NextAttemptUtc = now.AddSeconds(-1), CorrelationId = "test" });
         await db.SaveChangesAsync();
@@ -65,7 +67,9 @@ public sealed class OutboxClaimTests(PgFixture pg) : IClassFixture<PgFixture>
     public async Task Redelivery_ConsumerEffectRunsOnce()
     {
         await using var rig = new SyncPgRig(pg.ConnectionString); await rig.Initialize(); await Seed(rig, 1);
-        await using var db = Context(rig); var now = DateTimeOffset.UtcNow;
+        await using var db = Context(rig);
+        await db.Messages.ExecuteDeleteAsync(); await db.Consumed.ExecuteDeleteAsync();
+        var now = DateTimeOffset.UtcNow;
         var claim = Assert.Single(await new OutboxClaimStore(db).ClaimAsync(now, 1, CancellationToken.None));
         var consumer = new CountConsumer(); var runner = new OutboxConsumerRunner(db);
         Assert.True((await runner.RunAsync(consumer, claim, now, CancellationToken.None)).IsSuccess);

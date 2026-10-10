@@ -59,14 +59,14 @@ public sealed class PageWriterTests
         {
             var pages = await writer.WriteAsync(tenant, batch, work, Records(), CancellationToken.None);
             Assert.True(pages.Count > 1);
-            foreach (var page in pages)
+            await foreach (var page in pages.ReadMetadata())
             {
                 await using var file = File.OpenRead(Path.Combine(writer.BatchDirectory(tenant, batch), $"{page.PageOrdinal}.gz"));
                 await using var gzip = new GZipStream(file, CompressionMode.Decompress); using var memory = new MemoryStream();
                 await gzip.CopyToAsync(memory); Assert.True(memory.Length <= FeedStorageOptions.PageTargetBytes);
             }
             var again = await writer.WriteAsync(tenant, batch, work, Records(), CancellationToken.None);
-            Assert.Equal(pages.Select(p => p.PageHash), again.Select(p => p.PageHash));
+            Assert.Equal(pages.ContentHash, again.ContentHash);
         }
         finally { Directory.Delete(root, true); }
     }

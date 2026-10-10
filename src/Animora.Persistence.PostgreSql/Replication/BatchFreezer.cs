@@ -49,11 +49,13 @@ public sealed class BatchFreezer(IFeedContextFactory factory, IBackgroundAdmissi
             {
                 tenant = db.CurrentTenantId;
                 using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                budget.CancelAfter(options.Value.MaxSnapshotLifetime);
+                budget.CancelAfter(options.Value.MaxSnapshotLifetime <= TimeSpan.FromSeconds(10)
+                    ? options.Value.MaxSnapshotLifetime : TimeSpan.FromSeconds(10));
                 try
                 {
                     await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, budget.Token).ConfigureAwait(false);
                     await db.Database.ExecuteSqlRawAsync("SET TRANSACTION READ ONLY", budget.Token).ConfigureAwait(false);
+                    await db.Database.ExecuteSqlRawAsync("SET LOCAL TIME ZONE 'UTC'", budget.Token).ConfigureAwait(false);
                     position = await new FeedPositionReader(db).GetAsync(tenant, budget.Token).ConfigureAwait(false);
                     if (!full && Decide(request, position) is { } decision) return decision;
                     id = BatchId(tenant, position, full ? 0 : request.FromSequence, full);
@@ -72,7 +74,7 @@ public sealed class BatchFreezer(IFeedContextFactory factory, IBackgroundAdmissi
             var pages = await writer.WriteAsync(tenant, id, workspace, FeedPageWriter.ReadSpool(spool, ct), ct).ConfigureAwait(false);
             var batch = new FeedBatchRow { TenantId = tenant, BatchId = id, Epoch = position.Epoch, Generation = position.Generation,
                 FromSequenceExclusive = full ? 0 : request.FromSequence, Watermark = position.LastSequence, PageCount = pages.Count,
-                ContentHash = Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(string.Concat(pages.Select(p => p.PageHash))))),
+                ContentHash = pages.ContentHash,
                 State = FeedBatchState.Ready, IsFullSnapshot = full, CreatedUtc = DateTimeOffset.UtcNow };
             await using var write = factory.Create();
             await using var publish = await write.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
@@ -83,12 +85,22 @@ public sealed class BatchFreezer(IFeedContextFactory factory, IBackgroundAdmissi
                 return new("ResyncRequired", Resync: new("EPOCH_CHANGED", state.Epoch));
             var already = await write.Set<FeedBatchRow>().SingleOrDefaultAsync(x => x.BatchId == id, ct).ConfigureAwait(false);
             if (already is not null) return Ready(already);
-            write.Set<FeedBatchPageRow>().AddRange(pages);
+            int buffered = 0;
+            await foreach (var page in pages.ReadMetadata(ct).ConfigureAwait(false))
+            {
+                write.Set<FeedBatchPageRow>().Add(page);
+                if (++buffered == 32)
+                {
+                    await write.SaveChangesAsync(ct).ConfigureAwait(false);
+                    write.ChangeTracker.Clear(); buffered = 0;
+                }
+            }
             await write.SaveChangesAsync(ct).ConfigureAwait(false);
+            write.ChangeTracker.Clear();
             write.Set<FeedBatchRow>().Add(batch); // Ready becomes visible last and together with all metadata.
             await write.SaveChangesAsync(ct).ConfigureAwait(false);
             await publish.CommitAsync(ct).ConfigureAwait(false);
-            Duration.Record(watch.Elapsed.TotalSeconds); Pages.Add(pages.Count); Bytes.Add(pages.Sum(p => (long)p.SizeBytes));
+            Duration.Record(watch.Elapsed.TotalSeconds); Pages.Add(pages.Count); Bytes.Add(pages.SizeBytes);
             return Ready(batch);
         }
         finally { if (Directory.Exists(workspace)) Directory.Delete(workspace, true); }

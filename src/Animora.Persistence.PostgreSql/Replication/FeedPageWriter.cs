@@ -27,7 +27,7 @@ public sealed class FeedPageWriter(IOptions<FeedStorageOptions> options)
         if (value.Length != 26 || !value.All(c => "0123456789ABCDEFGHJKMNPQRSTVWXYZ".Contains(c)))
             throw new ArgumentException("Invalid feed identifier.");
     }
-    public async Task<IReadOnlyList<FeedBatchPageRow>> WriteAsync(string tenant, string batch, string workspace,
+    public async Task<FeedPageWriteResult> WriteAsync(string tenant, string batch, string workspace,
         IAsyncEnumerable<SyncRecord> records, CancellationToken ct)
     {
         // Raw per-page arrays are staged first to learn PageCount without holding a batch in memory.
@@ -48,7 +48,10 @@ public sealed class FeedPageWriter(IOptions<FeedStorageOptions> options)
         }
         if (page.Count != 0 || count == 0) await Stage().ConfigureAwait(false);
         var dir = BatchDirectory(tenant, batch); Directory.CreateDirectory(dir);
-        var metadata = new List<FeedBatchPageRow>(count);
+        var metadataPath = Path.Combine(workspace, "pages.ndjson");
+        await using var metadata = new StreamWriter(metadataPath, false, new UTF8Encoding(false));
+        using var contentHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        long totalBytes = 0;
         for (int ordinal = 0; ordinal < count; ordinal++)
         {
             var raw = await File.ReadAllBytesAsync(Path.Combine(workspace, $"{ordinal}.json"), ct).ConfigureAwait(false);
@@ -75,12 +78,17 @@ public sealed class FeedPageWriter(IOptions<FeedStorageOptions> options)
                         throw new InvalidOperationException("Immutable batch content mismatch.");
                     File.Delete(temporary);
                 }
-                metadata.Add(new() { TenantId = tenant, BatchId = batch, PageOrdinal = ordinal, PageHash = hash,
-                    SizeBytes = checked((int)new FileInfo(final).Length) });
+                int compressedSize = checked((int)new FileInfo(final).Length);
+                totalBytes += compressedSize;
+                contentHash.AppendData(Encoding.ASCII.GetBytes(hash));
+                await metadata.WriteLineAsync(JsonSerializer.Serialize(new FeedBatchPageRow
+                    { TenantId = tenant, BatchId = batch, PageOrdinal = ordinal, PageHash = hash, SizeBytes = compressedSize },
+                    SyncSerializerV2.Options).AsMemory(), ct).ConfigureAwait(false);
             }
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
-        return metadata;
+        await metadata.FlushAsync(ct).ConfigureAwait(false);
+        return new(count, totalBytes, Convert.ToHexStringLower(contentHash.GetHashAndReset()), metadataPath);
     }
     private static async Task<string> HashFile(string path, CancellationToken ct)
     {
@@ -92,5 +100,16 @@ public sealed class FeedPageWriter(IOptions<FeedStorageOptions> options)
         using var input = new StreamReader(path, Encoding.UTF8);
         while (await input.ReadLineAsync(ct).ConfigureAwait(false) is { } line)
             yield return JsonSerializer.Deserialize<SyncRecord>(line, SyncSerializerV2.Options)!;
+    }
+}
+
+/// <summary>Fixed-size result; page metadata is streamed from the workspace rather than retained per batch.</summary>
+public sealed record FeedPageWriteResult(int Count, long SizeBytes, string ContentHash, string MetadataPath)
+{
+    public async IAsyncEnumerable<FeedBatchPageRow> ReadMetadata([EnumeratorCancellation] CancellationToken ct = default)
+    {
+        using var input = new StreamReader(MetadataPath, Encoding.UTF8);
+        while (await input.ReadLineAsync(ct).ConfigureAwait(false) is { } line)
+            yield return JsonSerializer.Deserialize<FeedBatchPageRow>(line, SyncSerializerV2.Options)!;
     }
 }

@@ -52,6 +52,7 @@ internal static class SyncEndpoints
         string etag = "\"" + page.Hash + "\"";
         http.Response.Headers.ETag = etag;
         http.Response.Headers.CacheControl = "private, immutable";
+        http.Response.Headers.Vary = "Authorization, " + WireContract.HeaderName;
         if (http.Request.Headers.IfNoneMatch.ToString().Split(',').Select(x => x.Trim()).Any(x => x == etag || x == "W/" + etag || x == "*"))
         {
             await page.Content.DisposeAsync().ConfigureAwait(false);
