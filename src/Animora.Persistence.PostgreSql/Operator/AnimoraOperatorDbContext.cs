@@ -13,6 +13,7 @@ namespace Animora.Persistence.PostgreSql.Operator;
 public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbContext> options) : DbContext(options)
 {
     public DbSet<Animora.Persistence.PostgreSql.Files.FileObject> FileObjects => Set<Animora.Persistence.PostgreSql.Files.FileObject>();
+    public DbSet<Animora.Persistence.PostgreSql.Identity.SecurityAuditEntry> SecurityAudit => Set<Animora.Persistence.PostgreSql.Identity.SecurityAuditEntry>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<SubscriptionEvent> SubscriptionEvents => Set<SubscriptionEvent>();
@@ -29,6 +30,7 @@ public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbC
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.ApplyConfiguration(new SecurityAuditConfiguration());
         b.ApplyConfiguration(new FileObjectConfiguration());
         b.ApplyConfiguration(new LicenseGrantConfiguration());
         b.ApplyConfiguration(new LicenseRecordConfiguration());
@@ -59,7 +61,7 @@ public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbC
                 throw new InvalidOperationException("Operator context may write only Tenant.Status.");
         }
         foreach (var entry in ChangeTracker.Entries())
-            if (entry.Entity is OperatorAudit or SubscriptionEvent or BillingPeriod &&
+            if (entry.Entity is OperatorAudit or SubscriptionEvent or BillingPeriod or Animora.Persistence.PostgreSql.Identity.SecurityAuditEntry &&
                 entry.State is EntityState.Modified or EntityState.Deleted)
                 throw new InvalidOperationException("Operator history is append-only.");
     }
