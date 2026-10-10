@@ -9,6 +9,11 @@ public sealed class ReportingQuerySession : IAsyncDisposable
     public const int TimeoutSeconds=5;
     private readonly NpgsqlConnection _connection;
     private readonly NpgsqlTransaction _transaction;
+    private Action? _release;
+    private int _disposed;
+    internal NpgsqlConnection Connection => _connection;
+    internal NpgsqlTransaction Transaction => _transaction;
+    internal void ReleaseOnDispose(Action release) => _release = release;
     private ReportingQuerySession(NpgsqlConnection connection,NpgsqlTransaction transaction) { _connection=connection; _transaction=transaction; }
     public static async Task<ReportingQuerySession> OpenAsync(NpgsqlDataSource source,CancellationToken ct)
     {
@@ -31,7 +36,16 @@ public sealed class ReportingQuerySession : IAsyncDisposable
         { if(rows.Count==MaxRows) throw new InvalidOperationException("Reporting row budget exceeded."); rows.Add(map(reader)); }
         return rows;
     }
-    public async ValueTask DisposeAsync() { await _transaction.DisposeAsync().ConfigureAwait(false); await _connection.DisposeAsync().ConfigureAwait(false); }
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        try { await _transaction.DisposeAsync().ConfigureAwait(false); }
+        finally
+        {
+            try { await _connection.DisposeAsync().ConfigureAwait(false); }
+            finally { Interlocked.Exchange(ref _release, null)?.Invoke(); }
+        }
+    }
 }
 
 public interface IReportingQuerySessionFactory { Task<ReportingQuerySession> OpenAsync(CancellationToken ct=default); }
