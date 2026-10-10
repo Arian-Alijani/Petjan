@@ -33,7 +33,7 @@ internal sealed class FileStore(IOptions<ServerOptions> options)
         try
         {
             // Sharing denial also protects a publisher still copying while an old temp is scanned.
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete);
             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0
                 || File.GetLastWriteTimeUtc(path) >= before.UtcDateTime) return false;
             File.Delete(path);

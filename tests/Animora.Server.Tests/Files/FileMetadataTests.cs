@@ -74,13 +74,14 @@ public sealed class FileMetadataTests(PgFixture pg) : IClassFixture<PgFixture>
         builder.Services.AddDbContext<AnimoraServerDbContext>(o => o.UseNpgsql(pg.ConnectionString));
         builder.Services.AddSingleton<FileStore>(); builder.Services.AddSingleton<ValetKeyService>();
         builder.Services.AddScoped<FileTransferService>();
+        builder.Services.AddRateLimiter(ServerRateLimiting.Configure);
         builder.Services.AddAuthorization(o =>
         {
             foreach (string policy in new[] { CoarsePolicies.TenantMember, CoarsePolicies.DeviceActive,
                 PermissionCodes.PatientsRead, PermissionCodes.PatientsWrite })
                 o.AddPolicy(policy, p => p.RequireAssertion(_ => true));
         });
-    }, app => { app.UseAuthorization(); app.MapFileEndpoints(); });
+    }, app => { app.UseAuthorization(); app.UseRateLimiter(); app.MapFileEndpoints(); });
     [PgFact] public async Task UploadOffset_Resend_HashMismatch_AndDownloadHeaders_OverHttp()
     {
         await using (var db = Db(FileStoreTests.Tenant)) await db.Database.MigrateAsync();

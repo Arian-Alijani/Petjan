@@ -92,7 +92,7 @@ public sealed class AdminCookiePgTests(PgFixture pg) : IClassFixture<PgFixture>
     [PgFact] public async Task Cookie_CannotCallOperatorApi_AndPostsWithoutTokenRejected()
     {
         using var host=await Host();await host.LoginAsync();Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/operator/tenants")).StatusCode);
-        foreach(string route in new[] { "/admin/tenants/new","/admin/plans","/admin/licensing/keys","/admin/account/logout","/admin/account/change-password" })
+        foreach(string route in new[] { "/admin/tenants/new","/admin/tenants/guess","/admin/tenants/guess/licenses","/admin/plans","/admin/licensing/keys","/admin/account/logout","/admin/account/change-password" })
             Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PostAsync(route,new StringContent(""))).StatusCode);
     }
     [PgFact] public async Task CookieRevokedByOperatorPasswordChange()
