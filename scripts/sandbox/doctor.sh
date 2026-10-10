@@ -29,6 +29,18 @@ command -v Xvfb >/dev/null 2>&1 \
   && printf '%-14s %s\n' "xvfb:" "present (headless run OK)" \
   || printf '%-14s %s\n' "xvfb:" "MISSING (build/test OK, run needs it)"
 
+echo "----- postgres (server/DB tests) -----"
+PG_PORT_D="${ANIMORA_PG_PORT:-5433}"
+if ls -d /usr/lib/postgresql/*/bin >/dev/null 2>&1 || command -v postgres >/dev/null 2>&1; then
+  if PGPASSWORD=animora psql -h 127.0.0.1 -p "$PG_PORT_D" -U animora -d postgres -tAc 'SELECT 1' >/dev/null 2>&1; then
+    printf '%-14s %s\n' "postgres:" "UP on 127.0.0.1:$PG_PORT_D (server/DB tests will hit a REAL DB)"
+  else
+    printf '%-14s %s\n' "postgres:" "installed but DOWN -> run install-postgres.sh"
+  fi
+else
+  printf '%-14s %s\n' "postgres:" "MISSING -> run install-postgres.sh (PG-gated tests will SKIP)"
+fi
+
 echo "----- build output -----"
 for c in Debug Release; do
   dll="$REPO_ROOT/$DESKTOP_DLL_REL/$c/net10.0/Animora.Desktop.dll"
