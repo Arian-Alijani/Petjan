@@ -2587,3 +2587,8 @@ Impact:     B04 can build on `IAuthenticationService`/`CurrentUserContextService
 - Desktop, SQLite and client services untouched. Repository query filters never bypassed.
 - Per explicit user directive, full/fast builds, tests and smoke run are NOT executed. This is implementation completion, not production acceptance; runtime/PG gates remain unverified.
 - Reporter/stock seam and identical handoff-shape deviations documented in the S09 task entries above. Next implementation phase: S10.
+
+### S10-a — 2026-10-10 (T10–T12 authored)
+- Inventory, purchasing and finance PostgreSQL relational mappings, migration 108 and immutability triggers authored. No on-hand/read-model table is persisted.
+- Model, composite-child and pure stock-derivation regressions authored; all execution gates remain unexecuted per user directive.
+- RecurringExpensePayment is an existing SyncableEntity, not an owned Domain child. Its existing Id key + unique tenant/template/period guard are preserved; it is command-settled only and not exposed to replication.
