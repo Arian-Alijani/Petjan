@@ -1,3 +1,4 @@
+using Animora.Persistence.PostgreSql.Outbox;
 using Animora.Persistence.PostgreSql.Replication;
 using Animora.Domain.Inventory;
 using Animora.Domain.Purchasing;
@@ -106,6 +107,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<RecurringExpensePayment> RecurringExpensePaymentSet => Set<RecurringExpensePayment>();
     public DbSet<RecurringExpense> RecurringExpenseSet => Set<RecurringExpense>();
 
+    public DbSet<OutboxMessage> ServerOutboxMessages => Set<OutboxMessage>();
+    public DbSet<ConsumedMessage> ConsumedMessages => Set<ConsumedMessage>();
     public DbSet<FeedBatchRow> FeedBatches => Set<FeedBatchRow>();
     public DbSet<FeedBatchPageRow> FeedBatchPages => Set<FeedBatchPageRow>();
     public DbSet<TenantFeedStateRow> TenantFeedState => Set<TenantFeedStateRow>();
@@ -119,6 +122,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnimoraServerDbContext).Assembly);
         ServerModelConventions.ApplyTenancy(modelBuilder, () => CurrentTenantId);
 
+        modelBuilder.Entity<OutboxMessage>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ConsumedMessage>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<FeedBatchRow>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<FeedBatchPageRow>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<TenantFeedStateRow>()
