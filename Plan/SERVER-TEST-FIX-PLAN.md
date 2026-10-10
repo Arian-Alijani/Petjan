@@ -48,7 +48,7 @@
 
 ---
 
-## TASK 0 — آماده‌سازی محیط (یک‌بار) — [ ]
+## TASK 0 — آماده‌سازی محیط (یک‌بار) — [x] (طبق دستور کاربر: بدون build/test؛ نصب محیط لازم نشد، تغییر کدی ندارد)
 
 **کار:** محیط sandbox را برای build/test هدفمند Track S آماده کن.
 ```bash
@@ -321,7 +321,7 @@ scripts/git/push.sh "chore(plan): remove completed server-test fix plan"
 
 ## چک‌لیست فشرده (برای مرور سریع وضعیت)
 
-- [ ] TASK 0 — محیط آماده (SDK + PG)
+- [x] TASK 0 — محیط آماده (SDK + PG)
 - [ ] TASK 1 — appsettings pool ≤12 (R1) + push
 - [ ] TASK 2 — null-guard RequestServices (R2) + push
 - [ ] TASK 3 — allow-list Licensing در source-scan (R4) + push
