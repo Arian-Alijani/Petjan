@@ -188,7 +188,8 @@ These were confirmed against the live tree; **do not re-derive**:
   (closes the 113→115 drift; log in PROGRESS deviation). Migration must be additive; never edit later.
   `build.sh fast` compiles. → **push** `feat(server): S17 migration 115_Files + ExpectedHead bump`.
 
-- [~] **S17-T4 — Server Files plane.**
+- [x] **S17-T4 — Server Files plane.**
+  Completed 2026-10-10: aged publisher hash.guid.tmp orphans are fenced against publishers, exact-path validated and audited; unknown files preserved. No build/test executed.
   Create under `src/Animora.Server/Files/`: `FileStore` (CAS + staging, temp→fsync→atomic move, fan-out, ref-counted
   blob delete), `ValetKeyService` (ITimeLimitedDataProtector, purpose `"Animora.Files.Valet.v1"`, canonical JSON, TTL 5 min,
   bind tid/uid/did/fid/op/max; **no path anywhere**), `FileTypePolicy` (allow-list; executables rejected),

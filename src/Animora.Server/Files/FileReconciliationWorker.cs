@@ -79,6 +79,12 @@ internal sealed class FileReconciliationWorker : ResilientWorker
             {
                 if(await _maintenance.CollectAsync(name,Clock.GetUtcNow(),()=>{File.Delete(path);return Task.CompletedTask;},true,ct).ConfigureAwait(false))Finding("orphan");
             }
+            else if (_store.TryPublisherTemporary(path, out string temporaryHash))
+            {
+                var before = Clock.GetUtcNow() - TimeSpan.FromHours(1);
+                if (await _maintenance.CollectPublisherTemporaryAsync(temporaryHash,
+                    () => _store.DeletePublisherTemporary(path, before), ct).ConfigureAwait(false)) Finding("orphan");
+            }
             // Unknown/operator files and manifests are never deleted by guessed filenames.
         }
     }
