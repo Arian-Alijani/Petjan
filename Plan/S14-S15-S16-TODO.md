@@ -325,7 +325,7 @@ BackgroundService، poll 2s با idle-backoff تا 15s، تحت `IBackgroundAdmi
 - [x] **S15-T2 · Persistence entities + store + migration.** `Provisioning/{WebsiteClient,ProvisioningIntent}.cs` + configurations + `IProvisioningIntentStore`/impl + map در `AnimoraOperatorDbContext` + migration `113_ProvisioningIntents` + `ServerSchemaVersion.ExpectedHead`. push: `feat(persistence): S15 website clients, provisioning intents store & migration 113`.
 - [x] **S15-T3 · Signature verifier + replay window + client service.** `Provisioning/{RequestSignatureVerifier,ReplayWindow,WebsiteClientService}.cs`. push: `feat(server): S15 HMAC request signing, replay window & website client service`.
 - [x] **S15-T4 · Endpoints + workers + operator views.** `Provisioning/{ProvisioningEndpoints,ProvisioningIntentWorker,ProvisioningIntentRetentionWorker}.cs` + `Operator/{WebsiteClientEndpoints,ProvisioningIntentEndpoints}.cs` + DI `AddAnimoraProvisioning()` + `Program.cs`. push: `feat(server): S15 provisioning intake endpoints, workers & operator views`.
-- [ ] **S15-T5 · تست‌ها.** کل pure list بالا + PG-gated نوشته. اجرا `scripts/sandbox/test.sh Provisioning`. push: `test(server): S15 signature, intent worker & website/operator parity`.
+- [x] **S15-T5 · تست‌ها.** کل pure list بالا + PG-gated نوشته. سورس regression و PG-gated نوشته شد؛ طبق دستور کاربر هیچ تستی اجرا نشد. push: `test(server): S15 signature, intent worker & website/operator parity`.
 - [ ] **S15-T6 · Build/run gate + PROGRESS.** build full 0/0 → run SMOKE RUN OK → acceptance grepها. PROGRESS: S15 ✅ Done، Next → S16، `### S15` entry. push: `feat(server): S15 self-service onboarding intake (signed, idempotent, async provisioning intent)`.
 
 ---
