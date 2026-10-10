@@ -70,6 +70,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<WorkerExecutionContext>();
         services.TryAddScoped<ServerOutbox>();
         services.TryAddScoped<OutboxClaimStore>();
+        services.TryAddScoped<OutboxConsumerRunner>();
         services.TryAddSingleton<WorkerTenantDirectory>(sp => new(sp.GetRequiredKeyedService<NpgsqlDataSource>(WorkerKey)));
         services.AddDbContext<OutboxDbContext>((sp, o) => o.UseNpgsql(sp.GetRequiredKeyedService<NpgsqlDataSource>(WorkerKey)));
 
