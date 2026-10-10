@@ -41,8 +41,11 @@ public sealed class ServerFinancialEventProcessor(AnimoraServerDbContext db,
         }
         foreach (var entry in db.ChangeTracker.Entries<JournalEntry>().Where(e => e.State == EntityState.Added))
         {
-            var balance = entry.Entity.EnsureBalanced();
-            if (balance.IsFailure) return balance;
+            // JournalEntry.Create is the authoritative validation boundary; verify persisted lines
+            // still represent its immutable, balanced result before saving.
+            var balance = 0L;
+            foreach (var line in entry.Entity.Lines) balance = checked(balance + line.SignedMinor);
+            if (balance != 0) return Result.Fail(ErrorCodes.JournalUnbalanced);
         }
         foreach (var root in roots) root.ClearDomainEvents();
         return Result.Ok();

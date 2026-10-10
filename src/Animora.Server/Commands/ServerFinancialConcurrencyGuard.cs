@@ -17,6 +17,8 @@ internal sealed class ServerFinancialConcurrencyGuard(ServerSchedulingConcurrenc
 {
     public async Task<Result> PrepareAsync(object command, CancellationToken ct = default)
     {
+        if (command is ReceiveGoodsCommand { AllowOverReceipt: true })
+            return Result.Fail(ErrorCodes.ValidationFailed, "Over-receipt policy is server-owned.");
         var resources = new List<string>();
         if (command is IJournaledCommand { AggregateTypeName: "Invoice", AggregateIdOrNull: { } invoiceId })
             resources.Add("invoice:" + invoiceId);
