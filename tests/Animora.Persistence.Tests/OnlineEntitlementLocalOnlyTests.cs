@@ -33,7 +33,7 @@ public sealed class OnlineEntitlementLocalOnlyTests
         Assert.DoesNotContain("IsDeleted", columns);
 
         // The migration really created the table.
-        var exists = await db.Database.SqlQueryRaw<int>($"SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = '{table}'").SingleAsync();
+        var exists = await db.Database.SqlQuery<int>($"SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {table}").SingleAsync();
         Assert.Equal(1, exists);
     }
 

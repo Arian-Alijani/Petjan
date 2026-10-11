@@ -48,7 +48,10 @@ public sealed class SealedEntitlementStore(IServiceScopeFactory scopes) : ISeale
         {
             using var di = scopes.CreateScope();
             var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            var row = await db.Set<SealedEntitlementRow>().FirstOrDefaultAsync(r => r.TenantId == entitlement.TenantId, ct).ConfigureAwait(false);
+            // The shared read-oriented context defaults to NoTracking; this row must be
+            // tracked so an accepted forward merge is actually persisted by SaveChanges.
+            var row = await db.Set<SealedEntitlementRow>().AsTracking()
+                .FirstOrDefaultAsync(r => r.TenantId == entitlement.TenantId, ct).ConfigureAwait(false);
 
             var merged = SealedEntitlementMerge.Merge(row is null ? null : ToRecord(row), entitlement);
             if (merged.IsFailure) return merged.ToResult();

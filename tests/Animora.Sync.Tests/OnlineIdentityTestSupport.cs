@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Animora.Client.Services.Identity;
 using Animora.Contracts.Wire.Auth;
 using Animora.Contracts.Wire.Errors;
 using Animora.Contracts.Wire.Licensing;

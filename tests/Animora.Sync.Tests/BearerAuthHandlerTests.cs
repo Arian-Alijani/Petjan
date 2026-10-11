@@ -180,7 +180,9 @@ public sealed class BearerAuthHandlerTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal(1, refresher.Calls);
-        Assert.Equal(["old", "new"], inner.Seen.Select(s => s.Bearer).ToArray());
+        Assert.Collection(inner.Seen,
+            first => Assert.Equal("old", first.Bearer),
+            second => Assert.Equal("new", second.Bearer));
     }
 
     [Fact]

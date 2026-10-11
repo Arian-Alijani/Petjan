@@ -64,7 +64,7 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
             using var di = scopes.CreateScope();
             var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var now = clock.UtcNow;
-            var row = await db.Set<ClientSessionRow>().FirstOrDefaultAsync(
+            var row = await db.Set<ClientSessionRow>().AsTracking().FirstOrDefaultAsync(
                 r => r.TenantId == session.TenantId && r.UserId == session.UserId && r.DeviceId == session.DeviceId, ct).ConfigureAwait(false);
             if (row is null)
                 db.Set<ClientSessionRow>().Add(ClientSessionRow.Create(session.TenantId, session.UserId, session.DeviceId, access.Value!,
@@ -93,7 +93,8 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
             using var di = scopes.CreateScope();
             var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var now = clock.UtcNow;
-            var rows = await db.Set<ClientSessionRow>().Where(r => r.AccessToken != string.Empty).ToListAsync(ct).ConfigureAwait(false);
+            var rows = await db.Set<ClientSessionRow>().AsTracking()
+                .Where(r => r.AccessToken != string.Empty).ToListAsync(ct).ConfigureAwait(false);
             foreach (var row in rows)
                 row.Replace(string.Empty, DateTimeOffset.UnixEpoch, string.Empty, row.Role, row.SecurityStamp, offlineCredentialVerifier: null, now);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -140,7 +141,7 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
         {
             using var di = scopes.CreateScope();
             var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            var row = await db.Set<ClientSessionRow>().FirstOrDefaultAsync(
+            var row = await db.Set<ClientSessionRow>().AsTracking().FirstOrDefaultAsync(
                 r => r.TenantId == tenantId && r.UserId == userId && r.DeviceId == deviceId, ct).ConfigureAwait(false);
             if (row is null) return Result.Fail(ErrorCodes.OfflineSessionUnavailable, "no_session_row");
             // Only one mirror may exist: another user's verifier must not outlive this login.

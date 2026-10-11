@@ -114,6 +114,51 @@ for p in "${PROJECTS[@]}"; do
     RC=$rc
   fi
 done
+
+# G06's focused Windows gate also boots the already-built, unconfigured desktop.
+# This is Actions-only: never launch a GUI or build anything in the sandbox.
+if [ "$RC" -eq 0 ] && [ "$SCOPE" = "desktop" ] && [[ "$FILTER" == *OnlineIdentity* ]] \
+    && [ "${GITHUB_ACTIONS:-}" = "true" ] && [ "${RUNNER_OS:-}" = "Windows" ]; then
+  log "offline desktop smoke (6 seconds, no additional build) ..."
+  export ANIMORA_CI_CONFIGURATION="$CONFIG"
+  # Pass one complete script, not PowerShell's line-oriented stdin REPL (which
+  # can return success without executing an unfinished multiline block).
+  pwsh -NoProfile -NonInteractive -Command "$(cat <<'POWERSHELL'
+$ErrorActionPreference = 'Stop'
+$dll = Join-Path $env:GITHUB_WORKSPACE "src/Animora.Desktop/bin/$env:ANIMORA_CI_CONFIGURATION/net10.0/Animora.Desktop.dll"
+$logs = Join-Path $env:GITHUB_WORKSPACE 'TestResults'
+$stdout = Join-Path $logs 'offline-smoke.stdout.log'
+$stderr = Join-Path $logs 'offline-smoke.stderr.log'
+$process = $null
+try {
+    if (!(Test-Path $dll)) { throw "Missing built desktop: $dll" }
+    $process = Start-Process dotnet -ArgumentList "`"$dll`"" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    if ($process.WaitForExit(6000)) {
+        Get-Content $stdout, $stderr -ErrorAction SilentlyContinue | Write-Output
+        throw "Desktop exited during offline smoke (exit $($process.ExitCode))."
+    }
+    Write-Output 'SMOKE RUN OK: unconfigured desktop stayed alive for 6 seconds.'
+} catch {
+    Write-Output $_
+    exit 1
+} finally {
+    if ($null -ne $process) {
+        if (!$process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+        $process.Dispose()
+    }
+}
+POWERSHELL
+)"
+  smoke_rc=$?
+  if [ "$smoke_rc" -eq 0 ]; then
+    ok "SMOKE RUN OK (offline desktop)"
+    summary "| Offline desktop smoke (6s; no build) | passed |"
+  else
+    err "Offline desktop smoke failed"
+    summary "| Offline desktop smoke | failed |"
+    RC=$smoke_rc
+  fi
+fi
 ELAPSED=$(( $(date +%s) - START ))
 
 summary ""
