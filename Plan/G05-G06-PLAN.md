@@ -271,7 +271,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(identity): G06 session store, online auth client, device lifecycle"`
 
-### T12 — BearerAuthHandler (Sync.Custom) + OnlineEntitlementGate (Client.Services) `[ ]`
+### T12 — BearerAuthHandler (Sync.Custom) + OnlineEntitlementGate (Client.Services) `[x]`
 - `src/Animora.Sync.Custom/BearerAuthHandler.cs`: single-flight 401 refresh delegating handler.
 - `src/Animora.Client.Services/Security/OnlineEntitlementGate.cs`: sealed-cache-only decision (never server). Must `grep` show `SealedEntitlementMerge.Merge`/`HighWaterClock` usage across Client.Services+Infrastructure.Local (acceptance #4) — the store (T10) covers Merge; gate uses `HighWaterClock`.
 - `scripts/sandbox/build.sh fast`.
