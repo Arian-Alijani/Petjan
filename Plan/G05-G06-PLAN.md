@@ -256,7 +256,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(persistence): G06 ClientSessions + SealedEntitlements [LocalOnly] + migration 033"`
 
-### T10 — Infrastructure.Local: fingerprint source + sealed store `[ ]`
+### T10 — Infrastructure.Local: fingerprint source + sealed store `[x]`
 - `src/Animora.Infrastructure.Local/Identity/DeviceFingerprintSource.cs` (`IDeviceFingerprintSource.Collect()` — raw never leaves).
 - `src/Animora.Infrastructure.Local/Identity/SealedEntitlementStore.cs` (`ISealedEntitlementStore`, atomic + OS-protected via `ISecretStore`, forward-only via `SealedEntitlementMerge.Merge` handling `Result`).
 - Add csproj refs (Server.Licensing, Contracts.Wire) if missing.

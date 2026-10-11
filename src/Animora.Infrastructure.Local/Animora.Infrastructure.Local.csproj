@@ -4,6 +4,8 @@
     <ProjectReference Include="..\Animora.Domain\Animora.Domain.csproj" />
     <ProjectReference Include="..\Animora.Application\Animora.Application.csproj" />
     <ProjectReference Include="..\Animora.Persistence.Sqlite\Animora.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\Animora.Contracts.Wire\Animora.Contracts.Wire.csproj" />
+    <ProjectReference Include="..\Animora.Server.Licensing\Animora.Server.Licensing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
