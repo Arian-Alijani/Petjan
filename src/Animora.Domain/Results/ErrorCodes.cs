@@ -788,4 +788,14 @@ public static class ErrorCodes
     public static readonly ErrorCode InsightNotEnabled = new("INSIGHT_NOT_ENABLED", ErrorCode.Entitlement);
 
     #endregion
+
+    #region Sync apply/conflict (G04)
+
+    /// <summary>A pulled batch does not continue the local replica checkpoint (epoch/watermark mismatch); nothing was applied.</summary>
+    public static readonly ErrorCode SyncApplyConflict = new("SYNC_APPLY_CONFLICT", ErrorCode.Conflict);
+
+    /// <summary>A full-resync shadow generation failed validation (pages, counts or content hash); live state was left untouched.</summary>
+    public static readonly ErrorCode SyncShadowValidationFailed = new("SYNC_SHADOW_VALIDATION_FAILED", ErrorCode.Integrity);
+
+    #endregion
 }
