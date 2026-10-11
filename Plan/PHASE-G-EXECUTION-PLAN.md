@@ -354,7 +354,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
   - `sync-behavioral`: `ReconnectStormTests` + `MixedFleetTests`.
   - Verify YAML parses (`python3 -c "import yaml; yaml.safe_load(open(...))"`). **PUSH.**
 
-- [ ] **G08-T9 — Local sanity (NARROW)**
+- [x] **G08-T9 — Local sanity (NARROW)**
   - `scripts/sandbox/build.sh fast` to confirm new test files compile (0/0 for touched projects). Optionally
     one `scripts/sandbox/bench.sh offline` to confirm it emits the table + exit 0 (ONLY if it's not too slow;
     it's a 60-s idle run — acceptable once, skip if constrained). Do NOT run full suites. **PUSH** fixups.
