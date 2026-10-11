@@ -177,7 +177,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
   - Verify: `bash -n scripts/ci/pg-gate.sh` (syntax only — do NOT execute, no PG here).
   - **PUSH.**
 
-- [ ] **G07-T2 — `scripts/ci/restore-drill.sh` (new)**
+- [x] **G07-T2 — `scripts/ci/restore-drill.sh` (new)**
   - `set -euo pipefail`. Implements ARCH §17.3 one-consistency-boundary drill. Steps (all against the CI
     PostgreSQL + a temp `DataRootPath`):
     (a) migrate schema as OWNER; provision 1 tenant + 1 known row + 1 stored file;
