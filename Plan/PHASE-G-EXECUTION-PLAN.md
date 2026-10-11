@@ -380,7 +380,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
 #   scripts/sandbox/doctor.sh (edit), tests/Animora.Server.Tests/**.
 # NO migration, NO src/**, NO package pin, NO .sln edit, NO ErrorCode. Prereq: G07 + G08 done.
 
-- [ ] **G09-T1 — `docs/release/01-deployment-topology.md` (new)**
+- [x] **G09-T1 — `docs/release/01-deployment-topology.md` (new)**
   - `mkdir -p docs/release`. One-host topology (single ASP.NET Core process + PostgreSQL 18 + the
     `DataRootPath` file tree + the Data-Protection key ring). Migration discipline (ARCH §17.1): an
     owner/DDL role runs `dotnet-ef database update` BEFORE traffic; runtime app role has NO DDL rights;
