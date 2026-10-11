@@ -10,6 +10,44 @@ Everything is driven through one helper: **`scripts/sandbox/gh-ci.sh`**
 
 ---
 
+## One-time install (why the workflows aren't already in `.github/workflows/`)
+
+The sandbox's GitHub token is a **GitHub App user token without the
+`workflows` permission**, so it cannot push files under `.github/workflows/`.
+To work around that cleanly, the workflow YAML is version-controlled under
+**`scripts/sandbox/workflows/`** instead, and installed on demand:
+
+```bash
+scripts/sandbox/gh-ci.sh install
+```
+
+This copies `ci.yml` + `_dotnet-build-test.yml` into `.github/workflows/`,
+commits, and pushes. **If the push is rejected** for the `workflows` permission,
+`install` prints the exact fix. The repo owner does ONE of:
+
+```bash
+# A) grant the scope once, then re-install
+gh auth refresh -s workflow
+scripts/sandbox/gh-ci.sh install
+
+# B) or commit the two files from a permitted session
+cp scripts/sandbox/workflows/*.yml .github/workflows/
+git add .github/workflows/*.yml && git commit -m "ci: add workflows" && git push
+```
+
+Once the workflows exist on GitHub (either way), every command below works and
+no further install is needed.
+
+> There is also a leftover unconfigured template at
+> `.github/workflows/dotnet-desktop.yml` (a GitHub starter that was never filled
+> in — it still says `your-solution-name`). The sandbox token can't delete it
+> (same `workflows` permission), so remove it from a permitted session:
+> `git rm .github/workflows/dotnet-desktop.yml && git commit -m "ci: drop unused template" && git push`.
+> It is harmless if left — it only runs on push/PR and will error, but it does
+> not affect the `ci.yml` pipeline you drive with `gh-ci.sh`.
+
+---
+
 ## Why this exists
 
 | Local sandbox | GitHub Actions |
@@ -28,9 +66,12 @@ cross-platform / real-DB work to CI with `gh-ci.sh`.
 
 | File | Role |
 |---|---|
-| `.github/workflows/ci.yml` | Entry point. Runs on push/PR to `main` (+ `genspark_ai_developer`) and on **manual `workflow_dispatch`** with inputs. Plans the OS matrix + tracks, then calls the reusable unit for the `app` and/or `server` track, then a `summary`. |
-| `.github/workflows/_dotnet-build-test.yml` | Reusable "how to restore/build/test" unit. Knows the project sets per track, spins up PostgreSQL for the server track, and uploads `.trx` results + build logs as artifacts. |
+| `scripts/sandbox/workflows/ci.yml` → installed to `.github/workflows/ci.yml` | Entry point. Runs on push/PR to `main` (+ `genspark_ai_developer`) and on **manual `workflow_dispatch`** with inputs. Plans the OS matrix + tracks, then calls the reusable unit for the `app` and/or `server` track, then a `summary`. |
+| `scripts/sandbox/workflows/_dotnet-build-test.yml` → installed to `.github/workflows/_dotnet-build-test.yml` | Reusable "how to restore/build/test" unit. Knows the project sets per track, spins up PostgreSQL for the server track, and uploads `.trx` results + build logs as artifacts. |
 | `global.json` | Pins the .NET SDK to the 10.0 feature band so `setup-dotnet` and the sandbox resolve the same toolchain. |
+
+> The `scripts/sandbox/workflows/` copies are the source of truth; edit them
+> there and re-run `gh-ci.sh install` to update the live `.github/workflows/`.
 
 ### Tracks
 
@@ -67,6 +108,7 @@ cross-platform / real-DB work to CI with `gh-ci.sh`.
 ## The `gh-ci.sh` commands
 
 ```
+scripts/sandbox/gh-ci.sh install        one-time: install workflows on GitHub
 scripts/sandbox/gh-ci.sh build [OPTS]   trigger CI, wait + stream (default)
 scripts/sandbox/gh-ci.sh watch  [ID]    watch a run live (latest if omitted)
 scripts/sandbox/gh-ci.sh logs   [ID]    full logs of a run

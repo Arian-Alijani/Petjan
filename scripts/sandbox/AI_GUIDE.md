@@ -62,6 +62,7 @@ over `gh workflow run` / `gh run ...`). Full details: `scripts/sandbox/GITHUB_AC
 
 | Need | Command |
 |---|---|
+| **One-time: install the workflows on GitHub** | `scripts/sandbox/gh-ci.sh install` |
 | Full build + all tests on CI, wait for verdict | `scripts/sandbox/gh-ci.sh build` |
 | Desktop **app** + pure tests only | `scripts/sandbox/gh-ci.sh build --scope app` |
 | **Server** track against a real PostgreSQL service | `scripts/sandbox/gh-ci.sh build --scope server` |
@@ -78,3 +79,10 @@ over `gh workflow run` / `gh run ...`). Full details: `scripts/sandbox/GITHUB_AC
 agent can branch on `$?`. Every run uploads `.trx` test results and build logs
 as artifacts; `gh-ci.sh results` downloads them and prints a pass/fail/skip
 summary with the first error line of each failing test.
+
+> First time only: run `gh-ci.sh install` to publish the workflows to GitHub.
+> The sandbox token may lack the `workflows` permission to push
+> `.github/workflows/`; if so, `install` prints the exact one-line fix
+> (`gh auth refresh -s workflow`) or the manual copy step. The workflow YAML is
+> version-controlled under `scripts/sandbox/workflows/`. Full guide:
+> `scripts/sandbox/GITHUB_ACTIONS_GUIDE.md`.

@@ -11,8 +11,24 @@
 # so the agent never has to remember flag combinations.
 #
 # ---------------------------------------------------------------------------
+# ONE-TIME SETUP
+# ---------------------------------------------------------------------------
+# The workflow YAML lives in scripts/sandbox/workflows/ (NOT .github/workflows),
+# because the sandbox's GitHub App token is not allowed to push files under
+# .github/workflows/. Run ONCE to install them into .github/workflows/ and push:
+#
+#   scripts/sandbox/gh-ci.sh install
+#
+# If the push is rejected ("without `workflows` permission"), the repo owner
+# must grant the token the `workflows` scope (gh auth refresh -s workflow) OR
+# copy the two files in scripts/sandbox/workflows/ into .github/workflows/ and
+# commit them from a session that has that permission. `install` prints the exact
+# steps. Once the workflows exist on GitHub (any way), every other command works.
+#
+# ---------------------------------------------------------------------------
 # COMMANDS
 # ---------------------------------------------------------------------------
+#   install             Copy workflow YAML into .github/workflows/ and push.
 #   build [OPTS]        Trigger CI and (by default) wait + stream the result.
 #   watch [RUN_ID]      Watch a run live (latest CI run if RUN_ID omitted).
 #   logs  [RUN_ID]      Print the full logs of a run (latest if omitted).
@@ -106,6 +122,78 @@ resolve_run() {
   echo "$rid"
 }
 
+# Does the CI workflow already exist on the default branch at GitHub?
+workflow_installed_remotely() {
+  gh workflow list --all --json name,path --jq \
+    '.[] | select(.path==".github/workflows/'"$WORKFLOW"'") | .path' 2>/dev/null \
+    | grep -q "$WORKFLOW"
+}
+
+# ---------------------------------------------------------------------------
+# install: copy the managed workflow YAML into .github/workflows/ and push.
+# Kept out of .github/workflows/ in git because the sandbox App token cannot
+# push there; this copies + commits + pushes, with a clear fallback if the
+# token lacks the `workflows` permission.
+# ---------------------------------------------------------------------------
+cmd_install() {
+  local srcdir="$SCRIPT_DIR/workflows"
+  local dstdir="$REPO_ROOT/.github/workflows"
+  if [ ! -d "$srcdir" ]; then
+    err "Missing $srcdir — expected the managed workflow YAML there."
+    exit 4
+  fi
+  mkdir -p "$dstdir"
+  cp -f "$srcdir"/*.yml "$dstdir"/
+  ok "Copied workflow YAML -> .github/workflows/"
+  ls -1 "$dstdir"/*.yml | sed 's/^/   /'
+
+  local branch; branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+  git -C "$REPO_ROOT" add .github/workflows/*.yml
+  if git -C "$REPO_ROOT" diff --cached --quiet; then
+    log "No workflow changes to commit (already up to date)."
+  else
+    git -C "$REPO_ROOT" commit -q -m "ci: install Animora GitHub Actions workflows"
+    ok "Committed workflow YAML."
+  fi
+
+  log "Pushing to origin/$branch ..."
+  set +e
+  local out; out="$(git -C "$REPO_ROOT" push origin "$branch" 2>&1)"
+  local rc=$?
+  set -e
+  echo "$out" | tail -4
+  if [ "$rc" -ne 0 ]; then
+    if echo "$out" | grep -qi "workflows\? permission\|without .workflows"; then
+      warn "The current token cannot push .github/workflows/ (missing 'workflows' permission)."
+      cat <<EOF
+
+  To finish installing the workflows, do ONE of these (repo owner):
+
+    A) Grant the token the workflow scope, then re-run install:
+         gh auth refresh -s workflow
+         scripts/sandbox/gh-ci.sh install
+
+    B) Commit the two files yourself from a permitted session:
+         cp scripts/sandbox/workflows/*.yml .github/workflows/
+         git add .github/workflows/*.yml && git commit -m "ci: add workflows" && git push
+
+  The workflow sources are version-controlled at:
+    scripts/sandbox/workflows/ci.yml
+    scripts/sandbox/workflows/_dotnet-build-test.yml
+
+EOF
+      # Leave the copied files in place locally; undo the commit so the branch
+      # history stays clean for the (blocked) push.
+      git -C "$REPO_ROOT" reset -q --soft HEAD~1 2>/dev/null || true
+      git -C "$REPO_ROOT" restore --staged .github/workflows/*.yml 2>/dev/null || true
+      exit 5
+    fi
+    err "Push failed (see output above)."
+    exit "$rc"
+  fi
+  ok "Workflows installed on origin/$branch — you can now run: gh-ci.sh build"
+}
+
 # ---------------------------------------------------------------------------
 cmd_build() {
   local scope="all" config="Debug" os="linux" filter="" postgres="true"
@@ -119,13 +207,20 @@ cmd_build() {
       --no-postgres) postgres="false";;
       --ref)     shift; ref="${1:-}";;
       --no-wait) wait="0";;
-      -h|--help) sed -n '2,60p' "${BASH_SOURCE[0]}"; exit 0;;
+      -h|--help) sed -n '2,74p' "${BASH_SOURCE[0]}"; exit 0;;
       *) err "Unknown build option: $1"; exit 2;;
     esac
     shift
   done
 
   [ -z "$ref" ] && ref="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+
+  # Preflight: the workflow must exist on GitHub to be dispatchable.
+  if ! workflow_installed_remotely; then
+    err "Workflow '$WORKFLOW' is not installed on GitHub yet."
+    log "Run once:  scripts/sandbox/gh-ci.sh install"
+    exit 5
+  fi
 
   log "Triggering $WORKFLOW on ref=$ref  scope=$scope config=$config os=$os postgres=$postgres filter='${filter:-<none>}'"
 
@@ -253,6 +348,7 @@ PY
 require_gh
 CMD="${1:-help}"; shift || true
 case "$CMD" in
+  install) cmd_install "$@";;
   build)   cmd_build "$@";;
   watch)   cmd_watch "$@";;
   logs)    cmd_logs "$@";;
@@ -263,6 +359,6 @@ case "$CMD" in
   rerun)   cmd_rerun "$@";;
   cancel)  cmd_cancel "$@";;
   open)    cmd_open "$@";;
-  help|-h|--help) sed -n '2,78p' "${BASH_SOURCE[0]}";;
-  *) err "Unknown command: $CMD"; echo; sed -n '2,78p' "${BASH_SOURCE[0]}"; exit 2;;
+  help|-h|--help) sed -n '2,74p' "${BASH_SOURCE[0]}";;
+  *) err "Unknown command: $CMD"; echo; sed -n '2,74p' "${BASH_SOURCE[0]}"; exit 2;;
 esac

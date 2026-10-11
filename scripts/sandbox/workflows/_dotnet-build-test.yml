@@ -1,0 +1,249 @@
+# =============================================================================
+# _dotnet-build-test.yml — reusable Animora build + test unit (callable)
+# =============================================================================
+# One place that knows HOW to restore / build / test Animora on a GitHub runner.
+# Called by ci.yml (and can be called by any future workflow) with a `track`:
+#
+#   track=app     -> Desktop app + host-independent tests
+#                    (Animora.Domain.Tests, Animora.Application.Tests,
+#                     Animora.Sync.Tests). No PostgreSQL needed.
+#   track=server  -> server/DB tree: builds Animora.Server and tests
+#                    Animora.Server.Tests (+ Persistence.Tests), optionally
+#                    against a REAL PostgreSQL service container so the
+#                    [PgFact] tests actually execute instead of skipping.
+#
+# `scope` further narrows what happens:
+#   all / app / server -> build the track's projects AND run its tests
+#   build-only         -> compile only, run NO tests
+#   restore            -> dotnet restore only (fast dependency health check)
+#
+# Outputs (artifacts, downloadable with `gh run download`):
+#   test-results-<track>-<runner>  -> *.trx (machine-readable test results)
+#   build-logs-<track>-<runner>    -> build.binlog + build.txt
+# =============================================================================
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: "Runner label (ubuntu-latest / windows-latest)"
+        type: string
+        required: true
+      track:
+        description: "app | server"
+        type: string
+        required: true
+      scope:
+        description: "all | app | server | build-only | restore"
+        type: string
+        default: all
+      configuration:
+        description: "Debug | Release"
+        type: string
+        default: Debug
+      filter:
+        description: "Optional xUnit FullyQualifiedName~<filter>"
+        type: string
+        default: ""
+      with_postgres:
+        description: "server track only: run against a real PostgreSQL service"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ${{ inputs.runner }}
+
+    # Real PostgreSQL for the server track (ignored by the app track / non-PG).
+    # When the condition is false the image resolves to '' and NO container is
+    # started — this is the supported way to make a service conditional, and it
+    # also keeps the app track valid on windows-latest (which cannot run Linux
+    # service containers). The export step below only wires the connection when
+    # the container is actually up.
+    services:
+      postgres:
+        image: ${{ (inputs.track == 'server' && inputs.with_postgres) && 'postgres:17' || '' }}
+        env:
+          POSTGRES_USER: animora
+          POSTGRES_PASSWORD: animora
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U animora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+      # Fail the build on the first warning only where the repo asks for it;
+      # Directory.Build.props keeps TreatWarningsAsErrors=false, so we respect it.
+      CONFIG: ${{ inputs.configuration }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET (pinned to global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Print toolchain
+        shell: bash
+        run: |
+          echo "runner=${{ inputs.runner }} track=${{ inputs.track }} scope=${{ inputs.scope }} config=$CONFIG"
+          dotnet --info | head -n 20
+
+      # NuGet cache keyed on the central lock files => fast repeat restores.
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      # -----------------------------------------------------------------------
+      # Compute the set of projects for this track + scope, into GITHUB_ENV:
+      #   BUILD_TARGET  -> what `dotnet build` compiles
+      #   TEST_PROJECTS -> newline list of test csproj to `dotnet test`
+      # -----------------------------------------------------------------------
+      - name: Resolve targets
+        id: targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          track="${{ inputs.track }}"
+          scope="${{ inputs.scope }}"
+
+          SOLUTION="Animora.sln"
+
+          APP_TESTS=$'tests/Animora.Domain.Tests/Animora.Domain.Tests.csproj\ntests/Animora.Application.Tests/Animora.Application.Tests.csproj\ntests/Animora.Sync.Tests/Animora.Sync.Tests.csproj'
+          SERVER_TESTS=$'tests/Animora.Server.Tests/Animora.Server.Tests.csproj\ntests/Animora.Persistence.Tests/Animora.Persistence.Tests.csproj'
+
+          if [ "$track" = "app" ]; then
+            BUILD_TARGET="src/Animora.Desktop/Animora.Desktop.csproj"
+            TEST_PROJECTS="$APP_TESTS"
+          else
+            BUILD_TARGET="src/Animora.Server/Animora.Server.csproj"
+            TEST_PROJECTS="$SERVER_TESTS"
+          fi
+
+          # 'all' builds the whole solution for maximum coverage; narrower
+          # scopes build just the track's entrypoint project (faster).
+          if [ "$scope" = "all" ]; then
+            BUILD_TARGET="$SOLUTION"
+          fi
+
+          {
+            echo "BUILD_TARGET=$BUILD_TARGET"
+            echo "SOLUTION=$SOLUTION"
+          } >> "$GITHUB_ENV"
+          # Multi-line value needs the heredoc form.
+          {
+            echo "TEST_PROJECTS<<EOF"
+            echo "$TEST_PROJECTS"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+          echo "::notice title=targets::build=$BUILD_TARGET"
+
+      - name: Restore
+        shell: bash
+        run: dotnet restore "$SOLUTION" -v minimal
+
+      - name: Restore only (scope=restore)
+        if: inputs.scope == 'restore'
+        shell: bash
+        run: echo "::notice title=restore::packages restored — stopping (scope=restore)"
+
+      - name: Build
+        if: inputs.scope != 'restore'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build "$BUILD_TARGET" -c "$CONFIG" --no-restore \
+            -v minimal \
+            -bl:"$RUNNER_TEMP/build.binlog" \
+            -fl "-flp:logfile=$RUNNER_TEMP/build.txt;verbosity=normal"
+
+      - name: Export PostgreSQL connection (server track)
+        if: inputs.track == 'server' && inputs.with_postgres && inputs.scope != 'restore' && inputs.scope != 'build-only'
+        shell: bash
+        run: |
+          # The service maps container 5432 -> host 5432. PgFixture consumes the
+          # Npgsql keyword form and creates/drops its own per-test databases.
+          echo "ANIMORA_PG_TEST_CONNECTION=Host=127.0.0.1;Port=5432;Username=animora;Password=animora;Database=postgres" >> "$GITHUB_ENV"
+          echo "ANIMORA_REQUIRE_PG=1" >> "$GITHUB_ENV"
+          echo "::notice title=postgres::real PostgreSQL wired — [PgFact] tests will RUN (and FAIL if DB is unreachable)"
+
+      - name: Test
+        if: inputs.scope != 'restore' && inputs.scope != 'build-only'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p TestResults
+          filter="${{ inputs.filter }}"
+          FILTER_OPT=()
+          [ -n "$filter" ] && FILTER_OPT=(--filter "FullyQualifiedName~$filter")
+
+          rc=0
+          while IFS= read -r proj; do
+            [ -z "$proj" ] && continue
+            name="$(basename "$proj" .csproj)"
+            echo "::group::test $name"
+            set +e
+            dotnet test "$proj" -c "$CONFIG" --no-build \
+              -v minimal \
+              --logger "trx;LogFileName=$name.trx" \
+              --results-directory "$GITHUB_WORKSPACE/TestResults" \
+              "${FILTER_OPT[@]}"
+            prc=$?
+            set -e
+            echo "::endgroup::"
+            if [ "$prc" -ne 0 ]; then
+              rc=$prc
+              echo "::error title=tests failed::$name (exit $prc)"
+            fi
+          done <<< "$TEST_PROJECTS"
+          exit "$rc"
+
+      - name: Upload test results (.trx)
+        if: always() && inputs.scope != 'restore' && inputs.scope != 'build-only'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.track }}-${{ runner.os }}
+          path: TestResults/*.trx
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload build logs
+        if: always() && inputs.scope != 'restore'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ inputs.track }}-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/build.binlog
+            ${{ runner.temp }}/build.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      # Human-readable test summary straight in the run page (and the agent can
+      # read it with `gh run view`).
+      - name: Publish test report
+        if: always() && inputs.scope != 'restore' && inputs.scope != 'build-only'
+        uses: dorny/test-reporter@v1
+        with:
+          name: tests-${{ inputs.track }}-${{ runner.os }}
+          path: TestResults/*.trx
+          reporter: dotnet-trx
+          fail-on-error: false
