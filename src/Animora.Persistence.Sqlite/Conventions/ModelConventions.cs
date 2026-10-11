@@ -81,6 +81,9 @@ public static class ModelConventions
     {
         "MedicalHistoryEntry" => "MedicalHistoryEntries",
         "ReceptionQueueEntry" => "ReceptionQueueEntries",
+        "ReplicaBase" => "repl_base",
+        "ReplicaStaging" => "repl_staging",
+        "ReplicaCheckpoint" => "repl_checkpoint",
         _ when name.EndsWith('y') && !"aeiou".Contains(char.ToLowerInvariant(name[^2])) => name[..^1] + "ies",
         _ when name.EndsWith('s') => name + "es",
         _ => name + "s"

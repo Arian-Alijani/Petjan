@@ -58,6 +58,8 @@ public sealed class AnimoraLocalDbContext(
         modelBuilder.Entity<BoardingBillingHandoff>().Property(e => e.LinesJson)
             .HasMaxLength(BoardingBillingHandoff.LinesJsonMaxLength);
         modelBuilder.Entity<SmsTemplateRow>().Property(e => e.Body).HasMaxLength(2048);
+        // G04: replica payload/key bounds must win over the generic short-text convention.
+        Animora.Persistence.Sqlite.Replica.ReplicaModel.ApplyBounds(modelBuilder);
     }
 
     /// <summary>Max length of a stored command/event JSON payload column.</summary>
