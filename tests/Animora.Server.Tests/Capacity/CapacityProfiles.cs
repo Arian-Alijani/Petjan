@@ -128,6 +128,7 @@ internal sealed class ResourceSampler : IAsyncDisposable
     private readonly Task _loop;
     private long _peakRssBytes;
     private int _peakConnections;
+    private int _disposed;
 
     public ResourceSampler(string adminConnection, string applicationNamePrefix)
     {
@@ -183,6 +184,11 @@ internal sealed class ResourceSampler : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
+            return;
+        }
+
         await _stop.CancelAsync();
         try
         {

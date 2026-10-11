@@ -88,9 +88,8 @@ public sealed class CapacityDriver(PgFixture pg) : IClassFixture<PgFixture>
                 harnesses.Add(new PgCommandHarness(oltpConnection));
             }
 
-            using (var seed = new CancellationTokenSource(TimeSpan.FromMinutes(2)))
+            await using (AnimoraServerDbContext seedDb = TestSupport.CreateContext(connection: pg.ConnectionString))
             {
-                await using AnimoraServerDbContext seedDb = TestSupport.CreateContext(connection: pg.ConnectionString);
                 await seedDb.MigrateAndSeedAsync(harnesses.Select(h => h.Intake.TenantId).ToArray());
             }
 
