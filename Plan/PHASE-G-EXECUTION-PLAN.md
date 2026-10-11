@@ -451,7 +451,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
   - Add a line reporting presence of `pg-gates.yml`, `perf-gates.yml`, `publish-portable.ps1`. Informational,
     never fails. Verify `bash -n`. **PUSH.**
 
-- [ ] **G09-T10 — Local sanity (NARROW)**
+- [x] **G09-T10 — Local sanity (NARROW)**
   - `scripts/sandbox/build.sh fast` to confirm `LaunchGateManifestTests` compiles. Run
     `scripts/release/launch-gate.sh --dry-run` → must list all 18 lanes. Do NOT run full suites/aggregator
     locally (it needs CI lane artifacts). **PUSH** fixups.
