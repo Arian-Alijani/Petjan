@@ -388,7 +388,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
     never edited later. First-install checklist (provision roles, migrate as owner, seed key ring, verify
     readiness) ending in copy-pasteable commands. **PUSH.**
 
-- [ ] **G09-T2 — `docs/release/02-upgrade-rollback.md` (new)**
+- [x] **G09-T2 — `docs/release/02-upgrade-rollback.md` (new)**
   - Same single process; deploy via stop-migrate-start OR blue/green. Because migrations are additive and
     the wire contract is versioned (N/N-1/N-2 via `WireContract.IsSupported`, currently {1,2}), a
     one-step-back rollback restores the previous binary and does NOT strand clients. State the explicit
