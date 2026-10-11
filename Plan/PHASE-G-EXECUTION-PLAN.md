@@ -442,7 +442,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
     job (`run.sh` → `SMOKE RUN OK`) + a `launch-gate` job running `scripts/release/launch-gate.sh`; archive
     `artifacts/launch-gate-report.md`. Verify YAML parses. **PUSH.**
 
-- [ ] **G09-T8 — `tests/Animora.Server.Tests/LaunchGateManifestTests.cs` (new)**
+- [x] **G09-T8 — `tests/Animora.Server.Tests/LaunchGateManifestTests.cs` (new)**
   - `EveryArch19Gate_IsCoveredByALane`: assert the aggregator's gate list (parse `launch-gate.sh` for the
     letters, or hard-code the expected set) **equals** the ARCH §19 table set = {A,D,C,N,B,L,P,O,K,U,F,S,I,
     M,R,Z,T,PG} (18). Stops a future gate escaping the launch bar. Pure test. Verify compiles. **PUSH.**
