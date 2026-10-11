@@ -188,7 +188,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - Run ONLY: `scripts/sandbox/test.sh Sync` (green). If a test needs Application-side interplay, add to `tests/Animora.Application.Tests/` and run `scripts/sandbox/test.sh Application`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "test(sync): G05 transport/remap/reconcile/DI tests"`
 
-### T6 — G05 verification gate `[ ]`
+### T6 — G05 verification gate `[x]`
 - `scripts/sandbox/build.sh full` (0/0). `scripts/sandbox/run.sh` (`SMOKE RUN OK`, unconfigured ⇒ NullCommandTransport stays).
 - Acceptance greps: `grep -rn "Npgsql\|Animora.Server\|Animora.Persistence.PostgreSql" src/Animora.Sync.Custom/HttpCommandTransport.cs` = empty; `grep -rn "IStateSyncEngine\|PullAsync" src/Animora.Sync.Custom/HttpCommandTransport.cs` = empty; `grep -rn "SettlementTransitions.EnsureAllowed" src/Animora.Sync.Custom/SettlementReconciler.cs` ≥1; `grep -rn "CommandFingerprint.Compute" src/Animora.Sync.Custom/CommandIdRemapService.cs` ≥1.
 - If a grep fails, fix the smallest thing. **PUSH** any fix immediately.
