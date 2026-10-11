@@ -340,7 +340,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
   - Test `ZeroInternetTests.Runtime_OperatesWithEgressBlocked` reports `SMOKE RUN OK`. Verify `bash -n` +
     test compiles. **PUSH.**
 
-- [ ] **G08-T8 — `.github/workflows/perf-gates.yml` (new)**
+- [x] **G08-T8 — `.github/workflows/perf-gates.yml` (new)**
   - Jobs: `offline-budget`, `server-capacity`, `zero-internet`, `layering-audit`, `sync-behavioral`.
   - `offline-budget` job: build Debug → `scripts/sandbox/bench.sh offline` → run
     `scripts/sandbox/offline-budget.py` and copy its table to `artifacts/offline-budget.md`; job RED iff the

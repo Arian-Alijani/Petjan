@@ -1,0 +1,232 @@
+# =============================================================================
+# WHERE THIS FILE GOES: copy to .github/workflows/perf-gates.yml (the agent's GitHub App token
+#   cannot push under .github/ — same one-time manual step as animora-ci.yml / pg-gates.yml;
+#   see scripts/ci/README.md).
+# Perf gates (G08) — performance proof & offline budget (ARCH §19 gates O T I M Z + layering P).
+#
+#   offline-budget   bench.sh offline + offline-budget.py → artifacts/offline-budget.md (RED iff >2x budget)
+#   server-capacity  --cpus=2 --memory=2g + postgres:18 → scripts/perf/server-capacity.sh (planning ref only)
+#   zero-internet    scripts/perf/zero-internet.sh (static built-output scan + egress-blocked smoke)
+#   layering-audit   LayeringRulesTests (Domain) + ServerLayeringAuditTests
+#   sync-behavioral  ReconnectStormTests (gate I) + MixedFleetTests (gate M)
+#
+# Budgets live in scripts/sandbox/offline-budget.py and are NEVER changed here.
+# Triggers: manual, relevant pushes to the integration branches, and the sandbox control-file lane
+# (push to a ci/perf-gates* branch).
+# =============================================================================
+name: Perf gates
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, genspark_ai_developer, "ci/perf-gates**"]
+    paths:
+      - ".github/workflows/perf-gates.yml"
+      - "scripts/perf/**"
+      - "scripts/ci/pg-init-roles.sh"
+      - "scripts/sandbox/bench.sh"
+      - "scripts/sandbox/offline-budget.py"
+      - "scripts/sandbox/run.sh"
+      - "src/**"
+      - "tests/Animora.Application.Tests/**"
+      - "tests/Animora.Server.Tests/**"
+      - "tests/Animora.Sync.Tests/**"
+      - "tests/Animora.Domain.Tests/**"
+
+concurrency:
+  group: perf-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  PGHOST: "127.0.0.1"
+  PGPORT: "5432"
+  PG_BOOTSTRAP_USER: postgres
+  PG_BOOTSTRAP_PASSWORD: ci-bootstrap-pw
+  PG_OWNER_PASSWORD: ci-owner-pw
+  PG_APP_PASSWORD: ci-app-pw
+  ANIMORA_PG_TEST_CONNECTION: "Host=127.0.0.1;Port=5432;Username=animora_owner;Password=ci-owner-pw;Database=postgres"
+  ANIMORA_PG_OWNER_CONNECTION: "Host=127.0.0.1;Port=5432;Username=animora_owner;Password=ci-owner-pw;Database=postgres"
+
+jobs:
+  offline-budget:
+    name: Offline budget (6 metrics, >2x budget = RED)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install Xvfb
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+      - name: Make scripts executable
+        run: chmod +x scripts/sandbox/*.sh scripts/perf/*.sh
+      - name: Build Debug (Desktop + Application.Tests) — bench.sh offline runs --no-build
+        run: |
+          dotnet build src/Animora.Desktop/Animora.Desktop.csproj -c Debug --nologo -v minimal
+          dotnet build tests/Animora.Application.Tests/Animora.Application.Tests.csproj -c Debug --nologo -v minimal
+      - name: bench.sh offline (60 s idle; non-zero exit only on >2x regression)
+        id: bench
+        run: scripts/sandbox/bench.sh offline
+      - name: Archive table as artifacts/offline-budget.md
+        if: always()
+        run: |
+          mkdir -p artifacts
+          src="backend-roadmap/measurements/C11-offline-budget.md"
+          if [ -f "$src" ]; then
+            cp "$src" artifacts/offline-budget.md
+            { echo "### Offline budget"; echo; cat artifacts/offline-budget.md; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "offline-budget table was not produced (bench.sh failed before offline-budget.py)" | tee artifacts/offline-budget.md
+          fi
+      - name: Upload offline-budget table (pass or fail)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: offline-budget
+          path: |
+            artifacts/offline-budget.md
+            .sandbox/logs/c11-*.log
+            .sandbox/logs/bench-app.log
+          if-no-files-found: warn
+
+  server-capacity:
+    name: Server capacity (--cpus=2 --memory=2g, postgres:18) — planning reference only
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-bootstrap-pw
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Make scripts executable
+        run: chmod +x scripts/ci/*.sh scripts/perf/*.sh
+      - name: Provision roles (owner runs fixtures; app role is least-privilege)
+        run: scripts/ci/pg-init-roles.sh
+      - name: Capacity driver (cgroup-constrained container, ANIMORA_REQUIRE_PG=1)
+        run: |
+          export CPUS=2 MEMORY=2g
+          scripts/perf/server-capacity.sh
+      - name: Summarise
+        if: always()
+        run: |
+          if [ -f artifacts/server-capacity.md ]; then cat artifacts/server-capacity.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Upload capacity artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-capacity
+          path: |
+            artifacts/server-capacity.json
+            artifacts/server-capacity.md
+          if-no-files-found: error
+
+  zero-internet:
+    name: Zero-Internet (static scan + egress-blocked smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install Xvfb + binutils
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb binutils
+      - name: Make scripts executable
+        run: chmod +x scripts/sandbox/*.sh scripts/perf/*.sh
+      - name: Build Desktop (Debug)
+        run: dotnet build src/Animora.Desktop/Animora.Desktop.csproj -c Debug --nologo -v minimal
+      - name: zero-internet.sh
+        run: scripts/perf/zero-internet.sh
+      - name: ZeroInternetTests (script contract + source scan, runtime log supplied)
+        run: |
+          export ANIMORA_ZERO_INTERNET_LOG=artifacts/zero-internet-smoke.log
+          dotnet test tests/Animora.Server.Tests/Animora.Server.Tests.csproj -c Debug --nologo -v minimal \
+            --filter "FullyQualifiedName~ZeroInternetTests"
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zero-internet
+          path: |
+            artifacts/zero-internet.txt
+            artifacts/zero-internet-smoke.log
+          if-no-files-found: warn
+
+  layering-audit:
+    name: Layering audit (Domain LayeringRules + ServerLayeringAudit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: LayeringRulesTests (Animora.Domain.Tests)
+        run: |
+          dotnet test tests/Animora.Domain.Tests/Animora.Domain.Tests.csproj -c Debug --nologo -v minimal \
+            --filter "FullyQualifiedName~LayeringRulesTests"
+      - name: Server layering (ServerLayeringTests + ServerLayeringAuditTests)
+        run: |
+          dotnet test tests/Animora.Server.Tests/Animora.Server.Tests.csproj -c Debug --nologo -v minimal \
+            --filter "FullyQualifiedName~ServerLayeringAuditTests|FullyQualifiedName~ServerLayeringTests"
+      - name: Sync layering
+        run: |
+          dotnet test tests/Animora.Sync.Tests/Animora.Sync.Tests.csproj -c Debug --nologo -v minimal \
+            --filter "FullyQualifiedName~LayeringTests"
+
+  sync-behavioral:
+    name: Sync behavioural (ReconnectStorm gate I, MixedFleet gate M)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-bootstrap-pw
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      ANIMORA_REQUIRE_PG: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Make scripts executable
+        run: chmod +x scripts/ci/*.sh
+      - name: Provision roles
+        run: scripts/ci/pg-init-roles.sh
+      - name: ReconnectStormTests (deterministic, no DB)
+        run: |
+          dotnet test tests/Animora.Sync.Tests/Animora.Sync.Tests.csproj -c Debug --nologo -v minimal \
+            --filter "FullyQualifiedName~ReconnectStormTests"
+      - name: MixedFleetTests (wire N/N-1 + rule-set version; PgFact legs run, 0 skipped)
+        run: |
+          dotnet test tests/Animora.Server.Tests/Animora.Server.Tests.csproj -c Debug --nologo -v minimal \
+            --filter "FullyQualifiedName~MixedFleetTests"
