@@ -40,6 +40,10 @@
 #   .\scripts\windows\publish-portable.ps1 -OutputRoot D:\share
 #       Choose where the portable folder/zip are written.
 #
+#   .\scripts\windows\publish-portable.ps1 -EmitManifest
+#       Also write the SBOM + native-binary inventory (scripts/release/make-release-manifest.sh)
+#       into <portable>\manifest\ so they ship WITH the package (G09).
+#
 # THEN
 #   Give your friend the produced .zip (or the folder). They unzip it anywhere
 #   and double-click "Run-Animora (Fresh Test).cmd". Nothing to install.
@@ -68,7 +72,12 @@ param(
     [switch]$NoZip,
 
     # Overwrite an existing portable folder for this runtime without prompting.
-    [switch]$Force
+    [switch]$Force,
+
+    # After publishing, generate the release manifest (CycloneDX SBOM + native-binary inventory +
+    # suppression-ledger check) with scripts/release/make-release-manifest.sh and ship it INSIDE the
+    # portable package (<portable>\manifest\). Needs bash (Git for Windows / WSL) on the build machine.
+    [switch]$EmitManifest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -241,6 +250,36 @@ If Windows SmartScreen warns you, click "More info" -> "Run anyway".
 [System.IO.File]::WriteAllText($Readme, $ReadmeContent, (New-Object System.Text.UTF8Encoding($true)))
 
 # =============================================================================
+# 3b. (-EmitManifest) SBOM + native-binary inventory + suppression-ledger check, shipped WITH the
+#     package. Done BEFORE zipping so the manifest is inside the zip. Reuses the bash generator
+#     (single source of truth); a violation (e.g. native-DB suppression without expiry) FAILS the publish.
+# =============================================================================
+if ($EmitManifest) {
+    $Bash = Get-Command bash -ErrorAction SilentlyContinue
+    if (-not $Bash) { throw '-EmitManifest needs bash on PATH (Git for Windows or WSL) to run scripts/release/make-release-manifest.sh.' }
+    $ManifestScript = Join-Path $RepoRoot 'scripts\release\make-release-manifest.sh'
+    if (-not (Test-Path $ManifestScript -PathType Leaf)) { throw "Cannot find manifest generator: $ManifestScript" }
+    $ManifestDir = Join-Path $PortableDir 'manifest'
+    New-Item -ItemType Directory -Force -Path $ManifestDir | Out-Null
+    Write-Host '==> Generating release manifest (SBOM + native inventory) ...'
+    # Forward slashes: bash understands them on Git-for-Windows and WSL (via the path as given by Resolve-Path).
+    $toBash = { param($p) ($p -replace '\\', '/') }
+    Push-Location $RepoRoot
+    try {
+        & $Bash.Source 'scripts/release/make-release-manifest.sh' `
+            --output-dir (& $toBash $AppSubDir) `
+            --project 'src/Animora.Desktop/Animora.Desktop.csproj' `
+            --rid $Runtime `
+            --out (& $toBash $ManifestDir)
+        $ManifestExit = $LASTEXITCODE
+    } finally { Pop-Location }
+    if ($ManifestExit -ne 0) {
+        throw "Release manifest generation FAILED (exit $ManifestExit). The package was NOT finalized."
+    }
+    Write-Host "==> Manifest written to: $ManifestDir"
+}
+
+# =============================================================================
 # 4. Zip it up for easy sharing (unless -NoZip).
 # =============================================================================
 if (-not $NoZip) {
@@ -260,6 +299,7 @@ Write-Host ' DONE — portable (zero-install) build ready'
 Write-Host '====================================================================='
 Write-Host "   Folder : $PortableDir"
 if (-not $NoZip) { Write-Host "   Zip    : $(Join-Path $OutputRoot "$PortableName.zip")" }
+if ($EmitManifest) { Write-Host "   SBOM   : manifest\sbom.cdx.json + manifest\native-inventory.json (shipped in the package)" }
 Write-Host "   Exe    : app\$ExeName ($ExeSize MB, self-contained)"
 Write-Host ''
 Write-Host ' Give your friend the ZIP (or the folder). They unzip anywhere and'

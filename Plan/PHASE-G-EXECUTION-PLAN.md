@@ -419,7 +419,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
         (`sqlcipher`/`e_sqlite3`/`e_sqlite3mc`) lacks an `expiry` (no permanent suppression).
   - Verify `bash -n`. **PUSH.**
 
-- [ ] **G09-T5 — `scripts/windows/publish-portable.ps1` (edit)**
+- [x] **G09-T5 — `scripts/windows/publish-portable.ps1` (edit)**
   - Add a `-EmitManifest` switch (PowerShell param) that, after the portable publish, calls the manifest
     generator (G09-T4 logic — invoke the bash script via `bash` or replicate minimally in PS) against the
     portable output folder so the SBOM + native inventory ship WITH the package. **Do NOT rewrite the
