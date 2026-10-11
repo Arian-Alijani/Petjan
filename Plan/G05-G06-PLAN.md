@@ -165,7 +165,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(sync): G05 HttpCommandTransport with HTTP→settlement map + batch"`
 
-### T3 — `CommandIdRemapService` + `IReplicaVersionReader` + `SettlementReconciler` `[ ]`
+### T3 — `CommandIdRemapService` + `IReplicaVersionReader` + `SettlementReconciler` `[x]`
 - Create the three files above. `ReplicaVersionReader` uses `IServiceScopeFactory`+`AnimoraLocalDbContext`+`ILocalTenantContext` (read active generation from `ReplicaCheckpoint` then `ReplicaBase.Version`).
 - `SettlementReconciler` must call `SettlementTransitions.EnsureAllowed`; `CommandIdRemapService.Rewrite` must call `CommandFingerprint.Compute`.
 - `scripts/sandbox/build.sh fast`.
