@@ -15,7 +15,8 @@
     <!-- Supply-chain hardening (G09 release engineering). Lock-file mode makes restore
          deterministic and reproducible; make-release-manifest.sh now passes under
          MANIFEST_REQUIRE_LOCKFILE=1. First restore regenerates packages.lock.json;
-         CI must restore with --locked-mode so the lock file can never drift silently. -->
+         CI must restore in locked mode (the dotnet restore locked-mode switch) so the
+         lock file can never drift silently. -->
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
