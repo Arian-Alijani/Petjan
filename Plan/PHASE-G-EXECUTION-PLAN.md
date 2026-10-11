@@ -218,7 +218,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     Model it on the existing `Write_WithForeignTenant_Throws_TenantMismatch` + the stamping interceptor.
   - Verify compiles. **PUSH.**
 
-- [ ] **G07-T6 — `tests/Animora.Server.Tests/PgGateManifestTests.cs` (new)**
+- [x] **G07-T6 — `tests/Animora.Server.Tests/PgGateManifestTests.cs` (new)**
   - **DEVIATION (log it):** phase says enumerate a `[PgGated]` trait; the repo uses `PgFactAttribute`.
     Implement `EveryPgGatedTest_IsInTheRequiredList` to: reflect over the loaded test assemblies
     (`Animora.Server.Tests`, `Animora.Sync.Tests`, `Animora.Persistence.Tests`), collect every method
