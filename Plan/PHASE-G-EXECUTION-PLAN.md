@@ -407,7 +407,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
   - Self-check grep: `grep -Eo "RPO|RTO|restore-rto.txt|off-host|scale-out" docs/release/03-backup-restore-hostmove.md`.
   - **PUSH.**
 
-- [ ] **G09-T4 — `scripts/release/make-release-manifest.sh` (new)**
+- [x] **G09-T4 — `scripts/release/make-release-manifest.sh` (new)**
   - `mkdir -p scripts/release`. `set -euo pipefail`. Against a built output, generates:
     (a) a NuGet **SBOM** via first-party tooling (`dotnet` SBOM / CycloneDX task — NO cloud call); assert
         `NuGetAuditMode=all` + lock-file mode are on (check `Directory.Build.props` / `Directory.Packages.props`

@@ -1,0 +1,4 @@
+{
+  "_comment": "NuGet / native advisory suppressions. EVERY entry needs: advisoryId, justification, affectedPackage, compensatingControl, expiry (ISO date), owner. Entries for sqlcipher / e_sqlite3 / e_sqlite3mc MUST expire (<= 12 months) — permanent suppression is forbidden (make-release-manifest.sh exits non-zero). Empty = nothing is suppressed.",
+  "entries": []
+}

@@ -14,8 +14,8 @@ objectives this runbook must meet and the restore drill must prove.
 | **RPO** (max data loss) | **≤ 5 minutes** with PITR; **≤ 24 h** is the floor if only the nightly logical dump exists | **Cadence:** continuous WAL archiving (`archive_mode=on`, `archive_timeout=60s`) + a base backup every night; the file tree is synced every 5 min (`rsync`/snapshot) and *paired* with the same PITR target (see §2). Fallback when PITR is not available: logical dumps (`pg_dump`) **every 6 h** → RPO ≤ 6 h — the operator must record which mode is live. |
 | **RTO** (max time to readiness on a clean host) | **measured**, target **≤ 60 min** end-to-end including provisioning; the *software* part is measured by the drill | The G07 restore drill (`scripts/ci/restore-drill.sh`, CI job `restore-drill`) restores all three parts onto a clean database + directory, waits for `/health/ready` = 200 with a known tenant, and writes the elapsed seconds to **`artifacts/restore-rto.txt`**. Cite that number (and the run it came from) in the host's own record; re-measure on the real host once per quarter. RTO is *measured*, never asserted. |
 | **Off-host durability** | **≥ 1 copy on different hardware from the live host** | A backup on the same disk/host/hypervisor as the data it protects **does not count**. Minimum: encrypted copy pushed to a second machine or object store in another failure domain after every base backup and continuously for WAL. |
-| **Promotion / host move** | same restore + repoint config | §7. |
-| **Scale-out trigger** | named in §8 | the §16.2 switch — when it fires, single-host is no longer acceptable. |
+| **Promotion / host move** | same restore + repoint config | §6. |
+| **Scale-out trigger** | named in §7 | the §16.2 switch — when it fires, single-host is no longer acceptable. |
 
 ## 2. The backup set = THREE parts, ONE consistency boundary
 
