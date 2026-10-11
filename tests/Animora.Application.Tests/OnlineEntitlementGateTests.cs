@@ -60,14 +60,14 @@ public sealed class OnlineEntitlementGateTests
         {
             Authority = new TestLicenseAuthority(Issued.AddDays(-1));
             Fingerprint = new FixedFingerprintSource("machine:TEST", "os:UNIX");
-            InstallationHash = InstallationHash.Compute(Fingerprint);
+            Installation = InstallationHash.Compute(Fingerprint);
             TenantId = IdGenerator.NewId();
             Clock = new MutableClock(now);
             Monotonic = new FakeMonotonicClock(monotonicStart ?? now);
             Keys = new LicenseKeyCache(new MemorySecretStore());
             Assert.True(Keys.Store(Authority.ToWire(Issued)).IsSuccess);
             SealedStore = new MemorySealedStore();
-            Seal(Authority.Issue(TestLicenseAuthority.Payload(TenantId, InstallationHash, Issued)), sealedHighWater ?? Issued);
+            Seal(Authority.Issue(TestLicenseAuthority.Payload(TenantId, Installation, Issued)), sealedHighWater ?? Issued);
             Gate = new OnlineEntitlementGate(SealedStore, Keys, Fingerprint, Clock, Monotonic);
         }
 
@@ -75,7 +75,7 @@ public sealed class OnlineEntitlementGateTests
 
         public FixedFingerprintSource Fingerprint { get; }
 
-        public string InstallationHash { get; }
+        public string Installation { get; }
 
         public string TenantId { get; }
 
@@ -90,7 +90,7 @@ public sealed class OnlineEntitlementGateTests
         public OnlineEntitlementGate Gate { get; }
 
         public void Seal(string token, DateTimeOffset highWater) => SealedStore.Value = new SealedEntitlement(token, highWater.ToUnixTimeMilliseconds(), 1,
-            TenantId, InstallationHash, Issued.ToUnixTimeMilliseconds());
+            TenantId, Installation, Issued.ToUnixTimeMilliseconds());
 
         public async Task<bool> CommandAllowedAsync(object command) => (await Gate.EvaluateAsync(command, CommandCtx, default)).IsSuccess;
 
@@ -156,7 +156,7 @@ public sealed class OnlineEntitlementGateTests
         // Signed by a key the client does not trust.
         var unknownKey = new Harness(Issued.AddDays(1));
         var stranger = new TestLicenseAuthority(Issued.AddDays(-1));
-        unknownKey.Seal(stranger.Issue(TestLicenseAuthority.Payload(unknownKey.TenantId, unknownKey.InstallationHash, Issued)), Issued);
+        unknownKey.Seal(stranger.Issue(TestLicenseAuthority.Payload(unknownKey.TenantId, unknownKey.Installation, Issued)), Issued);
         Assert.False(await unknownKey.QueryAllowedAsync());
 
         // Genuinely signed, but bound to another machine.
