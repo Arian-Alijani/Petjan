@@ -314,7 +314,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     SPREAD histogram (max bucket ≤ a fraction of N) — a fleet restarting together does NOT converge (gate I,
     ARCH §12.3). Pure, fast. Verify compiles. **PUSH.**
 
-- [ ] **G08-T5 — `tests/Animora.Server.Tests/MixedFleetTests.cs` (new)**
+- [x] **G08-T5 — `tests/Animora.Server.Tests/MixedFleetTests.cs` (new)**
   - Drive through the public endpoint via `TestHostFactory` (avoids needing `RuleSetPolicy` internals).
     Uses `WireContract` ({1,2}) + `RuleSetPolicy` (Current=1, SupportedFrom=1). Methods:
     `V1Client_CallsSync_Gets426_WithSupportedVersions` (sync DTOs are v2-only; expect 426 +
