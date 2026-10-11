@@ -263,7 +263,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(local): G06 device fingerprint source + sealed entitlement store"`
 
-### T11 — Client.Services: ProtectedSessionStore + OnlineAuthClient + DeviceLifecycle `[ ]`
+### T11 — Client.Services: ProtectedSessionStore + OnlineAuthClient + DeviceLifecycle `[x]`
 - Add csproj refs (Contracts.Wire, Sync.Custom, Server.Licensing).
 - `Identity/ProtectedSessionStore.cs` (`ISessionStore` over `ClientSessions`, tokens via `ISecretStore`).
 - `Identity/OnlineAuthClient.cs` (+ `IOnlineAuthClient`): login/refresh/logout + offline credential-mirror path.

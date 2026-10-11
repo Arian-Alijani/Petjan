@@ -6,11 +6,17 @@
     <ProjectReference Include="..\Animora.Persistence.Sqlite\Animora.Persistence.Sqlite.csproj" />
     <ProjectReference Include="..\Animora.Infrastructure.Local\Animora.Infrastructure.Local.csproj" />
     <ProjectReference Include="..\Animora.Sync.Abstractions\Animora.Sync.Abstractions.csproj" />
+    <!-- G06: online identity. Contracts.Wire = DTOs; Sync.Custom = the shared named HttpClient + ServerEndpointOptions;
+         Server.Licensing = the client-reusable Verification half only (sanctioned in LayeringRulesTests). -->
+    <ProjectReference Include="..\Animora.Contracts.Wire\Animora.Contracts.Wire.csproj" />
+    <ProjectReference Include="..\Animora.Sync.Custom\Animora.Sync.Custom.csproj" />
+    <ProjectReference Include="..\Animora.Server.Licensing\Animora.Server.Licensing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- C01: the hand-written read-model ↔ Contracts mapping is internal and unit-tested directly. -->
     <InternalsVisibleTo Include="Animora.Application.Tests" />
+    <InternalsVisibleTo Include="Animora.Sync.Tests" />
   </ItemGroup>
 
 </Project>
