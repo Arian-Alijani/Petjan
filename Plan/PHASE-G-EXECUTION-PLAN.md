@@ -261,7 +261,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     `scripts/sandbox/run.sh` → `SMOKE RUN OK` is acceptable but skip if time-costly.
   - **PUSH** any fixups.
 
-- [ ] **G07-T10 — PROGRESS.md (G07 close)**
+- [x] **G07-T10 — PROGRESS.md (G07 close)**
   - Flip `G07` row → `✅ Done` (+ 2026 date + 1-line summary). Advance `## Next phase` → `G08`.
   - Append one `### G07` repo-state-log entry: pg-gates.yml (3 jobs), pg-gate.sh + restore-drill.sh,
     the promoted PG-gated set now mandatory (list the real class names), RlsLeakTests hardening lane,
