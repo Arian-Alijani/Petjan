@@ -194,4 +194,96 @@ public sealed class TenantIsolationTests(PgFixture pg) : IClassFixture<PgFixture
         Assert.Equal(namesA1, namesA2);
         Assert.NotEmpty(namesB);
     }
+
+    /// <summary>
+    /// A-RULE 012/013: the tenant on a write is always the server's own. A pre-set, client-supplied
+    /// <c>TenantId</c> is never copied or trusted — a foreign value is rejected, nothing is persisted, and the
+    /// rejection is audited; a blank value is stamped from the authenticated context.
+    /// </summary>
+    [PgFact]
+    public async Task ClientSuppliedTenantId_Ignored_AndAudited()
+    {
+        await EnsureSchemaAsync();
+
+        // 1) Blank TenantId (what a client DTO can express): the server stamps ITS tenant, whatever else is sent.
+        string stampedId = IdGenerator.NewId();
+        await using (ProbeDbContext db = Create(new FixedTenantContext(TenantA)))
+        {
+            db.Probes.Add(new IsolationProbeEntity { Id = stampedId, Name = "a-stamped", UpdatedAt = DateTimeOffset.UtcNow });
+            await db.SaveChangesAsync();
+        }
+
+        // 2) Client-supplied foreign TenantId: refused, never persisted under either tenant.
+        string forgedId = IdGenerator.NewId();
+        TenantMismatchException? rejected = null;
+        await using (ProbeDbContext db = Create(new FixedTenantContext(TenantA)))
+        {
+            db.Probes.Add(new IsolationProbeEntity { Id = forgedId, TenantId = TenantB, Name = "forged-client-tenant", UpdatedAt = DateTimeOffset.UtcNow });
+            rejected = await ThrowsInChainAsync<TenantMismatchException>(() => db.SaveChangesAsync());
+        }
+
+        Assert.NotNull(rejected);
+
+        await using (ProbeDbContext verifyA = Create(new FixedTenantContext(TenantA)))
+        {
+            Assert.Equal(TenantA, (await verifyA.Probes.AsNoTracking().SingleAsync(e => e.Id == stampedId)).TenantId);
+            Assert.Null(await verifyA.Probes.AsNoTracking().FirstOrDefaultAsync(e => e.Id == forgedId));
+        }
+
+        await using (ProbeDbContext verifyB = Create(new FixedTenantContext(TenantB)))
+        {
+            Assert.Null(await verifyB.Probes.AsNoTracking().FirstOrDefaultAsync(e => e.Id == forgedId));
+        }
+
+        // 3) The rejection is recorded in the append-only security audit (separate migrated database: the probe
+        //    schema above is fixture-local and EnsureCreated-built, so it never shares a database with migrations).
+        string auditDb = "animora_audit_" + Guid.NewGuid().ToString("N");
+        string admin = PgFixture.AdminConnectionFromEnv ?? pg.ConnectionString;
+        await using (var conn = new NpgsqlConnection(admin))
+        {
+            await conn.OpenAsync();
+            await using var create = new NpgsqlCommand($"CREATE DATABASE \"{auditDb}\"", conn);
+            _ = await create.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            string auditConn = new NpgsqlConnectionStringBuilder(admin) { Database = auditDb, Pooling = false }.ConnectionString;
+            await using (var migrate = TestSupport.CreateContext(connection: auditConn))
+            {
+                await migrate.Database.MigrateAsync();
+            }
+
+            string correlation = IdGenerator.NewId();
+            await using (var auditContext = TestSupport.CreateContext(new FixedTenantContext(TenantA), auditConn))
+            {
+                var writer = new Animora.Persistence.PostgreSql.Identity.SecurityAuditWriter(auditContext);
+                Animora.Domain.Results.Result written = await writer.WriteAsync(
+                    Animora.Persistence.PostgreSql.Identity.SecurityAuditEntry.Create(
+                        IdGenerator.NewId(),
+                        TenantA,
+                        DateTimeOffset.UtcNow,
+                        "tenancy",
+                        "tenant.mismatch.rejected",
+                        Animora.Persistence.PostgreSql.Identity.SecurityAuditActions.OutcomeFailure,
+                        correlation,
+                        detailJson: Animora.Persistence.PostgreSql.Identity.SecurityAuditDetail.Create(("supplied", TenantB), ("context", TenantA))));
+                Assert.True(written.IsSuccess);
+            }
+
+            await using var readBack = TestSupport.CreateContext(new FixedTenantContext(TenantA), auditConn);
+            var entry = await readBack.SecurityAudit.AsNoTracking().SingleAsync(a => a.CorrelationId == correlation);
+            Assert.Equal(TenantA, entry.TenantId);
+            Assert.Equal("tenant.mismatch.rejected", entry.Action);
+            Assert.Contains(TenantB, entry.DetailJson, StringComparison.Ordinal);
+        }
+        finally
+        {
+            NpgsqlConnection.ClearAllPools();
+            await using var conn = new NpgsqlConnection(admin);
+            await conn.OpenAsync();
+            await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{auditDb}\" WITH (FORCE)", conn);
+            _ = await drop.ExecuteNonQueryAsync();
+        }
+    }
 }

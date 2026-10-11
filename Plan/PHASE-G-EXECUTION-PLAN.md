@@ -212,7 +212,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     `PgFixture`. May shell out to `scripts/ci/restore-drill.sh` OR replicate its asserts in-process
     (in-process preferred for determinism). Verify compiles. **PUSH.**
 
-- [ ] **G07-T5 — `tests/Animora.Server.Tests/Persistence/TenantIsolationTests.cs` (edit)**
+- [x] **G07-T5 — `tests/Animora.Server.Tests/Persistence/TenantIsolationTests.cs` (edit)**
   - Append one `[PgFact]` method `ClientSuppliedTenantId_Ignored_AndAudited` proving a client-supplied
     `TenantId` on a write is ignored (server stamps its own) and an audit entry is written (A-RULE 012/013).
     Model it on the existing `Write_WithForeignTenant_Throws_TenantMismatch` + the stamping interceptor.
