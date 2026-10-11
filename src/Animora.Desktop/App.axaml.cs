@@ -402,6 +402,7 @@ public partial class App : global::Avalonia.Application
         services.AddAnimoraSyncEngine();
         services.AddAnimoraHttpSyncEngine();
         services.AddAnimoraSyncOrchestration();
+        services.AddAnimoraOnlineIdentity(); // G06: online auth/entitlement/device — no-op unless the server endpoint is configured
         services.AddSingleton<LocalSyncStatusService>();
         services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
 

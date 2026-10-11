@@ -36,7 +36,7 @@ public sealed class OnlineApi(IHttpClientFactory httpFactory, ServerEndpointOpti
         try
         {
             var http = httpFactory.CreateClient(SyncFeedClient.HttpClientName);
-            // Headers-read: the caller owns the response and disposes it; the body is read by ReadAsync below.
+            // Content is buffered here (identity payloads are tiny); the caller owns the response and disposes it.
             var response = await http.SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
             return new Exchange(response, null);
         }

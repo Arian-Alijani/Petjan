@@ -277,7 +277,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(identity): G06 bearer auth handler + online entitlement gate"`
 
-### T13 — DI wiring (`AddAnimoraOnlineIdentity` + handler) `[ ]`
+### T13 — DI wiring (`AddAnimoraOnlineIdentity` + handler) `[x]`
 - Add the extension (conditional `Replace` of `IEntitlementGate` + registrations). Add `BearerAuthHandler` to the named HttpClient in `AddAnimoraHttpSyncEngine` when configured. Call `AddAnimoraOnlineIdentity()` from `App.axaml.cs` after `AddAnimoraSyncOrchestration()`.
 - Must `grep` show `ServerEndpointOptions.IsConfigured` + `Replace(ServiceDescriptor` in Sync.Custom/Client.Services (acceptance #4).
 - `scripts/sandbox/build.sh fast`.

@@ -30,7 +30,7 @@ public static class SyncCustomServiceCollectionExtensions
         services.TryAddSingleton<ISyncApplyStore, BufferingSyncApplyStore>();
 
         // No AutomaticDecompression: pages are application/gzip payloads whose raw bytes are the hash input.
-        services.AddHttpClient(SyncFeedClient.HttpClientName, client =>
+        var httpClient = services.AddHttpClient(SyncFeedClient.HttpClientName, client =>
         {
             if (options.TryGetBaseUri(out var baseUri)) client.BaseAddress = baseUri;
             client.Timeout = System.Threading.Timeout.InfiniteTimeSpan; // per-request timeouts are enforced by SyncFeedClient
@@ -47,6 +47,12 @@ public static class SyncCustomServiceCollectionExtensions
             services.Replace(ServiceDescriptor.Singleton<ISyncResyncHandler, ShadowResyncHandler>());
             services.TryAddSingleton<ConflictResolver>();
             services.AddSingleton<IStateSyncEngine, HttpStateSyncEngine>();
+
+            // G06: the ONE named HttpClient carries the bearer + single-flight refresh handler. Offline default session store (no session)
+            // keeps the handler resolvable before AddAnimoraOnlineIdentity (Client.Services) replaces it with the OS-protected store.
+            services.TryAddSingleton<Animora.Application.Security.ISessionStore, NullSessionStore>();
+            services.AddTransient<BearerAuthHandler>();
+            httpClient.AddHttpMessageHandler<BearerAuthHandler>();
 
             // G05: real command transport (replaces the Null default regardless of registration order).
             services.AddSingleton<HttpCommandTransport>();
