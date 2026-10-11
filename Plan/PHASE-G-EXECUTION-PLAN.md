@@ -332,7 +332,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     `SyncCustom_HasNoNpgsql_NoServerRef`. (Overlaps existing layering tests but the phase wants this class.)
   - Verify compiles. **PUSH.**
 
-- [ ] **G08-T7 — `scripts/perf/zero-internet.sh` + `tests/Animora.Server.Tests/ZeroInternetTests.cs` (new)**
+- [x] **G08-T7 — `scripts/perf/zero-internet.sh` + `tests/Animora.Server.Tests/ZeroInternetTests.cs` (new)**
   - Script: (a) STATIC grep of the published/built output for `http(s)://` endpoints NOT loopback/LAN/
     localhost/the configured server base; any `cdn…`/`fonts.googleapis…`/external host = FAILURE (gate Z,
     ARCH §17.4). (b) runtime leg: run `scripts/sandbox/run.sh` with egress blocked (sandbox already has no
