@@ -324,7 +324,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
   - Some are `[PgFact]` if they need the DB; version-header rejection paths may be pure host tests. Verify
     compiles. **PUSH.**
 
-- [ ] **G08-T6 — `tests/Animora.Server.Tests/ServerLayeringAuditTests.cs` (new)**
+- [x] **G08-T6 — `tests/Animora.Server.Tests/ServerLayeringAuditTests.cs` (new)**
   - Read compiled-assembly reference sets (same technique as existing `ServerLayeringTests`). Methods:
     `NoClientProjectReferencesAServerProject_ExceptLicensingVerification`,
     `AnimoraServer_DoesNotReference_PersistenceSqlite_Or_Desktop`,
