@@ -307,7 +307,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     assert ≤ a documented constant and note it); p99 bounded under the configured `statement_timeout` (S18);
     readiness green at end. `[PgFact]`-gated. Verify compiles. **PUSH.**
 
-- [ ] **G08-T4 — `tests/Animora.Sync.Tests/ReconnectStormTests.cs` (new)**
+- [x] **G08-T4 — `tests/Animora.Sync.Tests/ReconnectStormTests.cs` (new)**
   - Deterministic (fake `IDelayProvider` + `TimeProvider`, no real sleep). Spin N simulated devices all
     "due" at t0 using the G03 `SyncSchedulerHostedService` jitter (±20% + capped exponential backoff, per
     device). Method `FleetRestart_DoesNotConverge_JitterSpreadsReconnects`: assert next-attempt times form a
