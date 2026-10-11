@@ -163,7 +163,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
 # Scope: ONLY .github/**, scripts/ci/**, scripts/sandbox/doctor.sh, tests/Animora.Server.Tests/**.
 # NO migration, NO src/** change, NO ErrorCode.
 
-- [ ] **G07-T1 — `scripts/ci/pg-gate.sh` (new)**
+- [x] **G07-T1 — `scripts/ci/pg-gate.sh` (new)**
   - `#!/usr/bin/env bash` + `set -euo pipefail`.
   - Assumes `ANIMORA_REQUIRE_PG=1` + `ANIMORA_PG_TEST_CONNECTION` already exported by the workflow (don't set them here).
   - Runs the PG-dependent suites via the sandbox entrypoint: `scripts/sandbox/test.sh Server` then
