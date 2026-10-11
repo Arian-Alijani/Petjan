@@ -232,7 +232,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     is set (so a dev can tell they're in the strict lane). Keep it informational (never fails the shell).
   - Verify: `bash -n scripts/sandbox/doctor.sh`. **PUSH.**
 
-- [ ] **G07-T8 — `.github/workflows/pg-gates.yml` (new)**
+- [x] **G07-T8 — `.github/workflows/pg-gates.yml` (new)**
   - Model the PG service on `animora-ci.yml`'s `linux` job BUT: `image: postgres:18`; create a SEPARATE
     non-owner app role in an init step:
     ```

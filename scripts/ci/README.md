@@ -25,6 +25,11 @@ git commit -m "ci: update Animora CI workflow (control-file lane)"
 git push
 ```
 
+> **Gate workflows (G07/G08/G09)** follow the same rule: `pg-gates.yml`, `perf-gates.yml` and
+> `release-gates.yml` are authored in the repo root and must be copied to `.github/workflows/` by a
+> human (`cp pg-gates.yml perf-gates.yml release-gates.yml .github/workflows/`). They are NOT active
+> until copied.
+>
 > **This update matters.** The root `animora-ci.yml` now also triggers on pushes
 > to `ci/**` and reads a `ci.params` control file, which is what makes
 > `scripts/ci/gh-ci.sh` work from the Genspark sandbox (where

@@ -1,0 +1,181 @@
+# =============================================================================
+# WHERE THIS FILE GOES: copy to .github/workflows/pg-gates.yml (the agent's GitHub App token
+#   cannot push under .github/ — same one-time manual step as animora-ci.yml; see scripts/ci/README.md).
+# PG gates (G07) — mandatory PostgreSQL validation lane (ARCH §19 gates
+# A D C N B L K R PG). A DISTINCT lane from animora-ci.yml: postgres:18, a
+# separate NON-owner / NON-superuser / NOBYPASSRLS app role, and
+# ANIMORA_REQUIRE_PG=1 everywhere so a missing database FAILS instead of skipping.
+#
+#   pg-correctness     scripts/ci/pg-gate.sh   (Server + Sync + Persistence suites, 0 skipped)
+#   pg-rls-hardening   RlsLeakTests + TenantIsolationTests (RLS ON proof + RLS-OFF isolation)
+#   restore-drill      scripts/ci/restore-drill.sh (3-part restore, key-ring-missing, RTO artifact)
+#
+# Roles (scripts/ci/pg-init-roles.sh): animora_owner runs migrations + fixtures (DDL / CREATE
+# DATABASE, not superuser); animora_app is the runtime shape (DML only, no DDL, no BYPASSRLS).
+# NOTE: test fixtures create databases and run migrations, so ANIMORA_PG_TEST_CONNECTION points
+# at animora_owner; the least-privilege app role is provisioned and verified by pg-init-roles.sh
+# and RlsLeakTests creates its own disposable non-owner role for the RLS proof.
+#
+# Triggers: manual, relevant pushes to the integration branches, and the sandbox
+# control-file lane (push to a ci/pg-gates* branch).
+# =============================================================================
+name: PG gates
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, genspark_ai_developer, "ci/pg-gates**"]
+    paths:
+      - ".github/workflows/pg-gates.yml"
+      - "scripts/ci/pg-*.sh"
+      - "scripts/ci/restore-drill.sh"
+      - "scripts/sandbox/test.sh"
+      - "src/Animora.Server/**"
+      - "src/Animora.Persistence.PostgreSql/**"
+      - "src/Animora.Contracts.Wire/**"
+      - "tests/Animora.Server.Tests/**"
+      - "tests/Animora.Sync.Tests/**"
+      - "tests/Animora.Persistence.Tests/**"
+
+concurrency:
+  group: pg-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  ANIMORA_REQUIRE_PG: "1"
+  PGHOST: "127.0.0.1"
+  PGPORT: "5432"
+  PG_BOOTSTRAP_USER: postgres
+  PG_BOOTSTRAP_PASSWORD: ci-bootstrap-pw
+  PG_OWNER_PASSWORD: ci-owner-pw
+  PG_APP_PASSWORD: ci-app-pw
+  ANIMORA_PG_TEST_CONNECTION: "Host=127.0.0.1;Port=5432;Username=animora_owner;Password=ci-owner-pw;Database=postgres"
+  ANIMORA_PG_OWNER_CONNECTION: "Host=127.0.0.1;Port=5432;Username=animora_owner;Password=ci-owner-pw;Database=postgres"
+
+jobs:
+  pg-correctness:
+    name: PG correctness (postgres:18, 0 skipped)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-bootstrap-pw
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version "10.0.*"
+      - name: Make scripts executable
+        run: chmod +x scripts/ci/*.sh scripts/sandbox/*.sh
+      - name: Provision roles + migrate AS OWNER + prove app role is least-privilege
+        run: scripts/ci/pg-init-roles.sh --migrate
+      - name: PG gate (Server + Sync + Persistence, ANIMORA_REQUIRE_PG=1)
+        run: scripts/ci/pg-gate.sh
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg-correctness-logs
+          path: .sandbox/logs/*.log
+          if-no-files-found: warn
+
+  pg-rls-hardening:
+    name: RLS hardening (non-owner, NOBYPASSRLS) — must be green
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-bootstrap-pw
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Make scripts executable
+        run: chmod +x scripts/ci/*.sh scripts/sandbox/*.sh
+      - name: "Provision roles (tests migrate their own databases)"
+        run: scripts/ci/pg-init-roles.sh
+      - name: RlsLeakTests (RLS ON, non-owner role)
+        run: scripts/sandbox/test.sh RlsLeakTests
+      - name: TenantIsolationTests (RLS OFF — mandatory isolation proof)
+        run: scripts/sandbox/test.sh TenantIsolationTests
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg-rls-hardening-logs
+          path: .sandbox/logs/*.log
+          if-no-files-found: warn
+
+  restore-drill:
+    name: Restore drill (3-part set, key-ring-missing, RTO)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-bootstrap-pw
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install PostgreSQL 18 client (pg_dump must be >= server version)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version "10.0.*"
+      - name: Make scripts executable
+        run: chmod +x scripts/ci/*.sh
+      - name: Provision roles
+        run: scripts/ci/pg-init-roles.sh
+      - name: Run restore drill
+        run: scripts/ci/restore-drill.sh
+      - name: Summarise RTO
+        if: always()
+        run: |
+          if [ -f artifacts/restore-rto.txt ]; then
+            echo "### Restore drill" >> "$GITHUB_STEP_SUMMARY"
+            echo "Measured RTO (restore + time-to-ready): **$(cat artifacts/restore-rto.txt)s**" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload RTO artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: restore-rto
+          path: artifacts/restore-rto.txt
+          if-no-files-found: error
