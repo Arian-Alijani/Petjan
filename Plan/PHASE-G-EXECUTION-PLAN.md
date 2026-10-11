@@ -359,7 +359,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     one `scripts/sandbox/bench.sh offline` to confirm it emits the table + exit 0 (ONLY if it's not too slow;
     it's a 60-s idle run — acceptable once, skip if constrained). Do NOT run full suites. **PUSH** fixups.
 
-- [ ] **G08-T10 — PROGRESS.md (G08 close)**
+- [x] **G08-T10 — PROGRESS.md (G08 close)**
   - Flip `G08` → `✅ Done` (+date+summary). Advance `## Next phase` → `G09`. Append `### G08` repo-state-log
     entry (perf-gates.yml 5 jobs, offline-budget promotion, capacity harness+artifact, reconnect-storm,
     mixed-fleet, zero-internet, layering-audit). Log deviations (offline-budget output path copy; capacity
