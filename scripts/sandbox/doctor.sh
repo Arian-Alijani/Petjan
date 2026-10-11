@@ -41,6 +41,18 @@ else
   printf '%-14s %s\n' "postgres:" "MISSING -> run install-postgres.sh (PG-gated tests will SKIP)"
 fi
 
+# G07: strict-lane indicator (informational only — never fails the shell).
+if [ "${ANIMORA_REQUIRE_PG:-}" = "1" ]; then
+  printf '%-14s %s\n' "require_pg:" "SET (strict lane: a missing/unreachable PostgreSQL FAILS tests instead of skipping)"
+else
+  printf '%-14s %s\n' "require_pg:" "not set (PG-gated tests skip when no database is configured)"
+fi
+if [ -n "${ANIMORA_PG_TEST_CONNECTION:-}" ]; then
+  printf '%-14s %s\n' "pg_conn_env:" "ANIMORA_PG_TEST_CONNECTION is set"
+else
+  printf '%-14s %s\n' "pg_conn_env:" "ANIMORA_PG_TEST_CONNECTION is not set"
+fi
+
 echo "----- build output -----"
 for c in Debug Release; do
   dll="$REPO_ROOT/$DESKTOP_DLL_REL/$c/net10.0/Animora.Desktop.dll"

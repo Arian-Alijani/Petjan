@@ -227,7 +227,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     future PG test silently escaping the mandatory lane. Pure reflection — not PG-gated itself.
   - Verify compiles. **PUSH.**
 
-- [ ] **G07-T7 — `scripts/sandbox/doctor.sh` (edit)**
+- [x] **G07-T7 — `scripts/sandbox/doctor.sh` (edit)**
   - It already prints a `postgres:` line (reachability). Add a line reporting whether `ANIMORA_REQUIRE_PG`
     is set (so a dev can tell they're in the strict lane). Keep it informational (never fails the shell).
   - Verify: `bash -n scripts/sandbox/doctor.sh`. **PUSH.**
