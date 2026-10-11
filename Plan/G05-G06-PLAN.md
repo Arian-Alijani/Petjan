@@ -177,7 +177,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(sync): G05 conditional Replace of ICommandTransport + registrations"`
 
-### T5 — Tests (Sync + Application) `[ ]`
+### T5 — Tests (Sync + Application) `[x]`
 - `tests/Animora.Sync.Tests/` — add classes using a fake `HttpMessageHandler` + fake `ICommandJournal`:
   - `HttpCommandTransportTests`: `Http200Settlement_ReturnsSettlementResult`, `Accepted_RecordsServerIdAndVersion`, `Status426_SettlesDeferred_ContractUnsupported_NotDropped`, `Status401_FailsUnauthorized`, `NetworkFault_SettlesDeferred_StaysPending`, `IdempotentRetry_SameOperationId_UsesStoredResult`.
   - `CommandBatchTransportTests`: `ResultsInRequestOrder`, `Over50_FailsBatchTooLarge`.
