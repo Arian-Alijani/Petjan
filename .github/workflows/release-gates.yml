@@ -1,0 +1,176 @@
+# =============================================================================
+# WHERE THIS FILE GOES: copy to .github/workflows/release-gates.yml (the agent's GitHub App token
+#   cannot push under .github/ — same one-time manual step as animora-ci.yml / pg-gates.yml /
+#   perf-gates.yml; see scripts/ci/README.md).
+# Release gates (G09) — the launch gate. Aggregates EVERY ARCH §19 lane for ONE commit and fails
+# unless all are green:
+#   * depends on `pg-gates.yml` (G07) and `perf-gates.yml` (G08) via `workflow_run` — their
+#     conclusions for the exact head SHA are read by scripts/release/launch-gate.sh (--sha);
+#   * smoke           desktop boot under Xvfb → "SMOKE RUN OK"
+#   * package         publish the desktop output, make the release manifest (CycloneDX SBOM +
+#                     native-binary inventory + suppression-ledger check), zero-Internet scan input
+#   * launch-gate     scripts/release/launch-gate.sh → artifacts/launch-gate-report.md (archived)
+#
+# Because the two dependency workflows finish at different times, the launch-gate job waits (bounded)
+# for BOTH to have a completed run on the SHA before judging; a still-missing lane is a RED lane.
+# Triggers: manual (optionally for a given sha) and completion of either dependency workflow.
+# =============================================================================
+name: Release gates
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA to judge (default: the dispatched ref's head)"
+        required: false
+        default: ""
+  workflow_run:
+    workflows: ["PG gates", "Perf gates"]
+    types: [completed]
+
+concurrency:
+  group: release-gates-${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  TARGET_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+
+jobs:
+  smoke:
+    name: Desktop smoke (SMOKE RUN OK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Install Xvfb
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb
+      - name: Make scripts executable
+        run: chmod +x scripts/sandbox/*.sh scripts/release/*.sh scripts/perf/*.sh
+      - name: Build Desktop (Debug)
+        run: dotnet build src/Animora.Desktop/Animora.Desktop.csproj -c Debug --nologo -v minimal
+      - name: Smoke run (scripts/sandbox/run.sh --no-build)
+        run: |
+          mkdir -p artifacts
+          scripts/sandbox/run.sh --no-build --seconds 8 2>&1 | tee artifacts/launch-smoke.log
+          grep -q "SMOKE RUN OK" artifacts/launch-smoke.log
+      - name: Upload smoke log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-smoke
+          path: artifacts/launch-smoke.log
+          if-no-files-found: error
+
+  package:
+    name: Package + release manifest (SBOM, native inventory, ledger)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Make scripts executable
+        run: chmod +x scripts/release/*.sh scripts/perf/*.sh
+      - name: Ledger rule self-test (native-DB/crypto entry without expiry must be rejected)
+        run: scripts/release/make-release-manifest.sh --self-test
+      - name: Publish desktop (Release, win-x64, self-contained)
+        run: |
+          dotnet publish src/Animora.Desktop/Animora.Desktop.csproj -c Release -r win-x64 --self-contained true \
+            -p:EnableAvaloniaXamlCompilation=true -p:DebugType=none -p:DebugSymbols=false \
+            -o artifacts/desktop-publish --nologo -v minimal
+      - name: Release manifest (SBOM + native inventory + ledger; DB/crypto binary REQUIRED)
+        run: |
+          MANIFEST_REQUIRE_NATIVE_DB=1 scripts/release/make-release-manifest.sh \
+            --output-dir artifacts/desktop-publish --rid win-x64 --out artifacts/release-manifest
+      - name: Zero-Internet built-output scan (ship-blocker; static leg only)
+        run: ZERO_INTERNET_SKIP_RUNTIME=1 scripts/perf/zero-internet.sh artifacts/desktop-publish
+      - name: Upload manifest + scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: |
+            artifacts/release-manifest/**
+            artifacts/zero-internet.txt
+          if-no-files-found: error
+
+  launch-gate:
+    name: Launch gate (every ARCH §19 lane green)
+    needs: [smoke, package]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_SHA }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Make scripts executable
+        run: chmod +x scripts/release/*.sh scripts/perf/*.sh
+      - name: Download smoke log + release manifest
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/_dl
+        continue-on-error: true
+      - name: Arrange local-lane inputs
+        run: |
+          mkdir -p artifacts/release-manifest
+          cp -f artifacts/_dl/launch-smoke/launch-smoke.log artifacts/launch-smoke.log 2>/dev/null || true
+          cp -rf artifacts/_dl/release-manifest/release-manifest/. artifacts/release-manifest/ 2>/dev/null || true
+      - name: Rebuild the built output for the zero-Internet scan (same publish as `package`)
+        run: |
+          dotnet publish src/Animora.Desktop/Animora.Desktop.csproj -c Release -r win-x64 --self-contained true \
+            -p:EnableAvaloniaXamlCompilation=true -p:DebugType=none -p:DebugSymbols=false \
+            -o artifacts/desktop-publish --nologo -v minimal
+      - name: Wait (bounded) until both dependency workflows have a completed run for this SHA
+        run: |
+          for wf in pg-gates perf-gates; do
+            ok=0
+            for i in $(seq 1 120); do                       # up to ~60 min
+              n="$(gh api "repos/${{ github.repository }}/actions/workflows/$wf.yml/runs?head_sha=$TARGET_SHA&per_page=20" \
+                    --jq '[.workflow_runs[] | select(.status=="completed")] | length' 2>/dev/null || echo 0)"
+              if [ "${n:-0}" -gt 0 ]; then ok=1; break; fi
+              sleep 30
+            done
+            [ $ok -eq 1 ] || echo "::warning::no completed $wf.yml run for $TARGET_SHA — its lanes will be RED"
+          done
+      - name: Launch gate
+        run: |
+          scripts/release/launch-gate.sh --sha "$TARGET_SHA" --repo "${{ github.repository }}" \
+            --output-dir artifacts/desktop-publish --manifest-dir artifacts/release-manifest \
+            --smoke-log artifacts/launch-smoke.log --report artifacts/launch-gate-report.md
+      - name: Report to step summary
+        if: always()
+        run: |
+          if [ -f artifacts/launch-gate-report.md ]; then cat artifacts/launch-gate-report.md >> "$GITHUB_STEP_SUMMARY"
+          else echo "### Launch gate: RED — no report of record is written unless every lane is green." >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Archive launch-gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-gate-report
+          path: |
+            artifacts/launch-gate-report.md
+            artifacts/zero-internet.txt
+          if-no-files-found: warn
