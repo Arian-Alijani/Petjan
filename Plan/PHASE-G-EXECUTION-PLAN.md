@@ -254,7 +254,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
   - Verify YAML: `python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/pg-gates.yml'))"`.
   - **PUSH.**
 
-- [ ] **G07-T9 — Local sanity (NARROW, no full build/test)**
+- [x] **G07-T9 — Local sanity (NARROW, no full build/test)**
   - `scripts/sandbox/build.sh fast` (compiles the touched test project) — must be 0/0 for the files you
     added. If it's heavy, limit to confirming the new test files compile. Do NOT run the whole suite.
   - Do NOT run `run.sh` repeatedly; the desktop is unaffected (no src change) — a single optional
