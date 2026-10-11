@@ -115,7 +115,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 > Status legend: `[ ]` pending · `[x]` done. Update the box when a task is pushed.
 > **Every `[x]` must correspond to a `scripts/git/push.sh -b genspark_ai_developer "..."` that returned `✓`.**
 
-### T0 — Branch setup `[ ]`
+### T0 — Branch setup `[x]`
 - Switch/create branch: `scripts/git/push.sh -b genspark_ai_developer "chore(plan): add G05/G06 execution plan"` (this also pushes this plan file).
 - (This commit is the plan file itself; subsequent tasks push their own code.)
 
@@ -154,7 +154,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
   - A method (driven by the existing B02 processor / G03 scheduler — NOT a new worker): for journal records stuck `PendingSettlement`/`Deferred` beyond a grace window, idempotently re-submit the SAME `(TenantId, OperationId)` envelope (server returns stored result) and apply the authoritative settlement. Every local state change goes through `SettlementTransitions.EnsureAllowed(from,to)` (acceptance grep #4 requires ≥1 call). Takes `ICommandJournal` + `ICommandTransport` + `IClock`.
 - **DI** in `src/Animora.Sync.Custom/SyncCustomServiceCollectionExtensions.cs` (`AddAnimoraHttpSyncEngine`, inside the existing `if (options.IsConfigured)` block): `services.Replace(ServiceDescriptor.Singleton<ICommandTransport, HttpCommandTransport>())`; register `ICommandBatchTransport` (same singleton instance via factory resolving the HttpCommandTransport), `CommandIdRemapService`, `IReplicaVersionReader`→`ReplicaVersionReader`, `SettlementReconciler`. Unconfigured ⇒ untouched (NullCommandTransport stays).
 
-### T1 — `ICommandBatchTransport` interface `[ ]`
+### T1 — `ICommandBatchTransport` interface `[x]`
 - Create `src/Animora.Application/Commands/ICommandBatchTransport.cs` (signature above). XML-doc: ordered results, batch optimization.
 - `scripts/sandbox/build.sh fast` (quick compile check).
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(sync): G05 add ICommandBatchTransport port"`
