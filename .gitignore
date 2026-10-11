@@ -5,6 +5,9 @@ obj/
 # Test output
 **/TestResults/
 
+# CI desktop publish output (scripts/ci/ci-publish-desktop.sh)
+publish/
+
 # Python read-only backup extractor cache
 __pycache__/
 *.py[cod]

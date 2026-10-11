@@ -1,0 +1,204 @@
+# =============================================================================
+# ci.yml — Animora unified Build + Test pipeline (app + server)
+# =============================================================================
+# Goal: let an agent working inside the sandbox offload ALL heavy build/test
+# work onto GitHub Actions (free, fast runners) and read the logs/results back
+# with the `gh` CLI, instead of compiling .NET 10 on the ~985 MiB sandbox box.
+#
+# Two things trigger this:
+#   * push / pull_request to main  -> normal CI gate (whole solution + tests)
+#   * workflow_dispatch            -> the agent triggers it ON DEMAND with the
+#                                     exact scope / configuration / OS it needs.
+#
+# workflow_dispatch inputs (pick any scenario the agent needs):
+#   scope         what to build/test:
+#                   all          whole solution, all tests        (default)
+#                   app          Desktop app + the pure tests (Domain/App/Sync)
+#                   server       server/DB tree only (+ real PostgreSQL)
+#                   build-only   compile everything, run NO tests
+#                   restore      restore packages only (quick health check)
+#   configuration Debug (default) | Release
+#   os            linux (default, fast & free) | windows | both
+#   filter        optional xUnit FullyQualifiedName~<filter> (e.g. Layering)
+#   with_postgres true (default) spins up a real PostgreSQL for the server job
+#
+# Everything the agent cares about is published as artifacts:
+#   * **test-results-*  -> .trx files (per test, pass/fail/skip + error text)
+#   * **build-logs-*    -> full binlog + text log of the build
+# Read them from the sandbox with: scripts/sandbox/gh-ci.sh results <run-id>
+# =============================================================================
+
+name: CI (build + test)
+
+on:
+  push:
+    branches: [main, genspark_ai_developer]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "What to build/test"
+        type: choice
+        default: all
+        options: [all, app, server, build-only, restore]
+      configuration:
+        description: "Build configuration"
+        type: choice
+        default: Debug
+        options: [Debug, Release]
+      os:
+        description: "Runner OS"
+        type: choice
+        default: linux
+        options: [linux, windows, both]
+      filter:
+        description: "Optional xUnit FullyQualifiedName~<filter>"
+        type: string
+        default: ""
+      with_postgres:
+        description: "Run server tests against a real PostgreSQL service"
+        type: boolean
+        default: true
+
+# Cancel a stale run of the same ref when a new one starts (saves CI minutes).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Decide, once, which OS matrix and which track(s) to run from the inputs.
+  # push / pull_request (no inputs) => sensible CI defaults.
+  # ---------------------------------------------------------------------------
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      os_matrix: ${{ steps.p.outputs.os_matrix }}
+      run_app: ${{ steps.p.outputs.run_app }}
+      run_server: ${{ steps.p.outputs.run_server }}
+      scope: ${{ steps.p.outputs.scope }}
+      configuration: ${{ steps.p.outputs.configuration }}
+      filter: ${{ steps.p.outputs.filter }}
+      with_postgres: ${{ steps.p.outputs.with_postgres }}
+    steps:
+      - id: p
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          IN_SCOPE: ${{ inputs.scope }}
+          IN_OS: ${{ inputs.os }}
+          IN_CONFIG: ${{ inputs.configuration }}
+          IN_FILTER: ${{ inputs.filter }}
+          IN_PG: ${{ inputs.with_postgres }}
+        run: |
+          set -euo pipefail
+          scope="${IN_SCOPE:-all}"
+          config="${IN_CONFIG:-Debug}"
+          filter="${IN_FILTER:-}"
+          pg="${IN_PG:-true}"
+          os="${IN_OS:-linux}"
+
+          # Automatic events have no inputs -> default to the full CI gate.
+          if [ "$EVENT" != "workflow_dispatch" ]; then
+            scope="all"; config="Debug"; filter=""; pg="true"; os="linux"
+          fi
+
+          # OS matrix (JSON array consumed by the build job's strategy.matrix).
+          case "$os" in
+            linux)   os_matrix='["ubuntu-latest"]' ;;
+            windows) os_matrix='["windows-latest"]' ;;
+            both)    os_matrix='["ubuntu-latest","windows-latest"]' ;;
+            *)       os_matrix='["ubuntu-latest"]' ;;
+          esac
+
+          # Which tracks run for this scope.
+          run_app="true"; run_server="true"
+          case "$scope" in
+            app)              run_server="false" ;;
+            server)           run_app="false" ;;
+            all|build-only|restore) : ;;   # both tracks
+          esac
+
+          {
+            echo "os_matrix=$os_matrix"
+            echo "run_app=$run_app"
+            echo "run_server=$run_server"
+            echo "scope=$scope"
+            echo "configuration=$config"
+            echo "filter=$filter"
+            echo "with_postgres=$pg"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "::notice title=CI plan::scope=$scope config=$config os=$os filter='${filter:-<none>}' postgres=$pg"
+
+  # ---------------------------------------------------------------------------
+  # APP TRACK — Desktop app + the host-independent tests
+  # (Domain / Application / Sync). Avalonia is managed & cross-platform, so this
+  # builds & tests fine on Linux; the agent can request windows/both when it
+  # needs to validate the real Windows target.
+  # ---------------------------------------------------------------------------
+  app:
+    needs: plan
+    if: needs.plan.outputs.run_app == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(needs.plan.outputs.os_matrix) }}
+    # A job that calls a reusable workflow must NOT set runs-on itself — the
+    # runner is chosen INSIDE the reusable workflow from the `runner` input.
+    uses: ./.github/workflows/_dotnet-build-test.yml
+    with:
+      runner: ${{ matrix.os }}
+      track: app
+      scope: ${{ needs.plan.outputs.scope }}
+      configuration: ${{ needs.plan.outputs.configuration }}
+      filter: ${{ needs.plan.outputs.filter }}
+
+  # ---------------------------------------------------------------------------
+  # SERVER TRACK — Animora.Server / Persistence.PostgreSql / Licensing /
+  # Web.Admin and their tests, against a REAL PostgreSQL service container.
+  # Always Linux (service containers + fast). Windows is irrelevant here.
+  # ---------------------------------------------------------------------------
+  server:
+    needs: plan
+    if: needs.plan.outputs.run_server == 'true'
+    # No runs-on here: the reusable workflow picks the runner from `runner`.
+    uses: ./.github/workflows/_dotnet-build-test.yml
+    with:
+      runner: ubuntu-latest
+      track: server
+      scope: ${{ needs.plan.outputs.scope }}
+      configuration: ${{ needs.plan.outputs.configuration }}
+      filter: ${{ needs.plan.outputs.filter }}
+      with_postgres: ${{ needs.plan.outputs.with_postgres == 'true' }}
+
+  # ---------------------------------------------------------------------------
+  # One place the agent can read "did the whole thing pass?" without scanning
+  # every job. Fails if any required track failed.
+  # ---------------------------------------------------------------------------
+  summary:
+    needs: [plan, app, server]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - shell: bash
+        run: |
+          echo "### CI summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| track | result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| app | ${{ needs.app.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| server | ${{ needs.server.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          # 'skipped' is OK (scope excluded it); only real failures break CI.
+          fail=0
+          [ "${{ needs.app.result }}" = "failure" ] && fail=1
+          [ "${{ needs.server.result }}" = "failure" ] && fail=1
+          if [ "$fail" = "1" ]; then
+            echo "::error title=CI::one or more tracks failed"
+            exit 1
+          fi
+          echo "::notice title=CI::all requested tracks passed"
