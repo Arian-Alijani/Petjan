@@ -798,4 +798,14 @@ public static class ErrorCodes
     public static readonly ErrorCode SyncShadowValidationFailed = new("SYNC_SHADOW_VALIDATION_FAILED", ErrorCode.Integrity);
 
     #endregion
+
+    #region Online entitlement (G06)
+
+    /// <summary>The offline credential check against the OS-protected mirror failed (wrong user or password); no offline session is granted.</summary>
+    public static readonly ErrorCode OfflineCredentialMismatch = new("OFFLINE_CREDENTIAL_MISMATCH", ErrorCode.Forbidden);
+
+    /// <summary>The server is unreachable and there is no valid credential mirror / capability snapshot / sealed entitlement to authorise an offline session (fail closed).</summary>
+    public static readonly ErrorCode OfflineSessionUnavailable = new("OFFLINE_SESSION_UNAVAILABLE", ErrorCode.Forbidden);
+
+    #endregion
 }

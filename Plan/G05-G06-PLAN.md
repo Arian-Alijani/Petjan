@@ -244,7 +244,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `Animora.Sync.Custom.csproj`: BearerAuthHandler needs `ISessionStore` from Application (already referenced) — no new ref if ISessionStore lives in Application.
 - `Animora.Infrastructure.Local.csproj`: add ref to `Animora.Server.Licensing` (for `DeviceFingerprint`, `SealedEntitlement`) and `Animora.Contracts.Wire` if not present.
 
-### T8 — ErrorCodes (2) + `ISessionStore`/`ClientSession` in Application `[ ]`
+### T8 — ErrorCodes (2) + `ISessionStore`/`ClientSession` in Application `[x]`
 - Edit `src/Animora.Domain/Results/ErrorCodes.cs`: add `#region Online entitlement (G06)` with the 2 codes (both absent — verified).
 - Create `src/Animora.Application/Security/ISessionStore.cs` with `ClientSession` record + `ISessionStore` (`Task<Result<ClientSession?>> ReadAsync(ct)`, `Task<Result> WriteAsync(ClientSession, ct)`, `Task<Result> ClearAsync(ct)`).
 - `scripts/sandbox/build.sh fast`.
