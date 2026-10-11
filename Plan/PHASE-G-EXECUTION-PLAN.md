@@ -447,7 +447,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
     letters, or hard-code the expected set) **equals** the ARCH §19 table set = {A,D,C,N,B,L,P,O,K,U,F,S,I,
     M,R,Z,T,PG} (18). Stops a future gate escaping the launch bar. Pure test. Verify compiles. **PUSH.**
 
-- [ ] **G09-T9 — `scripts/sandbox/doctor.sh` (edit)**
+- [x] **G09-T9 — `scripts/sandbox/doctor.sh` (edit)**
   - Add a line reporting presence of `pg-gates.yml`, `perf-gates.yml`, `publish-portable.ps1`. Informational,
     never fails. Verify `bash -n`. **PUSH.**
 

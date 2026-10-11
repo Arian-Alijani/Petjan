@@ -53,6 +53,23 @@ else
   printf '%-14s %s\n' "pg_conn_env:" "ANIMORA_PG_TEST_CONNECTION is not set"
 fi
 
+# G09: release-engineering file presence (informational only — never fails the shell).
+echo "----- release gates -----"
+for f in pg-gates.yml perf-gates.yml release-gates.yml; do
+  if [ -f "$REPO_ROOT/.github/workflows/$f" ]; then
+    printf '%-18s %s\n' "$f:" "installed (.github/workflows)"
+  elif [ -f "$REPO_ROOT/$f" ]; then
+    printf '%-18s %s\n' "$f:" "authored at repo root (copy to .github/workflows/ to activate)"
+  else
+    printf '%-18s %s\n' "$f:" "MISSING"
+  fi
+done
+if [ -f "$REPO_ROOT/scripts/windows/publish-portable.ps1" ]; then
+  printf '%-18s %s\n' "publish-portable:" "present$(grep -q 'EmitManifest' "$REPO_ROOT/scripts/windows/publish-portable.ps1" && echo ' (-EmitManifest supported)')"
+else
+  printf '%-18s %s\n' "publish-portable:" "MISSING"
+fi
+
 echo "----- build output -----"
 for c in Debug Release; do
   dll="$REPO_ROOT/$DESKTOP_DLL_REL/$c/net10.0/Animora.Desktop.dll"
