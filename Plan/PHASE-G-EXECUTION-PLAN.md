@@ -437,7 +437,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
   - The 18 §19 gates to enumerate: A D C N B L P O K U F S I M R Z T PG (see VERIFIED FACTS).
   - Verify `bash -n` and `scripts/release/launch-gate.sh --dry-run` lists all 18 lanes. **PUSH.**
 
-- [ ] **G09-T7 — `.github/workflows/release-gates.yml` (new)**
+- [x] **G09-T7 — `.github/workflows/release-gates.yml` (new)**
   - Depends on `pg-gates.yml` + `perf-gates.yml` (via `workflow_run` or reusable-workflow `needs`). A smoke
     job (`run.sh` → `SMOKE RUN OK`) + a `launch-gate` job running `scripts/release/launch-gate.sh`; archive
     `artifacts/launch-gate-report.md`. Verify YAML parses. **PUSH.**
