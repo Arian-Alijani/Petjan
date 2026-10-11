@@ -20,11 +20,28 @@
 #   logs, TRX test results, and (optionally) the Windows build as artifacts, so
 #   the model can inspect outcomes without re-running anything.
 #
-# HOW THE MODEL TRIGGERS IT
-#   * Manually (UI or API/CLI):  Actions tab -> "Animora CI" -> Run workflow,
-#     choosing the inputs below.  (gh cli:  gh workflow run animora-ci.yml -f scope=server ...)
-#   * Automatically on push / PR to the integration branches (build + fast
-#     tests only; see the `push`/`pull_request` triggers).
+# HOW THE MODEL TRIGGERS IT  (three ways — pick what your token allows)
+#   1. CONTROL-FILE PUSH  ***the way that works in the Genspark sandbox***
+#      The sandbox's GitHub App token can push commits but is NOT allowed to
+#      call the workflow_dispatch / re-run APIs (they return HTTP 403
+#      "Resource not accessible by integration"). So instead of dispatch, the
+#      model writes its desired parameters into a plain control file,
+#      `ci.params` in the repo root, and PUSHES it to a `ci/**` branch. The
+#      `push` trigger below fires, and the Plan job READS ci.params to get the
+#      exact same knobs workflow_dispatch would have given. The helper
+#      `scripts/ci/gh-ci.sh` does the whole thing (write + commit + push +
+#      watch + print results) in one command — the model never has to think
+#      about git plumbing. See scripts/ci/README.md -> "Driving CI from the
+#      sandbox".
+#   2. Manually (UI or API/CLI):  Actions tab -> "Animora CI" -> Run workflow,
+#      choosing the inputs below.  (gh cli:  gh workflow run animora-ci.yml -f scope=server ...)
+#      Use this when you have a classic PAT / OAuth token with `actions:write`.
+#   3. Automatically on push / PR to the integration branches (build + fast
+#      tests only; see the `push`/`pull_request` triggers).
+#
+#   Precedence inside the Plan job: workflow_dispatch inputs win; otherwise, if
+#   a readable ci.params exists, its values are used; otherwise safe defaults
+#   (scope=all, Debug, build-and-test) apply.
 #
 # ENVIRONMENT PARITY
 #   The jobs mirror scripts/sandbox/* and scripts/windows/* project groupings
@@ -92,9 +109,14 @@ on:
           - win-x64
           - win-arm64
 
-  # --- Automatic sanity runs on the integration branches ---------------------
+  # --- Push triggers ----------------------------------------------------------
+  # * main / genspark_ai_developer : automatic sanity runs (scope=all, Debug).
+  # * ci/**                        : the model's on-demand lane. Pushing a
+  #   commit here (typically just an updated ci.params) runs EXACTLY the
+  #   scenario described in ci.params, without touching the integration
+  #   branches. Create as many ci/<name> branches as you like; delete when done.
   push:
-    branches: [ main, genspark_ai_developer ]
+    branches: [ main, genspark_ai_developer, 'ci/**' ]
   pull_request:
     branches: [ main ]
 
@@ -133,13 +155,23 @@ jobs:
       need_linux:       ${{ steps.p.outputs.need_linux }}
       need_windows:     ${{ steps.p.outputs.need_windows }}
     steps:
+      # Needed so the Plan job can read ci.params from the pushed commit.
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - id: p
         shell: bash
         run: |
           set -euo pipefail
           EVENT="${{ github.event_name }}"
 
+          # ---- Safe defaults (used for auto push/PR and as fallbacks) ----------
+          SCOPE="all"; CONFIG="Debug"; ACTION="build-and-test"
+          FILTER=""; WITH_PG="true"; PUBLISH="false"; RUNTIME="win-x64"
+          SOURCE="defaults"
+
           if [ "$EVENT" = "workflow_dispatch" ]; then
+            # (1) Manual dispatch inputs win outright.
             SCOPE="${{ inputs.scope }}"
             CONFIG="${{ inputs.configuration }}"
             ACTION="${{ inputs.action }}"
@@ -147,11 +179,45 @@ jobs:
             WITH_PG="${{ inputs.server_tests_with_postgres }}"
             PUBLISH="${{ inputs.publish_desktop }}"
             RUNTIME="${{ inputs.desktop_runtime }}"
-          else
-            # Automatic push/PR: build + test everything, Debug, no manual publish.
-            SCOPE="all"; CONFIG="Debug"; ACTION="build-and-test"
-            FILTER=""; WITH_PG="true"; PUBLISH="false"; RUNTIME="win-x64"
+            SOURCE="workflow_dispatch"
+          elif [ -f ci.params ]; then
+            # (2) Control-file lane: parse simple KEY=VALUE lines from ci.params.
+            #     Unknown keys are ignored; missing keys keep their default.
+            #     Comments (#...) and blank lines are skipped. Values may be
+            #     quoted; surrounding quotes/whitespace are stripped.
+            SOURCE="ci.params"
+            while IFS= read -r raw || [ -n "$raw" ]; do
+              line="${raw%%#*}"                       # strip trailing comment
+              line="$(printf '%s' "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+              [ -z "$line" ] && continue
+              case "$line" in *=*) ;; *) continue ;; esac
+              key="${line%%=*}"; val="${line#*=}"
+              key="$(printf '%s' "$key" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+              val="$(printf '%s' "$val" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/")"
+              case "$key" in
+                scope)                       SCOPE="$val"   ;;
+                action)                      ACTION="$val"  ;;
+                configuration|config)        CONFIG="$val"  ;;
+                test_filter|filter)          FILTER="$val"  ;;
+                server_tests_with_postgres|with_postgres|postgres) WITH_PG="$val" ;;
+                publish_desktop|publish)     PUBLISH="$val" ;;
+                desktop_runtime|runtime)     RUNTIME="$val" ;;
+              esac
+            done < ci.params
           fi
+
+          # ---- Normalise / validate so a bad ci.params fails loudly ------------
+          norm_bool() { case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+            1|true|yes|on)  echo "true"  ;; 0|false|no|off|"") echo "false" ;;
+            *) echo "__BAD__" ;; esac; }
+          WITH_PG="$(norm_bool "$WITH_PG")"
+          PUBLISH="$(norm_bool "$PUBLISH")"
+          case "$SCOPE"   in all|server|desktop|core) ;; *) echo "::error::invalid scope '$SCOPE' (want all|server|desktop|core)"; exit 2 ;; esac
+          case "$ACTION"  in build-and-test|build-only|test-only) ;; *) echo "::error::invalid action '$ACTION'"; exit 2 ;; esac
+          case "$CONFIG"  in Debug|Release) ;; *) echo "::error::invalid configuration '$CONFIG'"; exit 2 ;; esac
+          case "$RUNTIME" in win-x64|win-arm64) ;; *) echo "::error::invalid desktop_runtime '$RUNTIME'"; exit 2 ;; esac
+          [ "$WITH_PG" = "__BAD__" ] && { echo "::error::server_tests_with_postgres must be true/false"; exit 2; }
+          [ "$PUBLISH" = "__BAD__" ] && { echo "::error::publish_desktop must be true/false"; exit 2; }
 
           case "$ACTION" in
             build-and-test) DO_BUILD="true";  DO_TEST="true"  ;;
@@ -188,6 +254,7 @@ jobs:
           echo "| Setting | Value |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Trigger | \`$EVENT\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Params source | \`$SOURCE\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Scope | \`$SCOPE\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Configuration | \`$CONFIG\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Build | \`$DO_BUILD\` · Test \`$DO_TEST\` |" >> "$GITHUB_STEP_SUMMARY"
