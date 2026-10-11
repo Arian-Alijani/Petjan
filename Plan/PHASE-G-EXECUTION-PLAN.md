@@ -299,7 +299,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     never a guaranteed user count).
   - Verify `bash -n`. **PUSH.**
 
-- [ ] **G08-T3 — `tests/Animora.Server.Tests/Capacity/CapacityDriver.cs` (+ profiles) (new)**
+- [x] **G08-T3 — `tests/Animora.Server.Tests/Capacity/CapacityDriver.cs` (+ profiles) (new)**
   - xUnit-hosted load driver reusing `TestHostFactory` + `PgFixture`. Ramps concurrency on the two profiles;
     records per-profile metrics to the artifact. **Mechanical assertions (not a user count):** zero
     unexpected 5xx; NO connection-pool exhaustion (active conns ≤ the S18 bounded pool sum — pool sums are
