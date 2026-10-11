@@ -283,7 +283,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(identity): G06 conditional online-identity DI + bearer handler wiring"`
 
-### T14 — Tests (Application + Sync + Persistence) `[ ]`
+### T14 — Tests (Application + Sync + Persistence) `[x]`
 - `tests/Animora.Application.Tests/`: `OnlineEntitlementGateTests` — `ValidLicense_AllowsByRisk`, `Grace_AllowsLowNormalHigh_DeniesReadOnly`, `ReadOnly_AllowsQuery_DeniesCommand`, `Locked_DeniesEverything`, `DecidesWithoutServerCall` (fake handler never hit), `BackwardClock_DoesNotReviveExpired`.
 - `tests/Animora.Sync.Tests/`: `BearerAuthHandlerTests` — `Attaches_Bearer`, `On401_SingleFlightRefresh_RetriesOnce`, `RefreshSessionExpired_SurfacesUnauthorized_NoLoop`; `OnlineAuthClientTests` — `Login200_PersistsSession_AndSealsEntitlement`, `ServerUnreachable_UsesCredentialMirror_WhenWindowsValid`, `DeviceRevoked_WipesOfflineAuthority`; `DeviceFingerprintSourceTests.RawComponentsNeverLeave_OnlyHashSent`; `OnlineIdentityDiTests` — `Configured_ReplacesAllowAllGate`, `Unconfigured_KeepsAllowAllGate`.
 - `tests/Animora.Persistence.Tests/`: `SealedEntitlementStoreTests.Write_IsForwardOnly_IgnoresLowerHighWaterOrSequence`; `LocalOnlyTablesTest` asserting `ClientSessions`/`SealedEntitlements` are LocalOnly (no sync manifest / no Version/Deleted).
