@@ -456,7 +456,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
     `scripts/release/launch-gate.sh --dry-run` → must list all 18 lanes. Do NOT run full suites/aggregator
     locally (it needs CI lane artifacts). **PUSH** fixups.
 
-- [ ] **G09-T11 — PROGRESS.md (G09 close)**
+- [x] **G09-T11 — PROGRESS.md (G09 close)**
   - Flip `G09` → `✅ Done` (+date+summary). **Leave `## Next phase` as `M00`** (per the G09 phase file —
     T9 already closed M00 historically; if "Next phase" already says `S01` from T9, leave it; do NOT regress
     it. The rule is: do not advance it FORWARD past where it is — just close G09). Append `### G09`
