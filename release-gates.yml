@@ -90,14 +90,27 @@ jobs:
         run: chmod +x scripts/release/*.sh scripts/perf/*.sh
       - name: Ledger rule self-test (native-DB/crypto entry without expiry must be rejected)
         run: scripts/release/make-release-manifest.sh --self-test
+      - name: Restore (locked mode when a committed lock file exists; otherwise generate it)
+        # RestorePackagesWithLockFile=true (Directory.Build.props) makes restore write
+        # packages.lock.json. Once those files are committed, --locked-mode guarantees the
+        # graph can never drift silently; before that first commit we just generate them.
+        run: |
+          if git ls-files --error-unmatch '**/packages.lock.json' >/dev/null 2>&1; then
+            echo "Lock files present -> enforcing --locked-mode"
+            dotnet restore Animora.sln --locked-mode --nologo -v minimal
+          else
+            echo "No committed lock file yet -> generating (commit the resulting packages.lock.json to enforce locked mode)"
+            dotnet restore Animora.sln --nologo -v minimal
+          fi
       - name: Publish desktop (Release, win-x64, self-contained)
         run: |
           dotnet publish src/Animora.Desktop/Animora.Desktop.csproj -c Release -r win-x64 --self-contained true \
+            --no-restore \
             -p:EnableAvaloniaXamlCompilation=true -p:DebugType=none -p:DebugSymbols=false \
             -o artifacts/desktop-publish --nologo -v minimal
-      - name: Release manifest (SBOM + native inventory + ledger; DB/crypto binary REQUIRED)
+      - name: Release manifest (SBOM + native inventory + ledger; DB/crypto binary + lock-file REQUIRED)
         run: |
-          MANIFEST_REQUIRE_NATIVE_DB=1 scripts/release/make-release-manifest.sh \
+          MANIFEST_REQUIRE_NATIVE_DB=1 MANIFEST_REQUIRE_LOCKFILE=1 scripts/release/make-release-manifest.sh \
             --output-dir artifacts/desktop-publish --rid win-x64 --out artifacts/release-manifest
       - name: Zero-Internet built-output scan (ship-blocker; static leg only)
         run: ZERO_INTERNET_SKIP_RUNTIME=1 scripts/perf/zero-internet.sh artifacts/desktop-publish

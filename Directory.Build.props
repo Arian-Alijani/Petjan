@@ -11,6 +11,12 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!-- Supply-chain hardening (G09 release engineering). Lock-file mode makes restore
+         deterministic and reproducible; make-release-manifest.sh now passes under
+         MANIFEST_REQUIRE_LOCKFILE=1. First restore regenerates packages.lock.json;
+         CI must restore with --locked-mode so the lock file can never drift silently. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
 </Project>
