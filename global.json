@@ -1,0 +1,8 @@
+{
+  "//": "Pins the .NET SDK major/feature band for reproducible builds in GitHub Actions and the sandbox. rollForward=latestFeature lets any 10.0.x SDK satisfy it, so setup-dotnet resolves the newest available 10.0 SDK while never drifting to 11.x.",
+  "sdk": {
+    "version": "10.0.100",
+    "rollForward": "latestFeature",
+    "allowPrerelease": true
+  }
+}
