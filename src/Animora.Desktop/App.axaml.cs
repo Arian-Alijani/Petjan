@@ -400,7 +400,12 @@ public partial class App : global::Avalonia.Application
 
         // Local offline sync status. E04 swaps engine internals behind the same contract.
         services.AddAnimoraSyncEngine();
-        services.AddAnimoraHttpSyncEngine();
+        // Real-server wiring: when a sync server base address is provided the desktop talks to the
+        // live ASP.NET Core server (online auth/entitlement/device + command/state sync). The address
+        // is read from the ANIMORA_SERVER_URL environment variable so the same build can target any
+        // server; the publish/build script bakes the production default (http://188.212.99.234:5000).
+        // A blank/invalid value leaves the engine offline-only (unchanged behavior) — see ServerEndpointOptions.
+        services.AddAnimoraHttpSyncEngine(ConfigureServerEndpoint);
         services.AddAnimoraSyncOrchestration();
         services.AddAnimoraOnlineIdentity(); // G06: online auth/entitlement/device — no-op unless the server endpoint is configured
         services.AddSingleton<LocalSyncStatusService>();
@@ -434,4 +439,38 @@ public partial class App : global::Avalonia.Application
         NotificationSeverity.Error or NotificationSeverity.NeedsAttention => Tone.Danger,
         _ => Tone.Info,
     };
+
+    /// <summary>
+    /// Default sync-server base address baked into release/portable builds so the app connects to the
+    /// real server out of the box. Overridable per run with the <c>ANIMORA_SERVER_URL</c> environment
+    /// variable (the publish script sets it in the launcher). Set this to an empty string to ship an
+    /// offline-only build.
+    /// </summary>
+    private const string DefaultServerBaseAddress = "http://188.212.99.234:5000";
+
+    /// <summary>
+    /// Binds <see cref="ServerEndpointOptions"/> for the live server. Resolution order:
+    /// <list type="number">
+    ///   <item>the <c>ANIMORA_SERVER_URL</c> environment variable (per-run override), else</item>
+    ///   <item>the compiled-in <see cref="DefaultServerBaseAddress"/> (production default).</item>
+    /// </list>
+    /// A blank result leaves <see cref="ServerEndpointOptions.BaseAddress"/> null, which keeps the
+    /// desktop offline-only (the HTTP sync engine is not wired). Any explicit timeout override can be
+    /// supplied through <c>ANIMORA_SERVER_TIMEOUT_SECONDS</c>.
+    /// </summary>
+    private static void ConfigureServerEndpoint(ServerEndpointOptions options)
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("ANIMORA_SERVER_URL");
+        var baseAddress = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv.Trim() : DefaultServerBaseAddress;
+        if (!string.IsNullOrWhiteSpace(baseAddress))
+            options.BaseAddress = baseAddress.Trim();
+
+        var timeoutRaw = Environment.GetEnvironmentVariable("ANIMORA_SERVER_TIMEOUT_SECONDS");
+        if (!string.IsNullOrWhiteSpace(timeoutRaw)
+            && int.TryParse(timeoutRaw, out var seconds)
+            && seconds is > 0 and <= 600)
+        {
+            options.RequestTimeout = TimeSpan.FromSeconds(seconds);
+        }
+    }
 }
