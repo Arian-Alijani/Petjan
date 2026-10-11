@@ -14,6 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Animora.Sync.Abstractions\Animora.Sync.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Animora.Sync.Custom\Animora.Sync.Custom.csproj" />
+    <ProjectReference Include="..\..\src\Animora.Persistence.Sqlite\Animora.Persistence.Sqlite.csproj" />
+    <ProjectReference Include="..\Animora.Persistence.Tests\Animora.Persistence.Tests.csproj" />
   </ItemGroup>
 
 </Project>
