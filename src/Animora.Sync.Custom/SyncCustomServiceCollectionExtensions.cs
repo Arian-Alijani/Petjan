@@ -1,4 +1,6 @@
+using Animora.Application.Sync;
 using Animora.Sync.Abstractions;
+using Animora.Sync.Custom.Replica;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -32,7 +34,14 @@ public static class SyncCustomServiceCollectionExtensions
             sp.GetRequiredService<ServerEndpointOptions>()));
 
         if (options.IsConfigured)
+        {
+            // G04: a configured endpoint gets the real atomic replica store and the non-destructive full-resync handler. Replace is
+            // unconditional so the result is the same whether AddAnimoraSyncOrchestration (Null resync default, TryAdd) ran before or after.
+            services.Replace(ServiceDescriptor.Singleton<ISyncApplyStore, SqliteSyncApplyStore>());
+            services.Replace(ServiceDescriptor.Singleton<ISyncResyncHandler, ShadowResyncHandler>());
+            services.TryAddSingleton<ConflictResolver>();
             services.AddSingleton<IStateSyncEngine, HttpStateSyncEngine>();
+        }
 
         return services;
     }
