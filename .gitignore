@@ -8,6 +8,12 @@ obj/
 # CI desktop publish output (scripts/ci/ci-publish-desktop.sh)
 publish/
 
+# CI control file — generated/pushed by scripts/ci/gh-ci.sh onto ci/** branches
+# only. It must NOT be committed to main/genspark_ai_developer. The helper
+# force-adds it into a throwaway index when pushing, so ignoring it here is safe.
+# (The tracked template is ci.params.example.)
+/ci.params
+
 # Python read-only backup extractor cache
 __pycache__/
 *.py[cod]

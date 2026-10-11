@@ -1,0 +1,47 @@
+# =============================================================================
+# ci.params — Animora CI control file (sample)
+# =============================================================================
+# This is the file the model edits to drive GitHub Actions FROM THE SANDBOX,
+# where the GitHub App token cannot call workflow_dispatch (HTTP 403). Instead,
+# the Plan job in .github/workflows/animora-ci.yml reads a `ci.params` file at
+# the repo root whenever a commit is PUSHED to a `ci/**` branch, and runs
+# exactly the scenario described here.
+#
+# HOW TO USE
+#   Easiest (recommended): let the helper write + push this for you —
+#       scripts/ci/gh-ci.sh --scope server --action test-only --filter Sync
+#   Manual: copy this to `ci.params`, edit the values, then push it to a ci/
+#   branch, e.g.
+#       cp ci.params.example ci.params
+#       # edit ci.params ...
+#       git add ci.params && git commit -m "ci: server tests"
+#       git push origin HEAD:refs/heads/ci/manual -f
+#
+# FORMAT
+#   Simple KEY=VALUE lines. '#' starts a comment. Blank lines ignored. Keys are
+#   case-insensitive; a few aliases are accepted (see animora-ci.yml). Unknown
+#   keys are ignored; omitted keys fall back to the defaults shown below.
+# =============================================================================
+
+# What to build/test:  all | server | desktop | core
+scope=all
+
+# Which stages to run:  build-and-test | build-only | test-only
+action=build-and-test
+
+# Build configuration:  Debug | Release
+configuration=Debug
+
+# Optional test name filter (dotnet FullyQualifiedName~<value>); blank = all.
+test_filter=
+
+# Run server tests against a REAL PostgreSQL service (else [PgFact] tests skip):
+#   true | false
+server_tests_with_postgres=true
+
+# Also publish a downloadable, self-contained Windows desktop build:
+#   true | false
+publish_desktop=false
+
+# Windows runtime for the desktop publish:  win-x64 | win-arm64
+desktop_runtime=win-x64

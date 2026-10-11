@@ -12,20 +12,25 @@ publish all mirror those scripts.
 
 ---
 
-## Installation (one manual step)
+## Installation / updating (one manual step)
 
-The agent cannot write under `.github/`, so the workflow ships in the repo root
-as `animora-ci.yml`. **Move it into place once:**
+The agent cannot write under `.github/`, so the authoritative workflow is edited
+in the repo root as **`animora-ci.yml`**, and a human copies it into place:
 
 ```bash
 mkdir -p .github/workflows
-git mv animora-ci.yml .github/workflows/animora-ci.yml
-git commit -m "ci: install Animora CI workflow"
+cp animora-ci.yml .github/workflows/animora-ci.yml   # first time: git mv instead
+git add .github/workflows/animora-ci.yml
+git commit -m "ci: update Animora CI workflow (control-file lane)"
 git push
 ```
 
-The helper scripts in `scripts/ci/` are already in their final location and need
-no moving.
+> **This update matters.** The root `animora-ci.yml` now also triggers on pushes
+> to `ci/**` and reads a `ci.params` control file, which is what makes
+> `scripts/ci/gh-ci.sh` work from the Genspark sandbox (where
+> `workflow_dispatch` is blocked). Until the `.github/workflows/` copy is
+> refreshed from the root file, the sandbox lane won't run. The helper scripts
+> in `scripts/ci/` are already in their final location and need no moving.
 
 ---
 
@@ -82,7 +87,63 @@ required status (green only if every *needed* job succeeded — skipped jobs are
 
 ---
 
-## Triggering from the GitHub CLI (handy for automation)
+## Driving CI from the Genspark sandbox  ⭐ (the way that actually works here)
+
+**Important:** in the Genspark sandbox the authenticated GitHub token is a
+**GitHub App token** that can *push commits* and *read* Actions, but is **not**
+allowed to call the `workflow_dispatch` or re-run REST APIs. Both of these fail:
+
+```text
+$ gh workflow run animora-ci.yml -f scope=server ...
+HTTP 403: Resource not accessible by integration
+$ gh run rerun <id>
+Resource not accessible by integration
+```
+
+So the model drives CI over the one channel that *is* allowed — **a git push** —
+using a small control file (`ci.params`) and a dedicated `ci/**` branch. The
+helper does everything in one command:
+
+```bash
+# Build + test EVERYTHING against a real PostgreSQL, wait, print the result:
+scripts/ci/gh-ci.sh
+
+# Only the server track, only tests, only the Sync.* cases:
+scripts/ci/gh-ci.sh --scope server --action test-only --filter Sync
+
+# Release build of the desktop app + a downloadable self-contained build:
+scripts/ci/gh-ci.sh --scope desktop --action build-only --config Release \
+    --publish true --runtime win-x64
+
+# Fire-and-forget (don't block on the run); inspect later:
+scripts/ci/gh-ci.sh --scope core --no-watch
+gh run list --repo <owner>/<repo> --branch ci/sandbox
+gh run view  --repo <owner>/<repo> --log-failed
+
+# Keep the repo tidy — delete the scratch ci/ branch once the run is done:
+scripts/ci/gh-ci.sh --scope core --cleanup
+```
+
+`gh-ci.sh` writes the knobs into `ci.params`, commits **only that file** onto a
+scratch `ci/<name>` branch (default `ci/sandbox`, force-pushed each time),
+pushes it, then watches the run and prints the Summary + any failing-job logs.
+It never disturbs your checked-out branch or working tree. See
+`scripts/ci/gh-ci.sh --help` for every flag. `ci.params.example` (repo root)
+documents the file format if you ever want to write it by hand.
+
+### What the model needs to remember
+- **To launch a run:** call `scripts/ci/gh-ci.sh` with the flags you want.
+- **It blocks until done** (unless `--no-watch`) and prints pass/fail + logs.
+- **Each run is isolated** on its own `ci/**` branch — `main` and
+  `genspark_ai_developer` are never touched by the model's experiments.
+- **Any scenario, any time:** scope (all/server/desktop/core), stage
+  (build/test/both), Debug/Release, a test-name filter, PostgreSQL on/off, and a
+  downloadable Windows build — all selectable per run.
+
+## Triggering with a classic PAT / OAuth token (outside the sandbox)
+
+If you run with a token that has `actions:write` (a classic PAT, an OAuth
+token, or from the Actions UI), the original manual dispatch still works:
 
 ```bash
 # Build + test only the server track against a real PostgreSQL:
@@ -105,7 +166,7 @@ gh run view --log
 
 On every push to `main` / `genspark_ai_developer` and every PR to `main`, the
 workflow also runs automatically (`scope=all`, Debug, build + test) as a sanity
-gate.
+gate. Pushes to `ci/**` run exactly what their `ci.params` says.
 
 ---
 
@@ -117,6 +178,7 @@ gate.
 | [`ci-build.sh`](./ci-build.sh) | `ci-build.sh <scope> <config>` — scoped build, writes the build summary. |
 | [`ci-test.sh`](./ci-test.sh) | `ci-test.sh <scope> <config> [filter]` — scoped tests, writes TRX + summary. Honors `ANIMORA_PG_TEST_CONNECTION` / `ANIMORA_REQUIRE_PG`. |
 | [`ci-publish-desktop.sh`](./ci-publish-desktop.sh) | `ci-publish-desktop.sh <runtime> <out-dir>` — self-contained Windows publish (run on Windows). |
+| [`gh-ci.sh`](./gh-ci.sh) | **Sandbox driver.** Writes `ci.params`, pushes it to a `ci/**` branch, watches the run, and prints the result + failing logs — the one command the model uses to launch CI here. |
 
 They print color status to the terminal and, when `$GITHUB_STEP_SUMMARY` is set
 (i.e. inside Actions), append the Markdown summaries described above. You can run
