@@ -150,8 +150,8 @@ public sealed class RlsLeakTests(PgFixture pg) : IClassFixture<PgFixture>
         Assert.Equal(pidA1, pidB);
         Assert.Equal(pidA1, pidA2);
 
-        Assert.Equal(["a-one", "a-two"], namesA1);
-        Assert.Equal(["b-one", "b-two"], namesB);
+        Assert.Equal(new[] { "a-one", "a-two" }, namesA1);
+        Assert.Equal(new[] { "b-one", "b-two" }, namesB);
         Assert.Equal(namesA1, namesA2);
     }
 
@@ -253,7 +253,7 @@ public sealed class RlsLeakTests(PgFixture pg) : IClassFixture<PgFixture>
         });
 
         // Same pool slot, next caller: tenant B sees only B; no-context sees nothing.
-        Assert.Equal(["b-one", "b-two"], (await env.ReadAsync(TenantB)).Names);
+        Assert.Equal(new[] { "b-one", "b-two" }, (await env.ReadAsync(TenantB)).Names);
         Assert.Empty((await env.ReadAsync(tenant: null)).Names);
     }
 }

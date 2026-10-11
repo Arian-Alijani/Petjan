@@ -206,7 +206,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     wired and the gap is documented) rather than touching `src/**`.
   - Verify: `scripts/sandbox/build.sh fast` compiles Server.Tests (narrow; OK). **PUSH.**
 
-- [ ] **G07-T4 — `tests/Animora.Server.Tests/RestoreDrillTests.cs` (new)**
+- [x] **G07-T4 — `tests/Animora.Server.Tests/RestoreDrillTests.cs` (new)**
   - Class wrapping the drill logic for the suite: `Restore_ToReadiness_KnownTenantIntact` and
     `MissingKeyRing_RefusesReadiness_ServesLiveness`. `[PgFact]`-gated. Reuse `TestHostFactory` +
     `PgFixture`. May shell out to `scripts/ci/restore-drill.sh` OR replicate its asserts in-process
