@@ -13,6 +13,7 @@ using Animora.Sync.Custom;
 using Animora.Sync.Custom.Replica;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 
 namespace Animora.Sync.Tests;
 
