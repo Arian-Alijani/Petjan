@@ -289,7 +289,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
   - `mkdir -p scripts/perf`. README: how to run each harness locally (offline-budget, server-capacity,
     zero-internet) + note doctor.sh reports PG reachability (added in G07). **PUSH.**
 
-- [ ] **G08-T2 — `scripts/perf/server-capacity.sh` (new)**
+- [x] **G08-T2 — `scripts/perf/server-capacity.sh` (new)**
   - `set -euo pipefail`. Launches the in-tree server in a cgroup-constrained container
     (`--cpus=2 --memory=2g`, the 1–3 core / 2–4 GiB reference) with PostgreSQL 18 (G07 service shape), then
     runs the xUnit-hosted `CapacityDriver` (G08-T3) which drives two independent profiles (§6 two pipelines):
