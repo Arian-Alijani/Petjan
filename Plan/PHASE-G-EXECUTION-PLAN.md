@@ -426,7 +426,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
     existing publish logic** — only add the switch + the call. Verify the token exists:
     `grep -n "EmitManifest" scripts/windows/publish-portable.ps1`. **PUSH.**
 
-- [ ] **G09-T6 — `scripts/release/launch-gate.sh` (new)**
+- [x] **G09-T6 — `scripts/release/launch-gate.sh` (new)**
   - `set -euo pipefail`. Aggregates every ARCH §19 lane: collects the G07 `pg-gates.yml` conclusion
     (gives A/D/C/N/B/L/K/R/PG + tenancy/RLS), the G08 `perf-gates.yml` conclusion (I/M/Z/T + offline-budget
     + layering), the desktop smoke (`scripts/sandbox/run.sh` → `SMOKE RUN OK`), SBOM + native-inventory
