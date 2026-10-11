@@ -193,7 +193,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
     `ANIMORA_PG_TEST_CONNECTION` being set (skip-print if unset so local `bash -n` style checks pass).
   - Verify: `bash -n scripts/ci/restore-drill.sh`. **PUSH.**
 
-- [ ] **G07-T3 — `tests/Animora.Server.Tests/RlsLeakTests.cs` (new, `[PgFact]`)**
+- [x] **G07-T3 — `tests/Animora.Server.Tests/RlsLeakTests.cs` (new, `[PgFact]`)**
   - Class `RlsLeakTests(PgFixture pg) : IClassFixture<PgFixture>` (mirror `TenantIsolationTests` setup).
   - Since no `RlsTenantSessionInitializer` exists, the test itself: migrates schema, creates the non-owner
     app role context, enables RLS on a tenant table (`ALTER TABLE … ENABLE ROW LEVEL SECURITY; … FORCE ROW
