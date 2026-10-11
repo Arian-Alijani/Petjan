@@ -159,7 +159,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast` (quick compile check).
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(sync): G05 add ICommandBatchTransport port"`
 
-### T2 — `HttpCommandTransport` (+ batch) `[ ]`
+### T2 — `HttpCommandTransport` (+ batch) `[x]`
 - Create `src/Animora.Sync.Custom/HttpCommandTransport.cs` implementing both interfaces, per the status map above. Declare the local `CommandIdMapResponse`/`CommandIdMapItem` DTOs here or in CommandIdRemapService (shared).
 - Guards: `grep` must find NO `Npgsql`/`Animora.Server`/`Animora.Persistence.PostgreSql`/`IStateSyncEngine`/`PullAsync` in this file.
 - `scripts/sandbox/build.sh fast`.
