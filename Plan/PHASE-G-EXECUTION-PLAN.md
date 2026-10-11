@@ -285,7 +285,7 @@ From `ARCHITECTURE.md` §19 table (lines ~1183–1203). Gate letters + one-line 
 # Scope: ONLY .github/**, scripts/perf/**, tests/**. NO migration, NO src/**, NO ErrorCode.
 # Prereq: G07 done (reuses its postgres:18 service shape).
 
-- [ ] **G08-T1 — `scripts/perf/README.md` + `scripts/perf/` dir (new)**
+- [x] **G08-T1 — `scripts/perf/README.md` + `scripts/perf/` dir (new)**
   - `mkdir -p scripts/perf`. README: how to run each harness locally (offline-budget, server-capacity,
     zero-internet) + note doctor.sh reports PG reachability (added in G07). **PUSH.**
 
