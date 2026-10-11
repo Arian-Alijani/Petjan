@@ -171,7 +171,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(sync): G05 id-remap, replica version reader, settlement reconciler"`
 
-### T4 — DI wiring (conditional Replace) `[ ]`
+### T4 — DI wiring (conditional Replace) `[x]`
 - Edit `SyncCustomServiceCollectionExtensions.AddAnimoraHttpSyncEngine`: inside `if (options.IsConfigured)` add the `Replace`+registrations (above). Keep `using Microsoft.Extensions.DependencyInjection.Extensions;`.
 - No change to `App.axaml.cs` (folded into the already-called `AddAnimoraHttpSyncEngine`). Document this in the DI XML-doc comment.
 - `scripts/sandbox/build.sh fast`.

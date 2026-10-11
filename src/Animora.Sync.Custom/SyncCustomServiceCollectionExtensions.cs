@@ -1,3 +1,4 @@
+using Animora.Application.Commands;
 using Animora.Application.Sync;
 using Animora.Sync.Abstractions;
 using Animora.Sync.Custom.Replica;
@@ -12,6 +13,11 @@ public static class SyncCustomServiceCollectionExtensions
     /// <summary>
     /// Registers the feed client and apply-store seam; replaces the offline <c>NullSyncEngine</c> with <see cref="HttpStateSyncEngine"/>
     /// only when the supplied options carry a valid server address — otherwise the offline engine stays (register it first).
+    /// <para>
+    /// G05: the same configured branch also replaces the offline <c>NullCommandTransport</c> with <see cref="HttpCommandTransport"/> (single + batch
+    /// ports share ONE instance) and registers the id-remap service, replica version reader and settlement reconciler. This is folded into the
+    /// already-called entry point, so <c>App.axaml.cs</c> needs no extra call; unconfigured ⇒ everything offline stays untouched.
+    /// </para>
     /// </summary>
     public static IServiceCollection AddAnimoraHttpSyncEngine(this IServiceCollection services, Action<ServerEndpointOptions>? configure = null)
     {
@@ -41,6 +47,14 @@ public static class SyncCustomServiceCollectionExtensions
             services.Replace(ServiceDescriptor.Singleton<ISyncResyncHandler, ShadowResyncHandler>());
             services.TryAddSingleton<ConflictResolver>();
             services.AddSingleton<IStateSyncEngine, HttpStateSyncEngine>();
+
+            // G05: real command transport (replaces the Null default regardless of registration order).
+            services.AddSingleton<HttpCommandTransport>();
+            services.Replace(ServiceDescriptor.Singleton<ICommandTransport>(sp => sp.GetRequiredService<HttpCommandTransport>()));
+            services.TryAddSingleton<ICommandBatchTransport>(sp => sp.GetRequiredService<HttpCommandTransport>());
+            services.TryAddSingleton<CommandIdRemapService>();
+            services.TryAddSingleton<IReplicaVersionReader, ReplicaVersionReader>();
+            services.TryAddScoped<SettlementReconciler>(); // scoped: ICommandJournal is scoped (same lifetime as LocalCommandProcessor)
         }
 
         return services;
