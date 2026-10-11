@@ -1,0 +1,378 @@
+﻿# =============================================================================
+# Animora CI — scoped build & test, driven by the agent via manual dispatch
+# =============================================================================
+# WHERE THIS FILE GOES
+#   Move it to:  .github/workflows/animora-ci.yml
+#   (The agent cannot place files under .github/ itself — do this by hand once.)
+#
+# WHAT IT GIVES THE MODEL
+#   A single, parameterised pipeline the model can trigger on demand and whose
+#   results it can read back, scoped to exactly what it needs:
+#
+#     * Build and/or test ONLY the SERVER track, ONLY the Windows DESKTOP app,
+#       ONLY the shared CORE, or EVERYTHING.
+#     * Run a specific subset of tests with a name filter.
+#     * Run the server tests against a REAL PostgreSQL (spun up as a service),
+#       or skip the DB and let the gated tests skip.
+#     * Produce a downloadable, self-contained Windows build of the desktop app.
+#
+#   Every job writes a Markdown summary to the run's "Summary" page and uploads
+#   logs, TRX test results, and (optionally) the Windows build as artifacts, so
+#   the model can inspect outcomes without re-running anything.
+#
+# HOW THE MODEL TRIGGERS IT
+#   * Manually (UI or API/CLI):  Actions tab -> "Animora CI" -> Run workflow,
+#     choosing the inputs below.  (gh cli:  gh workflow run animora-ci.yml -f scope=server ...)
+#   * Automatically on push / PR to the integration branches (build + fast
+#     tests only; see the `push`/`pull_request` triggers).
+#
+# ENVIRONMENT PARITY
+#   The jobs mirror scripts/sandbox/* and scripts/windows/* project groupings
+#   via scripts/ci/_projects.sh (one source of truth), pin .NET 10 to match
+#   Directory.Build.props (net10.0), and use the same PostgreSQL-gating contract
+#   (ANIMORA_PG_TEST_CONNECTION / ANIMORA_REQUIRE_PG) the local server-test
+#   script uses. GitHub runners have ample RAM, so the sandbox's low-memory
+#   MSBuild clamps are deliberately NOT applied here.
+# =============================================================================
+
+name: Animora CI
+
+on:
+  # --- Manual, parameterised runs (the primary way the model drives this) -----
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "What to build/test"
+        type: choice
+        required: true
+        default: "all"
+        options:
+          - all          # core + server + desktop, and all tests
+          - server       # server/DB/licensing/admin only
+          - desktop      # Windows desktop app only
+          - core         # shared libraries only
+      action:
+        description: "Which stages to run"
+        type: choice
+        required: true
+        default: "build-and-test"
+        options:
+          - build-and-test
+          - build-only
+          - test-only
+      configuration:
+        description: "Build configuration"
+        type: choice
+        required: true
+        default: "Debug"
+        options:
+          - Debug
+          - Release
+      test_filter:
+        description: "Optional test name filter (FullyQualifiedName~<value>); leave blank for all"
+        type: string
+        required: false
+        default: ""
+      server_tests_with_postgres:
+        description: "Run server tests against a REAL PostgreSQL service (else [PgFact] tests skip)"
+        type: boolean
+        required: false
+        default: true
+      publish_desktop:
+        description: "Also publish a downloadable self-contained Windows build of the desktop app"
+        type: boolean
+        required: false
+        default: false
+      desktop_runtime:
+        description: "Windows runtime for the desktop publish"
+        type: choice
+        required: false
+        default: "win-x64"
+        options:
+          - win-x64
+          - win-arm64
+
+  # --- Automatic sanity runs on the integration branches ---------------------
+  push:
+    branches: [ main, genspark_ai_developer ]
+  pull_request:
+    branches: [ main ]
+
+# Avoid piling up redundant runs for the same ref.
+concurrency:
+  group: animora-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
+
+jobs:
+  # ===========================================================================
+  # 0. Resolve the effective plan from the trigger + inputs, so downstream jobs
+  #    (which run on different OSes) share ONE decision about what to do.
+  # ===========================================================================
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      scope:            ${{ steps.p.outputs.scope }}
+      configuration:    ${{ steps.p.outputs.configuration }}
+      do_build:         ${{ steps.p.outputs.do_build }}
+      do_test:          ${{ steps.p.outputs.do_test }}
+      test_filter:      ${{ steps.p.outputs.test_filter }}
+      with_postgres:    ${{ steps.p.outputs.with_postgres }}
+      publish_desktop:  ${{ steps.p.outputs.publish_desktop }}
+      desktop_runtime:  ${{ steps.p.outputs.desktop_runtime }}
+      # Which OS jobs are needed:
+      need_linux:       ${{ steps.p.outputs.need_linux }}
+      need_windows:     ${{ steps.p.outputs.need_windows }}
+    steps:
+      - id: p
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVENT="${{ github.event_name }}"
+
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            SCOPE="${{ inputs.scope }}"
+            CONFIG="${{ inputs.configuration }}"
+            ACTION="${{ inputs.action }}"
+            FILTER="${{ inputs.test_filter }}"
+            WITH_PG="${{ inputs.server_tests_with_postgres }}"
+            PUBLISH="${{ inputs.publish_desktop }}"
+            RUNTIME="${{ inputs.desktop_runtime }}"
+          else
+            # Automatic push/PR: build + test everything, Debug, no manual publish.
+            SCOPE="all"; CONFIG="Debug"; ACTION="build-and-test"
+            FILTER=""; WITH_PG="true"; PUBLISH="false"; RUNTIME="win-x64"
+          fi
+
+          case "$ACTION" in
+            build-and-test) DO_BUILD="true";  DO_TEST="true"  ;;
+            build-only)     DO_BUILD="true";  DO_TEST="false" ;;
+            test-only)      DO_BUILD="false"; DO_TEST="true"  ;;
+          esac
+
+          # Linux job handles core/server builds + tests. Needed whenever the
+          # scope touches core/server/all.
+          NEED_LINUX="false"
+          case "$SCOPE" in all|core|server) NEED_LINUX="true" ;; esac
+
+          # Windows job handles the desktop app (Avalonia + native SQLite).
+          # Needed when scope touches desktop/all, or a desktop publish is asked.
+          NEED_WINDOWS="false"
+          case "$SCOPE" in all|desktop) NEED_WINDOWS="true" ;; esac
+          [ "$PUBLISH" = "true" ] && NEED_WINDOWS="true"
+
+          {
+            echo "scope=$SCOPE"
+            echo "configuration=$CONFIG"
+            echo "do_build=$DO_BUILD"
+            echo "do_test=$DO_TEST"
+            echo "test_filter=$FILTER"
+            echo "with_postgres=$WITH_PG"
+            echo "publish_desktop=$PUBLISH"
+            echo "desktop_runtime=$RUNTIME"
+            echo "need_linux=$NEED_LINUX"
+            echo "need_windows=$NEED_WINDOWS"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "## 📋 Plan" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Setting | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Trigger | \`$EVENT\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Scope | \`$SCOPE\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Configuration | \`$CONFIG\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Build | \`$DO_BUILD\` · Test \`$DO_TEST\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Test filter | \`${FILTER:-(none)}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Server tests w/ PostgreSQL | \`$WITH_PG\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Publish desktop | \`$PUBLISH\` (\`$RUNTIME\`) |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ===========================================================================
+  # 1. Linux job: core + server build/test. Server tests can hit a real
+  #    PostgreSQL service container (matches the local server-test.sh contract).
+  # ===========================================================================
+  linux:
+    name: Core & Server (Linux)
+    needs: plan
+    if: needs.plan.outputs.need_linux == 'true'
+    runs-on: ubuntu-latest
+
+    # PostgreSQL service for the server-track [PgFact] tests. Always declared;
+    # the test step only POINTS at it when with_postgres is true.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: animora
+          POSTGRES_PASSWORD: animora
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U animora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Make CI scripts executable
+        shell: bash
+        run: chmod +x scripts/ci/*.sh
+
+      - name: Restore
+        shell: bash
+        run: dotnet restore "Animora.sln" -v minimal
+
+      - name: Build (${{ needs.plan.outputs.scope }})
+        if: needs.plan.outputs.do_build == 'true'
+        shell: bash
+        run: |
+          # When scope=all, build the whole solution here; otherwise build only
+          # the requested non-desktop scope (core or server).
+          SCOPE="${{ needs.plan.outputs.scope }}"
+          [ "$SCOPE" = "desktop" ] && exit 0
+          scripts/ci/ci-build.sh "$SCOPE" "${{ needs.plan.outputs.configuration }}"
+
+      - name: Test (${{ needs.plan.outputs.scope }})
+        if: needs.plan.outputs.do_test == 'true'
+        shell: bash
+        env:
+          # Point the gated tests at the service container only when requested.
+          ANIMORA_PG_TEST_CONNECTION: ${{ needs.plan.outputs.with_postgres == 'true' && 'Host=127.0.0.1;Port=5432;Username=animora;Password=animora;Database=postgres' || '' }}
+          # When PG is requested, a missing/unreachable DB must FAIL, not skip.
+          ANIMORA_REQUIRE_PG: ${{ needs.plan.outputs.with_postgres == 'true' && '1' || '' }}
+        run: |
+          SCOPE="${{ needs.plan.outputs.scope }}"
+          # desktop-only scope runs its tests on the Windows job, not here.
+          [ "$SCOPE" = "desktop" ] && exit 0
+          # For scope=all, run core+server tests here; the Windows job runs the
+          # desktop-dependent tests. Map "all" -> "server" here to include the
+          # PG-gated suite (server scope already pulls Persistence + Sync too).
+          RUN_SCOPE="$SCOPE"
+          [ "$SCOPE" = "all" ] && RUN_SCOPE="server"
+          scripts/ci/ci-test.sh "$RUN_SCOPE" "${{ needs.plan.outputs.configuration }}" "${{ needs.plan.outputs.test_filter }}"
+
+      - name: Upload test results (TRX)
+        if: always() && needs.plan.outputs.do_test == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-linux-${{ needs.plan.outputs.scope }}
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ===========================================================================
+  # 2. Windows job: desktop app build/test and optional self-contained publish.
+  #    Runs on windows-latest because the Avalonia app + native SQLite publish
+  #    and the desktop-dependent tests build cleanly there.
+  # ===========================================================================
+  windows:
+    name: Desktop (Windows)
+    needs: plan
+    if: needs.plan.outputs.need_windows == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        shell: bash
+        run: dotnet restore "Animora.sln" -v minimal
+
+      - name: Build desktop
+        if: needs.plan.outputs.do_build == 'true' && (needs.plan.outputs.scope == 'all' || needs.plan.outputs.scope == 'desktop')
+        shell: bash
+        run: |
+          chmod +x scripts/ci/*.sh
+          scripts/ci/ci-build.sh desktop "${{ needs.plan.outputs.configuration }}"
+
+      - name: Test desktop-dependent suites
+        if: needs.plan.outputs.do_test == 'true' && (needs.plan.outputs.scope == 'all' || needs.plan.outputs.scope == 'desktop')
+        shell: bash
+        run: |
+          chmod +x scripts/ci/*.sh
+          scripts/ci/ci-test.sh desktop "${{ needs.plan.outputs.configuration }}" "${{ needs.plan.outputs.test_filter }}"
+
+      - name: Publish self-contained Windows build
+        if: needs.plan.outputs.publish_desktop == 'true'
+        shell: bash
+        run: |
+          chmod +x scripts/ci/*.sh
+          scripts/ci/ci-publish-desktop.sh "${{ needs.plan.outputs.desktop_runtime }}" "publish/app"
+
+      - name: Upload desktop test results (TRX)
+        if: always() && needs.plan.outputs.do_test == 'true' && (needs.plan.outputs.scope == 'all' || needs.plan.outputs.scope == 'desktop')
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-windows-${{ needs.plan.outputs.scope }}
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload Windows desktop build
+        if: needs.plan.outputs.publish_desktop == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: animora-desktop-${{ needs.plan.outputs.desktop_runtime }}
+          path: publish/app/**
+          if-no-files-found: error
+          retention-days: 14
+
+  # ===========================================================================
+  # 3. Roll-up gate: a single required status that reflects every needed job.
+  # ===========================================================================
+  result:
+    name: CI result
+    needs: [ plan, linux, windows ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise
+        shell: bash
+        run: |
+          set -euo pipefail
+          LIN="${{ needs.linux.result }}"
+          WIN="${{ needs.windows.result }}"
+          echo "## ✅ CI result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Core & Server (Linux) | \`$LIN\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Desktop (Windows) | \`$WIN\` |" >> "$GITHUB_STEP_SUMMARY"
+
+          # A job that was skipped (not needed for this scope) is fine.
+          fail=0
+          for r in "$LIN" "$WIN"; do
+            case "$r" in
+              ""|success|skipped) ;;
+              *) fail=1 ;;
+            esac
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Overall:** ❌ one or more jobs failed." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Overall:** ✅ all needed jobs succeeded." >> "$GITHUB_STEP_SUMMARY"
