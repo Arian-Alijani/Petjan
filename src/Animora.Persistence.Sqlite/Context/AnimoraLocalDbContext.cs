@@ -60,6 +60,8 @@ public sealed class AnimoraLocalDbContext(
         modelBuilder.Entity<SmsTemplateRow>().Property(e => e.Body).HasMaxLength(2048);
         // G04: replica payload/key bounds must win over the generic short-text convention.
         Animora.Persistence.Sqlite.Replica.ReplicaModel.ApplyBounds(modelBuilder);
+        // G06: online session / sealed entitlement bounds likewise.
+        OnlineEntitlementModel.ApplyBounds(modelBuilder);
     }
 
     /// <summary>Max length of a stored command/event JSON payload column.</summary>

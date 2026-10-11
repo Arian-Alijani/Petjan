@@ -250,7 +250,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - `scripts/sandbox/build.sh fast`.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(identity): G06 add 2 ErrorCodes + ISessionStore port"`
 
-### T9 — EF tables + migration `033_OnlineEntitlement` `[ ]`
+### T9 — EF tables + migration `033_OnlineEntitlement` `[x]`
 - Add `[LocalOnly]` entities + EF configs for `ClientSessions` + `SealedEntitlements` in `Animora.Persistence.Sqlite` (mirror ReplicaBase pattern; no Version/Deleted).
 - Generate migration: `.sandbox/tools/dotnet-ef migrations add <timestamp>__033_OnlineEntitlement -c AnimoraLocalDbContext -p src/Animora.Persistence.Sqlite -s src/Animora.Persistence.Sqlite` (confirm ordinal `033` is free: `ls src/Animora.Persistence.Sqlite/Migrations | tail`).
 - `scripts/sandbox/build.sh fast`.
