@@ -194,7 +194,7 @@ public sealed record ServerEndpointOptions { public const string SectionName = "
 - If a grep fails, fix the smallest thing. **PUSH** any fix immediately.
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "chore(sync): G05 full build + smoke verified"`
 
-### T7 — G05 PROGRESS.md update `[ ]`
+### T7 — G05 PROGRESS.md update `[x]`
 - In `backend-roadmap/PROGRESS.md`: set `G05` status row → `✅ Done` (date `2026-10-11` + one-line summary); advance **"Next phase" → `G06`** (the prose line ~144 AND any status pointer); append one `### G05` entry to "Repo state log" (HttpCommandTransport + batch port + id remap + replica version reader + reconciler, "ErrorCodes +0 (BatchTooLarge reused)", test class list); log deviations (DbContext name note is G06-only; here note "no new ErrorCode — BatchTooLarge already present from S06").
 - **PUSH**: `scripts/git/push.sh -b genspark_ai_developer "feat(sync): G05 command transport & settlement reconciliation"`
 
