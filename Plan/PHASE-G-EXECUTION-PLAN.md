@@ -395,7 +395,7 @@ and archives `artifacts/offline-budget.md`. 5. capacity artifact labelled "plann
     rollback boundary (how far back a binary rolls without schema divergence). Cite `WireContract.IsSupported`
     as the rolling-upgrade mixed-fleet guarantee. Copy-pasteable checklist. **PUSH.**
 
-- [ ] **G09-T3 — `docs/release/03-backup-restore-hostmove.md` (new)**
+- [x] **G09-T3 — `docs/release/03-backup-restore-hostmove.md` (new)**
   - THREE-part single consistency boundary captured as ONE point-in-time set: (1) PostgreSQL DB, (2) the §14
     file-content tree, (3) the Data-Protection key ring (forgetting the key ring = silent disaster). Must
     include, as greppable terms: a named **RPO cadence** (e.g. PITR/WAL archiving for small RPO, else
