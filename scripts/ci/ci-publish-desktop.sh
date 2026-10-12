@@ -41,6 +41,11 @@ summary() { [ -n "${GITHUB_STEP_SUMMARY:-}" ] && printf '%s\n' "$*" >>"$GITHUB_S
 # Clean THIS project's intermediate output first so a stale obj/ can never make
 # the build skip CoreCompile and ship an assembly missing the compiled Avalonia
 # XAML resource (the "No precompiled XAML found for Animora.Desktop.App" crash).
+# Deleting bin/ and obj/ also GUARANTEES a full (non-incremental) compile, so we
+# do NOT pass the `dotnet build` switch `--no-incremental` to `dotnet publish`:
+# it is not accepted on every SDK (SDK 10.0.4xx leaks it straight to MSBuild,
+# which aborts with "MSB1001: Unknown switch"). The clean below already provides
+# the identical "never reuse a stale compile" guarantee.
 PROJ_DIR="$(dirname "$PROJ")"
 echo "[ci-publish] cleaning stale bin/ and obj/ under $PROJ_DIR"
 rm -rf "$PROJ_DIR/bin" "$PROJ_DIR/obj"
@@ -50,7 +55,6 @@ dotnet publish "$PROJ" \
   -c Release \
   -r "$RUNTIME" \
   --self-contained true \
-  --no-incremental \
   -p:PublishSingleFile=true \
   -p:EnableAvaloniaXamlCompilation=true \
   -p:DebugType=none \

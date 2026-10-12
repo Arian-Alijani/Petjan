@@ -159,10 +159,18 @@ foreach ($sub in @('bin', 'obj')) {
 #    - single-file      => one Animora.Desktop.exe (plus required native libs)
 #    - EnableAvaloniaXamlCompilation=true => avoids the "No precompiled XAML"
 #      startup crash.
-#    - --no-incremental  => never reuse a stale compile; the csproj's
-#      VerifyCompiledAvaloniaXaml target then hard-fails the build if (despite
-#      all this) the XAML resource is still missing, so a broken package can
-#      never be shipped.
+#    A full (non-incremental) compile is GUARANTEED by step 0 above, which
+#    deletes this project's bin/ and obj/ before we publish — so there is no
+#    stale output left for an incremental build to reuse, and CoreCompile (where
+#    the Avalonia XAML compiler runs) always runs. The csproj's
+#    VerifyCompiledAvaloniaXaml target then hard-fails the build if (despite all
+#    this) the XAML resource is still missing, so a broken package can never be
+#    shipped.
+#    NOTE: we intentionally do NOT pass the `dotnet build` switch
+#    `--no-incremental` here. `dotnet publish` does not accept it on every SDK
+#    (SDK 10.0.4xx leaks it straight to MSBuild, which rejects it with
+#    "MSB1001: Unknown switch" and aborts the publish). The bin/obj clean above
+#    already provides the exact same "never reuse a stale compile" guarantee.
 #    Native SQLCipher/e_sqlite3 binaries are copied next to the exe (not
 #    embedded) so SQLite loads reliably — IncludeNativeLibrariesForSelfExtract
 #    is intentionally left OFF.
@@ -172,7 +180,6 @@ Write-Host '==> Publishing (Release, self-contained, single-file). This can take
     -c Release `
     -r $Runtime `
     --self-contained true `
-    --no-incremental `
     -p:PublishSingleFile=true `
     -p:EnableAvaloniaXamlCompilation=true `
     -p:DebugType=none `
