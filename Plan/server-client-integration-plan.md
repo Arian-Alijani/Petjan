@@ -221,7 +221,7 @@ Acceptance: naser-style Cashier first login shows the pending message, not CREDE
 not enter the shell. Manager (auto-approved per `LoginService.cs:308`) enters normally.
 Push: `fix(auth): show device-pending state and block shell instead of credential error`.
 
-### ⬜ TASK-3 — Client approval path for pending staff devices (close RC-B operating loop)
+### ✅ TASK-3 — Client approval path for pending staff devices (close RC-B operating loop)
 Files: search client for `/auth/device` usage; `src/Animora.Server/Auth/DeviceEndpoints.cs` (reference
 only — already has `/auth/device/{id}/approve|revoke`), staff UI/service
 (`UserProfileService` + staff page VM).

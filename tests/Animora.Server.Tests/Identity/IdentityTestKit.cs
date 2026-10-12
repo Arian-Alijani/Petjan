@@ -50,6 +50,9 @@ internal sealed class FakeIdentityRepository : IIdentityRepository
             .Join(Users.Where(u => u.TenantId == tenantId), m => m.UserId, u => u.Id, (m, u) => (u, m))
             .ToArray());
 
+    public Task<IReadOnlyList<Device>> ListDevicesAsync(string tenantId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Device>>(Devices.Where(d => d.TenantId == tenantId).ToArray());
+
     public void AddDevice(Device device) => Devices.Add(device);
 
     public void AddUser(User user) => Users.Add(user);

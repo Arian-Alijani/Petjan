@@ -56,6 +56,15 @@ public sealed class EfIdentityRepository(AnimoraServerDbContext context) : IIden
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<Device>> ListDevicesAsync(string tenantId, CancellationToken ct = default) =>
+        await context.Devices
+            .AsNoTracking()
+            .Where(d => d.TenantId == tenantId)
+            .OrderBy(d => d.RegisteredUtc)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+    /// <inheritdoc />
     public void AddDevice(Device device)
     {
         ArgumentNullException.ThrowIfNull(device);

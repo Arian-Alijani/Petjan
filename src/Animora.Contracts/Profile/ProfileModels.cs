@@ -7,8 +7,11 @@ public sealed record StaffAccount(string MembershipId, string UserId, string Nam
 
 public sealed record StaffRoleOption(string Id, string Label, IReadOnlyList<string> DefaultPermissions);
 public sealed record StaffPermissionOption(string Code, string Label, string Description);
+/// <summary>A staff member's registered device; <see cref="Status"/> is <c>Pending</c>, <c>Active</c> or <c>Revoked</c>.</summary>
+public sealed record StaffDevice(string DeviceId, string UserId, string Name, string Platform, string Status);
 public sealed record StaffDirectory(IReadOnlyList<StaffAccount> Members, IReadOnlyList<StaffRoleOption> Roles,
-    IReadOnlyList<StaffPermissionOption> Permissions, bool CanManageUsers, bool CanManageAccess);
+    IReadOnlyList<StaffPermissionOption> Permissions, bool CanManageUsers, bool CanManageAccess,
+    IReadOnlyList<StaffDevice>? Devices = null, bool CanManageDevices = false);
 public sealed record CreateStaffRequest(string Name, string Username, string Password, string RoleId, string Phone)
 {
     public override string ToString() => $"{nameof(CreateStaffRequest)} {{ Username = {Username}, Password = *** }}";

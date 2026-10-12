@@ -36,6 +36,9 @@ public interface IIdentityRepository
     /// </summary>
     Task<IReadOnlyList<(User User, StaffMembership Membership)>> ListStaffAsync(string tenantId, CancellationToken ct = default);
 
+    /// <summary>Every registered device of the bound tenant, oldest first (the manager's approval roster).</summary>
+    Task<IReadOnlyList<Device>> ListDevicesAsync(string tenantId, CancellationToken ct = default);
+
     /// <summary>Stages a new device (committed by the next save).</summary>
     void AddDevice(Device device);
 

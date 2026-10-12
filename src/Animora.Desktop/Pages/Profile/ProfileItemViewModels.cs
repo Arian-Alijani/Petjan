@@ -373,3 +373,26 @@ public sealed class StaffRoleCardViewModel
 
     public IBrush AccentBackground { get; }
 }
+
+/// <summary>
+/// One registered staff device in the manager's «دستگاه‌ها» card (TASK-3): a <c>Pending</c> device can be approved, a
+/// non-revoked one revoked. Status text is Persian here; the wire carries only the stable status name.
+/// </summary>
+public sealed class StaffDeviceViewModel(string deviceId, string ownerName, string deviceName, string platform, string status)
+{
+    public string DeviceId { get; } = deviceId;
+
+    public string OwnerName { get; } = ownerName;
+
+    public string Title => $"{OwnerName} · {deviceName}";
+
+    public string Detail => platform;
+
+    public bool IsPending { get; } = string.Equals(status, "Pending", System.StringComparison.OrdinalIgnoreCase);
+
+    public bool IsRevoked { get; } = string.Equals(status, "Revoked", System.StringComparison.OrdinalIgnoreCase);
+
+    public bool CanRevoke => !IsRevoked;
+
+    public string StatusLabel => IsPending ? "در انتظار تأیید" : IsRevoked ? "لغوشده" : "فعال";
+}

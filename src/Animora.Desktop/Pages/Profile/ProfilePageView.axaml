@@ -1027,6 +1027,34 @@
                     <Button Grid.Column="1" Content="بازخوانی کاربران" Classes="outline" Command="{Binding RefreshStaffCommand}" VerticalAlignment="Center" />
                 </Grid>
             </Border>
+            <!-- card · دستگاه‌های کاربران (تأیید / لغو) -->
+            <Border Classes="ps-card" IsVisible="{Binding HasDevices}">
+                <StackPanel Spacing="10">
+                    <TextBlock Classes="ps-title" Text="دستگاه‌های کاربران" />
+                    <TextBlock Classes="ps-sub" TextWrapping="Wrap" Text="{Binding DevicesSummary}" />
+                    <ItemsControl ItemsSource="{Binding Devices}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pf:StaffDeviceViewModel">
+                                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10" Margin="0,0,0,8">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Classes="ps-sub" Text="{Binding Detail}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Classes="ps-sub" VerticalAlignment="Center" Text="{Binding StatusLabel}" />
+                                    <Button Grid.Column="2" Classes="primary" Padding="12,6" FontSize="12" Content="تأیید دستگاه"
+                                            IsVisible="{Binding IsPending}"
+                                            Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).ApproveDeviceCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="3" Classes="outline" Padding="12,6" FontSize="12" Content="لغو دسترسی"
+                                            IsVisible="{Binding CanRevoke}"
+                                            Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).RevokeDeviceCommand}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
             <!-- two-column: roster (+add form) · permission editor -->
             <Grid x:Name="AccessCards" ColumnDefinitions="300,*" ColumnSpacing="14" VerticalAlignment="Top">
 

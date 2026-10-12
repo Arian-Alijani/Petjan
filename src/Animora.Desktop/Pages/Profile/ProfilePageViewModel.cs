@@ -247,6 +247,9 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     /// <summary>The persisted clinic staff roster.</summary>
     public ObservableCollection<StaffMemberViewModel> Staff { get; } = [];
 
+    /// <summary>Staff devices a manager may approve (pending) or revoke; empty without the devices-manage permission.</summary>
+    public ObservableCollection<StaffDeviceViewModel> Devices { get; } = [];
+
     /// <summary>Role-template summary cards (manager / doctor / secretary).</summary>
     public ObservableCollection<StaffRoleCardViewModel> RoleCards { get; } = [];
 
@@ -260,8 +263,14 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [ObservableProperty] private string _newMemberPassword = string.Empty;
     [ObservableProperty] private bool _canManageUsers;
     [ObservableProperty] private bool _canManageAccess;
+    [ObservableProperty] private bool _canManageDevices;
     [ObservableProperty] private bool _isStaffBusy;
     [ObservableProperty] private string _accessMessage = string.Empty;
+
+    public bool HasDevices => CanManageDevices && Devices.Count > 0;
+    public string DevicesSummary => Devices.Count(d => d.IsPending) is var pending and > 0
+        ? $"{ProfilePresentation.Fa(pending.ToString())} دستگاه در انتظار تأیید شماست."
+        : "همهٔ دستگاه‌های ثبت‌شده تأیید شده‌اند.";
 
     public bool CanEditSelected => CanManageAccess && SelectedStaff is { IsProtected: false, IsActive: true } && !IsStaffBusy;
     public bool CanChangeSelectedStatus => CanManageUsers && SelectedStaff is { IsProtected: false } && !IsStaffBusy;
@@ -275,6 +284,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     partial void OnCanManageUsersChanged(bool value) => NotifyAccessState();
     partial void OnCanManageAccessChanged(bool value) => NotifyAccessState();
+    partial void OnCanManageDevicesChanged(bool value) => OnPropertyChanged(nameof(HasDevices));
     partial void OnIsStaffBusyChanged(bool value) => NotifyAccessState();
 
     private void NotifyAccessState()
@@ -493,6 +503,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         _directory = directory;
         CanManageUsers = directory.CanManageUsers;
         CanManageAccess = directory.CanManageAccess;
+        CanManageDevices = directory.CanManageDevices;
         selectedId ??= SelectedStaff?.Id;
         Staff.Clear();
         RoleCards.Clear();
@@ -511,6 +522,14 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         foreach (var role in directory.Roles)
             RoleCards.Add(new StaffRoleCardViewModel(role.Id, role.Label, "کاربران ثبت‌شده در این نقش", "IconIdCard",
                 directory.Members.Count(m => m.RoleId == role.Id), "#1570cd", "#eff8ff"));
+        Devices.Clear();
+        foreach (var device in directory.Devices ?? [])
+        {
+            var owner = directory.Members.FirstOrDefault(m => m.UserId == device.UserId)?.Name ?? device.UserId;
+            Devices.Add(new StaffDeviceViewModel(device.DeviceId, owner, device.Name, device.Platform, device.Status));
+        }
+        OnPropertyChanged(nameof(HasDevices));
+        OnPropertyChanged(nameof(DevicesSummary));
         var options = directory.Roles.Select(r => r.Label).ToArray();
         var current = NewMemberRoleOptions.Value;
         NewMemberRoleOptions = new ProfileSelectViewModel(options.Length == 0 ? [""] : options,
@@ -570,6 +589,22 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
             active ? "حساب کاربر فعال شد." : "حساب غیرفعال شد؛ سوابق کاربر محفوظ است.");
     }
 
+    [RelayCommand]
+    private async Task ApproveDeviceAsync(StaffDeviceViewModel? device)
+    {
+        if (device is null || !device.IsPending || IsStaffBusy || !CanManageDevices) return;
+        await ChangeStaffAsync(() => _service.ApproveStaffDeviceAsync(device.DeviceId),
+            "دستگاه تأیید شد؛ کاربر می‌تواند وارد شود.");
+    }
+
+    [RelayCommand]
+    private async Task RevokeDeviceAsync(StaffDeviceViewModel? device)
+    {
+        if (device is null || !device.CanRevoke || IsStaffBusy || !CanManageDevices) return;
+        await ChangeStaffAsync(() => _service.RevokeStaffDeviceAsync(device.DeviceId, "لغو توسط مدیر کلینیک"),
+            "دسترسی دستگاه لغو شد.");
+    }
+
     [RelayCommand(CanExecute = nameof(CanSaveAccess))]
     private void GrantAllPermissions()
     {
@@ -622,6 +657,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
                 "NOT_FOUND" => "این کاربر روی سرور پیدا نشد؛ فهرست را بازخوانی کنید.",
                 "PERMISSION_UNKNOWN" => "یکی از دسترسی‌های انتخاب‌شده معتبر نیست.",
                 "DEVICE_REVOKED" => "دسترسی این دستگاه لغو شده است؛ با پشتیبانی تماس بگیرید.",
+                "DEVICE_PENDING_APPROVAL" => "این دستگاه هنوز تأیید نشده است.",
                 _ => "ذخیره ناموفق بود؛ تغییرات ثبت نشد. دوباره تلاش کنید.",
             };
             NewMemberError = AccessMessage;

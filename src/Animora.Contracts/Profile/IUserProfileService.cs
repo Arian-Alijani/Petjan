@@ -28,4 +28,10 @@ public interface IUserProfileService
     Task AddStaffAsync(CreateStaffRequest request);
     Task SetStaffActiveAsync(string membershipId, bool active, string? expectedChangeToken = null);
     Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null);
+
+    /// <summary>Approves a staff member's pending device (server-authoritative; needs the devices-manage permission).</summary>
+    Task ApproveStaffDeviceAsync(string deviceId);
+
+    /// <summary>Revokes a staff member's device with an audited reason (server-authoritative; needs the devices-manage permission).</summary>
+    Task RevokeStaffDeviceAsync(string deviceId, string reason);
 }

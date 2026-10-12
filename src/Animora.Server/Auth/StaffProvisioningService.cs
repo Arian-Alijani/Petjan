@@ -233,10 +233,18 @@ internal sealed class StaffProvisioningService(
 
         bool canUsers = (await permissions.EvaluateAsync(PermissionCodes.UsersManage, subject, null, ct).ConfigureAwait(false)).Allowed;
         bool canAccess = (await permissions.EvaluateAsync(PermissionCodes.RolesManage, subject, null, ct).ConfigureAwait(false)).Allowed;
+        bool canDevices = (await permissions.EvaluateAsync(PermissionCodes.DevicesManage, subject, null, ct).ConfigureAwait(false)).Allowed;
         if (!canUsers && !canAccess)
         {
             return Result<StaffDirectoryWire>.Ok(new StaffDirectoryWire([], [], false, false));
         }
+
+        // The device roster is what lets a Manager approve a staff member's Pending device (TASK-3); it is only disclosed to devices.manage holders.
+        StaffDeviceWire[] devices = canDevices
+            ? (await repository.ListDevicesAsync(actor.TenantId, ct).ConfigureAwait(false))
+                .Select(d => new StaffDeviceWire(d.Id, d.UserId, d.DeviceName, d.Platform, d.Status.ToString()))
+                .ToArray()
+            : [];
 
         var definitions = new Dictionary<StaffRole, string[]>();
         foreach (StaffRole role in Enum.GetValues<StaffRole>())
@@ -273,7 +281,7 @@ internal sealed class StaffProvisioningService(
             .OrderBy(pair => pair.Key)
             .Select(pair => new StaffRoleOptionWire(pair.Key.ToString(), pair.Value))
             .ToArray();
-        return Result<StaffDirectoryWire>.Ok(new StaffDirectoryWire(members, options, canUsers, canAccess));
+        return Result<StaffDirectoryWire>.Ok(new StaffDirectoryWire(members, options, canUsers, canAccess, devices, canDevices));
     }
 
     /// <summary>Opaque edit precondition over security facts (same construction as the local roster's token).</summary>

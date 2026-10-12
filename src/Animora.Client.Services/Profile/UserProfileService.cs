@@ -151,6 +151,22 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         await SendStaffAsync(new SaveStaffAccessCommand(membershipId, permissionCodes, expectedChangeToken)).ConfigureAwait(false);
     }
 
+    public async Task ApproveStaffDeviceAsync(string deviceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        var api = await TryGetOnlineApiAsync().ConfigureAwait(false) ?? throw new ServiceException(ErrorCodes.NetworkUnavailable);
+        await PostStaffAsync(api, $"auth/device/{Uri.EscapeDataString(deviceId)}/approve", new { }).ConfigureAwait(false);
+    }
+
+    public async Task RevokeStaffDeviceAsync(string deviceId, string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        var api = await TryGetOnlineApiAsync().ConfigureAwait(false) ?? throw new ServiceException(ErrorCodes.NetworkUnavailable);
+        await PostStaffAsync(api, $"auth/device/{Uri.EscapeDataString(deviceId)}/revoke", new DeviceRevokeRequest(reason.Trim()))
+            .ConfigureAwait(false);
+    }
+
     /// <summary>The shared online client, or <see langword="null"/> when no server is configured (offline/local-only build).</summary>
     private async Task<OnlineApi?> TryGetOnlineApiAsync()
     {
@@ -172,7 +188,9 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
             wire.Roles.Select(r => new StaffRoleOption(r.RoleId, ProfileMapping.RoleLabel(r.RoleId),
                 r.DefaultPermissions)).ToArray(),
             ProfileMapping.PermissionOptions(),
-            wire.CanManageUsers, wire.CanManageAccess);
+            wire.CanManageUsers, wire.CanManageAccess,
+            (wire.Devices ?? []).Select(d => new StaffDevice(d.DeviceId, d.UserId, d.DeviceName, d.Platform, d.Status)).ToArray(),
+            wire.CanManageDevices);
     }
 
     /// <summary>POSTs a staff command to the server; any non-success surfaces as a <see cref="ServiceException"/> with the stable code.</summary>

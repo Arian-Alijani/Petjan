@@ -77,8 +77,25 @@ public sealed record StaffRoleOptionWire(
 /// <param name="Roles">Selectable roles with their default permission codes.</param>
 /// <param name="CanManageUsers">Whether the caller may create/enable/disable users.</param>
 /// <param name="CanManageAccess">Whether the caller may edit permission overrides.</param>
+/// <param name="Devices">Registered devices of the tenant's staff; only populated for a caller holding <c>devices.manage</c>.</param>
+/// <param name="CanManageDevices">Whether the caller may approve / revoke staff devices.</param>
 public sealed record StaffDirectoryWire(
     IReadOnlyList<StaffAccountWire> Members,
     IReadOnlyList<StaffRoleOptionWire> Roles,
     bool CanManageUsers,
-    bool CanManageAccess);
+    bool CanManageAccess,
+    IReadOnlyList<StaffDeviceWire>? Devices = null,
+    bool CanManageDevices = false);
+
+/// <summary>One registered device of a staff member, shown so a manager can approve a pending one or revoke an active one.</summary>
+/// <param name="DeviceId">Device ULID (the <c>{id}</c> of <c>/auth/device/{id}/approve|revoke</c>).</param>
+/// <param name="UserId">Owning user ULID.</param>
+/// <param name="DeviceName">Operator-visible device name.</param>
+/// <param name="Platform">Platform moniker.</param>
+/// <param name="Status">Device status name: <c>Pending</c>, <c>Active</c> or <c>Revoked</c>.</param>
+public sealed record StaffDeviceWire(
+    string DeviceId,
+    string UserId,
+    string DeviceName,
+    string Platform,
+    string Status);
