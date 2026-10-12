@@ -384,9 +384,48 @@ public sealed class StaffDeviceViewModel(string deviceId, string ownerName, stri
 
     public string OwnerName { get; } = ownerName;
 
-    public string Title => $"{OwnerName} · {deviceName}";
+    public string Title => $"{OwnerName} · {DeviceLabel}";
 
-    public string Detail => platform;
+    /// <summary>The operator-visible device name, falling back to a Persian placeholder for legacy "Unnamed device" rows.</summary>
+    private string DeviceLabel =>
+        string.IsNullOrWhiteSpace(deviceName) || string.Equals(deviceName, "Unnamed device", System.StringComparison.OrdinalIgnoreCase)
+            ? "دستگاه بدون‌نام"
+            : deviceName;
+
+    /// <summary>
+    /// Human-readable system line. The wire platform is now like <c>"windows · Windows 10.0.19045"</c>; the leading family
+    /// code is mapped to Persian and the OS version kept. Legacy placeholder rows ("unknown"/empty) never show a blank line.
+    /// </summary>
+    public string Detail => DescribeSystem(platform);
+
+    internal static string DescribeSystem(string? platform)
+    {
+        string value = (platform ?? string.Empty).Trim();
+        if (value.Length == 0 || string.Equals(value, "unknown", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return "سیستم: نامشخص";
+        }
+
+        // Split the stable family code from the appended OS description ("windows · Windows 10.0.19045").
+        string family = value;
+        string? detail = null;
+        int sep = value.IndexOf('·');
+        if (sep >= 0)
+        {
+            family = value[..sep].Trim();
+            detail = value[(sep + 1)..].Trim();
+        }
+
+        string familyLabel = family.ToLowerInvariant() switch
+        {
+            "windows" => "ویندوز",
+            "macos" => "مک‌اواس",
+            "linux" => "لینوکس",
+            _ => family,
+        };
+
+        return string.IsNullOrWhiteSpace(detail) ? $"سیستم: {familyLabel}" : $"سیستم: {familyLabel} ({detail})";
+    }
 
     public bool IsPending { get; } = string.Equals(status, "Pending", System.StringComparison.OrdinalIgnoreCase);
 
