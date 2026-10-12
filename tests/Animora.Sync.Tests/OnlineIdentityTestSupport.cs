@@ -82,6 +82,9 @@ internal sealed class FakeIdentityServer
     /// <summary>When set, <c>POST /auth/device/register</c> answers this wire error code with 403.</summary>
     public string? DeviceRegisterFailureCode { get; set; }
 
+    /// <summary>Device status <c>POST /auth/device/register</c> reports on success (<c>Active</c> by default; <c>Pending</c> for unapproved staff devices).</summary>
+    public string DeviceRegisterStatus { get; set; } = "Active";
+
     public string LastAccessToken { get; private set; } = string.Empty;
 
     private HttpResponseMessage Respond(HttpRequestMessage request, string body)
@@ -96,7 +99,7 @@ internal sealed class FakeIdentityServer
             case "auth/device/register":
                 return DeviceRegisterFailureCode is { } code
                     ? Error(HttpStatusCode.Forbidden, code)
-                    : Json(new DeviceRegisterResponse(DeviceId, "Active"));
+                    : Json(new DeviceRegisterResponse(DeviceId, DeviceRegisterStatus));
             case "auth/keys":
                 return Json(new PublicKeySet([new PublicKeyInfo(_capabilityKeyId, "ECDSA-P256", Convert.ToBase64String(_capabilityKey.ExportSubjectPublicKeyInfo()), null)]));
             case "auth/capabilities":

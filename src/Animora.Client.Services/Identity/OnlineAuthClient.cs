@@ -12,7 +12,9 @@ namespace Animora.Client.Services.Identity;
 /// unreachable/failing server (no response, 408/429/5xx) falls back to <see cref="OfflineSessionAuthorizer"/>. After a successful online login
 /// the session is persisted FIRST, then the device is registered, the capability snapshot mirrored, the licence sealed and the one-way password
 /// verifier written. Mirroring is best effort for the online session (a mirror failure only means no offline start later — fail closed),
-/// except a revoked device which aborts the login and wipes all offline authority.
+/// except a revoked device which aborts the login and wipes all offline authority, and a still-<c>Pending</c> (never approved) device which
+/// aborts the login with <c>DEVICE_PENDING_APPROVAL</c>. The offline fallback can therefore only ever authorise a previously approved device:
+/// the credential mirror, capability snapshot and sealed licence it requires are written only after the device was approved.
 /// </summary>
 public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOfflineCredentialMirrorStore mirrors, DeviceLifecycleService devices,
     CapabilityMirrorWriter capabilities, EntitlementSealer sealer, OfflineSessionAuthorizer offline, IDeviceFingerprintSource fingerprint, IClock clock)
@@ -51,6 +53,16 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
         {
             await sessions.ClearAsync(ct).ConfigureAwait(false);
             return Result<OnlineLoginOutcome>.Fail(ErrorCodes.DeviceRevoked);
+        }
+
+        // A never-approved device (non-manager staff; managers are auto-approved server-side) is NOT a login success: the capability
+        // endpoint would reject it with DEVICE_REVOKED, which the user must not see as "revoked" or as a credential error. Fail closed with a
+        // distinct, actionable state and drop the session so nothing downstream (sync, commands) runs on a pending device. The server keeps the
+        // registration, so the next sign-in after a manager approves it re-reads the status and proceeds.
+        if (IsPending(registered.Value))
+        {
+            await sessions.ClearAsync(ct).ConfigureAwait(false);
+            return Result<OnlineLoginOutcome>.Fail(ErrorCodes.DevicePendingApproval);
         }
 
         // Best-effort mirrors: failure here must not undo a valid online login — it only leaves offline start unavailable (fail closed).
@@ -120,6 +132,9 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
 
         return await sessions.ClearAsync(ct).ConfigureAwait(false);
     }
+
+    private static bool IsPending(DeviceRegisterResponse? device) =>
+        device is not null && string.Equals(device.Status, "Pending", StringComparison.OrdinalIgnoreCase);
 
     private ClientSession ToSession(LoginResponse r, string stamp) => new(r.AccessToken, clock.UtcNow.AddSeconds(Math.Max(0, r.ExpiresInSeconds)),
         r.RefreshToken, r.UserId, r.TenantId, r.DeviceId, r.Role, stamp);

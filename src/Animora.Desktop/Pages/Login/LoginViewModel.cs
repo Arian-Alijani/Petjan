@@ -393,6 +393,7 @@ public sealed partial class LoginViewModel : ObservableObject
             "ورود آفلاین ممکن نیست؛ برای اولین ورود باید به اینترنت متصل باشید.",
         "OFFLINE_CREDENTIAL_MISMATCH" => "نام کاربری یا رمز عبور نادرست است.",
         "DEVICE_REVOKED" => "دسترسی این دستگاه لغو شده است؛ با پشتیبانی تماس بگیرید.",
+        "DEVICE_PENDING_APPROVAL" => "دستگاه شما ثبت شد و در انتظار تأیید مدیر کلینیک است.",
 
         // Local-store infrastructure (fail-closed). These never reach the server, so they
         // must be actionable here instead of collapsing into a generic message.

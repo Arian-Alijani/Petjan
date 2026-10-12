@@ -807,5 +807,12 @@ public static class ErrorCodes
     /// <summary>The server is unreachable and there is no valid credential mirror / capability snapshot / sealed entitlement to authorise an offline session (fail closed).</summary>
     public static readonly ErrorCode OfflineSessionUnavailable = new("OFFLINE_SESSION_UNAVAILABLE", ErrorCode.Forbidden);
 
+    /// <summary>
+    /// The credentials are valid but this installation's device was registered on the server and is still <c>Pending</c> a
+    /// manager's approval. Distinct from <see cref="DeviceRevoked"/>: nothing was withdrawn — the device has simply never been
+    /// approved. The client fails closed (no shell) and keeps the user on the sign-in screen.
+    /// </summary>
+    public static readonly ErrorCode DevicePendingApproval = new("DEVICE_PENDING_APPROVAL", ErrorCode.Forbidden);
+
     #endregion
 }

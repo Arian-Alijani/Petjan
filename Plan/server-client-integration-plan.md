@@ -202,7 +202,7 @@ Acceptance (reason it, do not run full test): a server-created non-owner user, o
 **already approved**, reaches the shell; a wrong password still returns `CREDENTIALS_INVALID`.
 Push: `fix(auth): provision local mirror user after online login so server-created users can sign in`.
 
-### ⬜ TASK-2 — Fix RC-B: surface device-Pending, block shell, remove misleading error; honor "no offline login as a feature"
+### ✅ TASK-2 — Fix RC-B: surface device-Pending, block shell, remove misleading error; honor "no offline login as a feature"
 Files: `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` (`EstablishServerSessionAsync`,
 `MapError`), `src/Animora.Client.Services/Identity/OnlineAuthClient.cs` (how `MirrorAsync`/capabilities
 failure is interpreted).
