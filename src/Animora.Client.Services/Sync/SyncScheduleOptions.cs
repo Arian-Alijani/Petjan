@@ -18,6 +18,12 @@ public sealed class SyncScheduleOptions
     /// <summary>Symmetric jitter applied to every wait, as a fraction (0.2 = ±20%).</summary>
     public double JitterFraction { get; set; } = 0.2;
 
+    /// <summary>
+    /// Short re-check wait used while pulls are <c>Deferred</c> (no online session yet) so the first pull starts promptly
+    /// after sign-in instead of waiting a full <see cref="Interval"/>. Still floored at 1 second.
+    /// </summary>
+    public TimeSpan DeferredRetryInterval { get; set; } = TimeSpan.FromSeconds(10);
+
     /// <summary>Upper bound of the exponential backoff after network/busy faults.</summary>
     public TimeSpan MaxBackoff { get; set; } = TimeSpan.FromMinutes(15);
 

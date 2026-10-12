@@ -245,7 +245,7 @@ actually enforced on the sync group, that is the deeper bug: enforce it.
 Push: `fix(server): sync endpoints fail closed with 401/403 instead of 500 when unauthenticated`.
 > **Done:** added `SyncTenantBoundFilter` (typed 401 `SESSION_EXPIRED` if no tenant bound, runs before contract filter/body work). Live re-probe: anonymous `/sync/manifest` and `/sync/batches` both return 401 (auth is enforced on the group; the earlier 200 was not reproducible).
 
-### ⬜ TASK-5 — Fix RC-C (client): do not pull `/sync/batches` before an authenticated, approved session
+### ✅ TASK-5 — Fix RC-C (client): do not pull `/sync/batches` before an authenticated, approved session
 Files: `src/Animora.Client.Services/Sync/*`, `src/Animora.Sync.Custom/*` (SyncOrchestrator /
 SyncSchedulerHostedService / HttpStateSyncEngine), login connectivity probe in `LoginViewModel`
 (`CheckConnectivityAsync` / `_connectivity`).
@@ -254,6 +254,7 @@ approved device. The pre-login probe should stay limited to `/health/live` (and 
 `/sync/manifest` only if the server legitimately allows it). Ensure the sync scheduler is dormant until a
 real session exists.
 Push: `fix(sync): defer first batch pull until authenticated approved session exists`.
+> **Done:** `SyncOrchestrator` takes an optional `ISessionStore` and returns `Deferred` (zero requests) until a stored online session exists (a Pending device never keeps one — TASK-2). Scheduler re-checks every `DeferredRetryInterval` (10 s) while deferred so the first pull follows sign-in promptly. Pre-login probe is unchanged (`/health/live` only). Tests added in `SyncOrchestratorTests`.
 
 ### ⬜ TASK-6 — Verify RC-F: one end-to-end sync cycle (fast cross-user propagation)
 Prereq: TASK-1/2/4/5 done. Files: `src/Animora.Sync.Custom` apply path (`SqliteSyncApplyStore`),

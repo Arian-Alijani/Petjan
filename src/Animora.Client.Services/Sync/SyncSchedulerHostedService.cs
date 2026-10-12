@@ -63,12 +63,22 @@ public sealed class SyncSchedulerHostedService : IAsyncDisposable
                     pull = Result<SyncOutcome>.Fail(ErrorCodes.NetworkUnavailable);
                 }
 
+                TimeSpan wait;
                 if (pull.IsFailure && IsTransient(pull.Error))
+                {
                     backoff = Min(Double(backoff), _options.MaxBackoff);
+                    wait = backoff;
+                }
                 else
+                {
                     backoff = baseWait;
+                    // Held back (no session yet): poll briefly so the first pull follows sign-in promptly.
+                    wait = pull.IsSuccess && pull.Value == SyncOutcome.Deferred
+                        ? Max(_options.DeferredRetryInterval, TimeSpan.FromSeconds(1))
+                        : baseWait;
+                }
 
-                await _delay.Delay(Jitter(backoff), stoppingToken).ConfigureAwait(false);
+                await _delay.Delay(Jitter(wait), stoppingToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
