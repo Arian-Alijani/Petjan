@@ -27,8 +27,23 @@ public interface IIdentityRepository
     /// <summary>Finds a device by id.</summary>
     Task<Device?> FindDeviceByIdAsync(string deviceId, CancellationToken ct = default);
 
+    /// <summary>Finds a staff membership by id (tenant-filtered by the bound tenant context).</summary>
+    Task<StaffMembership?> FindMembershipByIdAsync(string membershipId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The full staff roster (user + membership pairs) of the bound tenant, ordered by join date. Used by the
+    /// online staff-management plane so every admin reads the same server-authoritative list.
+    /// </summary>
+    Task<IReadOnlyList<(User User, StaffMembership Membership)>> ListStaffAsync(string tenantId, CancellationToken ct = default);
+
     /// <summary>Stages a new device (committed by the next save).</summary>
     void AddDevice(Device device);
+
+    /// <summary>Stages a new user (committed by the next save). Used by the staff-provisioning plane.</summary>
+    void AddUser(User user);
+
+    /// <summary>Stages a new staff membership (committed by the next save). Used by the staff-provisioning plane.</summary>
+    void AddMembership(StaffMembership membership);
 
     /// <summary>Commits staged changes; concurrency / duplicate-key faults map to <c>ConcurrencyConflict</c>.</summary>
     Task<Result> SaveAsync(CancellationToken ct = default);
