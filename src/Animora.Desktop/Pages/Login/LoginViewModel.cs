@@ -136,11 +136,36 @@ public sealed partial class LoginViewModel : ObservableObject
     /// <summary>The only place identity error codes become Persian UI text (shared with first-run).</summary>
     internal static string MapError(string? errorCode) => errorCode switch
     {
+        // Credential / account gates (sign-in).
         "CREDENTIALS_INVALID" => "نام کاربری یا رمز عبور نادرست است.",
         "USER_LOCKED_OUT" => "حساب موقتاً قفل شده است. بعداً تلاش کنید.",
         "USER_DISABLED" => "این حساب غیرفعال شده است.",
+        "SESSION_EXPIRED" => "نشست شما منقضی شده است؛ دوباره وارد شوید.",
+        "PERMISSION_DENIED" => "نشست قفل شده است؛ دوباره وارد شوید.",
+        "MEMBERSHIP_NOT_ACTIVE" => "این حساب دیگر عضو فعال کلینیک نیست.",
+        "TENANT_SUSPENDED" => "دسترسی این کلینیک معلق شده است؛ با پشتیبانی تماس بگیرید.",
+
+        // Input / policy (sign-in and first-run).
+        "VALIDATION_FAILED" => "اطلاعات واردشده معتبر نیست؛ فیلدها را بررسی کنید.",
         "PASSWORD_POLICY_VIOLATION" => "رمز عبور باید حداقل ۸ نویسه و شامل حرف و رقم باشد.",
-        _ => "خطای غیرمنتظره رخ داد.",
+
+        // First-run owner setup.
+        "FIRST_RUN_ALREADY_COMPLETED" => "راه‌اندازی اولیه قبلاً انجام شده است؛ با نام کاربری خود وارد شوید.",
+        "USERNAME_EXISTS" => "این نام کاربری قبلاً ثبت شده است؛ نام دیگری انتخاب کنید.",
+
+        // Local-store infrastructure (fail-closed). These never reach the server, so they
+        // must be actionable here instead of collapsing into a generic message.
+        "STORE_UNAVAILABLE" => "پایگاه دادهٔ محلی در دسترس نیست؛ برنامه را دوباره اجرا کنید.",
+        "STORE_KEY_UNAVAILABLE" => "کلید پایگاه دادهٔ محلی خوانده نشد؛ برنامه را دوباره اجرا کنید.",
+        "STORE_CORRUPT" => "پایگاه دادهٔ محلی آسیب دیده است؛ از پشتیبان بازیابی کنید.",
+        "NATIVE_SQLITE_TOO_OLD" => "نسخهٔ کتابخانهٔ داخلی قدیمی است؛ برنامه را به‌روزرسانی کنید.",
+        "AUDIT_WRITE_FAILED" => "ثبت رویداد ممیزی ناموفق بود؛ عملیات لغو شد. دوباره تلاش کنید.",
+        "HANDLER_NOT_REGISTERED" or "DISPATCH_FAILED" =>
+            "یک نقص داخلی در برنامه رخ داد؛ با پشتیبانی تماس بگیرید.",
+
+        // Unknown code: surface it so the issue is diagnosable instead of opaque.
+        null or "" => "خطای غیرمنتظره رخ داد.",
+        _ => $"خطای غیرمنتظره رخ داد (کد: {errorCode}).",
     };
 
     private void ShowFirstRun()
