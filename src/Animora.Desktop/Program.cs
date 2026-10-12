@@ -13,6 +13,11 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Diagnostics FIRST: if ANIMORA_NET_LOG=1 the launcher wants a full server-traffic trace.
+        // A WinExe has no console, so attach to the launcher's terminal (or allocate one) before any
+        // Console output is produced; otherwise the NetworkLoggingHandler trace would go nowhere.
+        Diagnostics.ConsoleTrace.EnsureAttachedIfRequested();
+
         // Parse before building DI or opening storage. Invalid test flags must never fall back to
         // the normal clinic database.
         try

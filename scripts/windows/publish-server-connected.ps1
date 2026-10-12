@@ -175,19 +175,40 @@ $LauncherCmd = Join-Path $PkgDir 'Run-Animora.cmd'
 $CmdContent = @"
 @echo off
 rem ===========================================================================
-rem  Animora — launcher (connects to the real server)
+rem  Animora - launcher (connects to the real server, WITH LIVE SERVER TRACE)
 rem ---------------------------------------------------------------------------
 rem  No installation needed. Just double-click this file.
 rem
-rem  The app connects to the Animora server below and uses the REAL backend
-rem  (real accounts and clinic data served by Animora.Server).
+rem  This window STAYS OPEN and prints a detailed, step-by-step trace of the
+rem  app's conversation with the server: every request it sends, every response
+rem  that comes back (status + timing + body), and every connection error. Use
+rem  it to diagnose server-connection problems. Keep this window open while you
+rem  use the app; close it (or press a key after the app exits) when done.
 rem
 rem  To point this copy at a different server, edit the SET line below.
+rem  To run WITHOUT the trace, set ANIMORA_NET_LOG=0.
 rem ===========================================================================
 setlocal
+chcp 65001 >nul
 set "ANIMORA_SERVER_URL=$ServerUrl"
+set "ANIMORA_NET_LOG=1"
+echo =====================================================================
+echo  Animora - server-connected launch (LIVE TRACE)
+echo  Server : %ANIMORA_SERVER_URL%
+echo  This window will show every request/response to/from the server.
+echo  Leave it open while you use the app.
+echo =====================================================================
+echo.
 cd /d "%~dp0app"
-start "" "Animora.Desktop.exe"
+rem Run in the FOREGROUND (no 'start') so the app's console output streams into
+rem THIS window and the window does not close while the app is running.
+"Animora.Desktop.exe"
+echo.
+echo =====================================================================
+echo  Animora has exited (exit code %ERRORLEVEL%).
+echo  The full server trace is shown above. Press any key to close.
+echo =====================================================================
+pause >nul
 endlocal
 "@
 # Write as UTF-8 WITHOUT BOM so cmd.exe does not choke on a leading BOM.
@@ -195,14 +216,35 @@ endlocal
 
 $LauncherPs1 = Join-Path $PkgDir 'Run-Animora.ps1'
 $Ps1Content = @"
-# Animora — launcher (connects to the real server). No installation required.
-# Sets ANIMORA_SERVER_URL for this process only, then starts the app online.
+# Animora — launcher (connects to the real server, WITH LIVE SERVER TRACE).
+# No installation required. This window stays open and prints a detailed,
+# step-by-step trace of every request/response between the app and the server,
+# plus any connection error — use it to diagnose server-connection problems.
+# Sets the variables for THIS process only (no machine-wide change).
+# To run without the trace: set `$env:ANIMORA_NET_LOG = '0' before launching.
 `$ErrorActionPreference = 'Stop'
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 `$here = Split-Path -Parent `$MyInvocation.MyCommand.Path
 `$exe  = Join-Path `$here 'app\Animora.Desktop.exe'
 if (-not (Test-Path `$exe)) { Write-Error "Animora.Desktop.exe not found next to this launcher (`$exe)."; exit 1 }
 `$env:ANIMORA_SERVER_URL = '$ServerUrl'
+if (-not `$env:ANIMORA_NET_LOG) { `$env:ANIMORA_NET_LOG = '1' }
+Write-Host '====================================================================='
+Write-Host ' Animora - server-connected launch (LIVE TRACE)'
+Write-Host "  Server : `$(`$env:ANIMORA_SERVER_URL)"
+Write-Host '  This window will show every request/response to/from the server.'
+Write-Host '  Leave it open while you use the app.'
+Write-Host '====================================================================='
+Write-Host ''
+# Run in the FOREGROUND so the app's console trace streams into THIS window and
+# the window does not close while the app is running.
 & `$exe
+`$code = `$LASTEXITCODE
+Write-Host ''
+Write-Host '====================================================================='
+Write-Host "  Animora has exited (exit code `$code). Full server trace is above."
+Write-Host '====================================================================='
+Read-Host 'Press Enter to close'
 "@
 [System.IO.File]::WriteAllText($LauncherPs1, ($Ps1Content -replace "`r?`n", "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 
@@ -221,6 +263,12 @@ Animora — نسخهٔ متصل به سرور (بدون نیاز به نصب)
 
   هیچ نرم‌افزاری لازم نیست نصب شود (نه دات‌نت، نه چیز دیگر).
 
+یک پنجرهٔ مشکی (ترمینال) باز می‌ماند — این طبیعی است:
+  این پنجره تمام رفت‌وآمد برنامه با سرور را نشان می‌دهد: هر درخواستی که فرستاده
+  می‌شود، هر پاسخی که از سرور برمی‌گردد (کد وضعیت، زمان پاسخ و بدنهٔ پاسخ) و هر
+  خطای اتصال. برای عیب‌یابی مشکلات ارتباط با سرور، این پنجره را باز نگه دارید.
+  وقتی کارتان تمام شد، برنامه را ببندید و سپس در این پنجره یک کلید بزنید.
+
 برنامه به کدام سرور وصل می‌شود؟
       $ServerUrl
 
@@ -238,6 +286,11 @@ Animora — نسخهٔ متصل به سرور (بدون نیاز به نصب)
   * مطمئن شوید سرور روشن است و پورت ۵۰۰۰ در فایروال باز است.
   * از همین کامپیوتر این آدرس را در مرورگر باز کنید تا در دسترس بودن سرور را
     بررسی کنید:  $ServerUrl
+  * به پنجرهٔ ترمینال نگاه کنید: خطوط سبز یعنی پاسخ موفق از سرور، زرد/قرمز یعنی
+    خطا (مثلاً TIMEOUT، TRANSPORT ERROR، یا کد ۴۰۱/۵۰۰). متن کامل این پنجره را
+    می‌توانید برای تیم فنی کپی کنید (توکن‌ها و رمزها به‌صورت خودکار پنهان شده‌اند).
+  * برای اجرا بدون نمایش لاگ، در فایل Run-Animora.cmd مقدار را به
+    set "ANIMORA_NET_LOG=0" تغییر دهید.
 
 ---------------------------------------------------------------------------
 Animora — server-connected build (no installation required)
@@ -257,9 +310,19 @@ TO TARGET A DIFFERENT SERVER
 
 If Windows SmartScreen warns you, click "More info" -> "Run anyway".
 
+A TERMINAL WINDOW STAYS OPEN — THIS IS NORMAL
+  It shows the full, step-by-step conversation with the server: every request
+  sent, every response (status + time + body) and every connection error. Keep
+  it open while using the app to diagnose server-connection problems. When done,
+  close the app, then press a key in that window.
+
 CONNECTION TROUBLESHOOTING
   * Make sure the server is running and port 5000 is open in the firewall.
   * From this PC, open $ServerUrl in a browser to check reachability.
+  * Watch the terminal: GREEN lines are successful responses; YELLOW/RED are
+    errors (TIMEOUT, TRANSPORT ERROR, or HTTP 401/500). You can copy the whole
+    window text for the support team — tokens and passwords are auto-redacted.
+  * To run without the trace, open Run-Animora.cmd and set ANIMORA_NET_LOG=0.
 ===========================================================================
 "@
 [System.IO.File]::WriteAllText($Readme, $ReadmeContent, (New-Object System.Text.UTF8Encoding($true)))
@@ -286,9 +349,12 @@ Write-Host "   Folder : $PkgDir"
 if (-not $NoZip) { Write-Host "   Zip    : $(Join-Path $OutputRoot "$PkgName.zip")" }
 Write-Host "   Exe    : app\$ExeName ($ExeSize MB, self-contained)"
 Write-Host "   Server : $ServerUrl  (baked into Run-Animora.cmd)"
+Write-Host "   Trace  : ON — Run-Animora.cmd keeps a terminal open and logs every"
+Write-Host "            request/response/error to/from the server (ANIMORA_NET_LOG=1)."
 Write-Host ''
 Write-Host ' Give the ZIP (or folder) to the clinic PC. They unzip anywhere and'
 Write-Host ' double-click "Run-Animora.cmd" — no install needed. The app connects'
-Write-Host ' to the real server and signs in with real accounts.'
+Write-Host ' to the real server and signs in with real accounts. A terminal window'
+Write-Host ' stays open showing the live server trace (for connection diagnosis).'
 Write-Host '====================================================================='
 exit 0
