@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
+using Animora.Application.Activity;
+using Animora.Domain.Events;
 using Animora.Domain.Primitives;
+using Animora.Persistence.Sqlite.Activity;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Replica;
@@ -23,6 +26,9 @@ namespace Animora.Sync.Custom.Replica;
 /// <item>A wire tombstone (<c>Op = 'D'</c>) soft-deletes the local row; rows absent from a full snapshot are <b>never</b> removed (a snapshot
 /// must not destroy local-first data the server has not seen yet).</item>
 /// <item>A record with a missing required field is skipped rather than failing the batch (one poisoned row must not stall sync forever).</item>
+/// <item><b>Actor provenance (TASK-8):</b> a freshly synced <c>Appointment</c> also appends its «booked» History row with the actor taken
+/// from the record's own <c>CreatedByUserId</c> — the author on the originating device, not the local session user. Entities whose wire
+/// contract carries no author (Pet, Owner, queue entry) get no fabricated actor row.</item>
 /// </list>
 /// </para>
 /// </summary>
@@ -85,7 +91,8 @@ internal static class ReplicaMaterializer
     internal static IReadOnlyList<string> SupportedEntities => Entities;
 
     /// <summary>Projects the staged rows of <paramref name="batchId"/>; returns the number of business rows written. Must run inside the caller's transaction.</summary>
-    internal static async Task<int> ApplyAsync(AnimoraLocalDbContext db, string tenant, string batchId, CancellationToken ct)
+    internal static async Task<int> ApplyAsync(
+        AnimoraLocalDbContext db, string tenant, string batchId, TimeZoneInfo zone, CancellationToken ct)
     {
         var pending = await LoadPendingAsync(db, tenant, ct).ConfigureAwait(false);
         var rows = await db.Set<ReplicaStaging>().AsNoTracking()
@@ -94,6 +101,7 @@ internal static class ReplicaMaterializer
             .ToListAsync(ct).ConfigureAwait(false); // materialised: the connection is reused for the writes below
 
         var written = 0;
+        var booked = new List<ActivityEventDraft>();
         var byEntity = Maps.ToDictionary(m => m.Entity, StringComparer.Ordinal);
 
         foreach (var row in rows)
@@ -116,10 +124,33 @@ internal static class ReplicaMaterializer
             args.Add(updated);
             args.Add((object?)row.Version ?? DBNull.Value);
             args.Add(row.Deleted ? 1 : 0);
-            written += await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
+            var affected = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
+            written += affected;
+            if (affected > 0 && !row.Deleted && row.Entity == "Appointment" && TryBuildBookedDraft(tenant, row, values) is { } draft)
+                booked.Add(draft);
+        }
+
+        if (booked.Count > 0)
+        {
+            var staged = 0;
+            foreach (var draft in booked)
+                if (await SyncedActivityFeed.AppendAsync(db, draft, zone, batchId, ct).ConfigureAwait(false)) staged++;
+            if (staged > 0) await db.SaveChangesAsync(ct).ConfigureAwait(false);
         }
 
         return written;
+    }
+
+    /// <summary>The «booked» feed draft for a synced appointment, attributed to the record's own author; null when the author is unknown.</summary>
+    private static ActivityEventDraft? TryBuildBookedDraft(string tenant, ReplicaStaging row, IReadOnlyDictionary<string, object?> v)
+    {
+        var author = Str(v, "CreatedByUserId");
+        if (string.IsNullOrWhiteSpace(author) || v["StartUtc"] is not long startTicks) return null;
+        var start = new DateTimeOffset(startTicks, TimeSpan.Zero);
+        var occurred = row.UpdatedAtUtc ?? start;
+        var evt = new AppointmentBookedEvent(IdGenerator.NewId(occurred), tenant, occurred, row.EntityId,
+            Str(v, "PetId")!, Str(v, "OwnerId")!, Str(v, "DoctorUserId"), start, (int)(v["DurationMinutes"] as long? ?? 0));
+        return ActivityFeedMapper.Map(evt) is { } draft ? draft with { ActorUserId = author } : null;
     }
 
     private static string Key(string entity, string id) => entity + "|" + id;

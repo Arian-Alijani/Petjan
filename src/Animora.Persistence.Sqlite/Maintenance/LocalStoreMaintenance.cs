@@ -236,7 +236,12 @@ public sealed class LocalStoreMaintenance(
             await using var transaction = await context.Database.BeginTransactionAsync(ct);
             var tenantId = context.CurrentTenantId;
             var zone = services.GetRequiredService<IClinicTimeZoneProvider>().GetClinicTimeZone();
-            await context.Set<ActivityEvent>().Where(x => x.TenantId == tenantId).ExecuteDeleteAsync(ct);
+            // Rows projected from another user's synced records carry a "sync:" correlation marker: their source is not
+            // in the local outbox, so a rebuild must not destroy them (provenance would be lost for good).
+            await context.Set<ActivityEvent>()
+                .Where(x => x.TenantId == tenantId && (x.CorrelationId == null || !x.CorrelationId.StartsWith(SyncedActivityFeed.CorrelationPrefix)))
+                .ExecuteDeleteAsync(ct);
+            var actorNames = new Dictionary<string, string>(StringComparer.Ordinal);
 
             var written = 0;
             var messages = await context.Set<OutboxMessage>().AsNoTracking()
@@ -249,6 +254,12 @@ public sealed class LocalStoreMaintenance(
                 if (source is null || source.TenantId != tenantId) continue;
                 var draft = ActivityFeedMapper.Map(source);
                 if (draft is null) continue;
+                if (string.IsNullOrWhiteSpace(draft.ActorName))
+                    draft = draft with
+                    {
+                        ActorName = await ActivityDetailResolver.ResolveActorNameAsync(
+                            context, string.IsNullOrWhiteSpace(message.ActorUserId) ? draft.ActorUserId : message.ActorUserId, actorNames, ct),
+                    };
                 var (detail, search) = await ActivityDetailResolver.ResolveAsync(context, draft.DetailArgsJson, ct);
                 context.Set<ActivityEvent>().Add(ActivityFeedWriter.Create(draft, zone,
                     actor: message.ActorUserId, correlationId: message.CorrelationId,

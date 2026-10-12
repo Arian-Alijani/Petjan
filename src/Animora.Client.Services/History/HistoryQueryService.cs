@@ -60,9 +60,21 @@ internal static class HistoryMapping
             local.ToString("HH:mm", CultureInfo.InvariantCulture), row.TitleKey, row.DetailText,
             Entity(row), row.AmountMinor, row.AmountSign,
             Enum.Parse<HistoryEventStatus>(row.Status),
-            string.IsNullOrWhiteSpace(row.ActorUserId) ? ActorRef.System :
-                new ActorRef(row.ActorUserId, row.ActorName, string.Empty, string.Empty));
+            Actor(row));
     }
+
+    /// <summary>
+    /// The audit "who". A row authored by a user this device has not mirrored yet keeps its real actor id with a neutral
+    /// label — it is never shown blank and never attributed to the local session user.
+    /// </summary>
+    internal static ActorRef Actor(ActivityRow row)
+    {
+        if (string.IsNullOrWhiteSpace(row.ActorUserId)) return ActorRef.System;
+        var name = string.IsNullOrWhiteSpace(row.ActorName) ? UnknownActorName : row.ActorName.Trim();
+        return new ActorRef(row.ActorUserId, name, string.Empty, name[..1]);
+    }
+
+    private const string UnknownActorName = "کاربر کلینیک";
 
     /// <summary>
     /// The wire entity tag: <c>Type:Id</c>, plus a third <c>:InvoiceId</c> segment for <c>Payment</c>

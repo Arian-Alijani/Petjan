@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Animora.Domain.Boarding;
+using Animora.Domain.Identity;
 using Animora.Domain.Inventory;
 using Animora.Domain.Patients;
 using Animora.Domain.Purchasing;
@@ -27,6 +28,22 @@ internal static class ActivityDetailResolver
         ("VaccineCode", "Vaccine"), ("Reason", "Reason"), ("category", "Category"), ("from", "From"),
         ("to", "To"), ("LineCount", "Count"), ("QuantityValue", "Quantity"), ("Method", "Method"),
     ];
+
+    /// <summary>
+    /// Display name of the user that performed an action (audit "who"), looked up in the local user table; empty when the
+    /// user is unknown on this device. Results (including misses) are memoised in <paramref name="cache"/> when supplied,
+    /// so a rebuild over a long outbox issues one query per distinct actor.
+    /// </summary>
+    public static async Task<string> ResolveActorNameAsync(
+        AnimoraLocalDbContext db, string? actorUserId, IDictionary<string, string>? cache, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(actorUserId)) return string.Empty;
+        if (cache is not null && cache.TryGetValue(actorUserId, out var known)) return known;
+        var name = await db.Set<User>().AsNoTracking().Where(u => u.Id == actorUserId)
+            .Select(u => u.DisplayName).FirstOrDefaultAsync(ct) ?? string.Empty;
+        if (cache is not null) cache[actorUserId] = name;
+        return name;
+    }
 
     public static async Task<(string Detail, string Search)> ResolveAsync(
         AnimoraLocalDbContext db, string argsJson, CancellationToken ct)

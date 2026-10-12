@@ -17,6 +17,10 @@ public sealed class ActivityFeedWriter(
         if (draft.TenantId != db.CurrentTenantId)
             throw new InvalidOperationException("Activity event belongs to another tenant.");
         var (detail, search) = await ActivityDetailResolver.ResolveAsync(db, draft.DetailArgsJson, ct);
+        var actorId = correlation.Current?.UserId;
+        if (string.IsNullOrWhiteSpace(actorId)) actorId = draft.ActorUserId;
+        if (string.IsNullOrWhiteSpace(draft.ActorName))
+            draft = draft with { ActorName = await ActivityDetailResolver.ResolveActorNameAsync(db, actorId, null, ct) };
         db.Set<ActivityEvent>().Add(Create(draft, zones.GetClinicTimeZone(),
             correlation.Current?.UserId, correlation.CurrentId, detail, search));
     }

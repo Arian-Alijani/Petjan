@@ -281,7 +281,7 @@ driven by what the contract/UI already demands — no speculative features.
 Push (if code changed): `feat(staff): <specific gap closed>`.
 > **Done — verified, no code change needed (decisions recorded):** create (`POST /auth/staff`), enable/disable (`/auth/staff/{id}/active`, rotates the security stamp → tokens die, Manager/self protected), permission overrides (`/auth/staff/access`, rotates stamp) and roster (`GET /auth/staff`, now also device roster) all round-trip server-side through `UserProfileService`; the server is the single authority and every device sees it on its next roster read / sign-in. (a) **Role change:** neither `IUserProfileService` nor the Profile UI exposes it (UI only toggles status and edits per-permission overrides, which is the access-limit model); the server role is already re-mirrored locally at next sign-in (`ProvisionLocalMirrorUserCommand` handles `ChangeRole` + stamp rotation) so a future server-side role-change endpoint needs no client rework. Not added (speculative). (b) **Delete vs disable:** the product model is disable-only ("سوابق کاربر محفوظ است" — historical references must never be deleted); the UI's remove action is that toggle. Left as is.
 
-### ⬜ TASK-8 — Verify RC-E: actor provenance preserved across synced history
+### ✅ TASK-8 — Verify RC-E: actor provenance preserved across synced history
 Files: `src/Animora.Persistence.Sqlite/Entities/ActivityEvent.cs`,
 `src/Animora.Persistence.Sqlite/Activity/ActivityFeedWriter.cs` + `RebuildActivityFeedAsync`,
 the sync apply path + the synced wire contracts
@@ -291,6 +291,7 @@ history (not B, not blank). Trace: does the synced wire record carry the origina
 does the local activity rebuild map it to `Actor`? If the actor is lost on apply, fix the mapping so
 provenance survives sync. Targeted, not a sweep.
 Push (if code changed): `fix(history): preserve actor provenance for synced records`.
+> **Done — two concrete breaks found & fixed:** (1) the wire contracts carry authorship only where the entity has it (`Appointment.CreatedByUserId`; Pet/Owner/queue rows carry none), and sync apply produced **no** History row at all, so another user's work never showed up with its author. `ReplicaMaterializer` now appends the «booked» feed row for a synced appointment through the new `SyncedActivityFeed.AppendAsync` with `ActorUserId` = the record's own author (idempotent per entity+title, `sync:<batch>` correlation marker); no author → no fabricated actor. (2) `ActorName` was never resolved on live write or `RebuildActivityFeedAsync` (always blank), and a rebuild wiped sync-projected rows. Added `ActivityDetailResolver.ResolveActorNameAsync` (local `User.DisplayName`, memoised per rebuild), used by live writer, rebuild and sync path; rebuild now preserves `sync:` rows. `HistoryMapping.Actor` shows a neutral «کاربر کلینیک» label (real id kept) instead of a blank for actors not yet mirrored locally. Tests: `ReplicaMaterializerTests` (+2).
 
 ### ⬜ TASK-9 — RC-G focused standards pass on touched server/client files
 Do: review ONLY files changed in TASK-1..8 for: `CancellationToken` propagation, no `.Result`/`.Wait()`,

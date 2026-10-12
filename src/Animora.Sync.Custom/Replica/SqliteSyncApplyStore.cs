@@ -1,3 +1,4 @@
+using Animora.Application.Ports;
 using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Results;
 using Animora.Persistence.Sqlite.Context;
@@ -120,6 +121,8 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
                     $"Batch {batch.BatchId} is incomplete ({_nextOrdinal}/{batch.PageCount} pages).");
 
             var snapshot = batch.FromSequenceExclusive == 0;
+            // Resolved before the write transaction opens (a cold provider performs its own store read).
+            var zone = await ResolveZoneAsync(ct).ConfigureAwait(false);
             await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
             var current = await ReadAsync(db, tenant, scope.Name, ct).ConfigureAwait(false);
 
@@ -145,7 +148,7 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
                     Generation = excluded.Generation, ServerGeneration = excluded.ServerGeneration
                 """, ct).ConfigureAwait(false);
             // Project onto the typed business tables the screens read, in this same transaction (staging is still present here).
-            await ReplicaMaterializer.ApplyAsync(db, tenant, batch.BatchId, ct).ConfigureAwait(false);
+            await ReplicaMaterializer.ApplyAsync(db, tenant, batch.BatchId, zone, ct).ConfigureAwait(false);
             if (snapshot)
                 await db.Database.ExecuteSqlInterpolatedAsync(
                     $"DELETE FROM repl_base WHERE TenantId = {tenant} AND Generation <> {target}", ct).ConfigureAwait(false);
@@ -156,6 +159,11 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
             _closed = true;
             return Result<SyncCheckpoint>.Ok(new SyncCheckpoint(batch.Epoch, batch.Watermark));
         }
+
+        private async Task<TimeZoneInfo> ResolveZoneAsync(CancellationToken ct) =>
+            di.ServiceProvider.GetService<IClinicTimeZoneProvider>() is { } provider
+                ? await provider.GetClinicTimeZoneAsync(ct).ConfigureAwait(false)
+                : TimeZoneInfo.Utc;
 
         public async Task<Result> AbortAsync(CancellationToken ct = default)
         {

@@ -3,6 +3,7 @@ using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Patients;
 using Animora.Domain.Scheduling;
 using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -97,5 +98,38 @@ public sealed class ReplicaMaterializerTests
         var db = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
         Assert.False(await db.Set<Owner>().AnyAsync(x => x.Id == "O1")); // local unsettled intent wins
         Assert.Contains(await BaseRowsAsync(fixture), r => r.Entity == "Owner" && r.EntityId == "O1");
+    }
+
+    [Fact]
+    public async Task SyncedAppointment_AppendsHistoryRow_AttributedToItsAuthor_NotTheLocalUser()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+
+        Assert.True((await ApplyAsync(store, Batch("b1", 1, 0, 10), Page("b1", 0, 1, Json("Appointment", "A1", "v1", ApptJson)))).IsSuccess);
+        // The same record arriving again (a later pull) must not duplicate the feed row.
+        Assert.True((await ApplyAsync(store, Batch("b2", 1, 10, 20), Page("b2", 0, 1, Json("Appointment", "A1", "v2", ApptJson)))).IsSuccess);
+
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var rows = await db.Set<ActivityEvent>().AsNoTracking().Where(x => x.EntityType == "Appointment" && x.EntityId == "A1").ToListAsync();
+        var row = Assert.Single(rows);
+        Assert.Equal("U-A", row.ActorUserId);
+        Assert.Equal("history.appointment.booked", row.Title);
+        Assert.StartsWith("sync:", row.CorrelationId);
+    }
+
+    [Fact]
+    public async Task SyncedAppointment_WithoutAuthor_IsSkipped_AndGetsNoFabricatedActorRow()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        var noAuthor = ApptJson.Replace("\"createdByUserId\":\"U-A\",", string.Empty);
+
+        Assert.True((await ApplyAsync(store, Batch("b1", 1, 0, 10), Page("b1", 0, 1, Json("Appointment", "A2", "v1", noAuthor)))).IsSuccess);
+
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.False(await db.Set<ActivityEvent>().AnyAsync(x => x.EntityId == "A2"));
     }
 }
