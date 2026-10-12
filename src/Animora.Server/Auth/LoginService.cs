@@ -305,13 +305,31 @@ internal sealed class LoginService(
 
         if (existing is not null)
         {
+            // The first contact for this installation is login, which can only store placeholder metadata
+            // ("Unnamed device" / "unknown") because the login request carries none; refresh it now from the
+            // authenticated register call so the manager's device roster shows the real machine and platform.
+            bool described = existing.DescribeInstallation(request.DeviceName, request.Platform.Trim());
+            bool autoApproved = false;
             if (isManager && existing.Status == DeviceStatus.Pending)
             {
                 existing.Approve();
-                Result healed = await AuditAsync(caller.TenantId, SecurityAuditActions.DeviceRegistered, correlationId, caller.UserId, existing.Id, "owner_auto_approved", ct).ConfigureAwait(false);
-                if (healed.IsFailure)
+                autoApproved = true;
+            }
+
+            if (described || autoApproved)
+            {
+                // Writing the audit row commits the staged device changes (description and/or approval) in one unit of work.
+                Result saved = await AuditAsync(
+                    caller.TenantId,
+                    SecurityAuditActions.DeviceRegistered,
+                    correlationId,
+                    caller.UserId,
+                    existing.Id,
+                    autoApproved ? "owner_auto_approved" : "device_described",
+                    ct).ConfigureAwait(false);
+                if (saved.IsFailure)
                 {
-                    return Failure<DeviceRegisterResponse>(healed.Error);
+                    return Failure<DeviceRegisterResponse>(saved.Error);
                 }
             }
 
