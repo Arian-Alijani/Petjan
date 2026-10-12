@@ -189,6 +189,9 @@ app.MapOperatorProvisioningEndpoints();
 // Device approve/revoke, capability snapshots (S05) and the anonymous public key set.
 app.MapDeviceEndpoints();
 
+// Online staff (clinic user) management: /auth/staff roster, create, enable/disable, permission overrides.
+app.MapStaffEndpoints();
+
 // S06 command conversation: independent settlements and server-allocated id maps.
 app.MapCommandEndpoints();
 app.MapSyncEndpoints();

@@ -62,6 +62,7 @@ internal static class AuthorizationServiceCollectionExtensions
         services.AddScoped<SigningKeyStore>();
         services.AddScoped<ISnapshotSignerProvider>(sp => sp.GetRequiredService<SigningKeyStore>());
         services.AddScoped<DeviceAdminService>();
+        services.AddScoped<Animora.Server.Auth.StaffProvisioningService>();
 
         return services;
     }

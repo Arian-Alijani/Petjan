@@ -169,7 +169,7 @@ build needed just for this file). **Push:** `scripts/git/push.sh "feat(wire): st
 **Why:** server currently can only read identity + add devices. **Acceptance:** compiles. **Push:**
 `scripts/git/push.sh "feat(server-identity): add user/membership write + staff list to EfIdentityRepository"`
 
-### ☐ TASK 3 — Server staff-management endpoints
+### ☑ TASK 3 — Server staff-management endpoints
 **File:** create `src/Animora.Server/Auth/StaffEndpoints.cs` (mirror `DeviceEndpoints.cs` structure exactly).
 - `public static IEndpointRouteBuilder MapStaffEndpoints(this IEndpointRouteBuilder app)`:
   - `var group = app.MapGroup(ServerRoutes.Auth).RequireRateLimiting(RateLimitPolicies.Auth);`
