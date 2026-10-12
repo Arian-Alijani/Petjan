@@ -38,10 +38,22 @@ public sealed partial class LoginViewModel : ObservableObject
         _localProfile = localProfile;
         _onlineAuth = onlineAuth;
         _serverOptions = serverOptions;
+
+        // The tenant code configured for this build/environment (ANIMORA_TENANT_CODE) only pre-fills the field;
+        // each clinic types its own code at sign-in (multi-tenant SaaS).
+        _clinicCode = serverOptions?.TenantCode?.Trim() ?? string.Empty;
     }
 
     /// <summary>Raised once the user is signed in (sign-in or completed first-run setup).</summary>
     public event EventHandler? LoginSucceeded;
+
+    /// <summary>The clinic (tenant) code entered by the user; required by <c>/auth/login</c> when a server is configured.</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
+    private string _clinicCode = string.Empty;
+
+    /// <summary>True when a central server is configured, i.e. sign-in is online and needs a clinic code.</summary>
+    public bool RequiresClinicCode => _onlineAuth is not null;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
@@ -100,6 +112,7 @@ public sealed partial class LoginViewModel : ObservableObject
     private bool CanSignIn =>
         IsStoreReady &&
         !IsBusy &&
+        (!RequiresClinicCode || !string.IsNullOrWhiteSpace(ClinicCode)) &&
         !string.IsNullOrWhiteSpace(Username) &&
         !string.IsNullOrWhiteSpace(Password);
 
