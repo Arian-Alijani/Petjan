@@ -267,7 +267,7 @@ one entity verified end to end. (No full regression run — reason from code + t
 Push (only if code changed): `fix(sync): <specific fix> for cross-user data propagation`.
 > **Done — concrete break found & fixed:** `SqliteSyncApplyStore` only wrote the generic `repl_base` replica; nothing projected it onto the typed tables (`Owners/Pets/Appointments/ReceptionQueueEntries`) that every screen queries, so another user's records never appeared. Added `ReplicaMaterializer` (called inside the same commit transaction): column-mapped upsert from wire payload (server `UpdatedAt/Version/Deleted` preserved via raw SQL, search keys recomputed through the shared `*SearchKeyProvider.Compose`), tombstone → soft-delete, snapshots never delete local rows, unsettled local commands on the same aggregate win, malformed rows skipped. Scheduler base interval lowered 5 min → 30 s (healthy pull = 2 cheap requests) so cross-user changes show quickly. Tests: `ReplicaMaterializerTests`. Remaining entities of the server catalog (Visit, Product, …) follow the same map pattern — add a row to `Maps` when their screens are synced.
 
-### ⬜ TASK-7 — Verify/close RC-D: staff add / role-edit / enable-disable / access-limit end to end
+### ✅ TASK-7 — Verify/close RC-D: staff add / role-edit / enable-disable / access-limit end to end
 Prereq: TASK-1/2 (so a Manager can actually log in and operate). Files:
 `src/Animora.Client.Services/Profile/UserProfileService.cs`,
 `src/Animora.Server/Auth/StaffProvisioningService.cs` + `StaffEndpoints.cs`,
@@ -279,6 +279,7 @@ the contract/UI), (b) **delete vs disable** (confirm the product model; if only 
 leave it; if delete is required and missing, add server endpoint + client call). Keep edits minimal and
 driven by what the contract/UI already demands — no speculative features.
 Push (if code changed): `feat(staff): <specific gap closed>`.
+> **Done — verified, no code change needed (decisions recorded):** create (`POST /auth/staff`), enable/disable (`/auth/staff/{id}/active`, rotates the security stamp → tokens die, Manager/self protected), permission overrides (`/auth/staff/access`, rotates stamp) and roster (`GET /auth/staff`, now also device roster) all round-trip server-side through `UserProfileService`; the server is the single authority and every device sees it on its next roster read / sign-in. (a) **Role change:** neither `IUserProfileService` nor the Profile UI exposes it (UI only toggles status and edits per-permission overrides, which is the access-limit model); the server role is already re-mirrored locally at next sign-in (`ProvisionLocalMirrorUserCommand` handles `ChangeRole` + stamp rotation) so a future server-side role-change endpoint needs no client rework. Not added (speculative). (b) **Delete vs disable:** the product model is disable-only ("سوابق کاربر محفوظ است" — historical references must never be deleted); the UI's remove action is that toggle. Left as is.
 
 ### ⬜ TASK-8 — Verify RC-E: actor provenance preserved across synced history
 Files: `src/Animora.Persistence.Sqlite/Entities/ActivityEvent.cs`,
