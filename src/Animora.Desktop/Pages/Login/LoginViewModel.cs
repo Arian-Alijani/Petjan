@@ -163,7 +163,10 @@ public sealed partial class LoginViewModel : ObservableObject
             finally { IsBusy = false; }
             return;
         }
-        if (await _authentication.IsFirstRunAsync(ct))
+        // Server builds are online-only: the clinic/owner account is provisioned on the server, so a fresh install goes
+        // straight to the online sign-in form (SignInLocalAsync creates the local record after the server accepts).
+        // The local first-run owner setup is only meaningful for builds with no server configured.
+        if (!RequiresClinicCode && await _authentication.IsFirstRunAsync(ct))
         {
             ShowFirstRun();
         }
@@ -396,7 +399,8 @@ public sealed partial class LoginViewModel : ObservableObject
             Username = firstRun.Username.Trim();
         }
 
-        // CompleteFirstRunAsync already started the session: open the shell.
+        // Only reachable on builds without a server (see InitializeAsync). CompleteFirstRunAsync already started the
+        // local session: open the shell.
         LoginSucceeded?.Invoke(this, EventArgs.Empty);
     }
 }

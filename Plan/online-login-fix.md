@@ -150,7 +150,7 @@ Animora یک محصول SaaS **چندمستاجری (multi-tenant)** است: ی�
 **پذیرش:** بیلد Desktop سریع 0/0. منطقاً: کد کلینیک درست + حساب معتبر ⇒ ورود؛ کد/حساب غلط ⇒ پیام خطا و عدم ورود.
 **پوش:** `fix(login): require server session (online-only) before opening shell`
 
-### ⬜ TASK-C — همسوسازی first-run با مدل آنلاین
+### ✅ TASK-C — همسوسازی first-run با مدل آنلاین
 **هدف:** first-run نباید shell را بدون نشست سرور باز کند (وقتی سرور configure است).
 **فایل‌ها:** `LoginViewModel.cs` (`OnFirstRunSucceeded`)، و در صورت نیاز `FirstRunViewModel.cs`.
 - بعد از موفقیت first-run محلی، اگر سرور configure است (`_onlineAuth != null`)، باید کاربر از همان مسیر ورود آنلاین اجباری رد شود. ساده‌ترین راهِ درست: پس از first-run، فرم ورود را با username پرشده نشان بده و از کاربر بخواه کد کلینیک + رمز را برای ورود آنلاین بزند (به‌جای باز کردن مستقیم shell). یعنی `OnFirstRunSucceeded` دیگر مستقیماً `LoginSucceeded` نزند مگر سرور configure نباشد.
