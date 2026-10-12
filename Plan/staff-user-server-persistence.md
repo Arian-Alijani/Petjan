@@ -218,7 +218,7 @@ build needed just for this file). **Push:** `scripts/git/push.sh "feat(wire): st
 a full-solution long build). **Push (heavy task):**
 `scripts/git/push.sh "feat(server): online staff-management endpoints under /auth/staff"`
 
-### ☐ TASK 4 — Client: call the server for staff operations
+### ☑ TASK 4 — Client: call the server for staff operations
 **File:** `src/Animora.Client.Services/Profile/UserProfileService.cs`.
 - Inject `OnlineApi? api` and `ServerEndpointOptions? options` as OPTIONAL ctor deps (they are registered only
   when the server is configured — follow how `ServerClinicAccountStatusSource` / other online services take

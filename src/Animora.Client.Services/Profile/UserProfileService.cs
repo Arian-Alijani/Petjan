@@ -1,10 +1,13 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Profile;
+using Animora.Client.Services.Identity;
 using Animora.Contracts.Profile;
+using Animora.Contracts.Wire.Auth;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +20,11 @@ namespace Animora.Client.Services.Profile;
 /// <c>LocalSessions</c> tables and the profile KPIs from durable, user-scoped counts — no sample data and no
 /// mock branching. Persian labels are produced here (the Contracts shape is display text);
 /// <see cref="HistoryText"/> does the same for the history feed.
+///
+/// <para><b>Staff management is server-authoritative when the server is configured.</b> Account creation, enable/
+/// disable, permission overrides and the roster go straight to the central server (<c>/auth/staff</c>, synchronously,
+/// like sign-in) so a new user exists for every device and can sign in; the server's failure is surfaced to the caller
+/// (no silent local-only success). Only a build with no server configured keeps the local-store command path.</para>
 /// </summary>
 public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfileService
 {
@@ -86,6 +94,7 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
     public async Task<StaffDirectory> GetStaffAsync()
     {
         await using var scope = scopes.CreateAsyncScope();
+        if (scope.ServiceProvider.GetService<OnlineApi>() is { } api) return await GetServerStaffAsync(api).ConfigureAwait(false);
         var (dispatcher, provider, _) = Resolve(scope);
         var context = provider.BuildQueryContext();
         if (context.IsFailure) throw new ServiceException(context.Error);
@@ -98,24 +107,108 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
                 m.Permissions, m.ChangeToken)).ToArray(),
             model.Roles.Select(r => new StaffRoleOption(r.Key.ToString(), ProfileMapping.RoleLabel(r.Key.ToString()),
                 r.Value)).ToArray(),
-            PermissionCodes.All.Select(code => new StaffPermissionOption(code, ProfileMapping.PermissionLabel(code),
-                PermissionCodes.RiskOf(code) == RiskLevel.Critical ? "مجوز حساس؛ در حالت آفلاین محدود است" :
-                PermissionCodes.RiskOf(code) == RiskLevel.High ? "عملیات حساس؛ اعتبار آفلاین محدود" : "مجوز مستقل این عملیات")).ToArray(),
+            ProfileMapping.PermissionOptions(),
             model.CanManageUsers, model.CanManageAccess);
     }
 
-    public Task AddStaffAsync(CreateStaffRequest request)
+    public async Task AddStaffAsync(CreateStaffRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
         if (!Enum.TryParse<StaffRole>(request.RoleId, out var role) || !Enum.IsDefined(role))
             throw new InvalidOperationException("VALIDATION_FAILED");
-        return SendStaffAsync(new CreateStaffCommand(request.Name, request.Username, request.Password, role, request.Phone));
+        if (await TryGetOnlineApiAsync().ConfigureAwait(false) is { } api)
+        {
+            await PostStaffAsync(api, "auth/staff", new CreateStaffServerRequest(request.Name, request.Username,
+                request.Password, request.RoleId, request.Phone)).ConfigureAwait(false);
+            return;
+        }
+
+        await SendStaffAsync(new CreateStaffCommand(request.Name, request.Username, request.Password, role, request.Phone))
+            .ConfigureAwait(false);
     }
 
-    public Task SetStaffActiveAsync(string membershipId, bool active, string? expectedChangeToken = null) =>
-        SendStaffAsync(new SetStaffActiveCommand(membershipId, active, expectedChangeToken));
+    public async Task SetStaffActiveAsync(string membershipId, bool active, string? expectedChangeToken = null)
+    {
+        if (await TryGetOnlineApiAsync().ConfigureAwait(false) is { } api)
+        {
+            await PostStaffAsync(api, $"auth/staff/{Uri.EscapeDataString(membershipId)}/active",
+                new StaffActiveServerRequest(membershipId, active, expectedChangeToken)).ConfigureAwait(false);
+            return;
+        }
 
-    public Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null) =>
-        SendStaffAsync(new SaveStaffAccessCommand(membershipId, permissionCodes, expectedChangeToken));
+        await SendStaffAsync(new SetStaffActiveCommand(membershipId, active, expectedChangeToken)).ConfigureAwait(false);
+    }
+
+    public async Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null)
+    {
+        if (await TryGetOnlineApiAsync().ConfigureAwait(false) is { } api)
+        {
+            await PostStaffAsync(api, "auth/staff/access",
+                new StaffAccessServerRequest(membershipId, permissionCodes, expectedChangeToken)).ConfigureAwait(false);
+            return;
+        }
+
+        await SendStaffAsync(new SaveStaffAccessCommand(membershipId, permissionCodes, expectedChangeToken)).ConfigureAwait(false);
+    }
+
+    /// <summary>The shared online client, or <see langword="null"/> when no server is configured (offline/local-only build).</summary>
+    private async Task<OnlineApi?> TryGetOnlineApiAsync()
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        return scope.ServiceProvider.GetService<OnlineApi>();
+    }
+
+    private static async Task<StaffDirectory> GetServerStaffAsync(OnlineApi api)
+    {
+        var exchange = await api.SendAsync(HttpMethod.Get, "auth/staff", body: null, bearer: null).ConfigureAwait(false);
+        using var response = exchange.Response;
+        if (response is null) throw new ServiceException(ErrorCodes.NetworkUnavailable);
+        if (!response.IsSuccessStatusCode) throw await ServerFailureAsync(response).ConfigureAwait(false);
+        var wire = await OnlineApi.ReadAsync<StaffDirectoryWire>(response).ConfigureAwait(false)
+                   ?? throw new ServiceException(ErrorCodes.Unexpected);
+        return new StaffDirectory(
+            wire.Members.Select(m => new StaffAccount(m.MembershipId, m.UserId, m.Name, m.Username, m.Role,
+                m.IsActive, m.IsProtected, m.Permissions, m.ChangeToken)).ToArray(),
+            wire.Roles.Select(r => new StaffRoleOption(r.RoleId, ProfileMapping.RoleLabel(r.RoleId),
+                r.DefaultPermissions)).ToArray(),
+            ProfileMapping.PermissionOptions(),
+            wire.CanManageUsers, wire.CanManageAccess);
+    }
+
+    /// <summary>POSTs a staff command to the server; any non-success surfaces as a <see cref="ServiceException"/> with the stable code.</summary>
+    private static async Task PostStaffAsync(OnlineApi api, string path, object body)
+    {
+        var exchange = await api.SendAsync(HttpMethod.Post, path, body, bearer: null).ConfigureAwait(false);
+        using var response = exchange.Response;
+        if (response is null) throw new ServiceException(ErrorCodes.NetworkUnavailable);
+        if (!response.IsSuccessStatusCode) throw await ServerFailureAsync(response).ConfigureAwait(false);
+    }
+
+    /// <summary>Maps a failed server response to its wire error code, falling back to the HTTP status when the body has none.</summary>
+    private static async Task<ServiceException> ServerFailureAsync(HttpResponseMessage response)
+    {
+        var code = await OnlineApi.ReadErrorCodeAsync(response).ConfigureAwait(false);
+        if (code is not null) return new ServiceException(code, CategoryOf(response.StatusCode));
+        return response.StatusCode switch
+        {
+            HttpStatusCode.Unauthorized => new ServiceException(ErrorCodes.SessionExpired),
+            HttpStatusCode.Forbidden => new ServiceException(ErrorCodes.PermissionDenied),
+            HttpStatusCode.NotFound => new ServiceException(ErrorCodes.NotFound),
+            HttpStatusCode.Conflict => new ServiceException(ErrorCodes.ConcurrencyConflict),
+            HttpStatusCode.BadRequest => new ServiceException(ErrorCodes.ValidationFailed),
+            _ when OnlineApi.IsTransient(response.StatusCode) => new ServiceException(ErrorCodes.ServerBusy),
+            _ => new ServiceException(ErrorCodes.Unexpected),
+        };
+    }
+
+    private static string CategoryOf(HttpStatusCode status) => status switch
+    {
+        HttpStatusCode.BadRequest => ErrorCode.Validation,
+        HttpStatusCode.NotFound => ErrorCode.NotFound,
+        HttpStatusCode.Conflict => ErrorCode.Conflict,
+        HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => ErrorCode.Forbidden,
+        _ => ErrorCode.Infrastructure,
+    };
 
     private async Task SendStaffAsync(ICommand<Unit> command)
     {
@@ -328,6 +421,12 @@ internal static class ProfileMapping
         PermissionCodes.AuditRead => "رویدادها · مشاهده گزارش ممیزی",
         _ => code,
     };
+
+    /// <summary>Every permission with its Persian label and risk description (shared by the local and server roster paths).</summary>
+    internal static IReadOnlyList<StaffPermissionOption> PermissionOptions() =>
+        PermissionCodes.All.Select(code => new StaffPermissionOption(code, PermissionLabel(code),
+            PermissionCodes.RiskOf(code) == RiskLevel.Critical ? "مجوز حساس؛ در حالت آفلاین محدود است" :
+            PermissionCodes.RiskOf(code) == RiskLevel.High ? "عملیات حساس؛ اعتبار آفلاین محدود" : "مجوز مستقل این عملیات")).ToArray();
 
     internal static string RoleLabel(string role) => role switch
     {

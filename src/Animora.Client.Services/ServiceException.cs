@@ -17,6 +17,17 @@ public sealed class ServiceException : InvalidOperationException
         Category = error.Category;
     }
 
+    /// <summary>
+    /// Builds the exception from a stable code received over the wire (server <c>WireApiError.Code</c>), where only the
+    /// code string — not the <see cref="ErrorCode"/> instance — is known.
+    /// </summary>
+    public ServiceException(string code, string category)
+        : base(code)
+    {
+        Code = code;
+        Category = category;
+    }
+
     /// <summary>SCREAMING_SNAKE backend error code (identical to <see cref="Exception.Message"/>).</summary>
     public string Code { get; }
 
