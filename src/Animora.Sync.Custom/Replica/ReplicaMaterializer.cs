@@ -112,17 +112,17 @@ internal static class ReplicaMaterializer
 
             if (row.Payload is null)
             {
-                written += await db.Database.ExecuteSqlRawAsync(map.TombstoneSql, new object[] { updated, (object?)row.Version ?? DBNull.Value, row.EntityId, tenant }, ct)
+                written += await db.Database.ExecuteSqlRawAsync(map.TombstoneSql, new object[] { updated, Nullable(row.Version), row.EntityId, tenant }, ct)
                     .ConfigureAwait(false);
                 continue;
             }
 
             if (!TryReadValues(map, row.Payload, out var values)) continue;
             var args = new List<object>(map.Columns.Length + 6) { row.EntityId, tenant };
-            foreach (var col in map.Columns) args.Add(values[col.Name] ?? DBNull.Value);
+            foreach (var col in map.Columns) args.Add(Nullable(values[col.Name]));
             if (map.SearchKey is not null) args.Add(map.SearchKey(values));
             args.Add(updated);
-            args.Add((object?)row.Version ?? DBNull.Value);
+            args.Add(Nullable(row.Version));
             args.Add(row.Deleted ? 1 : 0);
             var affected = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
             written += affected;
@@ -152,6 +152,12 @@ internal static class ReplicaMaterializer
             Str(v, "PetId")!, Str(v, "OwnerId")!, Str(v, "DoctorUserId"), start, (int)(v["DurationMinutes"] as long? ?? 0));
         return ActivityFeedMapper.Map(evt) is { } draft ? draft with { ActorUserId = author } : null;
     }
+
+    /// <summary>
+    /// Raw-SQL parameter for a possibly-absent value. EF Core binds a <see langword="null"/> argument as SQL NULL but has no type mapping
+    /// for <see cref="DBNull"/> (that throws), so absence is passed as <see langword="null"/>; the annotation is bridged here, once.
+    /// </summary>
+    private static object Nullable(object? value) => value!;
 
     private static string Key(string entity, string id) => entity + "|" + id;
 
