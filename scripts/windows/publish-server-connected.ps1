@@ -133,11 +133,36 @@ if (Test-Path $PkgDir) {
 New-Item -ItemType Directory -Force -Path $AppSubDir | Out-Null
 
 # =============================================================================
+# 0. CLEAN the desktop project's intermediate output FIRST.
+#    This is the single most important step for avoiding the runtime crash
+#      "No precompiled XAML found for Animora.Desktop.App".
+#    That crash means the produced assembly was emitted WITHOUT the compiled
+#    Avalonia XAML resource — which happens when an INCREMENTAL build reuses a
+#    stale obj/ (e.g. a prior Debug or design-time build) and skips CoreCompile
+#    (where the Avalonia XAML compiler runs). Deleting bin/ and obj/ for this
+#    project forces a full compile, so the XAML is always re-embedded.
+#    We only ever delete THIS project's bin/obj (never source, never other
+#    projects), so a dev's normal build tree is unaffected beyond a recompile.
+# =============================================================================
+$ProjDir = Split-Path -Parent $Proj
+foreach ($sub in @('bin', 'obj')) {
+    $dir = Join-Path $ProjDir $sub
+    if (Test-Path $dir) {
+        Write-Host "==> Cleaning stale $sub\ ($dir) to guarantee the XAML is recompiled ..."
+        Remove-Item -Recurse -Force $dir
+    }
+}
+
+# =============================================================================
 # 1. Publish: Release, self-contained, single-file.
 #    - self-contained  => bundles the .NET runtime (no install on target PC)
 #    - single-file      => one Animora.Desktop.exe (plus required native libs)
 #    - EnableAvaloniaXamlCompilation=true => avoids the "No precompiled XAML"
 #      startup crash.
+#    - --no-incremental  => never reuse a stale compile; the csproj's
+#      VerifyCompiledAvaloniaXaml target then hard-fails the build if (despite
+#      all this) the XAML resource is still missing, so a broken package can
+#      never be shipped.
 #    Native SQLCipher/e_sqlite3 binaries are copied next to the exe (not
 #    embedded) so SQLite loads reliably — IncludeNativeLibrariesForSelfExtract
 #    is intentionally left OFF.
@@ -147,6 +172,7 @@ Write-Host '==> Publishing (Release, self-contained, single-file). This can take
     -c Release `
     -r $Runtime `
     --self-contained true `
+    --no-incremental `
     -p:PublishSingleFile=true `
     -p:EnableAvaloniaXamlCompilation=true `
     -p:DebugType=none `
@@ -186,7 +212,10 @@ rem  it to diagnose server-connection problems. Keep this window open while you
 rem  use the app; close it (or press a key after the app exits) when done.
 rem
 rem  To point this copy at a different server, edit the SET line below.
-rem  To run WITHOUT the trace, set ANIMORA_NET_LOG=0.
+rem  To run WITHOUT the server trace, set ANIMORA_NET_LOG=0.
+rem  The app ALSO writes its own activity log (startup, clicks, navigation,
+rem  errors) to: %LOCALAPPDATA%\Animora\logs\animora-<date>.log
+rem  Set ANIMORA_TRACE_DEBUG=1 for extra-verbose app diagnostics.
 rem ===========================================================================
 setlocal
 chcp 65001 >nul
@@ -195,8 +224,10 @@ set "ANIMORA_NET_LOG=1"
 echo =====================================================================
 echo  Animora - server-connected launch (LIVE TRACE)
 echo  Server : %ANIMORA_SERVER_URL%
-echo  This window will show every request/response to/from the server.
-echo  Leave it open while you use the app.
+echo  This window shows every request/response to/from the server, plus the
+echo  app's own activity (startup, clicks, navigation, errors).
+echo  App log file: %LOCALAPPDATA%\Animora\logs\animora-<date>.log
+echo  Leave this window open while you use the app.
 echo =====================================================================
 echo.
 cd /d "%~dp0app"

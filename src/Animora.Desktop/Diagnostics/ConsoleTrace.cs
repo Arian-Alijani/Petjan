@@ -34,7 +34,10 @@ internal static class ConsoleTrace
     /// </summary>
     internal static void EnsureAttachedIfRequested()
     {
-        if (!Animora.Sync.Custom.NetworkLoggingHandler.IsEnabled) return;
+        // Attach/allocate a console when ANY live trace is requested: the server-traffic trace
+        // (ANIMORA_NET_LOG) OR the verbose app trace (ANIMORA_TRACE_DEBUG). Either way the user
+        // wants to watch the diagnostic stream in a terminal.
+        if (!Animora.Sync.Custom.NetworkLoggingHandler.IsEnabled && !AppTraceConsoleRequested()) return;
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
 
         try
@@ -62,6 +65,17 @@ internal static class ConsoleTrace
         {
             // Never let a diagnostics convenience break app startup.
         }
+    }
+
+    private static bool AppTraceConsoleRequested()
+    {
+        var raw = Environment.GetEnvironmentVariable("ANIMORA_TRACE_DEBUG");
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        raw = raw.Trim();
+        return raw is "1"
+            || raw.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || raw.Equals("yes", StringComparison.OrdinalIgnoreCase)
+            || raw.Equals("on", StringComparison.OrdinalIgnoreCase);
     }
 
     // After AttachConsole/AllocConsole the managed Console.Out still points at the old (null) handles;

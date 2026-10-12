@@ -127,11 +127,28 @@ if (Test-Path $PortableDir) {
 New-Item -ItemType Directory -Force -Path $AppSubDir | Out-Null
 
 # =============================================================================
+# 0. CLEAN the desktop project's intermediate output FIRST, so an incremental
+#    build with a stale obj/ can never ship an assembly that is missing the
+#    compiled Avalonia XAML resource (the "No precompiled XAML found for
+#    Animora.Desktop.App" startup crash). Only THIS project's bin/obj are
+#    removed (never source, never other projects).
+# =============================================================================
+$ProjDir = Split-Path -Parent $Proj
+foreach ($sub in @('bin', 'obj')) {
+    $dir = Join-Path $ProjDir $sub
+    if (Test-Path $dir) {
+        Write-Host "==> Cleaning stale $sub\ ($dir) to guarantee the XAML is recompiled ..."
+        Remove-Item -Recurse -Force $dir
+    }
+}
+
+# =============================================================================
 # 1. Publish: Release, self-contained, single-file.
 #    - self-contained  => bundles the .NET runtime (no install on target PC)
 #    - single-file      => one Animora.Desktop.exe (plus required native libs)
 #    - EnableAvaloniaXamlCompilation=true => avoids the "No precompiled XAML"
 #      startup crash (same guard clean-run.ps1 uses).
+#    - --no-incremental  => force a full compile so the XAML is always embedded.
 #    Native SQLCipher/e_sqlite3 binaries are copied next to the exe, not embedded,
 #    so SQLite loads reliably — that is why IncludeNativeLibrariesForSelfExtract
 #    is intentionally left OFF.
@@ -141,6 +158,7 @@ Write-Host '==> Publishing (Release, self-contained, single-file). This can take
     -c Release `
     -r $Runtime `
     --self-contained true `
+    --no-incremental `
     -p:PublishSingleFile=true `
     -p:EnableAvaloniaXamlCompilation=true `
     -p:DebugType=none `
