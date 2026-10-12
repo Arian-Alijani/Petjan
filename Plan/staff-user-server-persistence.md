@@ -139,7 +139,7 @@ desired) — do not delete them.
 
 ## 3. Tasks (do in order; push after EACH)
 
-### ☐ TASK 1 — Wire DTOs for staff management
+### ☑ TASK 1 — Wire DTOs for staff management
 **File:** create `src/Animora.Contracts.Wire/Auth/StaffWire.cs` (one file, several records).
 Add records (match existing `Auth/*.cs` doc-comment style, `Animora.Contracts.Wire.Auth` namespace):
 - `CreateStaffServerRequest(string Name, string Username, string Password, string Role, string Phone)`
@@ -153,7 +153,7 @@ Add records (match existing `Auth/*.cs` doc-comment style, `Animora.Contracts.Wi
 **Why:** typed transport for the 4 endpoints. **Acceptance:** project compiles (built in a later task; no
 build needed just for this file). **Push:** `scripts/git/push.sh "feat(wire): staff-management DTOs for online user provisioning"`
 
-### ☐ TASK 2 — Server identity store: allow adding users & memberships
+### ☑ TASK 2 — Server identity store: allow adding users & memberships
 **File:** `src/Animora.Persistence.PostgreSql/Identity/IIdentityRepository.cs` + `EfIdentityRepository.cs`.
 - Add to the interface: `void AddUser(User user);` and `void AddMembership(StaffMembership membership);` and
   (for status/access edits) `Task<StaffMembership?> FindMembershipByIdAsync(string membershipId, CancellationToken ct = default);`
