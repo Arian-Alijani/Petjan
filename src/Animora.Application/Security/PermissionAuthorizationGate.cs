@@ -30,14 +30,6 @@ public sealed class PermissionAuthorizationGate(
     IStaffMembershipRepository memberships,
     IClock clock) : IAuthorizationGate
 {
-    private static readonly FrozenSet<Type> PreAuthentication = new[]
-    {
-        typeof(SignInCommand),
-        typeof(CompleteFirstRunSetupCommand),
-        typeof(UnlockSessionCommand),
-        typeof(CurrentSessionQuery),
-    }.ToFrozenSet();
-
     public ValueTask<Result> EvaluateAsync(object command, CommandContext context, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -62,7 +54,7 @@ public sealed class PermissionAuthorizationGate(
         var onInstallation = Same(tenantId, installation.TenantId) && Same(deviceId, installation.DeviceId);
         if (!onInstallation) return Result.Fail(ErrorCodes.TenantMismatch);
 
-        if (PreAuthentication.Contains(requestType)
+        if (PreAuthenticationRequests.Types.Contains(requestType)
             && string.Equals(userId, ICurrentUserProvider.AnonymousUserId, StringComparison.Ordinal))
             return Result.Ok();
 

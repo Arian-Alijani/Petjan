@@ -411,6 +411,10 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<LocalSyncStatusService>();
         services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
 
+        // Login-screen server reachability indicator: a cheap GET /health/live probe so the user can
+        // tell a server/internet outage apart from a wrong password.
+        services.AddSingleton<IServerConnectivityService, ServerConnectivityService>();
+
         // Global command palette (Ctrl+K) search seam. Depends on the patients
         // directory so a query also returns live patient/owner matches. The
         // palette ViewModel is transient so each open starts fresh.
