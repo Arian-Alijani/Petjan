@@ -151,19 +151,19 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         await SendStaffAsync(new SaveStaffAccessCommand(membershipId, permissionCodes, expectedChangeToken)).ConfigureAwait(false);
     }
 
-    public async Task ApproveStaffDeviceAsync(string deviceId)
+    public async Task ApproveStaffDeviceAsync(string deviceId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
         var api = await TryGetOnlineApiAsync().ConfigureAwait(false) ?? throw new ServiceException(ErrorCodes.NetworkUnavailable);
-        await PostStaffAsync(api, $"auth/device/{Uri.EscapeDataString(deviceId)}/approve", new { }).ConfigureAwait(false);
+        await PostStaffAsync(api, $"auth/device/{Uri.EscapeDataString(deviceId)}/approve", new { }, ct).ConfigureAwait(false);
     }
 
-    public async Task RevokeStaffDeviceAsync(string deviceId, string reason)
+    public async Task RevokeStaffDeviceAsync(string deviceId, string reason, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
         var api = await TryGetOnlineApiAsync().ConfigureAwait(false) ?? throw new ServiceException(ErrorCodes.NetworkUnavailable);
-        await PostStaffAsync(api, $"auth/device/{Uri.EscapeDataString(deviceId)}/revoke", new DeviceRevokeRequest(reason.Trim()))
+        await PostStaffAsync(api, $"auth/device/{Uri.EscapeDataString(deviceId)}/revoke", new DeviceRevokeRequest(reason.Trim()), ct)
             .ConfigureAwait(false);
     }
 
@@ -194,18 +194,18 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
     }
 
     /// <summary>POSTs a staff command to the server; any non-success surfaces as a <see cref="ServiceException"/> with the stable code.</summary>
-    private static async Task PostStaffAsync(OnlineApi api, string path, object body)
+    private static async Task PostStaffAsync(OnlineApi api, string path, object body, CancellationToken ct = default)
     {
-        var exchange = await api.SendAsync(HttpMethod.Post, path, body, bearer: null).ConfigureAwait(false);
+        var exchange = await api.SendAsync(HttpMethod.Post, path, body, bearer: null, ct).ConfigureAwait(false);
         using var response = exchange.Response;
         if (response is null) throw new ServiceException(ErrorCodes.NetworkUnavailable);
-        if (!response.IsSuccessStatusCode) throw await ServerFailureAsync(response).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode) throw await ServerFailureAsync(response, ct).ConfigureAwait(false);
     }
 
     /// <summary>Maps a failed server response to its wire error code, falling back to the HTTP status when the body has none.</summary>
-    private static async Task<ServiceException> ServerFailureAsync(HttpResponseMessage response)
+    private static async Task<ServiceException> ServerFailureAsync(HttpResponseMessage response, CancellationToken ct = default)
     {
-        var code = await OnlineApi.ReadErrorCodeAsync(response).ConfigureAwait(false);
+        var code = await OnlineApi.ReadErrorCodeAsync(response, ct).ConfigureAwait(false);
         if (code is not null) return new ServiceException(code, CategoryOf(response.StatusCode));
         return response.StatusCode switch
         {

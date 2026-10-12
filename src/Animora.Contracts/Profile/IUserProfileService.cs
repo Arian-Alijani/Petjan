@@ -30,8 +30,8 @@ public interface IUserProfileService
     Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null);
 
     /// <summary>Approves a staff member's pending device (server-authoritative; needs the devices-manage permission).</summary>
-    Task ApproveStaffDeviceAsync(string deviceId);
+    Task ApproveStaffDeviceAsync(string deviceId, CancellationToken ct = default);
 
     /// <summary>Revokes a staff member's device with an audited reason (server-authoritative; needs the devices-manage permission).</summary>
-    Task RevokeStaffDeviceAsync(string deviceId, string reason);
+    Task RevokeStaffDeviceAsync(string deviceId, string reason, CancellationToken ct = default);
 }

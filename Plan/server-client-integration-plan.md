@@ -293,12 +293,13 @@ provenance survives sync. Targeted, not a sweep.
 Push (if code changed): `fix(history): preserve actor provenance for synced records`.
 > **Done — two concrete breaks found & fixed:** (1) the wire contracts carry authorship only where the entity has it (`Appointment.CreatedByUserId`; Pet/Owner/queue rows carry none), and sync apply produced **no** History row at all, so another user's work never showed up with its author. `ReplicaMaterializer` now appends the «booked» feed row for a synced appointment through the new `SyncedActivityFeed.AppendAsync` with `ActorUserId` = the record's own author (idempotent per entity+title, `sync:<batch>` correlation marker); no author → no fabricated actor. (2) `ActorName` was never resolved on live write or `RebuildActivityFeedAsync` (always blank), and a rebuild wiped sync-projected rows. Added `ActivityDetailResolver.ResolveActorNameAsync` (local `User.DisplayName`, memoised per rebuild), used by live writer, rebuild and sync path; rebuild now preserves `sync:` rows. `HistoryMapping.Actor` shows a neutral «کاربر کلینیک» label (real id kept) instead of a blank for actors not yet mirrored locally. Tests: `ReplicaMaterializerTests` (+2).
 
-### ⬜ TASK-9 — RC-G focused standards pass on touched server/client files
+### ✅ TASK-9 — RC-G focused standards pass on touched server/client files
 Do: review ONLY files changed in TASK-1..8 for: `CancellationToken` propagation, no `.Result`/`.Wait()`,
 typed `Result`/correct HTTP status (no exception-as-500 on expected failures), no EF/HTTP types crossing
 into VM/View/Domain, `ConfigureAwait` per CONVENTIONS (client code returning to VM intentionally omits
 `ConfigureAwait(false)`; infra/server uses it). Fix nits found. No new broad refactors.
 Push: `refactor: tighten cancellation/result handling on touched integration paths`.
+> **Done:** reviewed every file changed by TASK-1..8 (diff vs plan commit). No `.Result`/`.Wait()`/`GetAwaiter().GetResult()`, no EF/HTTP types in VM/View/Domain, server sync filter returns a typed 401 (no exception-as-500), infra/server/sync code uses `ConfigureAwait(false)` while VM-facing paths intentionally don't. One real gap fixed: the TASK-3 device approve/revoke path (`IUserProfileService` → `UserProfileService.PostStaffAsync`/`ServerFailureAsync`) dropped the `CancellationToken`; it is now optional on the contract and propagated into `OnlineApi.SendAsync`/`ReadErrorCodeAsync`.
 
 ### ⬜ TASK-10 (FINAL) — delete this plan file
 Delete `Plan/server-client-integration-plan.md` (this file) ONLY. Do not touch other files or any
