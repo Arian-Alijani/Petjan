@@ -35,6 +35,17 @@ public static class SyncCustomServiceCollectionExtensions
             if (options.TryGetBaseUri(out var baseUri)) client.BaseAddress = baseUri;
             client.Timeout = System.Threading.Timeout.InfiniteTimeSpan; // per-request timeouts are enforced by SyncFeedClient
         });
+
+        // Diagnostics: when ANIMORA_NET_LOG=1 the launcher asked for a full server-traffic trace.
+        // Register it as the OUTERMOST handler (added before BearerAuthHandler below) so it brackets the
+        // whole pipeline — it logs each call and the final response/timing, and its elapsed time spans any
+        // 401-refresh retry the auth handler performs internally. Gated so normal runs pay nothing: the
+        // handler is not even added to the pipeline when off.
+        if (NetworkLoggingHandler.IsEnabled)
+        {
+            services.AddTransient<NetworkLoggingHandler>();
+            httpClient.AddHttpMessageHandler<NetworkLoggingHandler>();
+        }
         services.AddSingleton(sp => new SyncFeedClient(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(SyncFeedClient.HttpClientName),
             sp.GetRequiredService<ServerEndpointOptions>()));
