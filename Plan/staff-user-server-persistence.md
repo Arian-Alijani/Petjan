@@ -257,7 +257,7 @@ a full-solution long build). **Push (heavy task):**
 **Acceptance:** compiles; no behavioural guesswork left. **Push:**
 `scripts/git/push.sh "feat(profile): surface server staff errors with Persian UX"`
 
-### ☐ TASK 6 — Scoped build + sanity verification (NO full/long build)
+### ☑ TASK 6 — Scoped build + sanity verification (NO full/long build)
 - Build only the touched projects (fast, scoped):
   `cd /home/user/webapp && dotnet build src/Animora.Contracts.Wire src/Animora.Persistence.PostgreSql src/Animora.Server src/Animora.Client.Services src/Animora.Desktop -clp:ErrorsOnly`
   — expect 0 errors. (Do NOT run `scripts/sandbox/build.sh full`, do NOT run the full test suite — that's

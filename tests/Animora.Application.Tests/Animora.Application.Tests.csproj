@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <!-- Exercise the production navigation code without starting Avalonia or loading pages. -->
+    <Compile Include="../../src/Animora.Desktop/Diagnostics/AppTrace.cs" Link="Navigation/AppTrace.cs" />
     <Compile Include="../../src/Animora.Desktop/Services/NavigationService.cs" Link="Navigation/NavigationService.cs" />
     <Compile Include="../../src/Animora.Desktop/Services/INavigationService.cs" Link="Navigation/INavigationService.cs" />
     <Compile Include="../../src/Animora.Desktop/Services/IToastService.cs" Link="Navigation/IToastService.cs" />

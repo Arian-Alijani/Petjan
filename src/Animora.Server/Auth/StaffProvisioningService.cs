@@ -9,6 +9,7 @@ using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.PostgreSql.Identity;
+using IIdentityRepository = Animora.Persistence.PostgreSql.Identity.IIdentityRepository;
 using Animora.Server.Authorization;
 using Microsoft.AspNetCore.Identity;
 
