@@ -52,6 +52,13 @@ public interface ISyncStatusService
     /// </summary>
     DateTimeOffset? LastSyncedAt { get; }
 
+    /// <summary>
+    /// Number of local changes still waiting to be flushed to the server (the unsettled command backlog).
+    /// Zero means nothing is queued for upload. The topbar uses this to explain whether a manual sync has
+    /// outbound work to do — especially useful after the app has been offline for a while.
+    /// </summary>
+    int PendingChangeCount { get; }
+
     /// <summary>Raised after <see cref="State"/> (and/or <see cref="LastSyncedAt"/>) changes.</summary>
     event EventHandler? StateChanged;
 
