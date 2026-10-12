@@ -41,7 +41,20 @@ internal sealed class FakeIdentityRepository : IIdentityRepository
     public Task<Device?> FindDeviceByIdAsync(string deviceId, CancellationToken ct = default) =>
         Task.FromResult(Devices.FirstOrDefault(d => d.Id == deviceId));
 
+    public Task<StaffMembership?> FindMembershipByIdAsync(string membershipId, CancellationToken ct = default) =>
+        Task.FromResult(Memberships.FirstOrDefault(m => m.Id == membershipId));
+
+    public Task<IReadOnlyList<(User User, StaffMembership Membership)>> ListStaffAsync(string tenantId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<(User User, StaffMembership Membership)>>(Memberships
+            .Where(m => m.TenantId == tenantId)
+            .Join(Users.Where(u => u.TenantId == tenantId), m => m.UserId, u => u.Id, (m, u) => (u, m))
+            .ToArray());
+
     public void AddDevice(Device device) => Devices.Add(device);
+
+    public void AddUser(User user) => Users.Add(user);
+
+    public void AddMembership(StaffMembership membership) => Memberships.Add(membership);
 
     public Task<Result> SaveAsync(CancellationToken ct = default) => Task.FromResult(Result.Ok());
 }

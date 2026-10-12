@@ -272,7 +272,7 @@ a full-solution long build). **Push (heavy task):**
 - If the build surfaced a heavy fix, push it with a clear message.
 **Push:** `scripts/git/push.sh "chore(staff): scoped build green + integration sanity pass"`
 
-### ☐ TASK 7 — Answer the user's explicit questions in the final chat summary
+### ☑ TASK 7 — Answer the user's explicit questions in the final chat summary
 In the final reply (NOT in a repo file), state clearly:
 1. **Root cause** (staff creation was a purely-local command with no server leg — §1.2).
 2. **What was changed** on client and server (§2 summary).
