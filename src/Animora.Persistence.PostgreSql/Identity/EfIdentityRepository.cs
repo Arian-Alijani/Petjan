@@ -32,10 +32,48 @@ public sealed class EfIdentityRepository(AnimoraServerDbContext context) : IIden
         context.Devices.FirstOrDefaultAsync(d => d.Id == deviceId, ct);
 
     /// <inheritdoc />
+    public Task<StaffMembership?> FindMembershipByIdAsync(string membershipId, CancellationToken ct = default) =>
+        context.StaffMemberships.FirstOrDefaultAsync(m => m.Id == membershipId, ct);
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<(User User, StaffMembership Membership)>> ListStaffAsync(
+        string tenantId, CancellationToken ct = default)
+    {
+        // Tenant-filtered join of users and their memberships. The DbContext already applies the bound-tenant
+        // filter; the explicit tenantId predicate is defence-in-depth so a misbound context cannot leak rows.
+        var rows = await context.StaffMemberships
+            .AsNoTracking()
+            .Where(m => m.TenantId == tenantId)
+            .Join(
+                context.Users.AsNoTracking().Where(u => u.TenantId == tenantId),
+                m => m.UserId,
+                u => u.Id,
+                (m, u) => new { User = u, Membership = m })
+            .OrderBy(x => x.Membership.JoinedUtc)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        return rows.Select(x => (x.User, x.Membership)).ToArray();
+    }
+
+    /// <inheritdoc />
     public void AddDevice(Device device)
     {
         ArgumentNullException.ThrowIfNull(device);
         context.Devices.Add(device);
+    }
+
+    /// <inheritdoc />
+    public void AddUser(User user)
+    {
+        ArgumentNullException.ThrowIfNull(user);
+        context.Users.Add(user);
+    }
+
+    /// <inheritdoc />
+    public void AddMembership(StaffMembership membership)
+    {
+        ArgumentNullException.ThrowIfNull(membership);
+        context.StaffMemberships.Add(membership);
     }
 
     /// <inheritdoc />
