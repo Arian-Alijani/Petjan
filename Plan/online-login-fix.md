@@ -159,7 +159,7 @@ Animora یک محصول SaaS **چندمستاجری (multi-tenant)** است: ی�
 **پذیرش:** بیلد 0/0؛ منطق ورود تازه با سرور = ورود آنلاین مستقیم.
 **پوش:** `fix(login): align first-run with online-only model (no local-only shell on server builds)`
 
-### ⬜ TASK-D — یکپارچگی کلاینت↔سرور و صحت کامپایل انتها به انتها
+### ✅ TASK-D — یکپارچگی کلاینت↔سرور و صحت کامپایل انتها به انتها
 **هدف:** مطمئن شو تغییرات با قراردادهای سرور (`/auth/login`, `/licensing/status`, `/api/commands`, `/sync/*`) هماهنگ است و چیزی نشکسته.
 **کارها (هدفمند، بدون بررسی بیهوده):**
 - تأیید کن `IOnlineAuthClient`/`ServerEndpointOptions`/`IClinicAccountStatusSource` در بیلد پیش‌فرض (BaseAddress ست) register می‌شوند (از `OnlineIdentityServiceCollectionExtensions` و `App.axaml.cs`؛ قبلاً تأیید شده). اگر LoginVM را وادار کردی که وقتی `_onlineAuth==null` است در بیلد configure هرگز رخ ندهد، نیازی به تغییر DI نیست.
