@@ -124,8 +124,16 @@ internal sealed class LoginService(
         bool deviceIsNew = device is null;
         if (device is null)
         {
-            // Unknown installation: bind it as Pending. Approval is S05; authN only needs a stable device id.
+            // Unknown installation: bind it. Staff devices start Pending and need a manager's approval (S05);
+            // a tenant Manager's own device is auto-approved so the owner is never locked out of their own
+            // tenant — otherwise the first/only manager device stays Pending forever with no active device able
+            // to approve it, which blocks capability issuance and every entitlement-gated feature.
             device = Device.Register(tenant.Id, user.Id, "Unnamed device", installationHash, "unknown", clock);
+            if (membership.Role == StaffRole.Manager)
+            {
+                device.Approve();
+            }
+
             repository.AddDevice(device);
         }
 
@@ -289,12 +297,33 @@ internal sealed class LoginService(
             return Failure<DeviceRegisterResponse>(ErrorCodes.DeviceRevoked);
         }
 
+        // A tenant Manager's own device is auto-approved (owner bootstrap); staff devices stay Pending for a
+        // manager to approve. This also self-heals an already-Pending manager device so an owner whose tenant
+        // was provisioned before this fix is no longer locked out of their own tenant.
+        StaffMembership? membership = await repository.FindActiveMembershipAsync(caller.UserId, ct).ConfigureAwait(false);
+        bool isManager = membership is { Role: StaffRole.Manager };
+
         if (existing is not null)
         {
+            if (isManager && existing.Status == DeviceStatus.Pending)
+            {
+                existing.Approve();
+                Result healed = await AuditAsync(caller.TenantId, SecurityAuditActions.DeviceRegistered, correlationId, caller.UserId, existing.Id, "owner_auto_approved", ct).ConfigureAwait(false);
+                if (healed.IsFailure)
+                {
+                    return Failure<DeviceRegisterResponse>(healed.Error);
+                }
+            }
+
             return Result<DeviceRegisterResponse>.Ok(new DeviceRegisterResponse(existing.Id, existing.Status.ToString()));
         }
 
         Device device = Device.Register(caller.TenantId, caller.UserId, request.DeviceName, installationHash, request.Platform.Trim(), clock);
+        if (isManager)
+        {
+            device.Approve();
+        }
+
         repository.AddDevice(device);
 
         Result saved = await AuditAsync(caller.TenantId, SecurityAuditActions.DeviceRegistered, correlationId, caller.UserId, device.Id, null, ct).ConfigureAwait(false);
