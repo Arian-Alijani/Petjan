@@ -22,4 +22,13 @@ public interface IAuthenticationService
     Task<AuthOutcome> CompleteFirstRunAsync(
         FirstRunRequest request,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Ensures a local credential mirror (user + active membership of the server role) exists for a user the central
+    /// server has just authenticated, so the local session can be opened for server-created, non-owner staff.
+    /// Idempotent; fails closed with <c>SESSION_EXPIRED</c> unless a matching online session is stored.
+    /// </summary>
+    Task<AuthOutcome> EnsureLocalMirrorAsync(
+        ServerIdentityMirrorRequest request,
+        CancellationToken ct = default);
 }

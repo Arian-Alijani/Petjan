@@ -179,7 +179,7 @@ EF/HTTP types across layer boundaries. Do a **focused** read of only the files y
 
 > Each task: do the change, then **push** (locked rule). Keep edits minimal and layer-correct.
 
-### ⬜ TASK-1 — Fix RC-A: local mirror-user provisioning so any server-authenticated user can sign in
+### ✅ TASK-1 — Fix RC-A: local mirror-user provisioning so any server-authenticated user can sign in
 Files: `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` (`SignInLocalAsync`),
 `src/Animora.Client.Services/Identity/AuthenticationService.cs`,
 `src/Animora.Application/UseCases/Identity/` (add a `ProvisionLocalMirrorUserCommand` or extend

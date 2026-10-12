@@ -2,6 +2,8 @@ using Animora.Application.Abstractions;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Identity;
 using Animora.Contracts.Identity;
+using Animora.Domain.Identity;
+using Animora.Domain.Results;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Client.Services.Identity;
@@ -96,6 +98,32 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
         // First-run opens the Manager shell without a later sign-in, so warm the gate here too (B04c).
         await gate.RefreshAsync(ct);
         return new AuthOutcome(true, null, result.Value!.DisplayName);
+    }
+
+    public async Task<AuthOutcome> EnsureLocalMirrorAsync(ServerIdentityMirrorRequest request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!Enum.TryParse<StaffRole>(request.ServerRole?.Trim(), ignoreCase: true, out var role) || !Enum.IsDefined(role))
+            return new AuthOutcome(false, ErrorCodes.ValidationFailed.Code, null);
+
+        await using var scope = scopes.CreateAsyncScope();
+
+        // Fail closed: only an identity the server has actually authenticated (a stored, matching online session) may be mirrored.
+        var stored = await scope.ServiceProvider.GetRequiredService<ISessionStore>().ReadAsync(ct);
+        if (stored.IsFailure || stored.Value is not { } session
+            || !string.Equals(session.UserId, request.ServerUserId, StringComparison.Ordinal)
+            || !string.Equals(session.TenantId, request.ServerTenantId, StringComparison.Ordinal))
+            return new AuthOutcome(false, ErrorCodes.SessionExpired.Code, null);
+
+        var (dispatcher, provider) = Resolve(scope);
+        var context = provider.BuildAnonymousCommandContext();
+        if (context.IsFailure) return new AuthOutcome(false, context.Error.Code, null);
+
+        var command = new ProvisionLocalMirrorUserCommand(request.Username, request.Username, request.Password, role);
+        var result = await dispatcher.SendAsync(command, context.Value!, ct);
+        return result.IsSuccess
+            ? new AuthOutcome(true, null, request.Username)
+            : new AuthOutcome(false, result.Error.Code, null);
     }
 
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider) Resolve(AsyncServiceScope scope) =>

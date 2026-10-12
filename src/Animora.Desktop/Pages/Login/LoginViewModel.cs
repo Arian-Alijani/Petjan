@@ -25,6 +25,7 @@ public sealed partial class LoginViewModel : ObservableObject
     private readonly IServerConnectivityService? _connectivity;
     private readonly IOnlineAuthClient? _onlineAuth;
     private readonly ServerEndpointOptions? _serverOptions;
+    private OnlineLoginOutcome? _onlineOutcome;
 
     public LoginViewModel(IAuthenticationService authentication, IDialogService dialogs,
         Func<FirstRunViewModel> firstRunFactory, IServerConnectivityService? connectivity = null,
@@ -250,7 +251,12 @@ public sealed partial class LoginViewModel : ObservableObject
     /// </summary>
     private async Task<AuthOutcome> SignInLocalAsync(string user, string password, CancellationToken ct)
     {
-        if (_onlineAuth is not null && await _authentication.IsFirstRunAsync(ct))
+        var online = _onlineOutcome;
+
+        // A fresh install provisions the local OWNER record — but only when the server says this user really is the
+        // clinic Manager. A non-manager must never become a local Manager just because the store is empty.
+        if (_onlineAuth is not null && await _authentication.IsFirstRunAsync(ct)
+            && (online is null || IsManagerRole(online.Role)))
         {
             var clinic = ClinicCode.Trim();
             Animora.Desktop.Diagnostics.AppTrace.Info(
@@ -259,8 +265,31 @@ public sealed partial class LoginViewModel : ObservableObject
                 new FirstRunRequest(clinic.Length > 0 ? clinic : user, user, user, password), ct);
         }
 
+        var outcome = await _authentication.SignInAsync(user, password, rememberDevice: false, ct);
+        if (outcome.Succeeded || outcome.ErrorCode != "CREDENTIALS_INVALID" || online is null || online.IsOffline)
+        {
+            return outcome;
+        }
+
+        // The server accepted these credentials but the local store does not know them (a user created on the server, or a
+        // password changed elsewhere): mirror the verified identity locally, then retry the local sign-in once. A wrong
+        // password never reaches this point — the server already rejected it.
+        Animora.Desktop.Diagnostics.AppTrace.Info(
+            $"local sign-in rejected '{user}' after a verified online login — provisioning the local mirror (role={online.Role})", "auth");
+        var mirrored = await _authentication.EnsureLocalMirrorAsync(
+            new ServerIdentityMirrorRequest(online.UserId, online.TenantId, user, password, online.Role), ct);
+        if (!mirrored.Succeeded)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Warn(
+                $"local mirror provisioning FAILED for '{user}' (code={mirrored.ErrorCode ?? "unknown"})", "auth");
+            return mirrored;
+        }
+
         return await _authentication.SignInAsync(user, password, rememberDevice: false, ct);
     }
+
+    private static bool IsManagerRole(string? role) =>
+        string.Equals(role?.Trim(), "Manager", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Signs the user into the central server (<see cref="IOnlineAuthClient.LoginAsync"/>) so a bearer token is persisted and
@@ -273,6 +302,7 @@ public sealed partial class LoginViewModel : ObservableObject
     /// </summary>
     private async Task<bool> EstablishServerSessionAsync(string username, string password, CancellationToken ct)
     {
+        _onlineOutcome = null;
         if (_onlineAuth is null)
         {
             Animora.Desktop.Diagnostics.AppTrace.Info(
@@ -302,6 +332,7 @@ public sealed partial class LoginViewModel : ObservableObject
             }
 
             var o = result.Value!;
+            _onlineOutcome = o;
             Animora.Desktop.Diagnostics.AppTrace.Info(
                 $"server login SUCCEEDED — serverTenant={o.TenantId}, serverUser={o.UserId}, device={o.DeviceId}, " +
                 $"role={o.Role}, offline={o.IsOffline}, mustChangePassword={o.MustChangePassword}.", "auth");

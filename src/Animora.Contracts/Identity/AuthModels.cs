@@ -12,3 +12,14 @@ public sealed record FirstRunRequest(
     string OwnerFullName,
     string Username,
     string Password);
+
+/// <summary>
+/// The identity the central server has just authenticated, handed to the local store so it can mirror the user
+/// (TASK-1). <see cref="ServerRole"/> is the server role name (parsed to the local staff role by the service).
+/// </summary>
+public sealed record ServerIdentityMirrorRequest(
+    string ServerUserId,
+    string ServerTenantId,
+    string Username,
+    string Password,
+    string ServerRole);

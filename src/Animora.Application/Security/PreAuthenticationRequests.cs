@@ -4,9 +4,9 @@ using Animora.Application.UseCases.Identity;
 namespace Animora.Application.Security;
 
 /// <summary>
-/// The four requests that must run <b>before</b> a tenant identity and licence exist:
-/// <see cref="SignInCommand"/>, <see cref="CompleteFirstRunSetupCommand"/>, <see cref="UnlockSessionCommand"/>
-/// and <see cref="CurrentSessionQuery"/>. They are exempt from both the authorization plane
+/// The requests that must run <b>before</b> a tenant identity and licence exist:
+/// <see cref="SignInCommand"/>, <see cref="CompleteFirstRunSetupCommand"/>, <see cref="ProvisionLocalMirrorUserCommand"/>,
+/// <see cref="UnlockSessionCommand"/> and <see cref="CurrentSessionQuery"/>. They are exempt from both the authorization plane
 /// (<see cref="PermissionAuthorizationGate"/>) and the entitlement plane (<c>EntitlementBehavior</c>):
 /// gating sign-in itself on a licence is a bootstrap deadlock, because the licence is only sealed
 /// locally <i>after</i> the first successful online sign-in (A-RULE 023).
@@ -18,6 +18,7 @@ public static class PreAuthenticationRequests
     {
         typeof(SignInCommand),
         typeof(CompleteFirstRunSetupCommand),
+        typeof(ProvisionLocalMirrorUserCommand),
         typeof(UnlockSessionCommand),
         typeof(CurrentSessionQuery),
     }.ToFrozenSet();

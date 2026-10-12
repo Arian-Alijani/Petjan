@@ -13,7 +13,7 @@ namespace Animora.Application.Security;
 /// <list type="number">
 /// <item>resolve the registration-time permission code from <see cref="HandlerRegistry"/> (no attribute reads here);
 ///       an unregistered request is denied;</item>
-/// <item>the four pre-authentication requests (<see cref="SignInCommand"/>, <see cref="CompleteFirstRunSetupCommand"/>,
+/// <item>the pre-authentication requests (<see cref="SignInCommand"/>, <see cref="CompleteFirstRunSetupCommand"/>, <see cref="ProvisionLocalMirrorUserCommand"/>,
 ///       <see cref="UnlockSessionCommand"/>, <see cref="CurrentSessionQuery"/>) pass ONLY with the anonymous identity
 ///       of the local installation tenant (and device, for commands);</item>
 /// <item>everything else needs an active, unlocked, unexpired session whose user equals the context user, on the

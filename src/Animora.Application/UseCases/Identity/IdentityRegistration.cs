@@ -5,7 +5,7 @@ using Animora.Application.Security;
 namespace Animora.Application.UseCases.Identity;
 
 /// <summary>
-/// Registers the 7 identity use cases + validators. Called from the <c>AddAnimoraApplication</c> configure
+/// Registers the identity use cases + validators. Called from the <c>AddAnimoraApplication</c> configure
 /// lambda by the host that also registers the local store and <see cref="ISessionService"/> (Desktop, B03c) —
 /// kept opt-in so hosts without identity infrastructure still validate their registry.
 /// </summary>
@@ -25,6 +25,8 @@ public static class IdentityRegistration
             .AddValidator<ChangePasswordCommand, ChangePasswordCommandValidator>()
             .AddCommand<CompleteFirstRunSetupCommand, SignInResult, CompleteFirstRunSetupCommandHandler>()
             .AddValidator<CompleteFirstRunSetupCommand, CompleteFirstRunSetupCommandValidator>()
+            .AddCommand<ProvisionLocalMirrorUserCommand, Unit, ProvisionLocalMirrorUserCommandHandler>()
+            .AddValidator<ProvisionLocalMirrorUserCommand, ProvisionLocalMirrorUserCommandValidator>()
             .AddQuery<CurrentSessionQuery, SessionSnapshot, CurrentSessionQueryHandler>();
     }
 }
