@@ -151,7 +151,8 @@ public sealed partial class LoginViewModel : ObservableObject
                 if (outcome.Succeeded)
                 {
                     Username = username;
-                    await EstablishServerSessionAsync(username, password, ct);
+                    // Isolated offline preview profile: its throw-away credentials do not exist on the server,
+                    // so it intentionally never attempts the (now mandatory) online sign-in.
                     LoginSucceeded?.Invoke(this, EventArgs.Empty);
                 }
                 else
@@ -200,33 +201,37 @@ public sealed partial class LoginViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSignIn))]
     private async Task SignInAsync(CancellationToken ct)
     {
+        var user = Username.Trim();
         // Never log the password; the username is safe and invaluable when diagnosing a failed login.
-        Animora.Desktop.Diagnostics.AppTrace.Interaction("SignIn", "click", $"user={Username.Trim()}");
+        Animora.Desktop.Diagnostics.AppTrace.Interaction("SignIn", "click", $"user={user}");
         ErrorMessage = string.Empty;
         IsBusy = true;
         try
         {
-            var outcome = await _authentication.SignInAsync(Username.Trim(), Password, rememberDevice: false, ct);
+            // 1) ONLINE FIRST (mandatory when a server is configured): clinic code + user + password are checked by
+            //    the central server, which also seals the licence/subscription. No server session ⇒ no shell.
+            if (!await EstablishServerSessionAsync(user, Password, ct))
+            {
+                Password = string.Empty;
+                return;
+            }
+
+            // 2) Local session (CommandContext.UserId for the offline-first store). Only reached after the server accepted.
+            var outcome = await SignInLocalAsync(user, Password, ct);
             if (outcome.Succeeded)
             {
-                Animora.Desktop.Diagnostics.AppTrace.Info($"local sign-in SUCCEEDED for '{Username.Trim()}'", "auth");
-
-                // The local session alone does NOT authorise the central server. Establish the SERVER session now
-                // (bearer token + sealed licence) so /api/commands, /sync/* and the entitlement gate work. A failure
-                // here is logged but never blocks sign-in — the app stays usable locally / offline.
-                await EstablishServerSessionAsync(Username.Trim(), Password, ct);
-
+                Animora.Desktop.Diagnostics.AppTrace.Info($"local sign-in SUCCEEDED for '{user}'", "auth");
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
                 return;
             }
 
-            Animora.Desktop.Diagnostics.AppTrace.Warn($"sign-in FAILED for '{Username.Trim()}' (code={outcome.ErrorCode ?? "unknown"})", "auth");
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"local sign-in FAILED for '{user}' (code={outcome.ErrorCode ?? "unknown"})", "auth");
             ErrorMessage = MapError(outcome.ErrorCode);
             Password = string.Empty;
         }
         catch (Exception ex)
         {
-            Animora.Desktop.Diagnostics.AppTrace.Error($"sign-in threw for '{Username.Trim()}'", ex, "auth");
+            Animora.Desktop.Diagnostics.AppTrace.Error($"sign-in threw for '{user}'", ex, "auth");
             throw;
         }
         finally
@@ -236,60 +241,79 @@ public sealed partial class LoginViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Signs the just-authenticated user into the central server (<see cref="IOnlineAuthClient.LoginAsync"/>) so a bearer
-    /// token is persisted and the licence is sealed — the prerequisite for every server write (<c>/api/commands</c>),
-    /// the manifest/sync pull and the online entitlement gate. Without this step the desktop has only a LOCAL session and
-    /// the server answers <c>401 SESSION_EXPIRED</c> / rejects writes with <c>ENTITLEMENT_REQUIRED</c>.
-    ///
-    /// <para>This is best effort: an unreachable server or a definitive refusal is logged in full (so the trace shows WHY
-    /// server features are unavailable) but never blocks the local sign-in that already succeeded.</para>
+    /// Opens the local session after the server accepted the credentials. On a fresh install there is no local user
+    /// yet (the clinic is provisioned on the server, not on the desktop), so the first successful online sign-in
+    /// provisions the local owner record from the same credentials instead of dead-ending at "server ok, local not".
     /// </summary>
-    private async Task EstablishServerSessionAsync(string username, string password, CancellationToken ct)
+    private async Task<AuthOutcome> SignInLocalAsync(string user, string password, CancellationToken ct)
+    {
+        if (_onlineAuth is not null && await _authentication.IsFirstRunAsync(ct))
+        {
+            var clinic = ClinicCode.Trim();
+            Animora.Desktop.Diagnostics.AppTrace.Info(
+                $"fresh install: provisioning local account for '{user}' from the verified online sign-in", "auth");
+            return await _authentication.CompleteFirstRunAsync(
+                new FirstRunRequest(clinic.Length > 0 ? clinic : user, user, user, password), ct);
+        }
+
+        return await _authentication.SignInAsync(user, password, rememberDevice: false, ct);
+    }
+
+    /// <summary>
+    /// Signs the user into the central server (<see cref="IOnlineAuthClient.LoginAsync"/>) so a bearer token is persisted and
+    /// the licence is sealed — the prerequisite for every server write (<c>/api/commands</c>), the sync pull, the
+    /// subscription status and the online entitlement gate. Blocking: returns <c>false</c> (with <see cref="ErrorMessage"/>
+    /// set) when the user must not proceed. A build with no server configured has no online model and returns <c>true</c>.
+    ///
+    /// <para><c>IsOffline</c> in the outcome means the server was momentarily unreachable but a previous online sign-in left a
+    /// valid mirror (repeat sign-in); that is accepted by <see cref="IOnlineAuthClient"/> itself and allowed here.</para>
+    /// </summary>
+    private async Task<bool> EstablishServerSessionAsync(string username, string password, CancellationToken ct)
     {
         if (_onlineAuth is null)
         {
             Animora.Desktop.Diagnostics.AppTrace.Info(
-                "server login SKIPPED — no server endpoint configured; running on the local session only.", "auth");
-            return;
+                "server login SKIPPED — no server endpoint configured; local-only build.", "auth");
+            return true;
         }
 
-        var tenantCode = _serverOptions?.TenantCode;
-        if (string.IsNullOrWhiteSpace(tenantCode))
+        var tenantCode = ClinicCode.Trim();
+        if (tenantCode.Length == 0)
         {
-            Animora.Desktop.Diagnostics.AppTrace.Warn(
-                "server login SKIPPED — ANIMORA_TENANT_CODE is not set, so the clinic/tenant on the server is unknown. " +
-                "Server writes will fail with SESSION_EXPIRED / ENTITLEMENT_REQUIRED until a tenant code is configured.", "auth");
-            return;
+            Animora.Desktop.Diagnostics.AppTrace.Warn("server login BLOCKED — clinic code is empty.", "auth");
+            ErrorMessage = "کد کلینیک را وارد کنید.";
+            return false;
         }
 
         Animora.Desktop.Diagnostics.AppTrace.Info(
-            $"server login → POST /auth/login  [tenant={tenantCode.Trim()}, user={username}]", "auth");
+            $"server login → POST /auth/login  [tenant={tenantCode}, user={username}]", "auth");
         try
         {
-            var result = await _onlineAuth.LoginAsync(tenantCode.Trim(), username, password, ct);
-            if (result.IsSuccess)
-            {
-                var o = result.Value!;
-                Animora.Desktop.Diagnostics.AppTrace.Info(
-                    $"server login SUCCEEDED — serverTenant={o.TenantId}, serverUser={o.UserId}, device={o.DeviceId}, " +
-                    $"role={o.Role}, offline={o.IsOffline}, mustChangePassword={o.MustChangePassword}. " +
-                    "Bearer token stored and licence sealed; server writes are now authorised.", "auth");
-            }
-            else
+            var result = await _onlineAuth.LoginAsync(tenantCode, username, password, ct);
+            if (!result.IsSuccess)
             {
                 Animora.Desktop.Diagnostics.AppTrace.Warn(
-                    $"server login FAILED (code={result.Error.Code}{(string.IsNullOrWhiteSpace(result.Detail) ? "" : $", detail={result.Detail}")}). " +
-                    "The app continues on the local session; server writes will be rejected until this is resolved " +
-                    "(check the tenant code, that this user exists on the server, and that the device is approved).", "auth");
+                    $"server login FAILED (code={result.Error.Code}{(string.IsNullOrWhiteSpace(result.Detail) ? "" : $", detail={result.Detail}")}).", "auth");
+                ErrorMessage = MapError(result.Error.Code);
+                return false;
             }
+
+            var o = result.Value!;
+            Animora.Desktop.Diagnostics.AppTrace.Info(
+                $"server login SUCCEEDED — serverTenant={o.TenantId}, serverUser={o.UserId}, device={o.DeviceId}, " +
+                $"role={o.Role}, offline={o.IsOffline}, mustChangePassword={o.MustChangePassword}.", "auth");
+            return true;
         }
         catch (OperationCanceledException)
         {
             Animora.Desktop.Diagnostics.AppTrace.Info("server login cancelled (window closing / shutdown).", "auth");
+            return false;
         }
         catch (Exception ex)
         {
             Animora.Desktop.Diagnostics.AppTrace.Error("server login threw unexpectedly", ex, "auth");
+            ErrorMessage = MapError("NETWORK_UNAVAILABLE");
+            return false;
         }
     }
 

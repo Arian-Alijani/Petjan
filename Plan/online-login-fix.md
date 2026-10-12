@@ -138,7 +138,7 @@ Animora یک محصول SaaS **چندمستاجری (multi-tenant)** است: ی�
 **پذیرش:** بیلد Desktop سریع 0/0. فیلد در UI دیده شود.
 **پوش:** `scripts/git/push.sh -b genspark_ai_developer "feat(login): add clinic/tenant code field to online sign-in form"`
 
-### ⬜ TASK-B — ورود فقط-آنلاین و اجباری در `SignInAsync`
+### ✅ TASK-B — ورود فقط-آنلاین و اجباری در `SignInAsync`
 **هدف:** نشست سرور اجباری و مسدودکننده شود؛ shell فقط با نشست سرور موفق باز شود.
 **فایل:** `src/Animora.Desktop/Pages/Login/LoginViewModel.cs`
 - `EstablishServerSessionAsync` را بازنویسی کن تا **`Task<bool>` (یا `Result`)** برگرداند و `ErrorMessage` را در شکست ست کند:
