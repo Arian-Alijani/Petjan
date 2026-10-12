@@ -1,6 +1,8 @@
 using Animora.Contracts.Wire;
+using Animora.Contracts.Wire.Errors;
 using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Primitives;
+using Animora.Domain.Results;
 using Animora.Persistence.PostgreSql.Identity;
 using Animora.Persistence.PostgreSql.Replication;
 using Animora.Persistence.PostgreSql.Tenancy;
@@ -13,7 +15,7 @@ internal static class SyncEndpoints
     public static IEndpointRouteBuilder MapSyncEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup(ServerRoutes.Sync).RequireAuthorization(CoarsePolicies.TenantMember, CoarsePolicies.DeviceActive)
-            .RequireRateLimiting(RateLimitPolicies.Sync).AddEndpointFilter<SyncContractFilter>();
+            .RequireRateLimiting(RateLimitPolicies.Sync).AddEndpointFilter<SyncTenantBoundFilter>().AddEndpointFilter<SyncContractFilter>();
         group.MapGet("/manifest", async (IFeedContextFactory factory, CancellationToken ct) =>
         {
             await using var db = factory.Create();
@@ -85,6 +87,27 @@ internal static class SyncEndpoints
                 metrics?.SyncBytes.Add(read);
             }
         }
+    }
+}
+
+/// <summary>
+/// Defence in depth behind the <c>TenantMember</c>/<c>DeviceActive</c> policies: a sync request that reaches the
+/// handler without a tenant bound by the tenant middleware fails closed as a typed <c>401 SESSION_EXPIRED</c>
+/// instead of letting the tenant-filtered DbContext throw (which the global handler would render as a 500).
+/// Runs before <see cref="SyncContractFilter"/> and before any body-driven or tenant-scoped work.
+/// </summary>
+internal sealed class SyncTenantBoundFilter : IEndpointFilter
+{
+    public ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var http = context.HttpContext;
+        var tenant = http.RequestServices.GetService<ITenantContext>();
+        if (tenant?.TenantId is { Length: > 0 }) return next(context);
+        var correlationId = CorrelationHeader.Resolve(http);
+        CorrelationHeader.Echo(http, correlationId);
+        return ValueTask.FromResult<object?>(Results.Json(
+            new WireApiError(ErrorCodes.SessionExpired.Code, null, [], correlationId),
+            statusCode: StatusCodes.Status401Unauthorized));
     }
 }
 

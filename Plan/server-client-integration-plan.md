@@ -232,7 +232,7 @@ action. Keep it minimal and server-authoritative. If this is larger than a small
 service method + a single button action only.
 Push: `feat(staff): manager can approve/revoke staff device from client`.
 
-### ⬜ TASK-4 — Fix RC-C (server): `/sync/*` must fail closed (401/403), never 500, when unauthenticated/unbound-tenant
+### ✅ TASK-4 — Fix RC-C (server): `/sync/*` must fail closed (401/403), never 500, when unauthenticated/unbound-tenant
 Files: `src/Animora.Server/Sync/SyncEndpoints.cs`, `BatchFreezer` + `FeedContextFactory`/tenant binding
 in `src/Animora.Persistence.PostgreSql/Replication/`, `src/Animora.Server/Hosting/` middleware order.
 Do: reproduce by reasoning — an anonymous `POST /sync/batches` currently throws (tenant unbound) →
@@ -243,6 +243,7 @@ failure. Propagate `CancellationToken` (RC-G). Do NOT loosen the policy.
 Also confirm why `/sync/manifest` returned **200** unauthenticated (same policy) — if auth is not
 actually enforced on the sync group, that is the deeper bug: enforce it.
 Push: `fix(server): sync endpoints fail closed with 401/403 instead of 500 when unauthenticated`.
+> **Done:** added `SyncTenantBoundFilter` (typed 401 `SESSION_EXPIRED` if no tenant bound, runs before contract filter/body work). Live re-probe: anonymous `/sync/manifest` and `/sync/batches` both return 401 (auth is enforced on the group; the earlier 200 was not reproducible).
 
 ### ⬜ TASK-5 — Fix RC-C (client): do not pull `/sync/batches` before an authenticated, approved session
 Files: `src/Animora.Client.Services/Sync/*`, `src/Animora.Sync.Custom/*` (SyncOrchestrator /
