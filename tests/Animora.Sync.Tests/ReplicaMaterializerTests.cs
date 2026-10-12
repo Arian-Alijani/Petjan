@@ -84,7 +84,7 @@ public sealed class ReplicaMaterializerTests
         // EnqueueOverlayAsync posts a pending command on aggregate Invoice/INV-1; use an Owner-targeted one instead.
         using (var scope = fixture.CreateScope())
         {
-            var journal = scope.ServiceProvider.GetRequiredService<Animora.Application.Abstractions.ICommandJournal>();
+            var journal = scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>();
             var uow = scope.ServiceProvider.GetRequiredService<Animora.Application.Abstractions.IUnitOfWork>();
             var envelope = Animora.Contracts.Wire.Commands.CommandEnvelope.Create(Animora.Domain.Primitives.IdGenerator.NewId(), fixture.TenantId,
                 "U1", "D1", "patients.owner.update", "Owner", "O1", "{}", "fp", DateTimeOffset.UnixEpoch, 1);
