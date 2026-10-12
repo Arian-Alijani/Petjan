@@ -1,3 +1,4 @@
+using Animora.Desktop.Diagnostics;
 using Avalonia;
 
 namespace Animora.Desktop;
@@ -18,6 +19,13 @@ internal static class Program
         // Console output is produced; otherwise the NetworkLoggingHandler trace would go nowhere.
         Diagnostics.ConsoleTrace.EnsureAttachedIfRequested();
 
+        // Open the app's own trace (lifecycle / clicks / navigation / errors) + its log file. This is
+        // always on (its events are cheap and invaluable for support); it is independent of the
+        // network trace above. Any throw from here on is captured to the log and surfaced clearly.
+        AppTrace.Initialize();
+        AppTrace.Milestone("process start");
+        AppTrace.Info($"args: {(args.Length == 0 ? "(none)" : string.Join(' ', args))}", "boot");
+
         // Parse before building DI or opening storage. Invalid test flags must never fall back to
         // the normal clinic database.
         try
@@ -32,17 +40,50 @@ internal static class Program
         }
         catch (ArgumentException ex)
         {
+            AppTrace.Error("invalid command-line flags", ex, "boot");
             Console.Error.WriteLine(ex.Message);
             Environment.ExitCode = 2;
             return;
         }
         if (TestProfile is { } profile)
         {
+            AppTrace.Info($"local test profile [{profile.Name}] at {profile.DataDirectory}", "boot");
             Console.WriteLine($"LOCAL TEST [{profile.Name}]: {profile.DataDirectory}");
             Console.WriteLine("Create your own Manager account on first run; normal clinic data is not used.");
         }
         StartupTimer.Start();
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+
+        try
+        {
+            AppTrace.Milestone("Avalonia startup");
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            AppTrace.Milestone("Avalonia shutdown", StartupTimer.Elapsed);
+        }
+        catch (Avalonia.Markup.Xaml.XamlLoadException ex)
+        {
+            // The classic "No precompiled XAML found for Animora.Desktop.App" failure. This only
+            // happens with a BROKEN BUILD (the Avalonia XAML compiler did not embed the compiled
+            // resource into the assembly) — never a user/runtime fault. Turn the cryptic unhandled
+            // stack trace into a clear, actionable message in the log, console AND a dialog.
+            const string advice =
+                "Animora could not start because its compiled UI resources are missing from the build.\n" +
+                "This is a packaging/build problem, not a problem with your computer or the server.\n\n" +
+                "Fix (on the machine that BUILDS the app):\n" +
+                "  1. Delete every bin/ and obj/ folder (or run 'dotnet clean').\n" +
+                "  2. Re-run the publish script (it now cleans automatically).\n" +
+                "  3. Re-send the produced package.";
+            AppTrace.Error("FATAL: compiled Avalonia XAML missing (broken build).\n" + advice, ex, "boot");
+            FatalStartup.Report("Animora — build is incomplete", advice, ex);
+            Environment.ExitCode = unchecked((int)0xE0434352); // CLR unhandled-exception code, for parity with before.
+        }
+        catch (Exception ex)
+        {
+            AppTrace.Error("FATAL: unhandled exception during startup", ex, "boot");
+            FatalStartup.Report("Animora — startup failed",
+                "Animora hit an unexpected error while starting. The details were written to the log file:\n" +
+                (AppTrace.LogFilePath ?? "(console only)"), ex);
+            Environment.ExitCode = unchecked((int)0xE0434352);
+        }
     }
 
     public static AppBuilder BuildAvaloniaApp()

@@ -1,6 +1,7 @@
 using System;
 using Animora.Contracts.Identity;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Shell;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
@@ -77,6 +78,7 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         var key = navigationKey ?? defaultKey;
         var matches = key == defaultKey;
         if (matches && key is not null && NavPermissions.For(key) is { } code && _gate.Can(code)) return true;
+        AppTrace.Warn($"navigation DENIED to '{key ?? page.Name}' (insufficient capability or expired access)", "nav");
         _toast.Show("اجازه ورود به این بخش را ندارید یا دسترسی شما منقضی شده است.", Tone.Warn);
         return false;
     }
@@ -101,6 +103,7 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
     private void Publish(PageViewModelBase viewModel, string? key)
     {
         var keyChanged = CurrentNavigationKey != key;
+        if (keyChanged) AppTrace.Navigate(CurrentNavigationKey ?? "(start)", key ?? viewModel.GetType().Name);
         CurrentNavigationKey = key;
         if (ReferenceEquals(CurrentViewModel, viewModel))
         {

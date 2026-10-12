@@ -38,11 +38,19 @@ echo "[ci-publish] runtime=$RUNTIME  project=$(basename "$PROJ")  out=$OUT_DIR"
 
 summary() { [ -n "${GITHUB_STEP_SUMMARY:-}" ] && printf '%s\n' "$*" >>"$GITHUB_STEP_SUMMARY" || true; }
 
+# Clean THIS project's intermediate output first so a stale obj/ can never make
+# the build skip CoreCompile and ship an assembly missing the compiled Avalonia
+# XAML resource (the "No precompiled XAML found for Animora.Desktop.App" crash).
+PROJ_DIR="$(dirname "$PROJ")"
+echo "[ci-publish] cleaning stale bin/ and obj/ under $PROJ_DIR"
+rm -rf "$PROJ_DIR/bin" "$PROJ_DIR/obj"
+
 START=$(date +%s)
 dotnet publish "$PROJ" \
   -c Release \
   -r "$RUNTIME" \
   --self-contained true \
+  --no-incremental \
   -p:PublishSingleFile=true \
   -p:EnableAvaloniaXamlCompilation=true \
   -p:DebugType=none \

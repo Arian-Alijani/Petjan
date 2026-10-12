@@ -81,11 +81,22 @@ public partial class App : global::Avalonia.Application
     // Composition root. Later phases resolve ViewModels/services from here.
     public static IServiceProvider Services { get; private set; } = default!;
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        Diagnostics.AppTrace.Milestone("App.Initialize (load XAML)");
+        // AvaloniaXamlLoader.Load(this) throws XamlLoadException ("No precompiled XAML found …") when
+        // the build did not embed the compiled XAML resource. That is a broken-build condition; the
+        // exception propagates to Program.Main, which turns it into a clear, actionable message. We
+        // only annotate the trace here so the log shows exactly where startup stopped.
+        AvaloniaXamlLoader.Load(this);
+        Diagnostics.AppTrace.Milestone("App.Initialize done");
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {
+        Diagnostics.AppTrace.Milestone("framework init completed");
         Services = ConfigureServices();
+        Diagnostics.AppTrace.Milestone("DI container built", Program.StartupTimer.Elapsed);
 
         // B05c: process and dispatcher exception hooks are the first runtime behavior installed.
         var exceptionHandler = Services.GetRequiredService<GlobalExceptionHandler>();
@@ -116,6 +127,7 @@ public partial class App : global::Avalonia.Application
             {
                 loginViewModel.LoginSucceeded += async (_, _) =>
                 {
+                    Diagnostics.AppTrace.Navigate("LoginWindow", "MainWindow (shell)");
                     var shell = Services.GetRequiredService<MainWindow>();
                     if (Program.TestProfile is { } shellProfile)
                         shell.Title += shellProfile.WindowSuffix;
@@ -123,10 +135,12 @@ public partial class App : global::Avalonia.Application
                     shell.Show();
                     login.Close();
                     await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync();
+                    Diagnostics.AppTrace.Milestone("shell shown");
                 };
             }
 
             desktop.MainWindow = login;
+            Diagnostics.AppTrace.Milestone("login window set", Program.StartupTimer.Elapsed);
 
             // Local store startup runs only after the login window is up so the first frame is never
             // blocked (PERFORMANCE §4); the form stays disabled until it completes.
@@ -173,13 +187,15 @@ public partial class App : global::Avalonia.Application
         try
         {
             var ready = await InitializeLocalStoreAsync();
+            Diagnostics.AppTrace.Milestone($"local store ready={ready}", Program.StartupTimer.Elapsed);
             Services.GetRequiredService<MaintenanceScheduler>().Start();
             Services.GetRequiredService<SyncSchedulerHostedService>().Start(); // dormant unless a server is configured
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Never let a startup failure escape the event boundary; keep sign-in disabled.
+            Diagnostics.AppTrace.Error("local store initialization failed; sign-in stays disabled", ex, "boot");
             try
             {
                 await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(storeReady: false));

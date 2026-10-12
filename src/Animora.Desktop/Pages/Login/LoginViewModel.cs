@@ -157,10 +157,12 @@ public sealed partial class LoginViewModel : ObservableObject
             return;
         }
 
+        Animora.Desktop.Diagnostics.AppTrace.Interaction("CheckConnectivity", "click");
         IsCheckingConnectivity = true;
         try
         {
             ConnectivityState = await _connectivity.CheckAsync(ct);
+            Animora.Desktop.Diagnostics.AppTrace.Info($"server connectivity check → {ConnectivityState}", "net");
         }
         catch (OperationCanceledException)
         {
@@ -177,6 +179,8 @@ public sealed partial class LoginViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSignIn))]
     private async Task SignInAsync(CancellationToken ct)
     {
+        // Never log the password; the username is safe and invaluable when diagnosing a failed login.
+        Animora.Desktop.Diagnostics.AppTrace.Interaction("SignIn", "click", $"user={Username.Trim()}");
         ErrorMessage = string.Empty;
         IsBusy = true;
         try
@@ -184,12 +188,19 @@ public sealed partial class LoginViewModel : ObservableObject
             var outcome = await _authentication.SignInAsync(Username.Trim(), Password, rememberDevice: false, ct);
             if (outcome.Succeeded)
             {
+                Animora.Desktop.Diagnostics.AppTrace.Info($"sign-in SUCCEEDED for '{Username.Trim()}'", "auth");
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
                 return;
             }
 
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"sign-in FAILED for '{Username.Trim()}' (code={outcome.ErrorCode ?? "unknown"})", "auth");
             ErrorMessage = MapError(outcome.ErrorCode);
             Password = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Error($"sign-in threw for '{Username.Trim()}'", ex, "auth");
+            throw;
         }
         finally
         {
