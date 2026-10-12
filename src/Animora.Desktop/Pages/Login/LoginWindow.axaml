@@ -165,11 +165,47 @@
                         Command="{Binding SignInCommand}"
                         IsDefault="True" />
 
+                <!-- Server connection indicator: lets the user tell an internet/server outage
+                     apart from a wrong password before they even try to sign in. -->
+                <Border Background="{StaticResource Bg2Brush}"
+                        CornerRadius="{StaticResource RadiusSm}"
+                        Padding="12,9"
+                        Margin="0,20,0,0">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- status dot: one colour visible per state -->
+                        <Panel Grid.Column="0" Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,8,0">
+                            <Ellipse Width="10" Height="10" Fill="{StaticResource OkBrush}"
+                                     IsVisible="{Binding IsServerOnline}" />
+                            <Ellipse Width="10" Height="10" Fill="{StaticResource DangerBrush}"
+                                     IsVisible="{Binding IsServerOffline}" />
+                            <Ellipse Width="10" Height="10" Fill="{StaticResource MutedBrush}"
+                                     IsVisible="{Binding IsServerChecking}" />
+                        </Panel>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding ConnectivityText}"
+                                   FontSize="{StaticResource FontSizeXs}"
+                                   FontWeight="Medium"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource Ink2Brush}" />
+
+                        <Button Grid.Column="2"
+                                Classes="ghost"
+                                Content="بررسی مجدد"
+                                FontSize="{StaticResource FontSizeXs}"
+                                Padding="8,4"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"
+                                Command="{Binding CheckConnectivityCommand}" />
+                    </Grid>
+                </Border>
+
                 <!-- Real local authentication: there are no built-in demo credentials. -->
                 <Border Background="{StaticResource Bg2Brush}"
                         CornerRadius="{StaticResource RadiusSm}"
                         Padding="12,10"
-                        Margin="0,22,0,0">
+                        Margin="0,14,0,0">
                     <TextBlock FontSize="{StaticResource FontSizeXs}"
                                Foreground="{StaticResource MutedBrush}"
                                HorizontalAlignment="Center"

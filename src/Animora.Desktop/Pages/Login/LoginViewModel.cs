@@ -20,13 +20,16 @@ public sealed partial class LoginViewModel : ObservableObject
     private readonly Func<FirstRunViewModel> _firstRunFactory;
     private FirstRunViewModel? _firstRun;
     private readonly LocalTestProfile? _localProfile;
+    private readonly IServerConnectivityService? _connectivity;
 
     public LoginViewModel(IAuthenticationService authentication, IDialogService dialogs,
-        Func<FirstRunViewModel> firstRunFactory, LocalTestProfile? localProfile = null)
+        Func<FirstRunViewModel> firstRunFactory, IServerConnectivityService? connectivity = null,
+        LocalTestProfile? localProfile = null)
     {
         _authentication = authentication;
         _dialogs = dialogs;
         _firstRunFactory = firstRunFactory;
+        _connectivity = connectivity;
         _localProfile = localProfile;
     }
 
@@ -57,6 +60,36 @@ public sealed partial class LoginViewModel : ObservableObject
 
     public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
 
+    /// <summary>Live reachability of the central server, shown as an indicator on the login form.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConnectivityText))]
+    [NotifyPropertyChangedFor(nameof(IsServerOnline))]
+    [NotifyPropertyChangedFor(nameof(IsServerOffline))]
+    [NotifyPropertyChangedFor(nameof(IsServerChecking))]
+    private ServerConnectivityState _connectivityState = ServerConnectivityState.Unknown;
+
+    /// <summary>True while a reachability probe is in flight (disables the re-check button).</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckConnectivityCommand))]
+    [NotifyPropertyChangedFor(nameof(IsServerChecking))]
+    private bool _isCheckingConnectivity;
+
+    public bool IsServerOnline => ConnectivityState == ServerConnectivityState.Online;
+
+    public bool IsServerOffline => ConnectivityState == ServerConnectivityState.Offline;
+
+    public bool IsServerChecking =>
+        IsCheckingConnectivity || ConnectivityState == ServerConnectivityState.Unknown;
+
+    /// <summary>The Persian label shown next to the connection indicator dot.</summary>
+    public string ConnectivityText => ConnectivityState switch
+    {
+        ServerConnectivityState.Online => "ارتباط با سرور برقرار است",
+        ServerConnectivityState.Offline => "ارتباط با سرور برقرار نیست — اینترنت یا سرور را بررسی کنید",
+        ServerConnectivityState.NotConfigured => "حالت محلی (بدون سرور)",
+        _ => "در حال بررسی ارتباط با سرور…",
+    };
+
     private bool CanSignIn =>
         IsStoreReady &&
         !IsBusy &&
@@ -71,6 +104,10 @@ public sealed partial class LoginViewModel : ObservableObject
     {
         IsStoreReady = storeReady;
         IsBusy = false;
+
+        // Kick off a background server reachability probe so the login screen shows the connection
+        // indicator without blocking startup; failures only update the indicator, never the form.
+        _ = CheckConnectivityCommand.ExecuteAsync(null);
 
         if (!storeReady)
         {
@@ -109,6 +146,33 @@ public sealed partial class LoginViewModel : ObservableObject
             ShowFirstRun();
         }
     }
+
+    /// <summary>Runs one server reachability probe and updates the indicator. Safe to call repeatedly; never throws.</summary>
+    [RelayCommand(CanExecute = nameof(CanCheckConnectivity))]
+    private async Task CheckConnectivityAsync(CancellationToken ct)
+    {
+        if (_connectivity is null)
+        {
+            ConnectivityState = ServerConnectivityState.NotConfigured;
+            return;
+        }
+
+        IsCheckingConnectivity = true;
+        try
+        {
+            ConnectivityState = await _connectivity.CheckAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Window closing or app shutdown: leave the last known state untouched.
+        }
+        finally
+        {
+            IsCheckingConnectivity = false;
+        }
+    }
+
+    private bool CanCheckConnectivity => !IsCheckingConnectivity;
 
     [RelayCommand(CanExecute = nameof(CanSignIn))]
     private async Task SignInAsync(CancellationToken ct)
@@ -152,6 +216,29 @@ public sealed partial class LoginViewModel : ObservableObject
         // First-run owner setup.
         "FIRST_RUN_ALREADY_COMPLETED" => "راه‌اندازی اولیه قبلاً انجام شده است؛ با نام کاربری خود وارد شوید.",
         "USERNAME_EXISTS" => "این نام کاربری قبلاً ثبت شده است؛ نام دیگری انتخاب کنید.",
+
+        // Licence / entitlement (the tenant's plan, not the sign-in itself). A fresh install or an
+        // expired licence must give an actionable message, never a generic "unexpected error".
+        "ENTITLEMENT_REQUIRED" or "LICENSE_NOT_GRANTED" =>
+            "مجوز این کلینیک فعال نیست؛ با پشتیبانی تماس بگیرید.",
+        "LICENSE_EXPIRED" => "مجوز استفاده منقضی شده است؛ برای تمدید با پشتیبانی تماس بگیرید.",
+        "LICENSE_REVOKED" => "مجوز استفاده لغو شده است؛ با پشتیبانی تماس بگیرید.",
+        "LICENSE_INVALID" or "LICENSE_KEY_UNKNOWN" =>
+            "مجوز نرم‌افزار معتبر نیست؛ با پشتیبانی تماس بگیرید.",
+        "LICENSE_DEVICE_MISMATCH" or "LICENSE_DEVICE_LIMIT_REACHED" =>
+            "این دستگاه مجاز به استفاده نیست؛ با پشتیبانی تماس بگیرید.",
+        "LICENSE_CLOCK_ROLLBACK" =>
+            "ساعت سیستم عقب‌تر از زمان واقعی است؛ تاریخ و ساعت را تصحیح کنید.",
+        "OFFLINE_CAPABILITY_EXPIRED" =>
+            "مهلت کار آفلاین به پایان رسیده است؛ برای ادامه، یک بار به اینترنت متصل شوید.",
+
+        // Network / server reachability (offline sign-in path).
+        "NETWORK_UNAVAILABLE" => "ارتباط با سرور برقرار نشد؛ اتصال اینترنت را بررسی کنید.",
+        "SERVER_BUSY" => "سرور موقتاً شلوغ است؛ کمی بعد دوباره تلاش کنید.",
+        "OFFLINE_SESSION_UNAVAILABLE" =>
+            "ورود آفلاین ممکن نیست؛ برای اولین ورود باید به اینترنت متصل باشید.",
+        "OFFLINE_CREDENTIAL_MISMATCH" => "نام کاربری یا رمز عبور نادرست است.",
+        "DEVICE_REVOKED" => "دسترسی این دستگاه لغو شده است؛ با پشتیبانی تماس بگیرید.",
 
         // Local-store infrastructure (fail-closed). These never reach the server, so they
         // must be actionable here instead of collapsing into a generic message.
