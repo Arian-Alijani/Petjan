@@ -175,17 +175,33 @@ public sealed partial class NewProductModalViewModel : ObservableObject
             ParseLong(CostText),
             ParseLong(PriceText));
 
+        // Trace the submit so the log pairs the app-side action with the server command that follows
+        // (stored locally, then pushed to /api/commands by the sync engine).
+        Animora.Desktop.Diagnostics.AppTrace.Interaction("NewProduct.Create", "click",
+            $"name={name}, category={categoryId}, variants={(HasVariants ? "yes" : "no")}");
+
         try
         {
             await _service.CreateProductAsync(request);
         }
         catch (InvalidOperationException ex)
         {
+            // The error code travels in the exception message (ENTITLEMENT_REQUIRED / SESSION_EXPIRED when the
+            // server session was never established). Log it so the trace shows WHY "ساخت کالا" failed.
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"create product FAILED — {ex.Message}", "inventory");
             // Keep the modal open so the user can correct the form; never claim success.
             _toast.Show(InventoryPresentation.MutationFailureMessage(ex, "ساخت کالا ناموفق بود؛ دوباره تلاش کنید"), Tone.Danger);
             return;
         }
+        catch (Exception ex)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Error("create product FAILED (unexpected)", ex, "inventory");
+            _toast.Show("ساخت کالا ناموفق بود؛ دوباره تلاش کنید", Tone.Danger);
+            return;
+        }
 
+        Animora.Desktop.Diagnostics.AppTrace.Info(
+            $"create product OK — name={name}. Command stored locally; the sync engine will push it (watch for POST /api/commands).", "inventory");
         _dialogs.Close();
         _toast.Show("کالا ساخته شد", Tone.Ok);
         _onCreated?.Invoke();

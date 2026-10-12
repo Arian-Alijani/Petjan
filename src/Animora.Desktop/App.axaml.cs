@@ -469,6 +469,15 @@ public partial class App : global::Avalonia.Application
     private const string DefaultServerBaseAddress = "http://188.212.99.234:5000";
 
     /// <summary>
+    /// Default tenant (clinic) code for the online <c>/auth/login</c> that establishes the server session.
+    /// Deployment-specific (each clinic is provisioned on the server with its own code), so this is blank by
+    /// default and supplied per run via the <c>ANIMORA_TENANT_CODE</c> environment variable (the publish script
+    /// sets it in the launcher). Blank ⇒ the desktop runs on the local session only — writes that reach the
+    /// server are rejected (<c>SESSION_EXPIRED</c> / <c>ENTITLEMENT_REQUIRED</c>) until a tenant code is set.
+    /// </summary>
+    private const string DefaultTenantCode = "";
+
+    /// <summary>
     /// Binds <see cref="ServerEndpointOptions"/> for the live server. Resolution order:
     /// <list type="number">
     ///   <item>the <c>ANIMORA_SERVER_URL</c> environment variable (per-run override), else</item>
@@ -484,6 +493,13 @@ public partial class App : global::Avalonia.Application
         var baseAddress = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv.Trim() : DefaultServerBaseAddress;
         if (!string.IsNullOrWhiteSpace(baseAddress))
             options.BaseAddress = baseAddress.Trim();
+
+        // Tenant (clinic) code for the online /auth/login that establishes the SERVER session. Without it the desktop
+        // only holds a LOCAL session, so every server write returns 401 SESSION_EXPIRED / is rejected with ENTITLEMENT_REQUIRED.
+        var tenantEnv = Environment.GetEnvironmentVariable("ANIMORA_TENANT_CODE");
+        var tenantCode = !string.IsNullOrWhiteSpace(tenantEnv) ? tenantEnv.Trim() : DefaultTenantCode;
+        if (!string.IsNullOrWhiteSpace(tenantCode))
+            options.TenantCode = tenantCode.Trim();
 
         var timeoutRaw = Environment.GetEnvironmentVariable("ANIMORA_SERVER_TIMEOUT_SECONDS");
         if (!string.IsNullOrWhiteSpace(timeoutRaw)

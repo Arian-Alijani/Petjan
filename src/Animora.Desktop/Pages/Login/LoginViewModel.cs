@@ -1,8 +1,10 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Animora.Client.Services.Identity;
 using Animora.Contracts.Identity;
 using Animora.Desktop.Services;
+using Animora.Sync.Custom;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -21,16 +23,21 @@ public sealed partial class LoginViewModel : ObservableObject
     private FirstRunViewModel? _firstRun;
     private readonly LocalTestProfile? _localProfile;
     private readonly IServerConnectivityService? _connectivity;
+    private readonly IOnlineAuthClient? _onlineAuth;
+    private readonly ServerEndpointOptions? _serverOptions;
 
     public LoginViewModel(IAuthenticationService authentication, IDialogService dialogs,
         Func<FirstRunViewModel> firstRunFactory, IServerConnectivityService? connectivity = null,
-        LocalTestProfile? localProfile = null)
+        LocalTestProfile? localProfile = null, IOnlineAuthClient? onlineAuth = null,
+        ServerEndpointOptions? serverOptions = null)
     {
         _authentication = authentication;
         _dialogs = dialogs;
         _firstRunFactory = firstRunFactory;
         _connectivity = connectivity;
         _localProfile = localProfile;
+        _onlineAuth = onlineAuth;
+        _serverOptions = serverOptions;
     }
 
     /// <summary>Raised once the user is signed in (sign-in or completed first-run setup).</summary>
@@ -131,6 +138,7 @@ public sealed partial class LoginViewModel : ObservableObject
                 if (outcome.Succeeded)
                 {
                     Username = username;
+                    await EstablishServerSessionAsync(username, password, ct);
                     LoginSucceeded?.Invoke(this, EventArgs.Empty);
                 }
                 else
@@ -188,7 +196,13 @@ public sealed partial class LoginViewModel : ObservableObject
             var outcome = await _authentication.SignInAsync(Username.Trim(), Password, rememberDevice: false, ct);
             if (outcome.Succeeded)
             {
-                Animora.Desktop.Diagnostics.AppTrace.Info($"sign-in SUCCEEDED for '{Username.Trim()}'", "auth");
+                Animora.Desktop.Diagnostics.AppTrace.Info($"local sign-in SUCCEEDED for '{Username.Trim()}'", "auth");
+
+                // The local session alone does NOT authorise the central server. Establish the SERVER session now
+                // (bearer token + sealed licence) so /api/commands, /sync/* and the entitlement gate work. A failure
+                // here is logged but never blocks sign-in — the app stays usable locally / offline.
+                await EstablishServerSessionAsync(Username.Trim(), Password, ct);
+
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
                 return;
             }
@@ -205,6 +219,64 @@ public sealed partial class LoginViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Signs the just-authenticated user into the central server (<see cref="IOnlineAuthClient.LoginAsync"/>) so a bearer
+    /// token is persisted and the licence is sealed — the prerequisite for every server write (<c>/api/commands</c>),
+    /// the manifest/sync pull and the online entitlement gate. Without this step the desktop has only a LOCAL session and
+    /// the server answers <c>401 SESSION_EXPIRED</c> / rejects writes with <c>ENTITLEMENT_REQUIRED</c>.
+    ///
+    /// <para>This is best effort: an unreachable server or a definitive refusal is logged in full (so the trace shows WHY
+    /// server features are unavailable) but never blocks the local sign-in that already succeeded.</para>
+    /// </summary>
+    private async Task EstablishServerSessionAsync(string username, string password, CancellationToken ct)
+    {
+        if (_onlineAuth is null)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Info(
+                "server login SKIPPED — no server endpoint configured; running on the local session only.", "auth");
+            return;
+        }
+
+        var tenantCode = _serverOptions?.TenantCode;
+        if (string.IsNullOrWhiteSpace(tenantCode))
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Warn(
+                "server login SKIPPED — ANIMORA_TENANT_CODE is not set, so the clinic/tenant on the server is unknown. " +
+                "Server writes will fail with SESSION_EXPIRED / ENTITLEMENT_REQUIRED until a tenant code is configured.", "auth");
+            return;
+        }
+
+        Animora.Desktop.Diagnostics.AppTrace.Info(
+            $"server login → POST /auth/login  [tenant={tenantCode.Trim()}, user={username}]", "auth");
+        try
+        {
+            var result = await _onlineAuth.LoginAsync(tenantCode.Trim(), username, password, ct);
+            if (result.IsSuccess)
+            {
+                var o = result.Value!;
+                Animora.Desktop.Diagnostics.AppTrace.Info(
+                    $"server login SUCCEEDED — serverTenant={o.TenantId}, serverUser={o.UserId}, device={o.DeviceId}, " +
+                    $"role={o.Role}, offline={o.IsOffline}, mustChangePassword={o.MustChangePassword}. " +
+                    "Bearer token stored and licence sealed; server writes are now authorised.", "auth");
+            }
+            else
+            {
+                Animora.Desktop.Diagnostics.AppTrace.Warn(
+                    $"server login FAILED (code={result.Error.Code}{(string.IsNullOrWhiteSpace(result.Detail) ? "" : $", detail={result.Detail}")}). " +
+                    "The app continues on the local session; server writes will be rejected until this is resolved " +
+                    "(check the tenant code, that this user exists on the server, and that the device is approved).", "auth");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Info("server login cancelled (window closing / shutdown).", "auth");
+        }
+        catch (Exception ex)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Error("server login threw unexpectedly", ex, "auth");
         }
     }
 

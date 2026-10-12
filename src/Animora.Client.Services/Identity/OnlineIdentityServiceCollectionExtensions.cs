@@ -50,6 +50,11 @@ public static class OnlineIdentityServiceCollectionExtensions
         // Entitlement plane: sealed-cache decisions only.
         services.AddSingleton<OnlineEntitlementGate>();
         services.Replace(ServiceDescriptor.Singleton<IEntitlementGate>(sp => sp.GetRequiredService<OnlineEntitlementGate>()));
+
+        // Clinic account status (subscription / licence) for the Profile page — reads GET /licensing/status.
+        // Only wired when the server is configured; offline-only builds leave IClinicAccountStatusSource unregistered
+        // (the Profile page then shows "اطلاعات در دسترس نیست" instead of a wrong number).
+        services.TryAddSingleton<Animora.Contracts.Profile.IClinicAccountStatusSource, Animora.Client.Services.Profile.ServerClinicAccountStatusSource>();
         return services;
     }
 }
