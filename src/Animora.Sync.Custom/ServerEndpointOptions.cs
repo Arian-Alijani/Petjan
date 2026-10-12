@@ -9,6 +9,14 @@ public sealed record ServerEndpointOptions
     /// <summary>Absolute http(s) base address of the sync server; null/blank means offline-only (no engine is wired).</summary>
     public string? BaseAddress { get; set; }
 
+    /// <summary>
+    /// Tenant (clinic) code sent to <c>POST /auth/login</c> so the desktop can establish the <b>server</b> session that
+    /// authorises <c>/api/commands</c>, <c>/sync/*</c> and seals the licence. Blank ⇒ the online login is skipped and the
+    /// app runs on the local session only (every server write then fails with <c>SESSION_EXPIRED</c>/<c>ENTITLEMENT_REQUIRED</c>).
+    /// Overridable per run with the <c>ANIMORA_TENANT_CODE</c> environment variable.
+    /// </summary>
+    public string? TenantCode { get; set; }
+
     /// <summary>Per-request timeout for every sync call.</summary>
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(30);
 

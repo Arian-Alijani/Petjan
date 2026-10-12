@@ -469,6 +469,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     [RelayCommand]
     private async Task NewBlankInvoice()
     {
+        // Trace the submit so the log pairs this app-side action (sales.invoice.create for the guest customer)
+        // with the server command the sync engine then pushes to /api/commands.
+        Animora.Desktop.Diagnostics.AppTrace.Interaction("NewBlankInvoice", "click");
+
         InvoiceDetail detail;
         try
         {
@@ -485,9 +489,15 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
         catch (InvalidOperationException ex)
         {
+            // The error code travels in the exception message (ENTITLEMENT_REQUIRED / SESSION_EXPIRED when the
+            // server session was never established) — log it so the trace explains the failed "فاکتور جدید".
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"create invoice FAILED — {ex.Message}", "sales");
             ShowFailure(ex, "ایجاد فاکتور جدید ناموفق بود؛ دوباره تلاش کنید");
             return;
         }
+
+        Animora.Desktop.Diagnostics.AppTrace.Info(
+            $"create invoice OK — invoiceId={detail.Id}. Command stored locally; the sync engine will push it (watch for POST /api/commands).", "sales");
 
         // [Task 3] «فاکتور جدید» مستقیماً یک فاکتور گذریِ باز می‌سازد و نشان می‌دهد؛
         // دیگر مودالِ انتخاب مشتری باز نمی‌شود. تعویض مشتری از روی فاکتورِ باز

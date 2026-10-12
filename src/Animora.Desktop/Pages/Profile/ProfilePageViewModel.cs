@@ -129,10 +129,17 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [RelayCommand]
     private async Task RefreshAccountStatusAsync()
     {
+        // Trace the subscription-days fetch so the log shows whether the server answered with a grant, the
+        // request was unauthenticated (no server session ⇒ 401 on GET /licensing/status), or no source is wired.
+        Animora.Desktop.Diagnostics.AppTrace.Interaction("Profile.RefreshAccountStatus", "load");
         try
         {
             var status = await _service.GetAccountStatusAsync();
             var now = System.DateTimeOffset.UtcNow;
+            Animora.Desktop.Diagnostics.AppTrace.Info(
+                $"account status ← plan={status.PlanName ?? "(none)"}, expiresUtc={status.SubscriptionExpiresAtUtc?.ToString("u") ?? "(none)"}, " +
+                $"stale={status.IsStale}, observedUtc={status.ObservedAtUtc?.ToString("u") ?? "(none)"}. " +
+                "A blank expiry means the server returned no active grant or there is no server session yet.", "profile");
             SubscriptionPlan = status.PlanName ?? "اشتراک نرم‌افزار";
             SubscriptionRemaining = Remaining(status.SubscriptionExpiresAtUtc, now);
             SubscriptionDetail = status.SubscriptionExpiresAtUtc is null
@@ -148,8 +155,9 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
                 ? $"{(status.IsStale ? "اطلاعات ذخیره‌شده؛ نیازمند به‌روزرسانی" : "آخرین دریافت اطلاعات")}: {ProfilePresentation.Fa(observed.ToLocalTime().ToString("yyyy/MM/dd HH:mm"))}"
                 : "سرویس اشتراک و پنل پیامک هنوز متصل نیستند؛ مقدار نامشخص به معنی اعتبار صفر نیست.";
         }
-        catch (System.Exception)
+        catch (System.Exception ex)
         {
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"account status fetch FAILED — {ex.Message}", "profile");
             SubscriptionRemaining = SmsCredit = "دریافت اطلاعات ناموفق بود";
             SubscriptionDetail = SmsDetail = "برای دریافت وضعیت، دوباره تلاش کنید.";
             AccountStatusMessage = "وضعیت خدمات قابل تأیید نیست؛ از بازخوانی استفاده کنید.";

@@ -282,6 +282,12 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
 
         AddPatientWizardResult result;
 
+        // Trace the submit so the log shows the app-side action next to whatever the server does with the
+        // resulting command (the create command is stored locally, then the sync engine pushes it to
+        // /api/commands — the network trace pairs with this line when diagnosing a failed "ثبت پرونده").
+        var mode = IsExistingMode ? "add-pet-to-existing-owner" : "create-owner+pet";
+        Animora.Desktop.Diagnostics.AppTrace.Interaction("AddPatientWizard.Commit", "click", $"mode={mode}");
+
         // The create commands surface backend failures as InvalidOperationException (error code in the
         // message). Catch them here and toast — if they escaped this async command the global handler would
         // treat the failure as a process crash ("CRASH_RECOVERY_REQUIRED").
@@ -306,17 +312,25 @@ public sealed partial class AddPatientWizardViewModel : ObservableObject
         }
         catch (InvalidOperationException ex)
         {
+            // The error code travels in the exception message (e.g. ENTITLEMENT_REQUIRED when the server
+            // licence was never sealed, SESSION_EXPIRED when there is no bearer) — log it verbatim so the
+            // trace explains WHY "ثبت پرونده" failed, not just that it did.
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"create patient FAILED — {ex.Message}", "patients");
             _toast?.Show(
                 PatientsPresentation.CommandFailureMessage(ex, "ثبت پرونده انجام نشد؛ دوباره تلاش کنید"),
                 Tone.Danger);
             return;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Animora.Desktop.Diagnostics.AppTrace.Error("create patient FAILED (unexpected)", ex, "patients");
             _toast?.Show("ثبت پرونده انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
             return;
         }
 
+        Animora.Desktop.Diagnostics.AppTrace.Info(
+            $"create patient OK — ownerId={result.OwnerId}, petId={result.PetId ?? "(none)"}. " +
+            "Command stored locally; the sync engine will push it to the server (watch for POST /api/commands).", "patients");
         CloseSelf();
         _onCompleted(result);
     }
