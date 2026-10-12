@@ -9,8 +9,12 @@ public sealed class SyncScheduleOptions
     /// <summary>When false the scheduler never starts (on-demand pulls still work).</summary>
     public bool Enabled { get; set; } = true;
 
-    /// <summary>Base wait between two scheduled pulls.</summary>
-    public TimeSpan Interval { get; set; } = TimeSpan.FromMinutes(5);
+    /// <summary>
+    /// Base wait between two scheduled pulls. Short on purpose: a healthy pull is two cheap requests (manifest + an
+    /// <c>UpToDate</c> batch answer), and this cadence is what makes another user's change appear on every device within
+    /// about half a minute. Faults still back off exponentially up to <see cref="MaxBackoff"/>.
+    /// </summary>
+    public TimeSpan Interval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>Lower bound for any computed wait (guards against a misconfigured tiny interval).</summary>
     public TimeSpan MinInterval { get; set; } = TimeSpan.FromSeconds(30);

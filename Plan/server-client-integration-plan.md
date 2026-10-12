@@ -256,7 +256,7 @@ real session exists.
 Push: `fix(sync): defer first batch pull until authenticated approved session exists`.
 > **Done:** `SyncOrchestrator` takes an optional `ISessionStore` and returns `Deferred` (zero requests) until a stored online session exists (a Pending device never keeps one — TASK-2). Scheduler re-checks every `DeferredRetryInterval` (10 s) while deferred so the first pull follows sign-in promptly. Pre-login probe is unchanged (`/health/live` only). Tests added in `SyncOrchestratorTests`.
 
-### ⬜ TASK-6 — Verify RC-F: one end-to-end sync cycle (fast cross-user propagation)
+### ✅ TASK-6 — Verify RC-F: one end-to-end sync cycle (fast cross-user propagation)
 Prereq: TASK-1/2/4/5 done. Files: `src/Animora.Sync.Custom` apply path (`SqliteSyncApplyStore`),
 `SyncOrchestrator`, one feature read query (e.g. Appointments).
 Do: by reading the apply/orchestrator code, confirm a full `manifest → batches → pages → apply →
@@ -265,6 +265,7 @@ read query surfaces them. Confirm the scheduler re-pulls promptly (jitter/backof
 healthy) so new data appears quickly for all clinic users. Fix any concrete break found; keep scope to
 one entity verified end to end. (No full regression run — reason from code + the live endpoints.)
 Push (only if code changed): `fix(sync): <specific fix> for cross-user data propagation`.
+> **Done — concrete break found & fixed:** `SqliteSyncApplyStore` only wrote the generic `repl_base` replica; nothing projected it onto the typed tables (`Owners/Pets/Appointments/ReceptionQueueEntries`) that every screen queries, so another user's records never appeared. Added `ReplicaMaterializer` (called inside the same commit transaction): column-mapped upsert from wire payload (server `UpdatedAt/Version/Deleted` preserved via raw SQL, search keys recomputed through the shared `*SearchKeyProvider.Compose`), tombstone → soft-delete, snapshots never delete local rows, unsettled local commands on the same aggregate win, malformed rows skipped. Scheduler base interval lowered 5 min → 30 s (healthy pull = 2 cheap requests) so cross-user changes show quickly. Tests: `ReplicaMaterializerTests`. Remaining entities of the server catalog (Visit, Product, …) follow the same map pattern — add a row to `Maps` when their screens are synced.
 
 ### ⬜ TASK-7 — Verify/close RC-D: staff add / role-edit / enable-disable / access-limit end to end
 Prereq: TASK-1/2 (so a Manager can actually log in and operate). Files:

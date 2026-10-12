@@ -15,7 +15,8 @@ namespace Animora.Sync.Custom.Replica;
 /// <para>
 /// A full snapshot batch (<c>FromSequenceExclusive == 0</c>) is built as a brand-new base generation and the checkpoint switches to it
 /// atomically, so the active base is never cleared before its replacement is complete (non-destructive full resync). Only <c>repl_*</c>
-/// tables are written: business tables and the pending command overlay are never touched.
+/// tables are written by the replica store itself; the typed business projection is delegated to <see cref="ReplicaMaterializer"/> inside the same
+/// commit transaction, and the pending command overlay is never touched.
 /// </para>
 /// Sessions are serialised per store; staging left by a crashed session is cleared when the next session begins.
 /// </summary>
@@ -143,6 +144,8 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
                     Epoch = excluded.Epoch, Watermark = excluded.Watermark,
                     Generation = excluded.Generation, ServerGeneration = excluded.ServerGeneration
                 """, ct).ConfigureAwait(false);
+            // Project onto the typed business tables the screens read, in this same transaction (staging is still present here).
+            await ReplicaMaterializer.ApplyAsync(db, tenant, batch.BatchId, ct).ConfigureAwait(false);
             if (snapshot)
                 await db.Database.ExecuteSqlInterpolatedAsync(
                     $"DELETE FROM repl_base WHERE TenantId = {tenant} AND Generation <> {target}", ct).ConfigureAwait(false);

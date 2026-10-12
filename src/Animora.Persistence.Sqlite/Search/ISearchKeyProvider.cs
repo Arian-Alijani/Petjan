@@ -12,13 +12,19 @@ public interface ISearchKeyProvider<in TEntity>
 /// <summary>Owner key = full name + phones + national id, normalized by <see cref="PersianText.Normalize"/>.</summary>
 public sealed class OwnerSearchKeyProvider : ISearchKeyProvider<Owner>
 {
-    public string Build(Owner e) => PersianText.Normalize(string.Join(
-        ' ', e.FullName, e.PhonePrimary, e.PhoneSecondary ?? string.Empty, e.NationalId ?? string.Empty));
+    public string Build(Owner e) => Compose(e.FullName, e.PhonePrimary, e.PhoneSecondary, e.NationalId);
+
+    /// <summary>The key formula over raw columns; shared with the replica materializer so a synced row is searchable identically.</summary>
+    public static string Compose(string fullName, string phonePrimary, string? phoneSecondary, string? nationalId) =>
+        PersianText.Normalize(string.Join(' ', fullName, phonePrimary, phoneSecondary ?? string.Empty, nationalId ?? string.Empty));
 }
 
 /// <summary>Pet key = name + breed + microchip, normalized by <see cref="PersianText.Normalize"/>.</summary>
 public sealed class PetSearchKeyProvider : ISearchKeyProvider<Pet>
 {
-    public string Build(Pet e) => PersianText.Normalize(string.Join(
-        ' ', e.Name, e.Breed ?? string.Empty, e.MicrochipCode ?? string.Empty));
+    public string Build(Pet e) => Compose(e.Name, e.Breed, e.MicrochipCode);
+
+    /// <summary>The key formula over raw columns; shared with the replica materializer so a synced row is searchable identically.</summary>
+    public static string Compose(string name, string? breed, string? microchipCode) =>
+        PersianText.Normalize(string.Join(' ', name, breed ?? string.Empty, microchipCode ?? string.Empty));
 }
