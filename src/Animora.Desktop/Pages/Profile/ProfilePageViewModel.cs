@@ -592,7 +592,13 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [RelayCommand]
     private async Task ApproveDeviceAsync(StaffDeviceViewModel? device)
     {
-        if (device is null || !device.IsPending || IsStaffBusy || !CanManageDevices) return;
+        if (device is null || IsStaffBusy) return;
+        if (!CanManageDevices)
+        {
+            _toast.Show("مجوز تأیید دستگاه‌ها را ندارید.", Tone.Warn);
+            return;
+        }
+        if (!device.IsPending) return; // already approved/revoked — the button is only visible for pending devices
         await ChangeStaffAsync(() => _service.ApproveStaffDeviceAsync(device.DeviceId),
             "دستگاه تأیید شد؛ کاربر می‌تواند وارد شود.");
     }
@@ -600,7 +606,13 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [RelayCommand]
     private async Task RevokeDeviceAsync(StaffDeviceViewModel? device)
     {
-        if (device is null || !device.CanRevoke || IsStaffBusy || !CanManageDevices) return;
+        if (device is null || IsStaffBusy) return;
+        if (!CanManageDevices)
+        {
+            _toast.Show("مجوز لغو دسترسی دستگاه‌ها را ندارید.", Tone.Warn);
+            return;
+        }
+        if (!device.CanRevoke) return;
         await ChangeStaffAsync(() => _service.RevokeStaffDeviceAsync(device.DeviceId, "لغو توسط مدیر کلینیک"),
             "دسترسی دستگاه لغو شد.");
     }
