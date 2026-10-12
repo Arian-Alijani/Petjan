@@ -244,7 +244,7 @@ a full-solution long build). **Push (heavy task):**
 **Acceptance:** `dotnet build src/Animora.Client.Services` compiles (scoped build, not full solution). **Push:**
 `scripts/git/push.sh "feat(client): route staff management to server when online-configured"`
 
-### ☐ TASK 5 — Error-code & UX coverage
+### ☑ TASK 5 — Error-code & UX coverage
 **Files:** `src/Animora.Desktop/Pages/Profile/ProfilePageViewModel.cs` (and/or `ProfileMapping`).
 - Ensure the catch/handler around `AddStaffAsync`/`SetStaffActiveAsync`/`SaveStaffAccessAsync` maps the new
   server error codes to Persian text the user understands: `USERNAME_EXISTS` ("این نام کاربری قبلاً ثبت شده
