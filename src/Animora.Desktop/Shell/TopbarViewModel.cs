@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Animora.Application.Ports;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Sync;
 using Animora.Desktop.Services;
@@ -31,6 +32,13 @@ public sealed partial class TopbarViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IServiceProvider _services;
     private readonly ICapabilityGate _gate;
+
+    /// <summary>
+    /// Resolves the clinic timezone so "last synced" is rendered in the clinic's local time, not the device's —
+    /// a device in another zone (or UTC in a sandbox) must still show the clinic's correct relative time. This
+    /// is the root-cause fix for the topbar previously showing a wrong last-sync time.
+    /// </summary>
+    private readonly IClinicTimeZoneProvider _clinicZone;
 
     /// <summary>Refreshes the relative "N دقیقه پیش" text every minute while idle.</summary>
     private readonly DispatcherTimer _relativeTicker;
@@ -69,6 +77,17 @@ public sealed partial class TopbarViewModel : ObservableObject
     [ObservableProperty]
     private IBrush _syncStateBrush = Brushes.Transparent;
 
+    /// <summary>
+    /// Fill of the whole sync button, tinted to draw attention when there are unsent changes (Pending) or a
+    /// failure (Error / Offline). Neutral (the default surface) while synced/idle.
+    /// </summary>
+    [ObservableProperty]
+    private IBrush _syncBoxBackground = Controls.BrushCache.Solid("#f2f4f7");
+
+    /// <summary>Border of the sync button, matched to <see cref="SyncBoxBackground"/>.</summary>
+    [ObservableProperty]
+    private IBrush _syncBoxBorder = Controls.BrushCache.Solid("#e4e7ec");
+
     /// <summary>True while a sync pass is running (drives the spinner).</summary>
     [ObservableProperty]
     private bool _isSyncing;
@@ -84,7 +103,8 @@ public sealed partial class TopbarViewModel : ObservableObject
         IDialogService dialogs,
         IServiceProvider services,
         ICurrentUserContext currentUser,
-        ICapabilityGate gate)
+        ICapabilityGate gate,
+        IClinicTimeZoneProvider clinicZone)
     {
         _navigation = navigation;
         _toast = toast;
@@ -92,6 +112,7 @@ public sealed partial class TopbarViewModel : ObservableObject
         _dialogs = dialogs;
         _services = services;
         _gate = gate;
+        _clinicZone = clinicZone;
         CurrentUser = currentUser;
 
         _navigation.CurrentViewModelChanged += OnCurrentViewModelChanged;
@@ -162,11 +183,30 @@ public sealed partial class TopbarViewModel : ObservableObject
 
     // ---- Sync status box -----------------------------------------------------
 
+    /// <summary>
+    /// Manual sync trigger. A single pass BOTH flushes any queued local changes AND pulls server state, so one
+    /// click "checks whether there is anything to upload/download and syncs it if so" — exactly what is needed
+    /// after the app has been offline for a while. The toast afterwards reflects what actually happened
+    /// (uploaded N changes / already up to date / still offline / error) instead of always claiming success.
+    /// </summary>
     [RelayCommand]
     private async Task SyncNowAsync()
     {
+        var pendingBefore = _sync.PendingChangeCount;
         await _sync.SyncNowAsync();
-        _toast.Show("همگام‌سازی انجام شد");
+
+        var message = _sync.State switch
+        {
+            SyncState.Synced when pendingBefore > 0 =>
+                $"{Localization.PersianNumberFormatter.ToPersianDigits(pendingBefore)} تغییر ارسال و همگام‌سازی شد",
+            SyncState.Synced => "همه‌چیز به‌روز است",
+            SyncState.Pending =>
+                $"{Localization.PersianNumberFormatter.ToPersianDigits(_sync.PendingChangeCount)} تغییر در انتظار ارسال باقی ماند",
+            SyncState.Offline => "آفلاین: اتصال به سرور برقرار نشد؛ تغییرات پس از اتصال ارسال می‌شود",
+            SyncState.Error => "خطا در همگام‌سازی؛ بعداً دوباره تلاش می‌شود",
+            _ => "همگام‌سازی انجام شد",
+        };
+        _toast.Show(message);
     }
 
     private void OnSyncStateChanged(object? sender, EventArgs e)
@@ -218,14 +258,19 @@ public sealed partial class TopbarViewModel : ObservableObject
             SyncRelativeText = "دسترسی به داده‌های آفلاین در دسترس نیست";
             SyncToolTip = "بدون دسترسی آفلاین: تغییرات غیرفعال است تا اتصال و نشست دوباره برقرار شود.";
             SyncStateBrush = Controls.BrushCache.Solid("#b54708");
+            ApplyBoxTint(SyncState.Pending); // amber banner surface
             return;
         }
 
+        var pending = _sync.PendingChangeCount;
         IsSyncing = _sync.State == SyncState.Syncing;
         SyncStatusText = _sync.State switch
         {
             SyncState.Syncing => "در حال همگام‌سازی…",
             SyncState.Synced => "همگام‌سازی شد",
+            // Surface the backlog size so the user knows there is unsent work (offline-for-a-while case).
+            SyncState.Pending when pending > 0 =>
+                $"{Localization.PersianNumberFormatter.ToPersianDigits(pending)} تغییر ارسال‌نشده",
             SyncState.Pending => "در انتظار همگام‌سازی",
             SyncState.Error => "خطا در همگام‌سازی",
             SyncState.Offline => "آفلاین",
@@ -239,7 +284,22 @@ public sealed partial class TopbarViewModel : ObservableObject
             SyncState.Syncing => Controls.BrushCache.Solid("#1570cd"),
             _ => Controls.BrushCache.Solid("#98a2b3"),
         };
+        ApplyBoxTint(_sync.State);
         UpdateSyncRelativeText();
+    }
+
+    /// <summary>
+    /// Tints the whole sync button so unsent changes / failures are noticeable at a glance:
+    /// amber for Pending (changes queued), red for Error/Offline, neutral otherwise.
+    /// </summary>
+    private void ApplyBoxTint(SyncState state)
+    {
+        (SyncBoxBackground, SyncBoxBorder) = state switch
+        {
+            SyncState.Pending => (Controls.BrushCache.Solid("#fffaeb"), Controls.BrushCache.Solid("#fec84b")),
+            SyncState.Error or SyncState.Offline => (Controls.BrushCache.Solid("#fef3f2"), Controls.BrushCache.Solid("#fda29b")),
+            _ => (Controls.BrushCache.Solid("#f2f4f7"), Controls.BrushCache.Solid("#e4e7ec")),
+        };
     }
 
     private void UpdateSyncRelativeText()
@@ -249,8 +309,14 @@ public sealed partial class TopbarViewModel : ObservableObject
             return; // the read-only banner owns the status text while it is active.
         }
 
-        var when = _sync.LastSyncedAt?.LocalDateTime;
-        SyncRelativeText = when is { } value ? FormatRelative(value) : "—";
+        // Render the UTC watermark in the CLINIC timezone, not the device's local zone, so a device set to a
+        // different zone (or UTC in a sandbox) still shows the clinic's correct "last synced" time. This fixes the
+        // topbar previously showing a wrong time whenever the OS zone ≠ clinic zone.
+        var zone = _clinicZone.GetClinicTimeZone();
+        var when = _sync.LastSyncedAt is { } utc
+            ? TimeZoneInfo.ConvertTime(utc, zone).DateTime
+            : (DateTime?)null;
+        SyncRelativeText = when is { } value ? FormatRelative(value, zone) : "—";
 
         SyncToolTip = when is { } stamp
             ? $"آخرین همگام‌سازی: {stamp:HH:mm} — کلیک برای همگام‌سازی دستی"
@@ -258,10 +324,12 @@ public sealed partial class TopbarViewModel : ObservableObject
     }
 
     // Buckets per the task spec: <1min «هم‌اکنون», <60min «N دقیقه پیش»,
-    // <24h «N ساعت پیش», else the Jalali date.
-    private static string FormatRelative(DateTime when)
+    // <24h «N ساعت پیش», else the Jalali date. "now" is the clinic's own now
+    // (UTC projected into the clinic zone) so the delta matches the rendered stamp.
+    private static string FormatRelative(DateTime when, TimeZoneInfo zone)
     {
-        var delta = DateTime.Now - when;
+        var nowClinic = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime;
+        var delta = nowClinic - when;
         if (delta < TimeSpan.FromMinutes(1))
         {
             return "هم‌اکنون";
