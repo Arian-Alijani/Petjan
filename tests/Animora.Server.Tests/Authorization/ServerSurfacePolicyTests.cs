@@ -10,30 +10,34 @@ namespace Animora.Server.Tests.Authorization;
 /// <summary>CONS-GATE-01: one route-class table feeds both the tenant-binding and entitlement planes.</summary>
 public sealed class ServerSurfacePolicyTests
 {
+    // NOTE: the expected class is passed as its enum NAME (string), not the SurfaceClass value,
+    // because SurfaceClass is `internal` and a `public` [Theory] method cannot take an internal
+    // parameter type (CS0051). The name is parsed back to the internal enum inside the body.
     [Theory]
-    [InlineData("/health/live", SurfaceClass.Health, true, true)]
-    [InlineData("/health/ready", SurfaceClass.Health, true, true)]
-    [InlineData("/admin/tenants", SurfaceClass.OperatorConsole, true, true)]
-    [InlineData("/_blazor/negotiate", SurfaceClass.OperatorConsole, true, true)]
-    [InlineData("/operator/tenants", SurfaceClass.Operator, true, true)]
-    [InlineData("/provisioning/intents", SurfaceClass.Provisioning, true, true)]
-    [InlineData("/auth/login", SurfaceClass.AuthAnonymous, true, true)]
-    [InlineData("/auth/refresh", SurfaceClass.AuthAnonymous, true, true)]
-    [InlineData("/auth/keys", SurfaceClass.AuthAnonymous, true, true)]
-    [InlineData("/licensing/keys", SurfaceClass.LicensingKeys, true, true)]
-    [InlineData("/auth/logout", SurfaceClass.AuthSession, false, true)]
-    [InlineData("/auth/capabilities", SurfaceClass.AuthSession, false, true)]
-    [InlineData("/auth/device/abc/approve", SurfaceClass.AuthSession, false, true)]
-    [InlineData("/licensing/activate", SurfaceClass.Licensing, false, true)]
-    [InlineData("/api/commands", SurfaceClass.TenantData, false, false)]
-    [InlineData("/api/commands/batch", SurfaceClass.TenantData, false, false)]
-    [InlineData("/sync/batches", SurfaceClass.TenantData, false, false)]
-    [InlineData("/files/abc", SurfaceClass.TenantData, false, false)]
-    [InlineData("/licensingx/activate", SurfaceClass.Unclassified, false, false)]
-    [InlineData("/authx/login", SurfaceClass.Unclassified, false, false)]
-    [InlineData("/", SurfaceClass.Unclassified, false, false)]
-    public void Table_ClassifiesEveryPlaneDecision(string path, SurfaceClass expected, bool skipsTenant, bool entitlementExempt)
+    [InlineData("/health/live", nameof(SurfaceClass.Health), true, true)]
+    [InlineData("/health/ready", nameof(SurfaceClass.Health), true, true)]
+    [InlineData("/admin/tenants", nameof(SurfaceClass.OperatorConsole), true, true)]
+    [InlineData("/_blazor/negotiate", nameof(SurfaceClass.OperatorConsole), true, true)]
+    [InlineData("/operator/tenants", nameof(SurfaceClass.Operator), true, true)]
+    [InlineData("/provisioning/intents", nameof(SurfaceClass.Provisioning), true, true)]
+    [InlineData("/auth/login", nameof(SurfaceClass.AuthAnonymous), true, true)]
+    [InlineData("/auth/refresh", nameof(SurfaceClass.AuthAnonymous), true, true)]
+    [InlineData("/auth/keys", nameof(SurfaceClass.AuthAnonymous), true, true)]
+    [InlineData("/licensing/keys", nameof(SurfaceClass.LicensingKeys), true, true)]
+    [InlineData("/auth/logout", nameof(SurfaceClass.AuthSession), false, true)]
+    [InlineData("/auth/capabilities", nameof(SurfaceClass.AuthSession), false, true)]
+    [InlineData("/auth/device/abc/approve", nameof(SurfaceClass.AuthSession), false, true)]
+    [InlineData("/licensing/activate", nameof(SurfaceClass.Licensing), false, true)]
+    [InlineData("/api/commands", nameof(SurfaceClass.TenantData), false, false)]
+    [InlineData("/api/commands/batch", nameof(SurfaceClass.TenantData), false, false)]
+    [InlineData("/sync/batches", nameof(SurfaceClass.TenantData), false, false)]
+    [InlineData("/files/abc", nameof(SurfaceClass.TenantData), false, false)]
+    [InlineData("/licensingx/activate", nameof(SurfaceClass.Unclassified), false, false)]
+    [InlineData("/authx/login", nameof(SurfaceClass.Unclassified), false, false)]
+    [InlineData("/", nameof(SurfaceClass.Unclassified), false, false)]
+    public void Table_ClassifiesEveryPlaneDecision(string path, string expectedClass, bool skipsTenant, bool entitlementExempt)
     {
+        var expected = Enum.Parse<SurfaceClass>(expectedClass);
         var p = new PathString(path);
         Assert.Equal(expected, ServerSurfacePolicy.Classify(p));
         Assert.Equal(skipsTenant, ServerSurfacePolicy.SkipsTenantBinding(p));
