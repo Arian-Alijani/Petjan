@@ -239,9 +239,13 @@ NOT swallow. Keep it minimal.
       (defense-in-depth) and keeps batch-build faults diagnosable. → **PUSH**
       `fix(sync): map admission saturation to 503 and log batch build faults (BUG 2)`
 
-- [ ] **T6 — BUG 2 verification test.** Focused test: tenant with journal rows →
-      `/sync/batches {1,0}` returns 200 not 500; empty tenant returns `UpToDate`. Keep it targeted.
-      → **PUSH** `test(sync): /sync/batches returns 200 for populated and empty tenants`
+- [x] **T6 — BUG 2 verification test.** DONE. Added
+      `tests/Animora.Server.Tests/Sync/SyncBatchesResilienceTests.cs` (reuses `SyncPgRig`/`[PgFact]`,
+      so it runs under the PG CI gate, not on the sandbox). Two focused cases:
+      (1) populated tenant → `OpenAsync(1,0)` returns `BatchReady` (watermark≥1, pages≥1) and the
+      null-guarded projector still materializes the seeded `Tenant` row — proving T4 does not drop
+      valid rows; (2) cursor at watermark → `UpToDate`. Both assert a 200-shaped response, i.e. no
+      bare 500. → **PUSH** `test(sync): /sync/batches returns 200 for populated and empty tenants`
 
 - [ ] **T7 — Sync coherence review (Task 2 of the request).** Purposeful, targeted review (NO
       wasteful scanning). Confirm/record that client↔server are standard & coherent:
