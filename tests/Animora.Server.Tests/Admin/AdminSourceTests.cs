@@ -35,6 +35,9 @@ public sealed class AdminHeadersTests
 {
     [Fact] public void NoStore_CSP_FrameDeny_Nosniff()
     { var c=new DefaultHttpContext();AdminSecurityHeadersMiddleware.Apply(c.Response);Assert.Equal("no-store",c.Response.Headers.CacheControl);Assert.Equal("nosniff",c.Response.Headers["X-Content-Type-Options"]);Assert.Equal("DENY",c.Response.Headers["X-Frame-Options"]);Assert.Contains("frame-ancestors 'none'",c.Response.Headers.ContentSecurityPolicy.ToString()); }
+    // §7.2: the CSP must additionally pin explicit script-src/style-src (and base-uri) to close the last XSS-hardening gap.
+    [Fact] public void CSP_PinsExplicitScriptAndStyleSources()
+    { var c=new DefaultHttpContext();AdminSecurityHeadersMiddleware.Apply(c.Response);var csp=c.Response.Headers.ContentSecurityPolicy.ToString();Assert.Contains("script-src 'self'",csp);Assert.Contains("style-src 'self'",csp);Assert.Contains("base-uri 'self'",csp); }
 }
 public sealed class AdminCookieTests
 {
