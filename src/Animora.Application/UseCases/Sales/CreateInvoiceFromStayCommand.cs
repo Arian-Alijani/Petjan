@@ -46,7 +46,8 @@ internal static class SalesHandoffFactory
         if (!handoff.IsReady) return Result<string>.Fail(ErrorCodes.ValidationFailed);
         var created = Invoice.Create(context.TenantId, "draft-" + context.OperationId,
             source == "Visit" ? InvoiceKind.Visit : InvoiceKind.Boarding, clock.UtcNow,
-            context.UserId, handoff.OwnerId, petId: handoff.PetId, operationId: context.OperationId);
+            context.UserId, handoff.OwnerId, petId: handoff.PetId, operationId: context.OperationId,
+            id: context.OperationId); // deterministic id: identical on client and server (see Invoice.Create)
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
         var invoice = created.Value!;
         var attached = source == "Visit" ? invoice.AttachVisit(handoff.SourceId) : invoice.AttachStay(handoff.SourceId);
@@ -104,7 +105,7 @@ internal static class SalesHandoffFactory
             var roomCharge = roomPrepaid ? extraRoom : root.GetProperty("TotalMinor").GetInt64() - itemsTotal;
             if (roomCharge > 0)
             {
-                var room = new InvoiceLine(IdGenerator.NewId(clock.UtcNow), InvoiceLineKind.Boarding,
+                var room = new InvoiceLine(context.OperationId, InvoiceLineKind.Boarding,
                     null, null, null, roomPrepaid ? "هزینه شبِ اضافه اقامت (پانسیون)" : "هزینه اقامت (پانسیون)", new Quantity(1, "PCS"), Money.Irt(roomCharge),
                     0, 0, InvoiceLineSource.Stay, handoff.SourceId);
                 var added = invoice.AddLine(room);

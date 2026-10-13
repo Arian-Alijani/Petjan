@@ -40,7 +40,8 @@ public sealed class AddInvoiceLineCommandHandler(IInvoiceRepository invoices, IS
         if (found.IsFailure) return Result<Unit>.Fail(found.Error);
         var item = await data.FindCatalogEntryAsync(c.CatalogItemId, ct);
         if (item is null) return Result<Unit>.Fail(ErrorCodes.NotFound);
-        var line = new InvoiceLine(IdGenerator.NewId(clock.UtcNow), item.Kind, item.Id,
+        // Line id = OperationId: Edit/Remove commands address a line by id (ExpectedLineId); it must match on the server.
+        var line = new InvoiceLine(context.OperationId, item.Kind, item.Id,
             item.ProductId, item.VariantId, item.Title, new Quantity(c.Quantity, item.UnitCode),
             Money.Irt(item.PriceMinor), 0, 0, InvoiceLineSource.Catalog, item.Id);
         return SalesDraftRules.Outcome(found.Value!.AddLine(line));

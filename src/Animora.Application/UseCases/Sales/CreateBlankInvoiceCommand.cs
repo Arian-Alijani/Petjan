@@ -35,10 +35,11 @@ public sealed class CreateBlankInvoiceCommandHandler(IInvoiceRepository invoices
 {
     public Task<Result<string>> HandleAsync(CreateBlankInvoiceCommand c, CommandContext context, CancellationToken ct)
     {
+        // Id = OperationId: client and server derive the same invoice id, so later line/owner/post commands resolve on both.
         // A unique provisional number keeps drafts distinct; posting replaces it with the sequence.
         var created = Invoice.Create(context.TenantId, "draft-" + context.OperationId,
             InvoiceKind.DirectSale, clock.UtcNow, context.UserId, c.OwnerId, c.GuestName, c.PetId,
-            operationId: context.OperationId);
+            operationId: context.OperationId, id: context.OperationId);
         if (created.IsFailure) return Task.FromResult(Result<string>.Fail(created.Error, created.Detail));
         invoices.Add(created.Value!);
         return Task.FromResult(Result<string>.Ok(created.Value!.Id));

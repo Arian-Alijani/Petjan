@@ -197,6 +197,12 @@ public sealed class Invoice : AggregateRoot
     /// <param name="currency">ISO-4217 code every amount on the invoice uses.</param>
     /// <param name="operationId">The business command that produced it (idempotency key).</param>
     /// <param name="notes">Free-form notes.</param>
+    /// <param name="id">
+    /// Explicit aggregate id. The command layer passes the creating command's <c>OperationId</c> so the offline client and the
+    /// server (which both run the same handler for the same operation) derive the <b>same</b> invoice id — follow-up commands
+    /// (add line, owner, discount, insurance, post) address the invoice by id and would otherwise hit a server that minted a
+    /// different one (empty / rejected invoice). <see langword="null"/> mints a fresh ULID.
+    /// </param>
     public static Result<Invoice> Create(
         string tenantId,
         string invoiceNumber,
@@ -208,7 +214,8 @@ public sealed class Invoice : AggregateRoot
         string? petId = null,
         string currency = CurrencyScale.Irt,
         string? operationId = null,
-        string? notes = null)
+        string? notes = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(invoiceNumber);
@@ -225,7 +232,7 @@ public sealed class Invoice : AggregateRoot
         var zero = Money.Zero(currency);
         return new Invoice
         {
-            Id = IdGenerator.NewId(issuedUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(issuedUtc) : id.Trim(),
             TenantId = tenantId,
             InvoiceNumber = invoiceNumber.Trim(),
             Kind = kind,

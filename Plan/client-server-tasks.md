@@ -77,7 +77,12 @@
 
 ---
 
-## T2 — فاکتورها با جزئیات کامل به سرور بروند (الان انگار خالی می‌روند)  [ ] در حال انجام / [ ] انجام شد
+## T2 — فاکتورها با جزئیات کامل به سرور بروند (الان انگار خالی می‌روند)  [x] انجام شد ✅
+
+> **نتیجهٔ انجام T2 (2026-10-13):**
+> - `CommandFingerprint.DropJournalingMembers` سالم است؛ shape هر ۱۱ command فاکتور با پارامترهای سازنده set-equal است (تست جدید `InvoiceCommandPayloadTests` + `HandlerCoverageTests.InvoiceChainPayloads_ProducedByClient_ResolveInServerCatalog`).
+> - **ریشهٔ واقعی «فاکتور خالی» (یافتهٔ جدید):** هندلرها id تولید می‌کردند (`Invoice.Create` → `IdGenerator.NewId()`، و id سطر → `NewId`). کلاینت و سرور هر دو همان هندلر را اجرا می‌کنند، پس سرور فاکتورِ **با id متفاوت** می‌ساخت و commandهای بعدی (`AddLine/Owner/Discount/Post` با `InvoiceId` کلاینت) روی سرور `NotFound` می‌شدند → فاکتور خالی/بدون سطر.
+> - **فیکس:** id تعیینی از `OperationId`: `Invoice.Create(..., id:)` پارامتر جدید؛ `CreateBlankInvoice`/`CreateInvoiceFromStay|Visit` فاکتور را با `id = context.OperationId` می‌سازند؛ `AddInvoiceLine`/`AddCustomInvoiceLine` شناسهٔ سطر را `context.OperationId` می‌گذارند (تا Edit/Remove با `ExpectedLineId` روی سرور هم match شوند). OperationId یکتا (ULID) و در retry ثابت است ⇒ idempotent.
 
 **هدف**: اطمینان از اینکه فاکتور با تمام سطرها/مالک/تخفیف/بیمه و اطلاعات صحیح روی سرور ثبت می‌شود، نه خالی.
 

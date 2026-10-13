@@ -38,7 +38,7 @@ public sealed class AddCustomInvoiceLineCommandHandler(IInvoiceRepository invoic
     {
         var found = await SalesDraftRules.Find(invoices, c.InvoiceId, ct);
         if (found.IsFailure) return Result<Unit>.Fail(found.Error);
-        return SalesDraftRules.Outcome(found.Value!.AddLine(new InvoiceLine(IdGenerator.NewId(clock.UtcNow),
+        return SalesDraftRules.Outcome(found.Value!.AddLine(new InvoiceLine(context.OperationId, // deterministic: same line id on client and server
             InvoiceLineKind.Custom, null, null, null, c.Title.Trim(), new Quantity(c.Quantity, "PCS"),
             Money.Irt(c.UnitPriceMinor), 0, 0, InvoiceLineSource.Manual, null)));
     }
