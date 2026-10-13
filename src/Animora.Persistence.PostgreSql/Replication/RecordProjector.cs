@@ -50,11 +50,37 @@ public sealed class RecordProjector
                 if (reader.IsDBNull(1)) { yield return new(d.Name, id, 'D', null, null, true, null); continue; }
                 using var document = JsonDocument.Parse(reader.GetString(1));
                 var row = document.RootElement;
-                var version = EntityVersionCodec.ToWire(Guid.Parse(row.GetProperty("Version").GetString()!));
-                yield return new(d.Name, id, 'U', version, row.GetProperty("UpdatedAt").GetDateTimeOffset(),
-                    row.GetProperty("Deleted").GetBoolean(), Project(d.Name, row));
+                // Defence in depth: a row image that is missing or has an unparseable Version/UpdatedAt/Deleted (schema
+                // drift, a partially-written row, a NULL system column) must NOT throw and crash the whole batch build —
+                // that surfaced as a blanket 500 UNEXPECTED on /sync/batches. Such a row is emitted as a tombstone so the
+                // client converges (drops any stale copy) and the feed stays live.
+                if (!TryGetVersion(row, out var version)
+                    || !row.TryGetProperty("UpdatedAt", out var updatedAt) || updatedAt.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
+                    || !row.TryGetProperty("Deleted", out var deleted) || deleted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                {
+                    yield return new(d.Name, id, 'D', null, null, true, null);
+                    continue;
+                }
+                yield return new(d.Name, id, 'U', version, updatedAt.GetDateTimeOffset(),
+                    deleted.GetBoolean(), Project(d.Name, row));
             }
         }
+    }
+
+    /// <summary>
+    /// Reads the row's concurrency <c>Version</c> as a wire string, returning <see langword="false"/> (never throwing)
+    /// when the property is absent, null or not a parseable GUID so the caller can emit a safe tombstone instead of
+    /// faulting the whole batch build.
+    /// </summary>
+    private static bool TryGetVersion(JsonElement row, out string? version)
+    {
+        version = null;
+        if (!row.TryGetProperty("Version", out var element) || element.ValueKind != JsonValueKind.String)
+            return false;
+        if (!Guid.TryParse(element.GetString(), out var guid))
+            return false;
+        version = EntityVersionCodec.ToWire(guid);
+        return true;
     }
 
     public static JsonElement Project(string entity, JsonElement row)
