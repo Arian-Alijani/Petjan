@@ -8,6 +8,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 
@@ -32,10 +33,15 @@ internal static class TreatmentHistory
     public static MedicalHistoryKind KindOf(TreatmentPlan plan) =>
         plan.ItemType == TreatmentItemType.Vaccine ? MedicalHistoryKind.Vaccination : MedicalHistoryKind.Prescription;
 
+    /// <summary>First <see cref="IdGenerator.ForOperation"/> slot used for ledger entries — keeps them clear of the plan (0) and its occurrences (1…n).</summary>
+    internal const int HistorySlotBase = 1_000_000;
+
+    /// <param name="ordinal">0-based position of this entry among those the command writes (deterministic id slot).</param>
     public static void Record(IMedicalHistoryRepository history, CommandContext context, IClock clock, TreatmentPlan plan,
-        string title, string detail) =>
+        string title, string detail, int ordinal = 0) =>
         history.Add(new MedicalHistoryEntry(context.TenantId, plan.PetId, KindOf(plan), title, clock.UtcNow, context.UserId,
-            clock, detail, plan.Id, nameof(TreatmentPlan)));
+            clock, detail, plan.Id, nameof(TreatmentPlan),
+            id: IdGenerator.ForOperation(context.OperationId, HistorySlotBase + ordinal, clock.UtcNow)));
 }
 
 /// <summary>Schedules a medication / vaccine for a patient. Returns the new plan id.</summary>
@@ -71,7 +77,9 @@ public sealed class CreateTreatmentPlanCommandHandler(ITreatmentPlanRepository p
         if (pet is null || pet.Deleted) return Result<string>.Fail(ErrorCodes.PetNotFound);
 
         var draft = TreatmentPlan.Create(context.TenantId, c.PetId, c.ItemType, c.Kind, c.Title, c.Schedule,
-            TreatmentRules.Today(clock, zones), context.UserId, clock, c.VaccineCode, c.Dosage, c.Notes, c.NotifyOwner);
+            TreatmentRules.Today(clock, zones), context.UserId, clock, c.VaccineCode, c.Dosage, c.Notes, c.NotifyOwner,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow),
+            occurrenceId: index => IdGenerator.ForOperation(context.OperationId, 1 + index, clock.UtcNow));
         if (draft.IsFailure) return Result<string>.Fail(draft.Error, draft.Detail);
 
         var plan = draft.Value!.Plan;
@@ -80,7 +88,7 @@ public sealed class CreateTreatmentPlanCommandHandler(ITreatmentPlanRepository p
         if (c.RescheduledDayCount > 0)
         {
             TreatmentHistory.Record(history, context, clock, plan, VaccinationHistoryTitles.DoseRescheduled,
-                $"{plan.Title} · {c.RescheduledDayCount} day(s) moved off the clinic weekend");
+                $"{plan.Title} · {c.RescheduledDayCount} day(s) moved off the clinic weekend", ordinal: 1);
         }
 
         return Result<string>.Ok(plan.Id);
@@ -196,7 +204,8 @@ public sealed class MarkTreatmentOccurrenceDoneCommandHandler(ITreatmentPlanRepo
         var vaccine = plan.ItemType == TreatmentItemType.Vaccine;
         history.Add(new MedicalHistoryEntry(context.TenantId, plan.PetId, TreatmentHistory.KindOf(plan),
             vaccine ? VaccinationHistoryTitles.DoseAdministered : VaccinationHistoryTitles.MedicationGiven,
-            clock.UtcNow, context.UserId, clock, plan.Title, occurrence.Id, nameof(TreatmentOccurrence)));
+            clock.UtcNow, context.UserId, clock, plan.Title, occurrence.Id, nameof(TreatmentOccurrence),
+            id: IdGenerator.ForOperation(context.OperationId, TreatmentHistory.HistorySlotBase, clock.UtcNow)));
 
         if (await plans.CountPendingExceptAsync(plan.Id, occurrence.Id, ct) == 0) plan.Complete();
         return Result<string>.Ok(occurrence.Id);
@@ -234,7 +243,8 @@ public sealed class AddVaccineCatalogItemCommandHandler(ITreatmentPlanRepository
     public async Task<Result<string>> HandleAsync(AddVaccineCatalogItemCommand c, CommandContext context, CancellationToken ct)
     {
         var created = VaccineCatalogItem.Create(context.TenantId, c.Code, c.Name, clock.UtcNow, c.Protects,
-            c.TotalDoses, c.BoosterDays, c.Stock, c.MinStock);
+            c.TotalDoses, c.BoosterDays, c.Stock, c.MinStock,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
         if (await plans.CatalogCodeExistsAsync(created.Value!.Code, ct))
             return Result<string>.Fail(ErrorCodes.VaccineCatalogCodeTaken);

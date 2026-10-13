@@ -98,7 +98,8 @@ public sealed class VaccinationRecord : AggregateRoot
         int? totalDoses = null,
         string? batchNumber = null,
         string? visitId = null,
-        string? notes = null)
+        string? notes = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -120,7 +121,7 @@ public sealed class VaccinationRecord : AggregateRoot
         var now = clock.UtcNow;
         var record = new VaccinationRecord
         {
-            Id = IdGenerator.NewId(now),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             PetId = petId,
             VaccineCode = code,

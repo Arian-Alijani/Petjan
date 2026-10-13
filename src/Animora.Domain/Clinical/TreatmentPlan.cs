@@ -117,7 +117,8 @@ public sealed class TreatmentPlan : AggregateRoot
     /// <summary>Lifecycle marker.</summary>
     public TreatmentPlanState State { get; private set; } = TreatmentPlanState.Active;
 
-    /// <summary>Creates a plan and expands <paramref name="schedule"/> into its occurrences.</summary>
+    /// <summary>Creates a plan and expands <paramref name="schedule"/> into its occurrences. <paramref name="id"/> / <paramref name="occurrenceId"/>
+    /// (index → id) are the deterministic ids derived from the creating command's operation so client and server agree; <see langword="null"/> mints fresh ULIDs.</summary>
     /// <param name="today">The clinic-local day, used to bound the schedule.</param>
     public static Result<TreatmentPlanDraft> Create(
         string tenantId,
@@ -132,7 +133,9 @@ public sealed class TreatmentPlan : AggregateRoot
         string? vaccineCode = null,
         string? dosage = null,
         string? notes = null,
-        bool notifyOwner = false)
+        bool notifyOwner = false,
+        string? id = null,
+        Func<int, string?>? occurrenceId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -155,7 +158,7 @@ public sealed class TreatmentPlan : AggregateRoot
         var now = clock.UtcNow;
         var plan = new TreatmentPlan
         {
-            Id = IdGenerator.NewId(now),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             PetId = petId,
             ItemType = itemType,
@@ -172,7 +175,7 @@ public sealed class TreatmentPlan : AggregateRoot
         };
 
         var occurrences = days.Value!
-            .Select((day, index) => TreatmentOccurrence.Create(tenantId, plan.Id, day, index, now))
+            .Select((day, index) => TreatmentOccurrence.Create(tenantId, plan.Id, day, index, now, occurrenceId?.Invoke(index)))
             .ToArray();
         return Result<TreatmentPlanDraft>.Ok(new TreatmentPlanDraft(plan, occurrences));
     }
@@ -281,14 +284,15 @@ public sealed class TreatmentOccurrence : SyncableEntity
     public string? DoneByUserId { get; private set; }
 
     /// <summary>Creates a pending occurrence.</summary>
-    public static TreatmentOccurrence Create(string tenantId, string planId, DateOnly dueDay, int sortOrder, DateTimeOffset at)
+    public static TreatmentOccurrence Create(string tenantId, string planId, DateOnly dueDay, int sortOrder, DateTimeOffset at,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(planId);
 
         return new TreatmentOccurrence
         {
-            Id = IdGenerator.NewId(at),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(at) : id,
             TenantId = tenantId,
             PlanId = planId,
             DueDay = dueDay,

@@ -64,7 +64,8 @@ public sealed class VaccineCatalogItem : AggregateRoot
         int totalDoses = 1,
         int boosterDays = VaccineSchedule.AnnualBoosterDays,
         int stock = 0,
-        int minStock = 0)
+        int minStock = 0,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
@@ -82,7 +83,7 @@ public sealed class VaccineCatalogItem : AggregateRoot
 
         return Result<VaccineCatalogItem>.Ok(new VaccineCatalogItem
         {
-            Id = IdGenerator.NewId(createdUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(createdUtc) : id,
             TenantId = tenantId,
             Code = normalized,
             Name = name.Trim(),

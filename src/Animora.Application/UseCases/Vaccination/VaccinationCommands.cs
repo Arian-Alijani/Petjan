@@ -7,6 +7,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 
@@ -49,13 +50,14 @@ public sealed class MarkVaccinationDoneCommandHandler(IVaccinationRepository rec
                 return Result<string>.Fail(ErrorCodes.VaccinationAlreadyDone);
             var administered = VaccinationRecord.Administer(context.TenantId, record.PetId,
                 record.VaccineCode, record.VaccineName, nextDose, clock.UtcNow, context.UserId,
-                clock, total, visitId: record.VisitId);
+                clock, total, visitId: record.VisitId,
+                id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
             if (administered.IsFailure) return Result<string>.Fail(administered.Error);
             records.Add(administered.Value!);
         }
         history.Add(new MedicalHistoryEntry(context.TenantId, record.PetId, MedicalHistoryKind.Vaccination,
             VaccinationHistoryTitles.DoseAdministered, clock.UtcNow, context.UserId, clock, record.VaccineName,
-            record.Id, "VaccinationRecord"));
+            record.Id, "VaccinationRecord", id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow)));
         return Result<string>.Ok(record.Id);
     }
 }
@@ -93,7 +95,7 @@ public sealed class RecordVaccinationReminderCommandHandler(IVaccinationReposito
         // Audit only; this operation does not send a message or claim successful delivery.
         history.Add(new MedicalHistoryEntry(context.TenantId, record.PetId, MedicalHistoryKind.Vaccination,
             VaccinationHistoryTitles.ReminderProduced, clock.UtcNow, context.UserId, clock, c.Message,
-            record.Id, "VaccinationRecord"));
+            record.Id, "VaccinationRecord", id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow)));
         return Result<string>.Ok(record.Id);
     }
 }
