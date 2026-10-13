@@ -7,13 +7,20 @@ namespace Animora.Server.Authorization;
 /// <summary>
 /// Fail-closed resolution order (S05): primary-key user lookup (tenant not yet known) → stamp →
 /// disabled → <b>bind the tenant from the stored user</b> → active membership → tenant status → device.
-/// The token's <c>tid</c>/<c>role</c> claims are never inputs. There is deliberately no cache.
+/// The token's <c>tid</c>/<c>role</c> claims are never inputs.
+/// <para>
+/// PERF-AUTHZ-01: the membership + device lookups run on the READ pool (<see cref="IIdentityReadStore"/>) and a
+/// successful resolution is remembered for <c>Server:AuthCache:TtlSeconds</c> (absolute TTL, keyed by
+/// user + device + token stamp; failures are never cached). The tenant is still bound from the stored user on a
+/// cache hit, so the tenant-filtered DbContexts keep failing closed.
+/// </para>
 /// </summary>
 internal sealed class MembershipResolver(
     IUserLookup users,
     RequestTenantContext tenantContext,
-    IIdentityRepository repository,
-    ITenantDirectory tenants) : IMembershipResolver
+    IIdentityReadStore repository,
+    ITenantDirectory tenants,
+    AuthzDecisionCache cache) : IMembershipResolver
 {
     /// <inheritdoc />
     public async Task<Result<ResolvedMembership>> ResolveAsync(
@@ -25,6 +32,13 @@ internal sealed class MembershipResolver(
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(securityStamp);
+
+        if (cache.TryGetMembership(userId, deviceId, securityStamp, out ResolvedMembership? cached) && cached is not null)
+        {
+            // The cached verdict was produced from the stored user/membership/tenant/device; bind the same stored tenant.
+            tenantContext.Bind(cached.TenantId);
+            return Result<ResolvedMembership>.Ok(cached);
+        }
 
         // 1. The tenant is not known yet, so the main (tenant-filtered) context cannot be used: read the user by
         //    primary key through the keyless lookup — one addressed row, no enumeration.
@@ -71,7 +85,8 @@ internal sealed class MembershipResolver(
             return Result<ResolvedMembership>.Fail(ErrorCodes.DeviceRevoked);
         }
 
-        return Result<ResolvedMembership>.Ok(
-            new ResolvedMembership(user.TenantId, membership.Role, user.Id, device.Id, device.IsUsable));
+        var resolved = new ResolvedMembership(user.TenantId, membership.Role, user.Id, device.Id, device.IsUsable);
+        cache.SetMembership(userId, deviceId, securityStamp, resolved);
+        return Result<ResolvedMembership>.Ok(resolved);
     }
 }

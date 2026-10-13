@@ -38,6 +38,8 @@ public sealed class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
 
         if (options.WorkerMax < 1) failures.Add("Database:WorkerMax must be >= 1.");
 
+        if (options.PoolWaitSeconds is < 1 or > 60) failures.Add("Database:PoolWaitSeconds must be between 1 and 60.");
+
         if (options.ProfileGiB is not (2 or 4))
         {
             failures.Add("Database:ProfileGiB must be 2 or 4.");

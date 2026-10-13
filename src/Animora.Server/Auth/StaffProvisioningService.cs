@@ -30,7 +30,8 @@ internal sealed class StaffProvisioningService(
     IPermissionEvaluator permissions,
     IPasswordHasher<ServerIdentityUser> hasher,
     ISecurityAuditWriter audit,
-    IClock clock)
+    IClock clock,
+    AuthzDecisionCache decisions)
 {
     /// <summary>Audit action: a staff user was created.</summary>
     public const string StaffCreatedAction = "auth.staff.created";
@@ -156,7 +157,9 @@ internal sealed class StaffProvisioningService(
             user.Disable();
         }
 
-        return await AuditAsync(actor, StaffStatusAction, correlationId, user.Id, ct).ConfigureAwait(false);
+        Result statusSaved = await AuditAsync(actor, StaffStatusAction, correlationId, user.Id, ct).ConfigureAwait(false);
+        if (statusSaved.IsSuccess) decisions.InvalidateUser(user.Id);
+        return statusSaved;
     }
 
     /// <summary>Replaces a membership's effective permission set by recording grant/deny overrides over the role.</summary>
@@ -219,7 +222,9 @@ internal sealed class StaffProvisioningService(
 
         // Invalidate every outstanding token/capability snapshot so the new access applies on the next sign-in.
         user.RotateSecurityStamp();
-        return await AuditAsync(actor, StaffPermissionsAction, correlationId, user.Id, ct).ConfigureAwait(false);
+        Result accessSaved = await AuditAsync(actor, StaffPermissionsAction, correlationId, user.Id, ct).ConfigureAwait(false);
+        if (accessSaved.IsSuccess) decisions.InvalidateUser(user.Id);
+        return accessSaved;
     }
 
     /// <summary>Reads the tenant roster, role catalogue and the caller's management capabilities.</summary>

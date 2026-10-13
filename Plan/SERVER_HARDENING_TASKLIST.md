@@ -196,7 +196,7 @@
 - **Push**: `scripts/git/push.sh "sec(server): durable shared provisioning replay window, drop fail-closed self-DoS (A3 SCALE-STATE-01)"`
 - **Done note**: DONE. Rewrote `Provisioning/ReplayWindow.cs`: at capacity it now SHEDS the oldest live entry (FIFO queue, O(1) expiry) instead of denying all traffic, removing the provisioning self-DoS; replay exposure stays bounded by the +/-5-min HMAC window. XML doc lists the per-process single-instance components (ReplayWindow, AdminStatusCache, CircuitBreaker, WorkerFailureLogGate, QueryBudget, rate-limit partitions) and carries `TODO(multi-instance)` for the shared DB/Redis store (out of scope: would need a schema migration). Regression test updated (shed instead of deny). Not compiled locally (CI only).
 
-### [ ] A4 · PERF-AUTHZ-01 + CONS-ENT-01 — Cache authZ/entitlement, read-pool lookups, drop duplicate entitlement check (HIGH)
+### [x] A4 · PERF-AUTHZ-01 + CONS-ENT-01 — Cache authZ/entitlement, read-pool lookups, drop duplicate entitlement check (HIGH)
 - **Why**: Every authenticated tenant-bound request runs `MembershipResolver`
   (`Authorization/MembershipResolver.cs:31-72`, 4 reads: user-by-id, membership,
   tenant, device — each "deliberately no cache") PLUS `EntitlementMiddleware`
@@ -227,7 +227,7 @@
 - **Accept**: authZ/entitlement cached per short TTL; lookups on read pool; single
   entitlement evaluation per command path.
 - **Push**: `scripts/git/push.sh "perf(server): cache+read-pool authZ/entitlement, drop duplicate entitlement check (A4 PERF-AUTHZ-01/CONS-ENT-01)"`
-- **Done note**: _______
+- **Done note**: DONE. New `Authorization/AuthzDecisionCache.cs` (absolute-TTL, bounded, per-process; `Server:AuthCache:TtlSeconds` default 10, 0 disables) caches ONLY successful membership resolutions (key = user+device+token stamp, so a rotated stamp is always a miss) and positive entitlement verdicts (tenant+device). Explicit invalidation on device approve/revoke/reinstate, staff status/permission changes, operator subscription/licence mutations (admin + operator API) so suspension/revocation is immediate on this instance and converges within the TTL elsewhere. `MembershipResolver` now uses new `IIdentityReadStore` (membership + device lookups on the OLTP READ pool, no tracking); entitlement gate already reads via `AnimoraEntitlementReadContext` (read pool). CONS-ENT-01: `EntitlementMiddleware` skips POST `/api/commands*`; the command-type-aware check in `CommandIntakeService` is the single authoritative one there. Npgsql pool wait is bounded (`Database:PoolWaitSeconds`, default 5, validated 1..60) and pool exhaustion maps to typed 503 `SERVER_BUSY` + Retry-After in `GlobalExceptionMiddleware` via `DatabaseFailure.IsPoolExhausted`. Tests: `AuthzDecisionCacheTests`; test hosts set TtlSeconds=0 and register a fake read store. Not compiled locally (CI only).
 
 ### [ ] A5 · PERF-QB-01 — Size/partition the reporting query budget (HIGH)
 - **Why**: `Observability/QueryBudget.cs:19-20` uses `SemaphoreSlim(1,1)` for
@@ -560,7 +560,7 @@
 | A1 | SCALE-ADM-01 | BLOCKER | [x] |
 | A2 | SEC-RL-01 / SEC-FWD-01 / CONS-RL-01 | BLOCKER/HIGH | [x] |
 | A3 | SCALE-STATE-01 | CRITICAL | [x] |
-| A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [ ] |
+| A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [x] |
 | A5 | PERF-QB-01 | HIGH | [ ] |
 | B1 | BUG-PIPE-01 | HIGH | [ ] |
 | B2 | SEC-STAMP-01 | MEDIUM | [ ] |

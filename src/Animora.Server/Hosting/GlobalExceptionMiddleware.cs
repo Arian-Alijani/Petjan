@@ -34,6 +34,19 @@ internal sealed class GlobalExceptionMiddleware(
             // The client went away; there is no one to write a body for.
             logger.LogDebug("Request {CorrelationId} aborted by the client.", correlationId);
         }
+        catch (Exception ex) when (!context.Response.HasStarted
+            && Animora.Persistence.PostgreSql.Context.DatabaseFailure.IsPoolExhausted(ex))
+        {
+            // PERF-AUTHZ-01: pool exhaustion fails fast (Database:PoolWaitSeconds) as a typed, retryable 503.
+            logger.LogWarning("Database pool exhausted for request {CorrelationId}; shedding with 503.", correlationId);
+            context.Response.Clear();
+            CorrelationHeader.Echo(context, correlationId);
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.Headers.RetryAfter = "1";
+            await context.Response.WriteAsJsonAsync(
+                new WireApiError(ServerErrorCodes.ServerBusy, null, NoFields, correlationId),
+                context.RequestAborted).ConfigureAwait(false);
+        }
         catch (Exception ex)
         {
             logger.LogError("Unhandled {FailureClass} for request {CorrelationId}.", ex.GetType().Name, correlationId);

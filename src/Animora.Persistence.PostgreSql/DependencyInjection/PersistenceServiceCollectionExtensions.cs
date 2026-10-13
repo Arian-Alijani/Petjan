@@ -141,6 +141,7 @@ public static class PersistenceServiceCollectionExtensions
         options.KeyRingMax = ReadInt(section, nameof(DatabaseOptions.KeyRingMax), options.KeyRingMax);
         options.WorkerMax = ReadInt(section, nameof(DatabaseOptions.WorkerMax), options.WorkerMax);
         options.ProfileGiB = ReadInt(section, nameof(DatabaseOptions.ProfileGiB), options.ProfileGiB);
+        options.PoolWaitSeconds = ReadInt(section, nameof(DatabaseOptions.PoolWaitSeconds), options.PoolWaitSeconds);
     }
 
     private static int ReadInt(IConfigurationSection section, string key, int fallback) =>
@@ -166,6 +167,8 @@ public static class PersistenceServiceCollectionExtensions
             MaxPoolSize = maxPoolSize(options),
             MinPoolSize = 0,
             CommandTimeout = CommandTimeoutSeconds,
+            // PERF-AUTHZ-01: bounded wait for a pooled connection so exhaustion fails fast (typed 503).
+            Timeout = Math.Clamp(options.PoolWaitSeconds, 1, 60),
         };
 
         return new NpgsqlDataSourceBuilder(builder.ConnectionString) { Name=ApplicationName+"/"+poolName }.Build();

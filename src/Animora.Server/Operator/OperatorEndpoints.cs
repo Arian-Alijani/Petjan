@@ -109,12 +109,13 @@ internal static class OperatorEndpoints
         {
             var action = operation;
             secured.MapPost("/tenants/{id}/subscription/" + action, async (string id, SubscriptionMutation r,
-                ISubscriptionService service, HttpContext http, CancellationToken ct) =>
+                ISubscriptionService service, Animora.Server.Authorization.AuthzDecisionCache decisions, HttpContext http, CancellationToken ct) =>
             {
                 var stamp = http.Request.Headers.IfMatch.ToString();
                 if (string.IsNullOrWhiteSpace(stamp)) return Failure(ErrorCodes.ConcurrencyConflict, http);
                 var result = await service.MutateAsync(id, stamp, r with { Operation = action }, Actor(http), ct).ConfigureAwait(false);
                 if (result.IsFailure) return Failure(result.Error, http);
+                decisions.InvalidateTenant(id); // PERF-AUTHZ-01: suspension/cancel is effective immediately on this instance.
                 if (result.Value is { } s) http.Response.Headers.ETag = '"' + s.ConcurrencyStamp + '"';
                 return Results.Ok(result.Value);
             });

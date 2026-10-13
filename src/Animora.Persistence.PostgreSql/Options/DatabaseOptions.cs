@@ -29,4 +29,10 @@ public sealed class DatabaseOptions
     public int PoolSum => OltpWriteMax + OltpReadMax + KeyRingMax + WorkerMax;
 
     public int ProfileGiB { get; set; } = 2;
+
+    /// <summary>
+    /// How long a request waits for a free pooled connection (Npgsql <c>Timeout</c>) before failing fast.
+    /// Pool exhaustion then surfaces as a typed 503 + Retry-After instead of hanging up to the 30 s command timeout.
+    /// </summary>
+    public int PoolWaitSeconds { get; set; } = 5;
 }

@@ -46,6 +46,16 @@ internal sealed class FakeUserLookup(FakeIdentityRepository repository) : IUserL
     }
 }
 
+/// <summary>Read-pool identity lookups over the identity fake (what <c>IdentityReadStore</c> does over PostgreSQL).</summary>
+internal sealed class FakeIdentityReadStore(FakeIdentityRepository repository) : IIdentityReadStore
+{
+    public Task<StaffMembership?> FindActiveMembershipAsync(string userId, CancellationToken ct = default) =>
+        repository.FindActiveMembershipAsync(userId, ct);
+
+    public Task<Device?> FindDeviceByIdAsync(string deviceId, CancellationToken ct = default) =>
+        repository.FindDeviceByIdAsync(deviceId, ct);
+}
+
 /// <summary>A real ECDSA signer with an in-memory key row, standing in for the PostgreSQL-backed key store.</summary>
 internal sealed class FakeSignerProvider : ISnapshotSignerProvider
 {
@@ -175,6 +185,8 @@ internal sealed class AuthzHost : IAsyncDisposable
                     ["Server:DataRootPath"] = _dataRoot,
                     ["Server:RateLimits:Auth:PermitLimit"] = "100000",
                     ["Server:RateLimits:Auth:WindowSeconds"] = "60",
+                    // Suspension/revocation tests mutate the world between requests: verdicts must not be cached.
+                    ["Server:AuthCache:TtlSeconds"] = "0",
                 }));
 
             builder.ConfigureServices(services =>
@@ -184,6 +196,7 @@ internal sealed class AuthzHost : IAsyncDisposable
 
                 services.AddScoped<IUserLookup>(_ => new FakeUserLookup(world.Repository));
                 services.AddScoped<IIdentityRepository>(_ => world.Repository);
+                services.AddScoped<IIdentityReadStore>(_ => new FakeIdentityReadStore(world.Repository));
                 services.AddScoped<ITenantDirectory>(_ => world.Tenants);
                 services.AddScoped<ISecurityAuditWriter>(_ => world.Audit);
                 services.AddScoped<IStaffMembershipRepository>(_ => world.Rbac);

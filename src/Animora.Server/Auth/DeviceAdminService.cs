@@ -21,7 +21,8 @@ internal sealed class DeviceAdminService(
     ISecurityAuditWriter audit,
     ServerAuthorizationSubjectFactory subjects,
     ISnapshotSignerProvider signers,
-    IClock clock)
+    IClock clock,
+    AuthzDecisionCache decisions)
 {
     /// <summary>Audit action: a device was approved.</summary>
     public const string DeviceApprovedAction = "auth.device.approved";
@@ -62,6 +63,7 @@ internal sealed class DeviceAdminService(
 
         device.Approve();
         Result saved = await AuditAsync(actor, DeviceApprovedAction, correlationId, device.Id, ct).ConfigureAwait(false);
+        if (saved.IsSuccess) decisions.InvalidateUser(device.UserId);
         return saved.IsFailure
             ? Result<DeviceRegisterResponse>.Fail(saved.Error)
             : Result<DeviceRegisterResponse>.Ok(new DeviceRegisterResponse(device.Id, device.Status.ToString()));
@@ -104,6 +106,8 @@ internal sealed class DeviceAdminService(
         owner?.RotateSecurityStamp();
 
         Result saved = await AuditAsync(actor, DeviceRevokedAction, correlationId, device.Id, ct).ConfigureAwait(false);
+        // PERF-AUTHZ-01: the owner's cached membership (old stamp / device state) must not outlive the revocation.
+        if (saved.IsSuccess) decisions.InvalidateUser(device.UserId);
         return saved.IsFailure
             ? Result<DeviceRegisterResponse>.Fail(saved.Error)
             : Result<DeviceRegisterResponse>.Ok(new DeviceRegisterResponse(device.Id, device.Status.ToString()));
@@ -135,6 +139,7 @@ internal sealed class DeviceAdminService(
 
         device.Reinstate();
         Result saved = await AuditAsync(actor, DeviceReinstatedAction, correlationId, device.Id, ct).ConfigureAwait(false);
+        if (saved.IsSuccess) decisions.InvalidateUser(device.UserId);
         return saved.IsFailure
             ? Result<DeviceRegisterResponse>.Fail(saved.Error)
             : Result<DeviceRegisterResponse>.Ok(new DeviceRegisterResponse(device.Id, device.Status.ToString()));

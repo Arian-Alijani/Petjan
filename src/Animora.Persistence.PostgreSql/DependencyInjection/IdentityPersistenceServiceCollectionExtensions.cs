@@ -37,6 +37,7 @@ public static class IdentityPersistenceServiceCollectionExtensions
         services.AddScoped<IUserLookup, UserLookup>();
 
         services.AddScoped<IIdentityRepository, EfIdentityRepository>();
+        services.AddScoped<IIdentityReadStore, IdentityReadStore>();
         services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
         services.AddScoped<RefreshTokenService>();
         services.AddScoped<ISecurityAuditWriter, SecurityAuditWriter>();

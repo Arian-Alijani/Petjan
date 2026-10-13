@@ -29,6 +29,23 @@ internal sealed class ServerOptions
 
     /// <summary>Trusted-proxy / forwarded-headers configuration (SEC-FWD-01).</summary>
     public ForwardedHeadersSettings ForwardedHeaders { get; set; } = new();
+
+    /// <summary>Short-TTL authorization/entitlement verdict cache (PERF-AUTHZ-01).</summary>
+    public AuthCacheSettings AuthCache { get; set; } = new();
+}
+
+/// <summary>
+/// PERF-AUTHZ-01: bounds of the per-process authZ/entitlement verdict cache. A cached positive verdict can
+/// lag a tenant suspension / licence revocation by at most <see cref="TtlSeconds"/>; <c>0</c> disables caching
+/// (every request re-reads the store).
+/// </summary>
+internal sealed class AuthCacheSettings
+{
+    /// <summary>Absolute lifetime of a cached positive verdict, 0..60 seconds. Default 10.</summary>
+    public int TtlSeconds { get; set; } = 10;
+
+    /// <summary>Upper bound of cached entries per map (memory bound). Default 10 000.</summary>
+    public int MaxEntries { get; set; } = 10_000;
 }
 
 /// <summary>

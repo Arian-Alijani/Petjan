@@ -14,6 +14,9 @@ internal static class ServerErrorCodes
     public const string FileNotAvailable = "FILE_NOT_AVAILABLE";
     public const string Unexpected = "UNEXPECTED";
 
+    /// <summary>Capacity shed (pool exhausted / gate full): HTTP 503 + Retry-After. Mirrors <c>ErrorCodes.ServerBusy</c>.</summary>
+    public const string ServerBusy = "SERVER_BUSY";
+
     /// <summary>A named rate-limit policy rejected the request (HTTP 429).</summary>
     public const string RateLimited = "RATE_LIMITED";
 }

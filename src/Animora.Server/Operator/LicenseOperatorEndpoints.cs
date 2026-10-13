@@ -23,9 +23,13 @@ internal static class LicenseOperatorEndpoints
                 OperatorEndpoints.Number(http, "pageSize", 50, 200), OperatorEndpoints.Actor(http), CorrelationHeader.Resolve(http), ct).ConfigureAwait(false));
         });
         group.MapPost("/tenants/{id}/licenses/{licenseId}/revoke", async (string id, string licenseId, LicenseRevokeRequest r,
-            LicenseAdministration administration, HttpContext http, CancellationToken ct) => OperatorEndpoints.ToHttp(
-                await administration.RevokeAsync(id, licenseId, http.Request.Headers.IfMatch.ToString(), r.Reason,
-                    OperatorEndpoints.Actor(http), CorrelationHeader.Resolve(http), ct).ConfigureAwait(false), http));
+            LicenseAdministration administration, AuthzDecisionCache decisions, HttpContext http, CancellationToken ct) =>
+        {
+            var revoked = await administration.RevokeAsync(id, licenseId, http.Request.Headers.IfMatch.ToString(), r.Reason,
+                OperatorEndpoints.Actor(http), CorrelationHeader.Resolve(http), ct).ConfigureAwait(false);
+            if (revoked.IsSuccess) decisions.InvalidateTenant(id); // PERF-AUTHZ-01
+            return OperatorEndpoints.ToHttp(revoked, http);
+        });
         group.MapPost("/tenants/{id}/licenses/recheck", async (string id, LicenseAdministration administration,
             HttpContext http, CancellationToken ct) => OperatorEndpoints.ToHttp(await administration.RecheckAsync(id,
                 http.Request.Headers.IfMatch.ToString(), OperatorEndpoints.Actor(http), CorrelationHeader.Resolve(http), ct).ConfigureAwait(false), http));

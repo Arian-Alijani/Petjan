@@ -24,7 +24,7 @@ internal sealed class AdminHost : IDisposable
             builder.UseEnvironment("Development");
             builder.ConfigureAppConfiguration((_,c)=>c.AddInMemoryCollection(new Dictionary<string,string?> {
                 ["Server:DataRootPath"]=_root,["Database:ConnectionString"]=connection??"Host=127.0.0.1;Database=unavailable;Username=none;Password=none",
-                ["Telemetry:Enabled"]="false" }));
+                ["Telemetry:Enabled"]="false",["Server:AuthCache:TtlSeconds"]="0" }));
             builder.ConfigureServices(s=>
             {
                 // Isolate request behavior: workers/bootstrap are independently tested by their own gates.

@@ -35,6 +35,8 @@ internal static class AuthorizationServiceCollectionExtensions
         services.TryAddScoped<IPermissionEvaluator, PermissionEvaluator>();
 
         // Tenant binding + per-request state.
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<AuthzDecisionCache>();
         services.AddScoped<IMembershipResolver, MembershipResolver>();
         services.AddScoped<ServerAuthorizationSubjectFactory>();
         services.AddScoped<IRequestAuthorizationState, RequestAuthorizationState>();

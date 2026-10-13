@@ -5,7 +5,7 @@ using Animora.Web.Admin.Ports;
 namespace Animora.Server.Admin;
 
 internal sealed class AdminSubscriptionAdapter(ISubscriptionService subscriptions,OwnerCredentialAdministration owners,
-    ProvisioningEngine provisioning,AdminSession session) : IAdminSubscriptionCommands
+    ProvisioningEngine provisioning,AdminSession session,Animora.Server.Authorization.AuthzDecisionCache? decisions=null) : IAdminSubscriptionCommands
 {
     public async Task<Result<MutationReceipt>> MutateAsync(string id,string operation,SubscriptionActionForm form,CancellationToken ct=default)
     {
@@ -19,6 +19,8 @@ internal sealed class AdminSubscriptionAdapter(ISubscriptionService subscription
         DateTimeOffset? until=form.Until is { } date?new DateTimeOffset(DateTime.SpecifyKind(date,DateTimeKind.Utc)):null;
         var result=await subscriptions.MutateAsync(id,form.Stamp,new(operation,form.Days,until,form.Reason??string.Empty,true,form.Seats,
             string.IsNullOrWhiteSpace(form.PlanCode)?null:form.PlanCode),actor,ct).ConfigureAwait(false);
+        // PERF-AUTHZ-01: suspension/cancel/plan changes must take effect on this instance immediately, not after the cache TTL.
+        if(result.IsSuccess)decisions?.InvalidateTenant(id);
         return result.Map(_=>new MutationReceipt());
     }
     public async Task<Result<MutationReceipt>> CreateTenantAsync(CreateTenantForm form,string idempotencyKey,CancellationToken ct=default)

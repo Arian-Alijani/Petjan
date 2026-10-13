@@ -17,7 +17,12 @@ internal sealed class EntitlementMiddleware(RequestDelegate next)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        if (context.Request.Path.StartsWithSegments(ServerRoutes.Admin) || ServerEntitlementGate.IsExempt(context.Request.Path)
+        // CONS-ENT-01: AUTHORITATIVE entitlement check for command submissions is the command-type-aware one inside
+        // CommandIntakeService (it must run per envelope, incl. batches). Evaluating the coarse check here too would
+        // double the per-command cost, so POST /api/commands* skips this stage; every other route is gated here.
+        bool commandSubmission = HttpMethods.IsPost(context.Request.Method)
+            && context.Request.Path.StartsWithSegments(ServerRoutes.Commands, StringComparison.OrdinalIgnoreCase);
+        if (commandSubmission || context.Request.Path.StartsWithSegments(ServerRoutes.Admin) || ServerEntitlementGate.IsExempt(context.Request.Path)
             || state.Membership is not { } membership)
         {
             await next(context).ConfigureAwait(false);

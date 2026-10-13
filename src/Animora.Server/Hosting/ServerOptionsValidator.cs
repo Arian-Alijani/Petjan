@@ -55,6 +55,17 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
             failures.Add($"'{ServerOptions.SectionName}:{nameof(ServerOptions.ForwardedHeaders)}:{nameof(ForwardedHeadersSettings.ForwardLimit)}' must be greater than 0.");
         }
 
+        var cache = options.AuthCache;
+        if (cache.TtlSeconds is < 0 or > 60)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:AuthCache:TtlSeconds' must be between 0 and 60.");
+        }
+
+        if (cache.MaxEntries < 1)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:AuthCache:MaxEntries' must be at least 1.");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
