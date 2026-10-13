@@ -15,6 +15,9 @@ internal sealed class OperatorBootstrapper(IServiceScopeFactory scopes, ILogger<
         // Deliberately read only environment variables; configuration providers cannot bootstrap credentials.
         var userName = Environment.GetEnvironmentVariable("Operator__BootstrapUserName");
         var password = Environment.GetEnvironmentVariable("Operator__BootstrapPassword");
+        // SEC-OPER-01 (defense-in-depth): the bootstrap password stays in the process environment after this runs; a
+        // process cannot reliably scrub a parent-provided env var. Operators should unset
+        // Operator__BootstrapUserName / Operator__BootstrapPassword after first boot (see the server runbook).
         if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrEmpty(password)) return;
         if (userName.Trim().Length > 64 || PasswordPolicy.Validate(password).IsFailure)
             throw new InvalidOperationException("Invalid operator bootstrap configuration.");
