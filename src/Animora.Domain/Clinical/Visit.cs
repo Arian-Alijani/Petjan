@@ -141,7 +141,8 @@ public sealed class Visit : AggregateRoot
     /// <summary><see langword="true"/> once the lines may no longer change.</summary>
     public bool AreLinesLocked => State >= VisitState.Invoiced;
 
-    /// <summary>Opens an encounter in <see cref="VisitState.Draft"/>.</summary>
+    /// <summary>Opens an encounter in <see cref="VisitState.Draft"/>. <paramref name="id"/> is the deterministic id derived from the
+    /// creating command's operation (<see cref="IdGenerator.ForOperation"/>) so client and server agree; <see langword="null"/> mints a fresh ULID.</summary>
     public static Visit Open(
         string tenantId,
         string petId,
@@ -150,7 +151,8 @@ public sealed class Visit : AggregateRoot
         VisitReason reason,
         IClock clock,
         string? appointmentId = null,
-        string? chiefComplaint = null)
+        string? chiefComplaint = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -161,7 +163,7 @@ public sealed class Visit : AggregateRoot
         var now = clock.UtcNow;
         return new Visit
         {
-            Id = IdGenerator.NewId(now),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             PetId = petId,
             OwnerId = ownerId,

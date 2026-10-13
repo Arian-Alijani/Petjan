@@ -59,7 +59,8 @@ public sealed class MedicalHistoryEntry : SyncableEntity
         IClock clock,
         string? detail = null,
         string? sourceEntityId = null,
-        string? sourceEntityType = null)
+        string? sourceEntityType = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -67,7 +68,7 @@ public sealed class MedicalHistoryEntry : SyncableEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(recordedByUserId);
         ArgumentNullException.ThrowIfNull(clock);
 
-        Id = IdGenerator.NewId(clock.UtcNow);
+        Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(clock.UtcNow) : id;
         TenantId = tenantId;
         PetId = petId;
         Kind = kind;

@@ -9,6 +9,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Scheduling;
 using Animora.Domain.Time;
@@ -74,7 +75,8 @@ public sealed class BookAppointmentCommandHandler(IAppointmentRepository reposit
         var start = new DateTimeOffset(ClinicCalendar.ToUtcTicks(c.Date, c.StartMinutes,
             zones.GetClinicTimeZone()), TimeSpan.Zero);
         var booked = Appointment.Book(context.TenantId, c.PetId, c.OwnerId, c.TypeId, start,
-            c.DurationMinutes, AppointmentSource.Phone, context.UserId, clock, c.DoctorId, c.Note);
+            c.DurationMinutes, AppointmentSource.Phone, context.UserId, clock, c.DoctorId, c.Note,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (booked.IsFailure) return Result<string>.Fail(booked.Error, booked.Detail);
         repository.Add(booked.Value!);
         return Result<string>.Ok(booked.Value!.Id);
@@ -195,11 +197,13 @@ public sealed class CreateBookingPatientCommandHandler(IOwnerRepository owners, 
         var owner = await owners.FindByPhoneAsync(Owner.NormalizePhone(c.Phone), ct);
         if (owner is null)
         {
-            owner = Owner.Register(context.TenantId, c.OwnerName, c.Phone, clock);
+            owner = Owner.Register(context.TenantId, c.OwnerName, c.Phone, clock,
+                id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
             owners.Add(owner);
         }
         var species = Enum.TryParse<PetSpecies>(c.Kind, true, out var parsed) ? parsed : PetSpecies.Other;
-        var pet = Pet.Register(context.TenantId, owner.Id, c.Name, species, clock);
+        var pet = Pet.Register(context.TenantId, owner.Id, c.Name, species, clock,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         pets.Add(pet);
         return Result<string>.Ok(pet.Id);
     }

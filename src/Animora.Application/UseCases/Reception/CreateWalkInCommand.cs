@@ -7,6 +7,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Scheduling;
 using Animora.Domain.Time;
@@ -76,21 +77,24 @@ public sealed class CreateWalkInCommandHandler(
         var owner = await owners.FindByPhoneAsync(normalizedPhone, ct);
         if (owner is null)
         {
-            owner = Owner.Register(context.TenantId, c.OwnerName, c.Phone, clock);
+            owner = Owner.Register(context.TenantId, c.OwnerName, c.Phone, clock,
+                id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
             owners.Add(owner);
         }
 
         var pet = await pets.FindByOwnerAndNameAsync(owner.Id, c.PatientName, ct);
         if (pet is null)
         {
-            pet = Pet.Register(context.TenantId, owner.Id, c.PatientName, PetSpecies.Other, clock);
+            pet = Pet.Register(context.TenantId, owner.Id, c.PatientName, PetSpecies.Other, clock,
+                id: IdGenerator.ForOperation(context.OperationId, 2, clock.UtcNow));
             pets.Add(pet);
         }
 
         var ticketNumber = await ReceptionTicketWork.NextTicketNumberAsync(queue, clock, ct);
         var priority = c.IsUrgent ? ReceptionQueueEntry.PriorityEmergency : ReceptionQueueEntry.PriorityNormal;
         var entry = ReceptionQueueEntry.Create(
-            context.TenantId, pet.Id, owner.Id, QueueSource.WalkIn, ticketNumber, clock, priority: priority);
+            context.TenantId, pet.Id, owner.Id, QueueSource.WalkIn, ticketNumber, clock, priority: priority,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         queue.Add(entry);
 
         // Attribute the calling doctor immediately when one was chosen (Waiting → Called).

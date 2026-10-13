@@ -10,6 +10,7 @@ using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Scheduling;
 using Animora.Domain.Time;
@@ -83,7 +84,8 @@ public sealed class StartVisitFromTicketCommandHandler(
         {
             var number = await ReceptionTicketWork.NextTicketNumberAsync(queue, clock, ct);
             entry = ReceptionQueueEntry.Create(context.TenantId, pet.Id, owner.Id, QueueSource.Appointment,
-                number, clock, appointmentId: appointment!.Id);
+                number, clock, appointmentId: appointment!.Id,
+                id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
             queue.Add(entry);
         }
         if (entry.State == QueueState.Waiting)
@@ -91,8 +93,9 @@ public sealed class StartVisitFromTicketCommandHandler(
             var called = entry.Call(doctorId, clock);
             if (called.IsFailure) return Result<EncounterDraftReadModel>.Fail(ErrorCodes.TicketStateInvalid);
         }
+        // Deterministic ids (slot 0 = visit, 1 = queue entry): client and server build the same aggregates.
         var visit = Visit.Open(context.TenantId, pet.Id, owner.Id, doctorId, VisitReason.Checkup, clock,
-            appointment?.Id);
+            appointment?.Id, id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         var started = visit.Start();
         if (started.IsFailure) return Result<EncounterDraftReadModel>.Fail(started.Error);
         var moved = entry.StartVisit(visit.Id);
@@ -161,7 +164,8 @@ public sealed class StartNewVisitCommandHandler(
         var owner = await owners.FindByPhoneAsync(Owner.NormalizePhone(c.OwnerPhone), ct);
         if (owner is null)
         {
-            owner = Owner.Register(context.TenantId, c.OwnerName, c.OwnerPhone, clock);
+            owner = Owner.Register(context.TenantId, c.OwnerName, c.OwnerPhone, clock,
+                id: IdGenerator.ForOperation(context.OperationId, 2, clock.UtcNow));
             owners.Add(owner);
         }
         // Reuse an existing animal only when it is an unambiguous single same-named match of the SAME species;
@@ -172,16 +176,18 @@ public sealed class StartNewVisitCommandHandler(
         var pet = sameName.Count == 1 && sameName[0].Species == species ? sameName[0] : null;
         if (pet is null)
         {
-            pet = Pet.Register(context.TenantId, owner.Id, c.PatientName, species, clock);
+            pet = Pet.Register(context.TenantId, owner.Id, c.PatientName, species, clock,
+                id: IdGenerator.ForOperation(context.OperationId, 3, clock.UtcNow));
             pets.Add(pet);
         }
         var number = await ReceptionTicketWork.NextTicketNumberAsync(queue, clock, ct);
         var entry = ReceptionQueueEntry.Create(context.TenantId, pet.Id, owner.Id, QueueSource.WalkIn,
-            number, clock, priority: c.IsUrgent ? ReceptionQueueEntry.PriorityEmergency : ReceptionQueueEntry.PriorityNormal);
+            number, clock, priority: c.IsUrgent ? ReceptionQueueEntry.PriorityEmergency : ReceptionQueueEntry.PriorityNormal,
+            id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
         var called = entry.Call(c.DoctorId, clock);
         if (called.IsFailure) return Result<EncounterDraftReadModel>.Fail(ErrorCodes.TicketStateInvalid);
         var visit = Visit.Open(context.TenantId, pet.Id, owner.Id, c.DoctorId, VisitReason.Checkup, clock,
-            chiefComplaint: c.Note);
+            chiefComplaint: c.Note, id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         var started = visit.Start();
         if (started.IsFailure) return Result<EncounterDraftReadModel>.Fail(started.Error);
         var moved = entry.StartVisit(visit.Id);

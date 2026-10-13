@@ -127,7 +127,8 @@ public sealed class ReceptionQueueEntry : AggregateRoot
         IClock clock,
         string? appointmentId = null,
         int priority = PriorityNormal,
-        string? note = null)
+        string? note = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -137,7 +138,7 @@ public sealed class ReceptionQueueEntry : AggregateRoot
         var now = clock.UtcNow;
         var entry = new ReceptionQueueEntry
         {
-            Id = IdGenerator.NewId(now),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             PetId = petId,
             OwnerId = ownerId,

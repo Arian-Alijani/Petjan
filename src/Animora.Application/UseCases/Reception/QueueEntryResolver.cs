@@ -1,5 +1,6 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Scheduling;
 using Animora.Domain.Time;
@@ -18,7 +19,8 @@ internal static class QueueEntryResolver
         var number = await NextTicketNumberAsync(queue, clock, ct);
         var created = ReceptionQueueEntry.Create(context.TenantId, appointment.PetId, appointment.OwnerId,
             QueueSource.Appointment, number, clock, appointmentId: appointment.Id,
-            priority: ReceptionQueueEntry.PriorityNormal);
+            priority: ReceptionQueueEntry.PriorityNormal,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         queue.Add(created);
         return Result<ReceptionQueueEntry>.Ok(created);
     }

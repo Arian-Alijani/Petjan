@@ -153,7 +153,8 @@ public sealed class Appointment : AggregateRoot
         string createdByUserId,
         IClock clock,
         string? doctorUserId = null,
-        string? note = null)
+        string? note = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -171,7 +172,7 @@ public sealed class Appointment : AggregateRoot
         var now = clock.UtcNow;
         var appointment = new Appointment
         {
-            Id = IdGenerator.NewId(now),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             PetId = petId,
             OwnerId = ownerId,

@@ -142,7 +142,7 @@ public sealed class AddPrescriptionLineCommandHandler(IVisitRepository visits, I
         if (visit is null) return Result<string>.Fail(ErrorCodes.VisitNotFound);
         if (c.Quantity <= 0 || c.UnitPrice < 0 || !Enum.IsDefined(c.Source))
             return Result<string>.Fail(ErrorCodes.ValidationFailed);
-        var id = string.IsNullOrWhiteSpace(c.LineId) ? IdGenerator.NewId(clock.UtcNow) : c.LineId;
+        var id = string.IsNullOrWhiteSpace(c.LineId) ? IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow) : c.LineId;
         if (visit.ServiceLines.Any(line => line.LineId == id))
             return Result<string>.Fail(ErrorCodes.ValidationFailed);
         var line = new VisitServiceLine(id, c.CatalogId, c.Title,
@@ -221,7 +221,8 @@ public sealed class CompleteVisitCommandHandler(IVisitRepository visits, IMedica
         if (completed.IsFailure) return Result<EncounterSummaryReadModel>.Fail(ErrorCodes.VisitIncomplete);
         var completedUtc = visit.CompletedUtc!.Value;
         history.Add(new MedicalHistoryEntry(context.TenantId, visit.PetId, MedicalHistoryKind.Visit,
-            visit.Diagnosis!, completedUtc, visit.DoctorUserId, clock, visit.TreatmentPlan, visit.Id, "Visit"));
+            visit.Diagnosis!, completedUtc, visit.DoctorUserId, clock, visit.TreatmentPlan, visit.Id, "Visit",
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow)));
         var snapshot = JsonSerializer.Serialize(new { ServiceLines = visit.ServiceLines, Prescriptions = visit.Prescriptions });
         handoffs.Add(context.TenantId, visit.Id, visit.OwnerId, visit.PetId, visit.DoctorUserId, completedUtc, snapshot);
         var entry = await queue.FindByVisitAsync(visit.Id, ct);

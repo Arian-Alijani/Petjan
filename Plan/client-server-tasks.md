@@ -180,7 +180,7 @@
 
 ### وضعیت اجرا (به‌روز)
 - [x] **T3a Patients/Owners** — یافته: همان ریشهٔ T2 (id تولیدی در هندلر ⇒ کلاینت/سرور id متفاوت). فیکس: `IdGenerator.ForOperation(operationId, slot, at)` (slot0 = خود OperationId، slotهای بعدی hash قطعی) + پارامتر `id:` در `Owner.Register`/`Pet.Register`/`WeightEntry.Record`؛ `CreateOwner` (owner=slot0, pet=slot1)، `CreatePet`، `AddWeightEntry` از آن استفاده می‌کنند.
-- [ ] T3b Visits/PetFile (+ همین الگوی id قطعی برای Visit/Rx؛ TreatmentPlan/TreatmentOccurrence/VaccineCatalogItem در SyncContractCatalog **حاضرند** ✓)
+- [x] **T3b Visits/PetFile (+ Reception/Scheduling)** — همان ریشهٔ T2/T3a: id تولیدی در هندلر. فیکس: پارامتر `id:` در `Visit.Open`/`ReceptionQueueEntry.Create`/`Appointment.Book`/`MedicalHistoryEntry`؛ `StartNewVisit` (visit=slot0, queue=1, owner=2, pet=3)، `StartVisitFromTicket` (visit=0, queue=1)، `AddPrescriptionLine` (line=slot0 وقتی LineId نیست)، `CompleteVisit` (history=slot0)، `CreateWalkIn`، `BookAppointment`، `CreateBookingPatient`، `QueueEntryResolver` همگی از `IdGenerator.ForOperation` استفاده می‌کنند. TreatmentPlan/Occurrence/VaccineCatalogItem در SyncContractCatalog حاضرند ✓
 - [ ] T3c Vaccination (+ id قطعی VaccinationRecord/TreatmentPlan/VaccineCatalogItem)
 - [ ] T3d Boarding (Room/Stay/StayItem id قطعی)
 - [ ] T3e Inventory + Purchasing (Product/Variant/Supplier/Order/Receipt id قطعی)
