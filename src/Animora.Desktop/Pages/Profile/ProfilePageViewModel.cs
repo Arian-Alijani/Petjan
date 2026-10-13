@@ -617,6 +617,20 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
             "دسترسی دستگاه لغو شد.");
     }
 
+    [RelayCommand]
+    private async Task ReinstateDeviceAsync(StaffDeviceViewModel? device)
+    {
+        if (device is null || IsStaffBusy) return;
+        if (!CanManageDevices)
+        {
+            _toast.Show("مجوز بازگرداندن دسترسی دستگاه‌ها را ندارید.", Tone.Warn);
+            return;
+        }
+        if (!device.IsRevoked) return; // the button is only visible for revoked devices
+        await ChangeStaffAsync(() => _service.ReinstateStaffDeviceAsync(device.DeviceId),
+            "دسترسی دستگاه بازگردانده شد؛ کاربر می‌تواند دوباره وارد شود.");
+    }
+
     [RelayCommand(CanExecute = nameof(CanSaveAccess))]
     private void GrantAllPermissions()
     {
@@ -662,6 +676,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
                 "USERNAME_EXISTS" => "نام کاربری تکراری است؛ نام دیگری وارد کنید.",
                 "PASSWORD_POLICY_VIOLATION" => "رمز عبور حداقل ۸ کاراکتر و شامل حرف و عدد باشد.",
                 "PERMISSION_DENIED" => "مجوز این عملیات را ندارید یا حساب محافظت‌شده است.",
+                "FORBIDDEN" => "نمی‌توانید دسترسی دستگاه خودتان را لغو کنید.",
                 "VALIDATION_FAILED" => "اطلاعات واردشده معتبر نیست؛ طول و مقدار فیلدها را بررسی کنید.",
                 "NETWORK_UNAVAILABLE" => "اتصال به سرور برقرار نشد؛ برای مدیریت کاربران به اینترنت نیاز است.",
                 "SERVER_BUSY" => "سرور موقتاً شلوغ است؛ کمی بعد دوباره تلاش کنید.",

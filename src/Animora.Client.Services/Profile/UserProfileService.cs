@@ -167,6 +167,13 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
             .ConfigureAwait(false);
     }
 
+    public async Task ReinstateStaffDeviceAsync(string deviceId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        var api = await TryGetOnlineApiAsync().ConfigureAwait(false) ?? throw new ServiceException(ErrorCodes.NetworkUnavailable);
+        await PostStaffAsync(api, $"auth/device/{Uri.EscapeDataString(deviceId)}/reinstate", new { }, ct).ConfigureAwait(false);
+    }
+
     /// <summary>The shared online client, or <see langword="null"/> when no server is configured (offline/local-only build).</summary>
     private async Task<OnlineApi?> TryGetOnlineApiAsync()
     {

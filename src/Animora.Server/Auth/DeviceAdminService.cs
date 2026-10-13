@@ -29,6 +29,9 @@ internal sealed class DeviceAdminService(
     /// <summary>Audit action: a device was revoked.</summary>
     public const string DeviceRevokedAction = "auth.device.revoked";
 
+    /// <summary>Audit action: a revoked device was re-enabled.</summary>
+    public const string DeviceReinstatedAction = "auth.device.reinstated";
+
     /// <summary>Audit action: a capability snapshot was issued.</summary>
     public const string CapabilitiesIssuedAction = "auth.capabilities.issued";
 
@@ -88,12 +91,50 @@ internal sealed class DeviceAdminService(
             return Result<DeviceRegisterResponse>.Fail(ErrorCodes.NotFound);
         }
 
+        // A manager can never lock themselves out: any device owned by the acting user is off-limits. The server is
+        // authoritative; the client only surfaces the FORBIDDEN result as a clear message.
+        if (string.Equals(device.UserId, actor.UserId, StringComparison.Ordinal))
+        {
+            return Result<DeviceRegisterResponse>.Fail(ErrorCodes.Forbidden);
+        }
+
         User? owner = await repository.FindUserByIdAsync(device.UserId, ct).ConfigureAwait(false);
 
         device.Revoke(request.Reason, clock);
         owner?.RotateSecurityStamp();
 
         Result saved = await AuditAsync(actor, DeviceRevokedAction, correlationId, device.Id, ct).ConfigureAwait(false);
+        return saved.IsFailure
+            ? Result<DeviceRegisterResponse>.Fail(saved.Error)
+            : Result<DeviceRegisterResponse>.Ok(new DeviceRegisterResponse(device.Id, device.Status.ToString()));
+    }
+
+    /// <summary>
+    /// Re-enables a revoked device in the caller's tenant so the same installation can sign in again. Idempotent:
+    /// a device that is not revoked is returned unchanged. The owner's security stamp was rotated at revoke time, so
+    /// the user simply signs in again to obtain fresh tokens.
+    /// </summary>
+    public async Task<Result<DeviceRegisterResponse>> ReinstateAsync(
+        ResolvedMembership actor,
+        string deviceId,
+        string correlationId,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+
+        Device? device = await repository.FindDeviceByIdAsync(deviceId, ct).ConfigureAwait(false);
+        if (device is null)
+        {
+            return Result<DeviceRegisterResponse>.Fail(ErrorCodes.NotFound);
+        }
+
+        if (device.Status != DeviceStatus.Revoked)
+        {
+            return Result<DeviceRegisterResponse>.Ok(new DeviceRegisterResponse(device.Id, device.Status.ToString()));
+        }
+
+        device.Reinstate();
+        Result saved = await AuditAsync(actor, DeviceReinstatedAction, correlationId, device.Id, ct).ConfigureAwait(false);
         return saved.IsFailure
             ? Result<DeviceRegisterResponse>.Fail(saved.Error)
             : Result<DeviceRegisterResponse>.Ok(new DeviceRegisterResponse(device.Id, device.Status.ToString()));

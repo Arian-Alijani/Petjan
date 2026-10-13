@@ -137,4 +137,37 @@ public sealed class DeviceEndpointsTests
         Assert.Equal(HttpStatusCode.Forbidden, revoke.StatusCode);
         Assert.Equal(DeviceStatus.Active, world.AliceDevice.Status);
     }
+
+    [Fact]
+    public async Task Reinstate_RevokedDevice_ReactivatesAndIsAudited()
+    {
+        var world = new AuthzWorld();
+        await using var host = new AuthzHost(world);
+        Device revoked = world.AddDevice(world.Bob, approve: true);
+        revoked.Revoke("x", world.Clock);
+        using HttpClient manager = host.Client(host.Token(world.Alice, world.AliceDevice));
+
+        using HttpResponseMessage response = await manager.PostAsync($"/auth/device/{revoked.Id}/reinstate", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(DeviceStatus.Active, revoked.Status);
+        Assert.Null(revoked.RevocationReason);
+        Assert.Contains(world.Audit.Entries, e => e.Action == DeviceAdminService.DeviceReinstatedAction && e.ActorUserId == world.Alice.Id);
+    }
+
+    [Fact]
+    public async Task Revoke_OwnDevice_IsForbidden_AndChangesNothing()
+    {
+        var world = new AuthzWorld();
+        await using var host = new AuthzHost(world);
+        string stamp = world.Alice.SecurityStamp;
+        using HttpClient manager = host.Client(host.Token(world.Alice, world.AliceDevice));
+
+        using HttpResponseMessage response = await manager.PostAsJsonAsync($"/auth/device/{world.AliceDevice.Id}/revoke", new DeviceRevokeRequest("oops"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(ErrorCodes.Forbidden.Code, await CodeOf(response));
+        Assert.Equal(DeviceStatus.Active, world.AliceDevice.Status);
+        Assert.Equal(stamp, world.Alice.SecurityStamp);
+    }
 }

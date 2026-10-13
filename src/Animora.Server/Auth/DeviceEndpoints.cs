@@ -62,6 +62,19 @@ internal static class DeviceEndpoints
         return result.IsSuccess ? Ok(http, result.Value!) : Fail(http, result.Error);
     }
 
+    private static async Task<IResult> ReinstateAsync(HttpContext http, string id, IRequestAuthorizationState state, DeviceAdminService service)
+    {
+        if (state.Membership is not { } actor)
+        {
+            return Fail(http, ErrorCodes.SessionExpired);
+        }
+
+        Result<DeviceRegisterResponse> result = await service
+            .ReinstateAsync(actor, id, CorrelationHeader.Resolve(http), http.RequestAborted)
+            .ConfigureAwait(false);
+        return result.IsSuccess ? Ok(http, result.Value!) : Fail(http, result.Error);
+    }
+
     private static async Task<IResult> RevokeAsync(
         HttpContext http,
         string id,

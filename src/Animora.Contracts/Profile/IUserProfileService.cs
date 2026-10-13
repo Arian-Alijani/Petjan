@@ -34,4 +34,7 @@ public interface IUserProfileService
 
     /// <summary>Revokes a staff member's device with an audited reason (server-authoritative; needs the devices-manage permission).</summary>
     Task RevokeStaffDeviceAsync(string deviceId, string reason, CancellationToken ct = default);
+
+    /// <summary>Re-enables a previously revoked staff device (server-authoritative; needs the devices-manage permission).</summary>
+    Task ReinstateStaffDeviceAsync(string deviceId, CancellationToken ct = default);
 }

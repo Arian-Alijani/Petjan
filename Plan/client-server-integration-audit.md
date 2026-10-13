@@ -106,7 +106,7 @@ system-origin rows (correlation seeded with a system/empty user, e.g. background
 
 ---
 
-## TASK-9 — Device access: re-enable revoked, block manager self-revoke, verify OS version  ·  status: ☐ TODO
+## TASK-9 — Device access: re-enable revoked, block manager self-revoke, verify OS version  ·  status: ☑ DONE
 
 Three sub-items. OS-version (c) is **already done** — just verify. (a) and (b) are new.
 
@@ -188,7 +188,7 @@ courtesy only):
   `ProfilePageViewModel.ChangeStaffAsync` toast handling — reuse the existing failure toast; optionally
   special-case the code).
 
-### (c) Windows OS version in device name  (ALREADY DONE — verify only)
+### (c) Windows OS version in device name  (ALREADY DONE — verified: ~29 chars « windows · Windows 10.0.26100 » < MaxPlatform=64 on both client and server, no change needed)
 - Client captures it: `src/Animora.Client.Services/Identity/DeviceLifecycleService.cs` builds
   `platform = "windows · Windows 10.0.19045"` (family `·` OS description), capped at `MaxPlatform=64`.
 - Server stores it via `Device.DescribeInstallation` on the authenticated `register` call

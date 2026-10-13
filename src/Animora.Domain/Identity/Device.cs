@@ -137,6 +137,23 @@ public sealed class Device : AggregateRoot
         Status = DeviceStatus.Active;
     }
 
+    /// <summary>
+    /// Re-enables a previously revoked device (the manager re-authorizes the same installation). Idempotent for
+    /// devices that are not revoked. The revocation reason and instant are cleared because the device is usable
+    /// again; the audit trail keeps the revoke/reinstate history.
+    /// </summary>
+    public void Reinstate()
+    {
+        if (Status != DeviceStatus.Revoked)
+        {
+            return;
+        }
+
+        Status = DeviceStatus.Active;
+        RevokedUtc = null;
+        RevocationReason = null;
+    }
+
     /// <summary>Records server contact.</summary>
     public void RecordContact(IClock clock)
     {

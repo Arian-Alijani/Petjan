@@ -1049,6 +1049,11 @@
                                             IsVisible="{Binding CanRevoke}"
                                             Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).RevokeDeviceCommand}"
                                             CommandParameter="{Binding}" />
+                                    <!-- Mutually exclusive with the revoke button (CanRevoke == !IsRevoked), so it reuses the same column slot. -->
+                                    <Button Grid.Column="3" Classes="primary" Padding="12,6" FontSize="12" Content="اجازهٔ نصب مجدد"
+                                            IsVisible="{Binding IsRevoked}"
+                                            Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).ReinstateDeviceCommand}"
+                                            CommandParameter="{Binding}" />
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
