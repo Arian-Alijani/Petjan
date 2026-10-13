@@ -281,7 +281,7 @@ Run `scripts/git/push.sh "<conventional message>"` after EACH task. If it exits 
 - [x] **T3** — Add §5.1 `SeedProduct` to `SyncPgRig.cs` + §5.2 reproducing test to
       `SyncBatchesResilienceTests.cs`. **push**
       `test(sync): /sync/batches stays BatchReady for money/quantity rows (repro)`.
-- [ ] **T4** — (CI feedback loop) If GitHub Actions reports a compile error (e.g. missing NOT NULL
+- [x] **T4** — (CI feedback loop) If GitHub Actions reports a compile error (e.g. missing NOT NULL
       column in the INSERT, or `yield`-in-`try` CS1626), fix precisely per the CI message and **push**.
       Repeat until CI sync tests are green. Keep each fix small; if a heavy fix lands, push it with a
       clear message.
