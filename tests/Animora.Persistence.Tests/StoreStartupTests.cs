@@ -237,6 +237,26 @@ public sealed class StoreStartupTests
         Assert.Equal("new-user", (await store.ReadAsync()).Value!.UserId);
     }
 
+    [Fact]
+    public void TenantIsolation_ProductionSecretStoresUseSeparateTenantNamespaces()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        var a = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(fixture.Directory, "https://server.test/", "A");
+        var b = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(fixture.Directory, "https://server.test/", "B");
+        var optionsA = new Animora.Persistence.Sqlite.Options.LocalStoreOptions { AllowInsecureKeyFallback = true };
+        var optionsB = new Animora.Persistence.Sqlite.Options.LocalStoreOptions { AllowInsecureKeyFallback = true };
+        a.ConfigureStore(optionsA);
+        b.ConfigureStore(optionsB);
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<Animora.Infrastructure.Local.Security.FileFallbackSecretStore>.Instance;
+        var secretsA = a.CreateSecretStore(Microsoft.Extensions.Options.Options.Create(optionsA), logger);
+        var secretsB = b.CreateSecretStore(Microsoft.Extensions.Options.Options.Create(optionsB), logger);
+        Assert.True(secretsA.Write("session-token-key", [1, 2, 3]).IsSuccess);
+        Assert.True(secretsB.TryRead("session-token-key").IsFailure);
+        Assert.True(secretsB.Write("session-token-key", [4, 5, 6]).IsSuccess);
+        Assert.Equal(new byte[] { 1, 2, 3 }, secretsA.TryRead("session-token-key").Value);
+        Assert.Equal(new byte[] { 4, 5, 6 }, secretsB.TryRead("session-token-key").Value);
+    }
+
     private static string Scalar(SqliteConnection connection, string sql)
     {
         using var command = connection.CreateCommand();

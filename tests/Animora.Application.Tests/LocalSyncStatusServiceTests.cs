@@ -76,6 +76,43 @@ public sealed class LocalSyncStatusServiceTests
         Assert.Null(service.LastSyncedAt);
     }
 
+    [Fact]
+    public async Task TenantIsolation_DisposeCancelsAndDrainsManualPassWithoutLosingClaimedCommand()
+    {
+        var transport = new BlockingTransport();
+        using var fixture = new LocalStoreTestFixture(configureServices: services => services.AddSingleton<ICommandTransport>(transport));
+        await fixture.MigrateAsync();
+        using (var scope = fixture.CreateScope())
+        {
+            var envelope = CommandEnvelope.Create("INFLIGHT-A", LocalStoreTestFixture.DefaultTenant, "U", "D", "clinic.pet.update", "Pet", "P", "{}", "fp", fixture.Clock.Now, 1);
+            await scope.ServiceProvider.GetRequiredService<ICommandJournal>().EnqueueAsync(envelope);
+            await scope.ServiceProvider.GetRequiredService<Animora.Persistence.Sqlite.Context.AnimoraLocalDbContext>().SaveChangesAsync();
+        }
+        var service = new LocalSyncStatusService(fixture.Services.GetRequiredService<IServiceScopeFactory>(), transport, fixture.Clock);
+        var pass = service.SyncNowAsync();
+        await transport.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await service.DisposeAsync();
+        await pass;
+        service.Dispose(); // root DI aliases may dispose the same singleton again
+        Assert.True(transport.Cancelled);
+        using var read = fixture.CreateScope();
+        Assert.NotNull((await read.ServiceProvider.GetRequiredService<ICommandJournal>().FindByOperationIdAsync("INFLIGHT-A")).Value);
+        Assert.Null(service.LastSyncedAt);
+    }
+
+    private sealed class BlockingTransport : ICommandTransport
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public bool Cancelled { get; private set; }
+        public async Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default)
+        {
+            Started.TrySetResult();
+            try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); }
+            catch (OperationCanceledException) { Cancelled = true; throw; }
+            throw new InvalidOperationException("A cancelled pass must not settle.");
+        }
+    }
+
     private sealed class UnexpectedTransport : ICommandTransport
     {
         public Task<Result<SettlementResult>> SubmitAsync(CommandEnvelope envelope, CancellationToken ct = default) =>

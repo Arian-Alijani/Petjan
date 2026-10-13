@@ -147,7 +147,7 @@ public sealed class SyncSchedulerTests
             Sent.Add(envelope);
             return Task.FromResult(Result<Animora.Contracts.Wire.Commands.SettlementResult>.Ok(new(envelope.OperationId,
                 Online ? Animora.Contracts.Wire.Commands.SettlementOutcome.Accepted : Animora.Contracts.Wire.Commands.SettlementOutcome.Deferred,
-                null, null, null, null, envelope.CreatedAtUtc, Animora.Domain.Primitives.FinancialEffect.None, null)));
+                null, null, null, null, envelope.CreatedAtUtc, Animora.Contracts.Wire.Commands.FinancialEffect.None, null)));
         }
     }
 }

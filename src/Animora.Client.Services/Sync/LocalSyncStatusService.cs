@@ -20,9 +20,13 @@ public sealed class LocalSyncStatusService(
     IClock clock,
     IStateSyncEngine? engine = null,
     SyncOrchestrator? orchestrator = null, ISessionStore? sessions = null, ISessionTenantBinding? binding = null)
-    : ISyncStatusService, IDisposable
+    : ISyncStatusService, IDisposable, IAsyncDisposable
 {
     private readonly SemaphoreSlim _pass = new(1, 1);
+    private readonly CancellationTokenSource _stop = new();
+    private readonly object _lifecycle = new();
+    private Task? _shutdown;
+
     private sealed record Snapshot(SyncState State, DateTimeOffset? LastSyncedAt, int PendingChangeCount = 0);
     private bool PullConfigured => orchestrator is not null && engine is { IsConfigured: true };
     private Snapshot _snapshot = new(transport is NullCommandTransport && engine is not { IsConfigured: true } ? SyncState.Offline : SyncState.Idle, null);
@@ -37,6 +41,14 @@ public sealed class LocalSyncStatusService(
 
     private async Task ExecuteAsync(bool runPass, CancellationToken ct)
     {
+        CancellationTokenSource lifetime;
+        lock (_lifecycle)
+        {
+            if (_shutdown is not null) return;
+            lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, _stop.Token);
+        }
+        using var cancellation = lifetime;
+        ct = lifetime.Token;
         // Cancellation while waiting must not change another caller's state.
         await _pass.WaitAsync(ct).ConfigureAwait(false);
         var previous = Volatile.Read(ref _snapshot);
@@ -126,5 +138,21 @@ public sealed class LocalSyncStatusService(
         if (previous != next) StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Dispose() => _pass.Dispose();
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
+    public ValueTask DisposeAsync()
+    {
+        lock (_lifecycle) return new ValueTask(_shutdown ??= ShutdownAsync());
+    }
+
+    private async Task ShutdownAsync()
+    {
+        // Session replacement must wait for the manual pass too, not just the scheduler's loop.
+        // Cancel in-flight HTTP/DB work before its provider or semaphore can be disposed.
+        await _stop.CancelAsync().ConfigureAwait(false);
+        await _pass.WaitAsync().ConfigureAwait(false);
+        _pass.Release();
+        _pass.Dispose();
+        _stop.Dispose();
+    }
 }

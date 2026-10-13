@@ -127,21 +127,24 @@ public partial class App : global::Avalonia.Application
             // loops stop and the final SQLite/WAL checkpoint runs instead of being cut off by process kill.
             // ShutdownRequested is a synchronous event; blocking on DisposeAsync here is safe (the app is
             // already tearing down and the work being drained is background, not the UI thread's own work).
-            desktop.ShutdownRequested += (_, _) =>
-            {
-                switch (Services)
-                {
-                    case IAsyncDisposable asyncDisposable:
-                        asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                        break;
-                    case IDisposable disposable:
-                        disposable.Dispose();
-                        break;
-                }
-            };
+            desktop.ShutdownRequested += (_, _) => DisposeServicesOnShutdown();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    // Blocking is confined to the synchronous shutdown event boundary, never startup or normal UI work.
+    private static void DisposeServicesOnShutdown()
+    {
+        switch (Services)
+        {
+            case IAsyncDisposable asyncDisposable:
+                asyncDisposable.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                break;
+            case IDisposable disposable:
+                disposable.Dispose();
+                break;
+        }
     }
 
     private void ShowLogin(IClassicDesktopStyleApplicationLifetime desktop)

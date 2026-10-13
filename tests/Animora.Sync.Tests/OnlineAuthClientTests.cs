@@ -224,4 +224,23 @@ public sealed class OnlineAuthClientTests
         Assert.Null((await stack.Services.GetRequiredService<ISessionStore>().ReadAsync()).Value);
         Assert.NotNull((await stack.Services.GetRequiredService<IOfflineCredentialMirrorStore>().ReadAsync()).Value);
     }
+    [Fact]
+    public async Task TenantIsolation_LogoutReportsDurableClearFailureRatherThanFalseSuccess()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        var services = stack.Services;
+        var client = new OnlineAuthClient(services.GetRequiredService<OnlineApi>(), new RefusingClearStore(),
+            services.GetRequiredService<IOfflineCredentialMirrorStore>(), services.GetRequiredService<DeviceLifecycleService>(),
+            services.GetRequiredService<CapabilityMirrorWriter>(), services.GetRequiredService<EntitlementSealer>(),
+            services.GetRequiredService<OfflineSessionAuthorizer>(), services.GetRequiredService<IDeviceFingerprintSource>(),
+            services.GetRequiredService<Animora.Domain.Time.IClock>());
+        Assert.Equal(ErrorCodes.StoreUnavailable, (await client.LogoutAsync()).Error);
+    }
+
+    private sealed class RefusingClearStore : ISessionStore
+    {
+        public Task<Result<ClientSession?>> ReadAsync(CancellationToken ct = default) => Task.FromResult(Result<ClientSession?>.Ok(null));
+        public Task<Result> WriteAsync(ClientSession session, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ClearAsync(CancellationToken ct = default) => Task.FromResult(Result.Fail(ErrorCodes.StoreUnavailable));
+    }
 }

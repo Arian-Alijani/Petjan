@@ -125,6 +125,7 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
     {
         binding?.Suspend();
         await _refreshGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        Result cleared = Result.Ok();
         try
         {
             var current = await sessions.ReadAsync(ct).ConfigureAwait(false);
@@ -136,10 +137,10 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
         }
         finally
         {
-            try { await sessions.ClearAsync(CancellationToken.None).ConfigureAwait(false); }
+            try { cleared = await sessions.ClearAsync(CancellationToken.None).ConfigureAwait(false); }
             finally { _refreshGate.Release(); }
         }
-        return Result.Ok();
+        return cleared;
     }
 
     private static bool IsPending(DeviceRegisterResponse? device) =>
