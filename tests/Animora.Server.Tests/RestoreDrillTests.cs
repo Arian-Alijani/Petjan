@@ -84,6 +84,7 @@ public sealed class RestoreDrillTests(PgFixture pg) : IClassFixture<PgFixture>
                 ["Server:DataRootPath"] = dataRoot,
                 ["Database:ConnectionString"] = connection,
                 ["Telemetry:Enabled"] = "false",
+                ["Server:Health:ReadinessCacheSeconds"] = "0", // the drill observes state transitions; never serve a cached verdict
             }));
             builder.ConfigureServices(s =>
             {

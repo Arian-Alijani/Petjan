@@ -437,7 +437,7 @@
 - **Push**: `scripts/git/push.sh "refactor(server): thread-safe dummy-hash init (C3 BUG-BURN-01)"`
 - **Done note**: DONE. `LoginService` dummy-hash lazy init now uses `LazyInitializer.EnsureInitialized(ref value, ref ready, ref lock, factory)` (the factory runs under the lock exactly once). The per-miss `VerifyHashedPassword` against the dummy hash is untouched, so the SEC-OBS-01 timing-equalization is preserved. Not compiled locally (CI only).
 
-### [ ] C4 · BUG-HEALTH-01 + IMP-10 — Cache readiness probes + add /health/startup (LOW)
+### [x] C4 · BUG-HEALTH-01 + IMP-10 — Cache readiness probes + add /health/startup (LOW)
 - **Why**: `Program.cs:204-225` `/health/ready` awaits each probe in series and
   `snapshot.Set(...)` per probe per request; anonymous + un-rate-limited → frequent
   polling generates DB/key-ring/schema load.
@@ -446,7 +446,7 @@
   a timer). Keep `/health/live` trivial. Add a distinct `/health/startup` for orchestrators.
 - **Accept**: frequent `/health/ready` polling served from cache; `/health/startup` exists.
 - **Push**: `scripts/git/push.sh "perf(server): cache readiness probes, add /health/startup (C4 BUG-HEALTH-01/IMP-10)"`
-- **Done note**: _______
+- **Done note**: DONE. New `Hosting/ReadinessEvaluator` (singleton): `/health/ready` is served from a report cached for `Server:Health:ReadinessCacheSeconds` (default 5, validated 0..60, 0 = no cache); concurrent callers on an expired entry share ONE evaluation (single-flight `SemaphoreSlim`), probes inside a round run in parallel and a throwing probe reads unhealthy (never a 500); it still feeds `ReadinessSnapshot` (admin status unchanged). Response bodies unchanged (names only). New anonymous `GET /health/startup` (`ServerRoutes.HealthStartup`): 503 `starting` until every required probe has been healthy once, then 200 `started` for the process lifetime (latched) - already classified `Health` by `ServerSurfacePolicy` (C1), so tenant/entitlement-exempt. `/health/live` untouched (trivial). RestoreDrill host pins TTL=0 so its state-transition polling is never served stale. Tests: `Hosting/ReadinessEvaluatorTests` (cache, single-flight, ttl 0, required vs optional, startup latch). Not compiled locally (CI only).
 
 ### [ ] C5 · SEC-HSTS-01 + SEC-OPENAPI-01 — Confirm TLS/forwarded-proto contract; document OpenAPI gating (MEDIUM/LOW)
 - **Why**: `Program.cs:147-151` runs `UseHsts()`+`UseHttpsRedirection()` only outside
@@ -575,7 +575,7 @@
 | C1 | CONS-GATE-01 | MEDIUM | [x] |
 | C2 | BUG-OPLOCK-01 | LOW | [x] |
 | C3 | BUG-BURN-01 | LOW | [x] |
-| C4 | BUG-HEALTH-01 / IMP-10 | LOW | [ ] |
+| C4 | BUG-HEALTH-01 / IMP-10 | LOW | [x] |
 | C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [ ] |
 | C6 | SCALE-N1-01 | MEDIUM | [ ] |
 | C7 | IMP-01 / IMP-09 | IMP | [ ] |

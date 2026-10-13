@@ -41,6 +41,16 @@ internal sealed class ServerOptions
 
     /// <summary>Background-worker throughput tuning (BUG-RECOVERY-01 / BUG-OUTBOX-01).</summary>
     public WorkerSettings Workers { get; set; } = new();
+
+    /// <summary>Health-probe caching (BUG-HEALTH-01).</summary>
+    public HealthSettings Health { get; set; } = new();
+}
+
+/// <summary>BUG-HEALTH-01: how long a <c>/health/ready</c> evaluation is reused by subsequent pollers.</summary>
+internal sealed class HealthSettings
+{
+    /// <summary>Seconds a readiness report stays valid (0..60; 0 = evaluate on every call). Default 5.</summary>
+    public int ReadinessCacheSeconds { get; set; } = 5;
 }
 
 /// <summary>

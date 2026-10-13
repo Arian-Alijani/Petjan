@@ -52,6 +52,7 @@ SecretGuard.ThrowIfSecretsInJsonFiles(builder.Configuration);
 LoggingSetup.Configure(builder);
 builder.Services.AddSingleton<ServerMetrics>();
 builder.Services.AddSingleton<ReadinessSnapshot>();
+builder.Services.AddSingleton<ReadinessEvaluator>();
 builder.Services.AddAnimoraTelemetry(builder.Configuration);
 builder.Services.AddSingleton<IReportingQuerySessionFactory,ReportingQuerySessionFactory>();
 builder.Services.AddSingleton<QueryBudget>(sp =>
@@ -220,27 +221,27 @@ app.MapHub<SyncHintHub>(ServerRoutes.Sync + "/hub").RequireAuthorization(CoarseP
 // Health endpoints — anonymous, never rate-limited, leak no secret (ARCH §4).
 app.MapGet(ServerRoutes.HealthLive, () => Results.Json(new { status = "live" }));
 
-app.MapGet(ServerRoutes.HealthReady, async (
-    IEnumerable<IReadinessProbe> probes,
-    WorkerHeartbeat workers,
-    ReadinessSnapshot snapshot,
-    CancellationToken ct) =>
+// /health/ready serves a short-TTL cached report (BUG-HEALTH-01): polling cost is one probe round per TTL.
+app.MapGet(ServerRoutes.HealthReady, async (ReadinessEvaluator readiness, WorkerHeartbeat workers, CancellationToken ct) =>
 {
-    var failed = new List<string>();
-    var degraded = new List<string>();
-    foreach (var probe in probes)
+    var report = await readiness.EvaluateAsync(ct).ConfigureAwait(false);
+    return report.IsReady
+        ? Results.Json(new { status = report.Degraded.Count == 0 ? "ready" : "degraded", degraded = report.Degraded, workers = workers.StaleNames() })
+        : Results.Json(new { status = "not-ready", failed = report.Failed, degraded = report.Degraded, workers = workers.StaleNames() }, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
+
+// IMP-10: startup probe for orchestrators - 503 until every required probe has been healthy once, then 200 forever
+// (a later dependency blip is a readiness concern, never a reason to restart/kill a started instance).
+app.MapGet(ServerRoutes.HealthStartup, async (ReadinessEvaluator readiness, CancellationToken ct) =>
+{
+    if (!readiness.Started)
     {
-        var result = await probe.CheckAsync(ct).ConfigureAwait(false);
-        snapshot.Set(probe.Name,result.IsHealthy,probe.IsRequired);
-        if (!result.IsHealthy)
-        {
-            if (probe.IsRequired) failed.Add(probe.Name); else degraded.Add(probe.Name);
-        }
+        await readiness.EvaluateAsync(ct).ConfigureAwait(false);
     }
 
-    return failed.Count == 0
-        ? Results.Json(new { status = degraded.Count == 0 ? "ready" : "degraded", degraded, workers = workers.StaleNames() })
-        : Results.Json(new { status = "not-ready", failed, degraded, workers = workers.StaleNames() }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    return readiness.Started
+        ? Results.Json(new { status = "started" })
+        : Results.Json(new { status = "starting" }, statusCode: StatusCodes.Status503ServiceUnavailable);
 });
 
 app.Run();

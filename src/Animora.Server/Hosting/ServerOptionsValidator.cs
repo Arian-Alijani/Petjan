@@ -88,6 +88,9 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
             failures.Add($"'{ServerOptions.SectionName}:Files:UploadWaitSeconds' must be between 1 and 60.");
         }
 
+        if (options.Health.ReadinessCacheSeconds is < 0 or > 60)
+            failures.Add($"'{ServerOptions.SectionName}:Health:ReadinessCacheSeconds' must be between 0 and 60.");
+
         var w = options.Workers;
         if (w.OutboxClaimBatch is < 1 or > 20)
             failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxClaimBatch' must be between 1 and 20.");

@@ -18,4 +18,7 @@ internal static class ServerRoutes
     public const string Admin = "/admin";
     public const string HealthLive = "/health/live";
     public const string HealthReady = "/health/ready";
+
+    /// <summary>Orchestrator startup probe: 200 once every required readiness probe has been healthy at least once.</summary>
+    public const string HealthStartup = "/health/startup";
 }
