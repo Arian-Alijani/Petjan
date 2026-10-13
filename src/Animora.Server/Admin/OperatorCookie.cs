@@ -1,8 +1,6 @@
 using System.Security.Claims;
-using Animora.Persistence.PostgreSql.Operator;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.EntityFrameworkCore;
 namespace Animora.Server.Admin;
 
 internal sealed class AdminOptions
@@ -28,10 +26,9 @@ internal static class OperatorCookie
             OnValidatePrincipal=async c=>
             {
                 var id=c.Principal?.FindFirstValue("sub"); var stamp=c.Principal?.FindFirstValue("ost");
-                var db=c.HttpContext.RequestServices.GetRequiredService<AnimoraOperatorDbContext>();
-                var account=await db.Accounts.AsNoTracking().Where(x=>x.Id==id)
-                    .Select(x=>new { x.SecurityStamp,x.Status,x.MustChangePassword }).SingleOrDefaultAsync(c.HttpContext.RequestAborted).ConfigureAwait(false);
-                if(account is null||account.Status!=OperatorAccountStatus.Active||account.SecurityStamp!=stamp)
+                // BUG-OPLOCK-01: one operator-account read per request, shared with every other auth pass.
+                var account=await Animora.Server.Operator.OperatorRequestAccount.GetAsync(c.HttpContext,id).ConfigureAwait(false);
+                if(account is null||!account.IsValidFor(stamp))
                 { c.RejectPrincipal(); await c.HttpContext.SignOutAsync(Scheme).ConfigureAwait(false); return; }
                 if(account.MustChangePassword) c.HttpContext.Items["AdminPasswordChangeRequired"]=true;
             }

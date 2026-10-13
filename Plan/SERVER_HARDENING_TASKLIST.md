@@ -413,7 +413,7 @@
 - **Push**: `scripts/git/push.sh "refactor(server): centralize plane-exemption policy (C1 CONS-GATE-01)"`
 - **Done note**: DONE. New `Hosting/ServerSurfacePolicy.cs`: named `SurfaceClass` route classes (Health, OperatorConsole, Operator, Provisioning, AuthAnonymous [exact /auth/login|refresh|keys], LicensingKeys, AuthSession, Licensing, TenantData, Unclassified) with `SkipsTenantBinding` / `IsEntitlementExempt` as the ONE source. `TenantContextMiddleware.IsSkipped`, `ServerEntitlementGate.IsExempt` and `EntitlementMiddleware` now delegate to it (the extra `/admin` special-case is gone). Unknown paths classify `Unclassified` = tenant-bound + entitlement-gated (fail closed). `AllowAllServerEntitlementGate` + its `TryAdd` registration were REMOVED (the real `Licensing.ServerEntitlementGate` is registered via `Replace` in `AddAnimoraLicensing`; no silent allow-all fallback). Tests: `ServerSurfacePolicyTests` (table incl. case-insensitivity, no-contradiction invariant, and an endpoint-data-source test asserting every authorized mapped endpoint has a defined class; `AuthzHost.Services` exposed). Existing IsSkipped/IsExempt tests unchanged and still valid. Not compiled locally (CI only).
 
-### [ ] C2 · BUG-OPLOCK-01 — Resolve operator account once per admin request (LOW)
+### [x] C2 · BUG-OPLOCK-01 — Resolve operator account once per admin request (LOW)
 - **Why**: For `/admin` + `/_blazor`, `Operator/OperatorContextMiddleware.cs:17` calls
   `AuthenticateAsync(OperatorCookie.Scheme)` → `OnValidatePrincipal` (`Admin/OperatorCookie.cs:28-37`,
   1 DB read), and the operator API path re-reads (`:43-45`) = 1–2 operator reads per
@@ -424,7 +424,7 @@
   avoid double authentication.
 - **Accept**: at most one operator-account read per admin request.
 - **Push**: `scripts/git/push.sh "perf(server): resolve operator account once per admin request (C2 BUG-OPLOCK-01)"`
-- **Done note**: _______
+- **Done note**: DONE. New `Operator/OperatorRequestAccount.cs` memoizes the operator-account lookup (security stamp/status/must-change flag, `AsNoTracking` projection) in `HttpContext.Items` keyed by account id. Both `OperatorCookie.OnValidatePrincipal` (cookie plane: `/admin`, `/_blazor`, re-run by the `AdminOnly` policy authentication) and `OperatorContextMiddleware`'s operator-API branch now call it, so at most ONE operator read happens per request regardless of how many authentication passes run. Semantics unchanged (inactive/stamp-mismatch still rejects). Not compiled locally (CI only).
 
 ### [ ] C3 · BUG-BURN-01 — Thread-safe dummy-hash init (LOW)
 - **Why**: `Auth/LoginService.cs:36,435-440` `s_dummyHash ??= hasher.HashPassword(...)`
@@ -573,7 +573,7 @@
 | B9 | BUG-FILE-01 | MEDIUM | [x] |
 | B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [x] |
 | C1 | CONS-GATE-01 | MEDIUM | [x] |
-| C2 | BUG-OPLOCK-01 | LOW | [ ] |
+| C2 | BUG-OPLOCK-01 | LOW | [x] |
 | C3 | BUG-BURN-01 | LOW | [ ] |
 | C4 | BUG-HEALTH-01 / IMP-10 | LOW | [ ] |
 | C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [ ] |

@@ -1,9 +1,7 @@
 using Animora.Contracts.Wire.Errors;
 using Animora.Domain.Results;
-using Animora.Persistence.PostgreSql.Operator;
 using Animora.Server.Hosting;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Server.Operator;
 
@@ -39,10 +37,8 @@ internal sealed class OperatorContextMiddleware(RequestDelegate next)
         }
         var id = principal.FindFirst("sub")?.Value;
         var stamp = principal.FindFirst("ost")?.Value;
-        var db = http.RequestServices.GetRequiredService<AnimoraOperatorDbContext>();
-        var account = await db.Accounts.AsNoTracking().Where(x => x.Id == id)
-            .Select(x => new { x.SecurityStamp, x.Status, x.MustChangePassword }).SingleOrDefaultAsync(http.RequestAborted).ConfigureAwait(false);
-        if (account is null || account.Status != OperatorAccountStatus.Active || account.SecurityStamp != stamp)
+        var account = await OperatorRequestAccount.GetAsync(http, id).ConfigureAwait(false);
+        if (account is null || !account.IsValidFor(stamp))
         { await Failure(http, 401, ErrorCodes.OperatorCredentialsInvalid).ConfigureAwait(false); return; }
         if (account.MustChangePassword && !http.Request.Path.Equals(ServerRoutes.Operator + "/auth/change-password", StringComparison.OrdinalIgnoreCase))
         { await Failure(http, 403, ErrorCodes.PasswordPolicyViolation).ConfigureAwait(false); return; }
