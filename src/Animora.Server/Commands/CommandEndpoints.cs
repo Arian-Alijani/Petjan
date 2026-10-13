@@ -45,12 +45,34 @@ internal static class CommandEndpoints
             Result valid = ValidateBatch(envelopes);
             if (valid.IsFailure) return TransportError(context, valid);
             var results = new List<SettlementResult>(envelopes!.Length);
+            Result? stopped = null;
             foreach (CommandEnvelope envelope in envelopes)
             {
+                if (stopped is { } halt)
+                {
+                    // Order is a contract (dependencies between items): once one item could not be settled, the
+                    // rest are NOT attempted and are reported as Deferred so the client retries them unchanged.
+                    results.Add(DeferredItem(envelope, halt));
+                    continue;
+                }
+
                 // Sequential request order, separate intake transaction for every item. Never Task.WhenAll.
                 Result<SettlementResult> settled = await intake.SubmitAsync(envelope, ct).ConfigureAwait(false);
-                if (settled.IsFailure) return TransportError(context, settled.ToResult());
-                results.Add(settled.Value!);
+                if (settled.IsSuccess)
+                {
+                    results.Add(settled.Value!);
+                    continue;
+                }
+
+                // Nothing committed yet and the failure is a request-level one (auth/entitlement/contract): a true
+                // HTTP error is accurate. Otherwise keep what already settled and defer this item + the rest.
+                if (results.Count == 0 && IsRequestLevel(settled.Error))
+                {
+                    return TransportError(context, settled.ToResult());
+                }
+
+                stopped = settled.ToResult();
+                results.Add(DeferredItem(envelope, stopped.Value));
             }
             return Results.Json(results);
         }
@@ -60,6 +82,16 @@ internal static class CommandEndpoints
         catch (InvalidOperationException) when (!context.Request.HasJsonContentType())
         { return TransportError(context, Result.Fail(ErrorCodes.ValidationFailed, "JSON required")); }
     }
+
+    private static bool IsRequestLevel(ErrorCode error) =>
+        error == ErrorCodes.ContractVersionUnsupported
+        || error == ErrorCodes.SessionExpired
+        || error.Category is ErrorCode.Forbidden or ErrorCode.Entitlement;
+
+    /// <summary>A typed per-item "not settled, retry unchanged" answer (never a new OperationId).</summary>
+    private static SettlementResult DeferredItem(CommandEnvelope envelope, Result cause) => new(
+        envelope.OperationId, SettlementOutcome.Deferred, cause.Error.Code, cause.Detail, null, null,
+        DateTimeOffset.UtcNow, FinancialEffect.Unknown, ErrorResponsibility.For(cause.Error.Code));
 
     internal static Result ValidateBatch(CommandEnvelope[]? envelopes)
     {

@@ -194,8 +194,15 @@ internal sealed class FakeEntitlement : IServerEntitlementGate
 internal sealed class FakeAudit : ISecurityAuditWriter
 {
     public List<SecurityAuditEntry> Entries { get; } = [];
+    /// <summary>When set, every write after this many successful ones fails (simulates a store outage mid-batch).</summary>
+    public int? FailAfterWrites { get; set; }
     public Task<Result> WriteAsync(SecurityAuditEntry entry, CancellationToken ct = default)
-    { Entries.Add(entry); return Task.FromResult(Result.Ok()); }
+    {
+        if (FailAfterWrites is { } limit && Entries.Count >= limit)
+            return Task.FromResult(Result.Fail(ErrorCodes.StoreUnavailable));
+        Entries.Add(entry);
+        return Task.FromResult(Result.Ok());
+    }
 }
 internal sealed class FakeVersionReader : IAggregateVersionReader
 {

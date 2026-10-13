@@ -36,6 +36,25 @@ public sealed class BatchTests
     }
 
     [Fact]
+    public async Task MidBatchStoreFailure_KeepsEarlierSettlements_AndDefersTheRest_PerItem()
+    {
+        var f = new IntakeTestFixture();
+        f.Audit.FailAfterWrites = 1; // item 1 settles + audits; item 2's audit write fails
+        var envelopes = new[] { f.Envelope(), f.Envelope(), f.Envelope() };
+
+        var result = await CommandEndpoints.BatchAsync(Request(envelopes), f.CreateService());
+
+        // Not a whole-batch HTTP error: a per-item array, in request order.
+        var settlements = Assert.IsType<List<SettlementResult>>(((IValueHttpResult)result).Value);
+        Assert.Equal(envelopes.Select(e => e.OperationId), settlements.Select(s => s.OperationId));
+        Assert.Equal(SettlementOutcome.Accepted, settlements[0].Outcome);
+        Assert.Equal(SettlementOutcome.Deferred, settlements[1].Outcome);
+        Assert.Equal(SettlementOutcome.Deferred, settlements[2].Outcome);
+        Assert.Equal(ErrorCodes.StoreUnavailable.Code, settlements[1].ErrorCode);
+        Assert.Equal(1, f.Dispatcher.Calls); // the third item was never attempted
+    }
+
+    [Fact]
     public async Task MalformedLaterItem_DoesNotSettleEarlierItems()
     {
         var f = new IntakeTestFixture();

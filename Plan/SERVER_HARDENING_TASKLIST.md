@@ -350,7 +350,7 @@
 - **Push**: `scripts/git/push.sh "fix(server): memoize correlation id in HttpContext.Items (B7 BUG-CORR-01)"`
 - **Done note**: DONE. CorrelationHeader.Resolve now memoizes the id in HttpContext.Items on first call (valid inbound header reused, else ONE minted ULID); Echo also stores the echoed value, so every Resolve/Echo within a request agrees structurally. All ~50 existing call sites benefit unchanged. New CorrelationHeaderTests. Not compiled locally (CI only).
 
-### [ ] B8 · BUG-BATCH-01 — Per-item results instead of whole-batch abort (MEDIUM)
+### [x] B8 · BUG-BATCH-01 — Per-item results instead of whole-batch abort (MEDIUM)
 - **Why**: `Commands/CommandEndpoints.cs:47-55` `BatchAsync` processes envelopes
   sequentially; on the first `settled.IsFailure` it returns ONE `TransportError` for
   the whole batch, discarding `results` already settled server-side. Idempotency makes
@@ -361,7 +361,7 @@
   HTTP error only for whole-batch transport problems (malformed JSON, too large).
 - **Accept**: earlier committed items reported as success; only whole-batch problems error.
 - **Push**: `scripts/git/push.sh "fix(server): return per-item batch command results (B8 BUG-BATCH-01)"`
-- **Done note**: _______
+- **Done note**: DONE. BatchAsync no longer collapses a mid-batch failure into one TransportError: items that already settled keep their real SettlementResult; the failing item and the not-yet-attempted remainder (order is a contract) get a typed per-item Deferred result (ErrorCode + ResponsibleRole, FinancialEffect Unknown, retry unchanged). A true HTTP error is kept only for whole-request problems (malformed/too large/invalid before any item runs) and for request-level failures (contract version/auth/entitlement) on the FIRST item before anything committed. New test MidBatchStoreFailure_KeepsEarlierSettlements_AndDefersTheRest_PerItem (FakeAudit.FailAfterWrites). Not compiled locally (CI only).
 
 ### [ ] B9 · BUG-FILE-01 — Stream uploads instead of buffering + ToArray (MEDIUM)
 - **Why**: `Files/FileEndpoints.cs:63-66` reads the body into a `MemoryStream` then
@@ -569,7 +569,7 @@
 | B5 | BUG-UOW-01 | MEDIUM | [x] |
 | B6 | BUG-SIGN-01 | MEDIUM | [x] |
 | B7 | BUG-CORR-01 | MEDIUM | [x] |
-| B8 | BUG-BATCH-01 | MEDIUM | [ ] |
+| B8 | BUG-BATCH-01 | MEDIUM | [x] |
 | B9 | BUG-FILE-01 | MEDIUM | [ ] |
 | B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [ ] |
 | C1 | CONS-GATE-01 | MEDIUM | [ ] |
