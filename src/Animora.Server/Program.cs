@@ -216,6 +216,13 @@ if (enableOpenApi)
     app.MapOpenApi();
 }
 
+// SCALE-STATE-01 / PERF-AUTHZ-01: the authZ verdict cache is per-process; InvalidateUser/Tenant are local-only, so a
+// revocation on one replica lags on others by up to the TTL. Make the multi-instance escape hatch operator-visible.
+if (app.Services.GetRequiredService<IOptions<ServerOptions>>().Value.AuthCache.TtlSeconds > 0)
+{
+    app.Logger.LogWarning("AuthZ verdict cache is enabled (Server:AuthCache:TtlSeconds>0) and is per-process; on multi-instance deployments a revocation can lag other replicas by up to the TTL — set Server:AuthCache:TtlSeconds=0 or provide a shared invalidation bus.");
+}
+
 // Authentication endpoints (S04) — /auth/login|refresh|logout|device/register under the `auth` rate limit.
 app.MapStaticAssets();
 app.MapAdminAccountEndpoints();
