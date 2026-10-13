@@ -215,7 +215,7 @@ NOT swallow. Keep it minimal.
       (`dotnet build src/Animora.Application` — short). → **PUSH**
       `fix(sync): exclude journaling members from command payload (BUG 1 payload-shape)`
 
-- [ ] **T2 — BUG 1 verification test.** Add a small test in `tests/Animora.Application.Tests`
+- [x] **T2 — BUG 1 verification test.** DONE (`tests/Animora.Application.Tests/CommandPayloadShapeTests.cs`). Add a small test in `tests/Animora.Application.Tests`
       asserting the serialized `CreateOwnerCommand` payload key-set equals its ctor params and
       excludes the three journaling keys. Build/run just that test project if fast; otherwise keep
       it compile-checked. → **PUSH** `test(sync): assert command payload excludes journaling keys`
