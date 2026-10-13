@@ -426,7 +426,7 @@
 - **Push**: `scripts/git/push.sh "perf(server): resolve operator account once per admin request (C2 BUG-OPLOCK-01)"`
 - **Done note**: DONE. New `Operator/OperatorRequestAccount.cs` memoizes the operator-account lookup (security stamp/status/must-change flag, `AsNoTracking` projection) in `HttpContext.Items` keyed by account id. Both `OperatorCookie.OnValidatePrincipal` (cookie plane: `/admin`, `/_blazor`, re-run by the `AdminOnly` policy authentication) and `OperatorContextMiddleware`'s operator-API branch now call it, so at most ONE operator read happens per request regardless of how many authentication passes run. Semantics unchanged (inactive/stamp-mismatch still rejects). Not compiled locally (CI only).
 
-### [ ] C3 · BUG-BURN-01 — Thread-safe dummy-hash init (LOW)
+### [x] C3 · BUG-BURN-01 — Thread-safe dummy-hash init (LOW)
 - **Why**: `Auth/LoginService.cs:36,435-440` `s_dummyHash ??= hasher.HashPassword(...)`
   is a non-synchronized lazy init of a static field; concurrent first-misses recompute.
   Benign (idempotent), but untidy.
@@ -435,7 +435,7 @@
   Preserve the timing-equalization intent (SEC-OBS-01 positive — still spend a hash on miss).
 - **Accept**: single-init, timing behavior unchanged.
 - **Push**: `scripts/git/push.sh "refactor(server): thread-safe dummy-hash init (C3 BUG-BURN-01)"`
-- **Done note**: _______
+- **Done note**: DONE. `LoginService` dummy-hash lazy init now uses `LazyInitializer.EnsureInitialized(ref value, ref ready, ref lock, factory)` (the factory runs under the lock exactly once). The per-miss `VerifyHashedPassword` against the dummy hash is untouched, so the SEC-OBS-01 timing-equalization is preserved. Not compiled locally (CI only).
 
 ### [ ] C4 · BUG-HEALTH-01 + IMP-10 — Cache readiness probes + add /health/startup (LOW)
 - **Why**: `Program.cs:204-225` `/health/ready` awaits each probe in series and
@@ -574,7 +574,7 @@
 | B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [x] |
 | C1 | CONS-GATE-01 | MEDIUM | [x] |
 | C2 | BUG-OPLOCK-01 | LOW | [x] |
-| C3 | BUG-BURN-01 | LOW | [ ] |
+| C3 | BUG-BURN-01 | LOW | [x] |
 | C4 | BUG-HEALTH-01 / IMP-10 | LOW | [ ] |
 | C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [ ] |
 | C6 | SCALE-N1-01 | MEDIUM | [ ] |

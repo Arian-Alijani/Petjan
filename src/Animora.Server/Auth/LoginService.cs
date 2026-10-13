@@ -33,7 +33,11 @@ internal sealed class LoginService(
     private const int MaxPlatform = 64;
     private const int MaxRefreshToken = 512;
 
+    // BUG-BURN-01: the dummy hash is computed exactly once (LazyInitializer takes the lock for the factory), so
+    // concurrent first misses cannot each spend a hash computation on initialization.
     private static string? s_dummyHash;
+    private static bool s_dummyHashReady;
+    private static object? s_dummyHashLock;
 
     /// <summary>Signs a user in on a device. Wrong tenant / user / password are indistinguishable.</summary>
     public async Task<Result<LoginResponse>> LoginAsync(LoginRequest? request, string correlationId, CancellationToken ct = default)
@@ -455,7 +459,9 @@ internal sealed class LoginService(
     private void BurnPasswordHash(string password)
     {
         var probe = new ServerIdentityUser { Id = "dummy", UserName = "dummy", NormalizedUserName = "DUMMY" };
-        string dummy = s_dummyHash ??= hasher.HashPassword(probe, "Dummy-password-0");
+        string dummy = LazyInitializer.EnsureInitialized(ref s_dummyHash, ref s_dummyHashReady, ref s_dummyHashLock,
+            () => hasher.HashPassword(probe, "Dummy-password-0"))!;
+        // Timing equalization (SEC-OBS-01) is unchanged: every miss still spends one verification below.
         _ = hasher.VerifyHashedPassword(probe, dummy, password);
     }
 
