@@ -80,6 +80,27 @@ public sealed class AuthorizationPgTests(PgFixture pg) : IClassFixture<PgFixture
     }
 
     [PgFact]
+    public async Task SigningKey_ConcurrentColdStart_YieldsOneActiveKey_AndSteadyStateIsCached()
+    {
+        // Two independent "instances" (own container, own signer cache) race on an empty key table.
+        await using ServiceProvider a = await BuildAsync(pg.ConnectionString);
+        await using ServiceProvider b = await BuildAsync(pg.ConnectionString);
+        await using AsyncServiceScope sa = a.CreateAsyncScope();
+        await using AsyncServiceScope sb = b.CreateAsyncScope();
+        var storeA = sa.ServiceProvider.GetRequiredService<SigningKeyStore>();
+        var storeB = sb.ServiceProvider.GetRequiredService<SigningKeyStore>();
+
+        ISnapshotSigner[] signers = await Task.WhenAll(storeA.GetAsync(), storeB.GetAsync());
+
+        Assert.Equal(signers[0].KeyId, signers[1].KeyId);
+        IReadOnlyList<SigningKey> listed = await storeA.ListPublicAsync(SigningKey.Purposes.Snapshot);
+        Assert.Single(listed);
+
+        // Steady state: the very same signer instance is served from memory (no DB read / unprotect).
+        Assert.Same(await storeA.GetAsync(), await storeA.GetAsync());
+    }
+
+    [PgFact]
     public async Task MembershipResolver_UsesOnlyPrimaryKey_NoCrossTenantEnumeration()
     {
         var identityHost = await IdentityPgHost.GetAsync(pg.ConnectionString);

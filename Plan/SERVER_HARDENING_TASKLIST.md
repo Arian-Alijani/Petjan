@@ -242,7 +242,7 @@
      blocking indefinitely (tie into the WireApiError pattern used elsewhere).
 - **Accept**: reporting concurrency > 1 and configurable; bounded wait with 503 on timeout.
 - **Push**: `scripts/git/push.sh "perf(server): size reporting query budget to read pool with wait-timeout 503 (A5 PERF-QB-01)"`
-- **Done note**: DONE. New `Authorization/AuthzDecisionCache` (per-process, ABSOLUTE TTL `Server:AuthCache:TtlSeconds` default 10, 0 disables; bounded by MaxEntries; validated). `MembershipResolver` now reads membership+device through new `IIdentityReadStore` on the READ pool (no tracking) and caches only SUCCESSFUL resolutions keyed by user+device+token stamp (rotated stamp = miss; tenant still bound from stored user). `ServerEntitlementGate` caches only POSITIVE verdicts per tenant+device; denials/revocations never cached. Invalidation: device approve/revoke/reinstate, staff status/permission changes, operator subscription mutations and licence revoke/recheck call `InvalidateUser/InvalidateTenant`. CONS-ENT-01: `EntitlementMiddleware` skips POST /api/commands* — the command-type-aware check in `CommandIntakeService` is the single authoritative one (documented in code). Npgsql pool wait is bounded (`Database:PoolWaitSeconds`, default 5, validated) and `GlobalExceptionMiddleware` maps pool exhaustion (`DatabaseFailure.IsPoolExhausted`) to typed 503 SERVER_BUSY + Retry-After. Tests: new `AuthzDecisionCacheTests`; test hosts set TtlSeconds=0 so direct world mutation stays deterministic. Not compiled locally (CI only).
+- **Done note**: DONE. `Observability/QueryBudget.cs`: reporting permits now come from `Server:QueryBudget:ReportingMax` (0 = auto = `Database:WorkerMax`, always clamped to the worker pool the sessions actually use), wired in `Program.cs`. Acquisition has a bounded wait (`Server:QueryBudget:WaitSeconds`, default 10); on timeout it throws `QueryBudgetExceededException`, mapped by `GlobalExceptionMiddleware` to typed 503 `SERVER_BUSY` + Retry-After. Added in-use/wait/timeout counters (consumed by C8). Per-tenant partitioning not done: tenant is unknown at Acquire and the shared worker pool is the real limit (C7 scales WorkerMax). Existing 1-permit tests still valid (defaults reportingMax=1); new concurrency/timeout unit test. Not compiled locally (CI only).
 
 ---
 
@@ -264,7 +264,7 @@
   tenant/user keys computed later. Confirm `PlaneOrderTests` still passes.
 - **Accept**: limiter positioned before authN; `PlaneOrderTests` green.
 - **Push**: `scripts/git/push.sh "fix(server): move rate limiter before authentication (B1 BUG-PIPE-01)"`
-- **Done note**: DONE. `Observability/QueryBudget.cs`: reporting permits now come from `Server:QueryBudget:ReportingMax` (0 = auto = `Database:WorkerMax`, always clamped to the worker pool the sessions actually use), wired in `Program.cs`. Acquisition has a bounded wait (`Server:QueryBudget:WaitSeconds`, default 10); on timeout it throws `QueryBudgetExceededException`, mapped by `GlobalExceptionMiddleware` to typed 503 `SERVER_BUSY` + Retry-After. Added in-use/wait/timeout counters (consumed by C8). Per-tenant partitioning not done: tenant is unknown at Acquire and the shared worker pool is the real limit (C7 scales WorkerMax). Existing 1-permit tests still valid (defaults reportingMax=1); new concurrency/timeout unit test. Not compiled locally (CI only).
+- **Done note**: DONE. `Program.cs`: `UseRateLimiter()` moved from after entitlement to directly after `UseAuthentication()` and BEFORE `OperatorContextMiddleware`/`TenantContextMiddleware`/`UseAuthorization`/`EntitlementMiddleware`, so a flood is throttled before any DB-backed work (cookie validation, membership resolve, entitlement). Authentication itself stays first deliberately: bearer tokens are Data-Protection-decrypted in memory (no DB read) and the A2 tenant+user partition keys need the principal; endpoint `RequireRateLimiting` policies still apply (routing is auto-added at pipeline start). Pipeline comment updated. New source-order test `RateLimiterOrderTests` (PlaneOrderTests file); the runtime ordering tests in `PlaneOrderTests` are unaffected (401→403→entitlement ordering unchanged). Not compiled locally (CI only).
 
 ### [x] B2 · SEC-STAMP-01 — Persist security-stamp rotation on refresh-reuse (MEDIUM/verify)
 - **Why**: On refresh-token REUSE detection (`Auth/LoginService.cs:211-218`), code does
@@ -279,7 +279,7 @@
   Add a focused test: after a detected reuse the user's stored `SecurityStamp` changed.
 - **Accept**: stamp rotation committed; test asserts stored stamp differs post-reuse.
 - **Push**: `scripts/git/push.sh "sec(server): persist security-stamp rotation on refresh-reuse (B2 SEC-STAMP-01)"`
-- **Done note**: DONE. `Program.cs`: `UseRateLimiter()` moved from after entitlement to directly after `UseAuthentication()` and BEFORE `OperatorContextMiddleware`/`TenantContextMiddleware`/`UseAuthorization`/`EntitlementMiddleware`, so a flood is throttled before any DB-backed work (cookie validation, membership resolve, entitlement). Authentication itself stays first deliberately: bearer tokens are Data-Protection-decrypted in memory (no DB read) and the A2 tenant+user partition keys need the principal; endpoint `RequireRateLimiting` policies still apply (routing is auto-added at pipeline start). Pipeline comment updated. New source-order test `RateLimiterOrderTests` (PlaneOrderTests file); the runtime ordering tests in `PlaneOrderTests` are unaffected (401→403→entitlement ordering unchanged). Not compiled locally (CI only).
+- **Done note**: DONE. LoginService reuse branch now captures the audit/save Result of the RefreshReuseDetected write (the audit writer commits the staged RotateSecurityStamp together with the family revocation + audit row in one SaveChanges) and gates the response on it: a failed commit surfaces the typed failure instead of a clean SESSION_EXPIRED. New test Reuse_StagesRotatedStamp_BeforeCommit_AndGatesResponseOnSave asserts the stored stamp differs at commit time and the failure is surfaced (FakeAuditWriter gained OnWrite hook). Not compiled locally (CI only).
 
 ### [x] B3 · SEC-ENUM-01 — Idempotent device upsert on login (MEDIUM)
 - **Why**: `Auth/LoginService.cs:124-138` auto-registers a `Device` for an unknown
@@ -294,7 +294,7 @@
   rooms/vaccines), NOT a 500. Add a test for the concurrent first-login race.
 - **Accept**: no duplicate device rows; unique violation mapped to typed result; test added.
 - **Push**: `scripts/git/push.sh "fix(server): idempotent device upsert on login to fix first-login race (B3 SEC-ENUM-01)"`
-- **Done note**: DONE. LoginService reuse branch now captures the audit/save Result of the RefreshReuseDetected write (the audit writer commits the staged RotateSecurityStamp together with the family revocation + audit row in one SaveChanges) and gates the response on it: a failed commit surfaces the typed failure instead of a clean SESSION_EXPIRED. New test Reuse_StagesRotatedStamp_BeforeCommit_AndGatesResponseOnSave asserts the stored stamp differs at commit time and the failure is surfaced (FakeAuditWriter gained OnWrite hook). Not compiled locally (CI only).
+- **Done note**: DONE. Added IIdentityRepository.AddDeviceIdempotentAsync (EfIdentityRepository: insert+SaveChanges; on unique violation 23505 on the existing unique (tenant,user,installation) index it detaches the candidate and converges on the winner's row; otherwise typed ConcurrencyConflict, never a 500). LoginService device auto-register now uses it (loser adopts winner, deviceIsNew only for the inserting call, revoked winner is refused). Index confirmed in DeviceConfiguration (TenantIndex(InstallationIdHash, UserId).IsUnique()). Fake repo gained the method + OnBeforeAddDevice hook; new test ConcurrentFirstLogin_ConvergesOnOneDevice_NoDuplicateRows. Not compiled locally (CI only).
 
 ### [x] B4 · SEC-ADV-01 — Split advisory-lock key into two int4 keys (MEDIUM)
 - **Why**: `Persistence/Repositories/MoneyResourceLock.cs:15-18` uses
@@ -308,7 +308,7 @@
   to avoid deadlocks. If keeping the single key, document the accepted collision prob.
 - **Accept**: lock uses two-key form keyed by tenant + resource; ordering preserved.
 - **Push**: `scripts/git/push.sh "fix(server): two-key advisory lock to avoid cross-domain collisions (B4 SEC-ADV-01)"`
-- **Done note**: DONE. Added IIdentityRepository.AddDeviceIdempotentAsync (EfIdentityRepository: insert+SaveChanges; on unique violation 23505 on the existing unique (tenant,user,installation) index it detaches the candidate and converges on the winner's row; otherwise typed ConcurrencyConflict, never a 500). LoginService device auto-register now uses it (loser adopts winner, deviceIsNew only for the inserting call, revoked winner is refused). Index confirmed in DeviceConfiguration (TenantIndex(InstallationIdHash, UserId).IsUnique()). Fake repo gained the method + OnBeforeAddDevice hook; new test ConcurrentFirstLogin_ConvergesOnOneDevice_NoDuplicateRows. Not compiled locally (CI only).
+- **Done note**: DONE. MoneyResourceLock now takes pg_advisory_xact_lock(hashtext(tenantId), hashtext(resource)) (two int4 keys) per resource, still acquired in distinct ordinal-sorted order (deadlock-free); collision now needs both 32-bit hashes to match. Not compiled locally (CI only).
 
 ### [x] B5 · BUG-UOW-01 — Do not release savepoint on the rollback path (MEDIUM/verify)
 - **Why**: `Commands/CommandPlaneUnitOfWork.cs:42-48` on nested failure does
@@ -321,9 +321,9 @@
   asserting the outer transaction still commits the settlement receipt.
 - **Accept**: release only on success; nested-rejection test proves outer commit survives.
 - **Push**: `scripts/git/push.sh "fix(server): don't release savepoint on rollback path (B5 BUG-UOW-01)"`
-- **Done note**: DONE. MoneyResourceLock now takes pg_advisory_xact_lock(hashtext(tenantId), hashtext(resource)) (two int4 keys) per resource, still acquired in distinct ordinal-sorted order (deadlock-free); collision now needs both 32-bit hashes to match. Not compiled locally (CI only).
+- **Done note**: DONE. CommandPlaneUnitOfWork nested path: on a failed nested Result it now RollbackToSavepoint + ChangeTracker.Clear and returns immediately; ReleaseSavepointAsync runs only on the success branch (the exception path already rolled back without release). New PG test S08NestedRejectionTests proves a nested rejection discards only its own effect while the outer transaction still commits the later write (settlement receipt). Not compiled locally (CI only).
 
-### [ ] B6 · BUG-SIGN-01 — Guard signing-key creation + cache the active signer (MEDIUM)
+### [x] B6 · BUG-SIGN-01 — Guard signing-key creation + cache the active signer (MEDIUM)
 - **Why**: `Signing/SigningKeyStore.cs:23-70` `GetAsync` finds-or-CREATES a key; on a
   cold DB two concurrent issuances can both miss and both `CreateAsync` → two "active"
   keys. Also every call re-queries + re-unprotects the PKCS#8 private key via Data
@@ -336,7 +336,7 @@
   signing does no DB read and no repeated unprotect.
 - **Accept**: concurrent cold-start yields one active key; steady-state signing hits no DB/unprotect.
 - **Push**: `scripts/git/push.sh "fix(server): guard signing-key creation and cache active signer (B6 BUG-SIGN-01)"`
-- **Done note**: DONE. CommandPlaneUnitOfWork nested path: on a failed nested Result it now RollbackToSavepoint + ChangeTracker.Clear and returns immediately; ReleaseSavepointAsync runs only on the success branch (the exception path already rolled back without release). New PG test S08NestedRejectionTests proves a nested rejection discards only its own effect while the outer transaction still commits the later write (settlement receipt). Not compiled locally (CI only).
+- **Done note**: DONE. SigningKeyStore: first-key creation now runs in a transaction under pg_advisory_xact_lock(hashtext('animora.signing-keys'), hashtext(purpose)) and re-reads the active key under the lock, so a cold-start race (any number of instances) yields ONE active snapshot key (losers adopt the winner). New singleton ActiveSignerCache keeps the resolved signer (private key already unprotected/imported) for 5 min (capped by key NotAfterUtc; Invalidate() for rotation) so steady-state signing does no DB read and no Data-Protection unprotect; documented as per-process state converging within the window. DI registers the cache. New PG test SigningKey_ConcurrentColdStart_YieldsOneActiveKey_AndSteadyStateIsCached. Not compiled locally (CI only).
 
 ### [ ] B7 · BUG-CORR-01 — Memoize correlation id in `HttpContext.Items` (MEDIUM)
 - **Why**: `Hosting/CorrelationHeader.cs:24-40` `Resolve` mints a FRESH ULID each call
@@ -567,7 +567,7 @@
 | B3 | SEC-ENUM-01 | MEDIUM | [x] |
 | B4 | SEC-ADV-01 | MEDIUM | [x] |
 | B5 | BUG-UOW-01 | MEDIUM | [x] |
-| B6 | BUG-SIGN-01 | MEDIUM | [ ] |
+| B6 | BUG-SIGN-01 | MEDIUM | [x] |
 | B7 | BUG-CORR-01 | MEDIUM | [ ] |
 | B8 | BUG-BATCH-01 | MEDIUM | [ ] |
 | B9 | BUG-FILE-01 | MEDIUM | [ ] |

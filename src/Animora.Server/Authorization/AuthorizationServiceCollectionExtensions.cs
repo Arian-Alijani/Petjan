@@ -61,6 +61,7 @@ internal static class AuthorizationServiceCollectionExtensions
         services.TryAddSingleton<IServerEntitlementGate, AllowAllServerEntitlementGate>();
 
         // Snapshot signing + device administration.
+        services.AddSingleton<ActiveSignerCache>();
         services.AddScoped<SigningKeyStore>();
         services.AddScoped<ISnapshotSignerProvider>(sp => sp.GetRequiredService<SigningKeyStore>());
         services.AddScoped<DeviceAdminService>();
