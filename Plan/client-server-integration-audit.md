@@ -211,7 +211,7 @@ Windows version.
 
 ---
 
-## TASK-8 — Settings: show seat usage "M of N staff accounts" + refresh  ·  status: ☐ TODO
+## TASK-8 — Settings: show seat usage "M of N staff accounts" + refresh  ·  status: ☑ DONE
 
 ### Facts
 - Server already knows the clinic's seat cap: `LicenseStatusResponse.SeatLimit`

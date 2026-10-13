@@ -201,7 +201,8 @@ public sealed record ClinicAccountStatus(
     long? SmsRemainingMessages = null,
     System.DateTimeOffset? SmsExpiresAtUtc = null,
     System.DateTimeOffset? ObservedAtUtc = null,
-    bool IsStale = false);
+    bool IsStale = false,
+    int? SeatLimit = null);
 
 /// <summary>Server/SMS-provider adapter seam. Implement in the service layer; never put HTTP in a ViewModel.</summary>
 public interface IClinicAccountStatusSource

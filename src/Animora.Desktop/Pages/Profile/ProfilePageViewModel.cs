@@ -140,6 +140,13 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
                 $"account status ← plan={status.PlanName ?? "(none)"}, expiresUtc={status.SubscriptionExpiresAtUtc?.ToString("u") ?? "(none)"}, " +
                 $"stale={status.IsStale}, observedUtc={status.ObservedAtUtc?.ToString("u") ?? "(none)"}. " +
                 "A blank expiry means the server returned no active grant or there is no server session yet.", "profile");
+            // Keep the last known cap when this refresh could not reach the server (stale/empty), so the usage line
+            // does not flicker back to a bare count on a transient failure.
+            if (status.SeatLimit is not null || !status.IsStale)
+            {
+                _seatLimit = status.SeatLimit;
+            }
+            OnPropertyChanged(nameof(SeatUsageSummary));
             SubscriptionPlan = status.PlanName ?? "اشتراک نرم‌افزار";
             SubscriptionRemaining = Remaining(status.SubscriptionExpiresAtUtc, now);
             SubscriptionDetail = status.SubscriptionExpiresAtUtc is null
@@ -275,6 +282,19 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     public bool CanEditSelected => CanManageAccess && SelectedStaff is { IsProtected: false, IsActive: true } && !IsStaffBusy;
     public bool CanChangeSelectedStatus => CanManageUsers && SelectedStaff is { IsProtected: false } && !IsStaffBusy;
     public string StaffSummary => $"{ProfilePresentation.Fa(Staff.Count.ToString())} کاربر · {ProfilePresentation.Fa(Staff.Count(m => m.IsActive).ToString())} فعال · {ProfilePresentation.Fa(Staff.Count(m => !m.IsActive).ToString())} غیرفعال";
+
+    /// <summary>Clinic seat cap from the licence grant (<c>null</c> = unknown / unlimited); set by <see cref="RefreshAccountStatusAsync"/>.</summary>
+    private int? _seatLimit;
+
+    /// <summary>
+    /// «M از N کاربر مجاز»: total staff accounts against the licensed seat cap. A disabled account still occupies a seat
+    /// until deleted, so the used count is the whole roster, not only active members. Without a known cap it degrades
+    /// to the bare account count.
+    /// </summary>
+    public string SeatUsageSummary => _seatLimit is int limit
+        ? $"{ProfilePresentation.Fa(Staff.Count.ToString())} از {ProfilePresentation.Fa(limit.ToString())} کاربر مجاز"
+        : $"{ProfilePresentation.Fa(Staff.Count.ToString())} کاربر";
+
     public string SelectedStatusAction => SelectedStaff?.IsActive == true ? "غیرفعال‌کردن کاربر" : "فعال‌کردن کاربر";
     public string SelectedAccessHint => SelectedStaff is null ? "برای مشاهدهٔ مجوزها، یک کاربر از فهرست انتخاب کنید."
         : SelectedStaff.IsProtected ? "حساب مدیر و حساب فعلی محافظت‌شده‌اند؛ مجوزهای آن‌ها فقط قابل مشاهده است."
@@ -536,6 +556,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
             options.Contains(current) ? current : directory.Roles.FirstOrDefault(r => r.Id == "Doctor")?.Label ?? options.FirstOrDefault() ?? "");
         SelectedStaff = Staff.FirstOrDefault(m => m.Id == selectedId) ?? Staff.FirstOrDefault();
         OnPropertyChanged(nameof(StaffSummary));
+        OnPropertyChanged(nameof(SeatUsageSummary));
         AccessMessage = !CanManageUsers && !CanManageAccess
             ? "اجازهٔ مدیریت کاربران و دسترسی‌ها را ندارید."
             : "اطلاعات از پایگاه داده خوانده شد. تغییر دسترسی‌ها نیاز به ذخیره دارد.";
@@ -698,7 +719,11 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     {
         if (IsStaffBusy) return;
         IsStaffBusy = true;
-        try { await ReloadStaffAsync(); }
+        try
+        {
+            await ReloadStaffAsync();
+            await RefreshAccountStatusAsync(); // also re-reads the licensed seat cap shown in SeatUsageSummary
+        }
         catch (System.Exception) { AccessMessage = "بازخوانی اطلاعات ناموفق بود."; }
         finally { IsStaffBusy = false; }
     }

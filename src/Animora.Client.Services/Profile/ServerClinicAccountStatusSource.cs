@@ -54,6 +54,7 @@ public sealed class ServerClinicAccountStatusSource(OnlineApi api) : IClinicAcco
             PlanName: string.IsNullOrWhiteSpace(status.PlanCode) ? null : status.PlanCode,
             SubscriptionExpiresAtUtc: isActive ? status.ValidUntilUtc : null,
             ObservedAtUtc: status.ServerTimeUtc,
-            IsStale: false);
+            IsStale: false,
+            SeatLimit: status.SeatLimit);
     }
 }
