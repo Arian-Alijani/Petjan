@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Runtime.CompilerServices;
 namespace Animora.Persistence.PostgreSql.Replication;
 
 /// <summary>
@@ -46,10 +47,10 @@ public sealed class AdmissionSaturatedException(string gate, string reason)
 internal sealed class AdmissionGate(string name, int concurrency, TimeSpan? maxWait, int maxQueue) : IDisposable
 {
     private readonly SemaphoreSlim _semaphore = new(Math.Max(1, concurrency), Math.Max(1, concurrency));
-    private int _waiting;
+    private readonly StrongBox<int> _waiting = new(0);
 
     public ValueTask<IAsyncDisposable> EnterAsync(CancellationToken ct) =>
-        AdmissionMetrics.EnterAsync(name, _semaphore, maxWait, maxQueue, ref _waiting, ct);
+        AdmissionMetrics.EnterAsync(name, _semaphore, maxWait, maxQueue, _waiting, ct);
 
     public void Dispose() => _semaphore.Dispose();
 }
@@ -95,7 +96,7 @@ public static class AdmissionMetrics
     }
 
     internal static async ValueTask<IAsyncDisposable> EnterAsync(
-        string gate, SemaphoreSlim semaphore, TimeSpan? maxWait, int maxQueue, ref int instanceWaiting, CancellationToken ct)
+        string gate, SemaphoreSlim semaphore, TimeSpan? maxWait, int maxQueue, StrongBox<int> instanceWaiting, CancellationToken ct)
     {
         GateState state = Gates.GetOrAdd(gate, static _ => new GateState());
         long started = Stopwatch.GetTimestamp();
@@ -103,9 +104,9 @@ public static class AdmissionMetrics
         // Fast path: a free permit never queues, so a full queue only rejects callers that would really have to wait.
         if (!semaphore.Wait(0))
         {
-            if (Interlocked.Increment(ref instanceWaiting) > maxQueue)
+            if (Interlocked.Increment(ref instanceWaiting.Value) > maxQueue)
             {
-                Interlocked.Decrement(ref instanceWaiting);
+                Interlocked.Decrement(ref instanceWaiting.Value);
                 Rejected.Add(1, new KeyValuePair<string, object?>("gate", gate), new KeyValuePair<string, object?>("reason", "queue_full"));
                 throw new AdmissionSaturatedException(gate, "queue_full");
             }
@@ -121,7 +122,7 @@ public static class AdmissionMetrics
             finally
             {
                 Interlocked.Decrement(ref state.Waiting);
-                Interlocked.Decrement(ref instanceWaiting);
+                Interlocked.Decrement(ref instanceWaiting.Value);
                 Wait.Record(Stopwatch.GetElapsedTime(started).TotalSeconds, new KeyValuePair<string, object?>("gate", gate));
             }
 
