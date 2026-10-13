@@ -94,3 +94,17 @@ public sealed class DownloadTests
         Assert.Contains("row.OriginalName, enableRangeProcessing: true", File.ReadAllText(Path.Combine(RepoRoot.Find(),"src/Animora.Server/Files/FileEndpoints.cs")));
     }
 }
+
+public sealed class FileExtensionPolicyTests
+{
+    [Theory]
+    [InlineData("image/png", "scan.png", true)]
+    [InlineData("image/jpeg", "photo.JPG", true)]
+    [InlineData("text/plain", "note.txt", true)]
+    [InlineData("application/pdf", "report", true)]
+    [InlineData("application/pdf", "report.exe", false)]
+    [InlineData("image/png", "photo.jpg", false)]
+    [InlineData("text/plain", "run.ps1", false)]
+    public void ExtensionMustAgreeWithContentType(string type, string name, bool ok) =>
+        Assert.Equal(ok, FileTypePolicy.ExtensionMatches(type, name));
+}

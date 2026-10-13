@@ -63,6 +63,8 @@ internal sealed class CommandIntakeService(
         var row = CommandIntakeRecord.Begin(caller.TenantId, envelope.OperationId, envelope.CommandType, fingerprint,
             envelope.PayloadJson, envelope.DependsOnOperationId, correlation, attempt, IntakeRecoveryService.LeaseOwner,
             now, now + IntakeRecoveryService.LeaseDuration);
+        // CONS-INT-01: the idempotency/lease insert runs OUTSIDE the later effect transaction BY DESIGN - the InProgress lease
+        // must be committed and visible to a concurrent takeover/recovery before any effect starts. Do not "fix" by nesting it.
         IntakeBeginResult begin = await store.TryBeginAsync(row, ct).ConfigureAwait(false);
         if (!begin.Inserted)
         {

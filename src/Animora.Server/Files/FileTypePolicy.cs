@@ -4,6 +4,21 @@ internal static class FileTypePolicy
 {
     private static readonly HashSet<string> Allowed = new(StringComparer.Ordinal)
     { "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "text/plain" };
+    // IMP-08: extensions each allowed content type may carry; an empty/absent extension is tolerated (names are display-only).
+    private static readonly Dictionary<string, string[]> Extensions = new(StringComparer.Ordinal)
+    {
+        ["image/jpeg"] = [".jpg", ".jpeg", ".jpe"], ["image/png"] = [".png"], ["image/gif"] = [".gif"],
+        ["image/webp"] = [".webp"], ["application/pdf"] = [".pdf"], ["text/plain"] = [".txt", ".text", ".log", ".csv", ".md"],
+    };
+
+    /// <summary>IMP-08: true when the file name's extension (if any) is consistent with the declared content type.</summary>
+    public static bool ExtensionMatches(string type, string? fileName)
+    {
+        string ext = Path.GetExtension(fileName ?? string.Empty);
+        if (ext.Length == 0) return true;
+        return Extensions.TryGetValue(type, out var allowed) && allowed.Contains(ext, StringComparer.OrdinalIgnoreCase);
+    }
+
     public static bool IsAllowed(string? type) => type is not null && Allowed.Contains(type);
     public static bool Matches(string type, ReadOnlySpan<byte> prefix)
     {

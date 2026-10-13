@@ -509,7 +509,7 @@
 - **Push**: `scripts/git/push.sh "perf(server): backpressure 503 + per-op authZ timeouts (C9 IMP-05/IMP-06)"`
 - **Done note**: DONE. IMP-05 (backpressure): the request-path sync gate (`SemaphoreSyncAdmission`, via shared `AdmissionGate`/`AdmissionMetrics.EnterAsync`) is now BOUNDED - a free permit enters immediately, otherwise at most `Database:SyncAdmissionQueueMax` callers (0 = auto = 4 x permits) may queue and each waits at most `Database:SyncAdmissionWaitSeconds` (default 5); beyond that it throws `AdmissionSaturatedException` (`queue_full` sheds instantly, `wait_timeout` after the budget), counted by `animora.admission.rejected{gate,reason}`. `GlobalExceptionMiddleware` maps it (together with pool exhaustion and the reporting budget) to typed `503 SERVER_BUSY` + `Retry-After`. The worker gate stays unbounded on purpose (blocking a background tick is harmless; cancellation still works); reporting budget (A5) and file-upload gate (B9) already shed with 503. IMP-06 (per-op timeouts): new `Authorization/AuthzOperationGuard` (`Server:Authz:OperationTimeoutSeconds`, default 5, validated 1..30) wraps EACH authZ store call - user lookup, membership, tenant, device (`MembershipResolver`) and grant / active licence / revoked-licence (`ServerEntitlementGate`) - in a linked per-operation CTS; exceeding it throws `AuthzOperationTimeoutException` -> 503 + Retry-After instead of pinning a request+connection for the 30 s command timeout; a client abort still propagates as a plain cancellation (never mislabeled 503). Tests: `Resilience/BackpressureTests` (+ new options cases in `DatabaseProfileScalingTests`). Not compiled locally (CI only).
 
-### [ ] C10 · IMP-08 + CONS-INT-01 — File-complete re-validation + document intake lease ordering (improvement/INFO)
+### [x] C10 · IMP-08 + CONS-INT-01 — File-complete re-validation + document intake lease ordering (improvement/INFO)
 - **Why**: IMP-08: on `Complete`, re-validate content-type/extension; periodic integrity
   scrubbing (reconciliation worker exists). CONS-INT-01: `CommandIntakeService.cs:66` →
   `CommandIntakeStore.TryBeginAsync` runs the idempotency insert OUTSIDE the outer
@@ -522,7 +522,7 @@
   site explaining the intentional outside-transaction placement.
 - **Accept**: Complete re-validates; doc comment present at intake call site.
 - **Push**: `scripts/git/push.sh "chore(server): file-complete re-validation + document intake lease ordering (C10 IMP-08/CONS-INT-01)"`
-- **Done note**: _______
+- **Done note**: DONE. IMP-08: `FileTypePolicy.ExtensionMatches(type, name)` (per-content-type extension allowlist; no extension tolerated). Enforced at declare AND re-validated in `FileTransferService.CompleteAsync` together with allowlist + magic-byte match, so a name/type mismatch ends in `Mismatch` + `FILE_TYPE_NOT_ALLOWED` at Complete. Periodic integrity scrub already exists in `FileReconciliationWorker` (sampled bitrot hash + blob_missing), unchanged. CONS-INT-01: doc comment at the `store.TryBeginAsync` call in `CommandIntakeService` explaining the intentional outside-transaction lease insert. Tests: `FileExtensionPolicyTests`. Not compiled locally (CI only).
 
 ### [ ] C11 · IMP-11 — Consolidate the explicit regression tests (improvement)
 - **Why**: The review asks for explicit tests; several were added inline in B-tasks.
@@ -581,7 +581,7 @@
 | C7 | IMP-01 / IMP-09 | IMP | [x] |
 | C8 | IMP-04 | IMP | [x] |
 | C9 | IMP-05 / IMP-06 | IMP | [x] |
-| C10 | IMP-08 / CONS-INT-01 | IMP/INFO | [ ] |
+| C10 | IMP-08 / CONS-INT-01 | IMP/INFO | [x] |
 | C11 | IMP-11 | IMP | [ ] |
 | T-END | (cleanup) | — | [ ] |
 

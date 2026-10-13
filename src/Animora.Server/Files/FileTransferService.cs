@@ -13,7 +13,8 @@ internal sealed class FileTransferService(AnimoraServerDbContext db, FileStore s
     {
         if (!FileTypePolicy.IsAllowed(declaration.ContentType)) return Result<FileObject>.Fail(ErrorCodes.FileTypeNotAllowed);
         if (declaration.Size <= 0 || declaration.Size > FileStore.MaxFileBytes) return Result<FileObject>.Fail(ErrorCodes.FileTooLarge);
-        if (string.IsNullOrWhiteSpace(declaration.Name) || declaration.Name.Length > 256 || declaration.Name.Any(char.IsControl))
+        if (string.IsNullOrWhiteSpace(declaration.Name) || declaration.Name.Length > 256 || declaration.Name.Any(char.IsControl)
+            || !FileTypePolicy.ExtensionMatches(declaration.ContentType, declaration.Name))
             return Result<FileObject>.Fail(ErrorCodes.FileTypeNotAllowed);
         var hash = declaration.Sha256?.ToLowerInvariant();
         if (hash is not null && !FileStore.IsHash(hash)) return Result<FileObject>.Fail(ErrorCodes.FileHashMismatch);
@@ -67,9 +68,12 @@ internal sealed class FileTransferService(AnimoraServerDbContext db, FileStore s
         byte[] prefix = new byte[(int)Math.Min(512, row.SizeBytes)];
         await using (var stream = File.OpenRead(staged)) await stream.ReadExactlyAsync(prefix, ct).ConfigureAwait(false);
         string hash = await store.HashAsync(staged, ct).ConfigureAwait(false);
-        if ((row.Sha256 is not null && row.Sha256 != hash) || !FileTypePolicy.Matches(row.ContentType, prefix))
+        // IMP-08: on Complete re-validate type AND extension (magic bytes + extension/content-type agreement), not only at declare time.
+        bool typeOk = FileTypePolicy.IsAllowed(row.ContentType) && FileTypePolicy.ExtensionMatches(row.ContentType, row.OriginalName)
+            && FileTypePolicy.Matches(row.ContentType, prefix);
+        if ((row.Sha256 is not null && row.Sha256 != hash) || !typeOk)
         {
-            bool badType = !FileTypePolicy.Matches(row.ContentType, prefix);
+            bool badType = !typeOk;
             row.State = FileState.Mismatch; row.UpdatedUtc = clock.GetUtcNow();
             await db.SaveChangesAsync(ct).ConfigureAwait(false); await tx.CommitAsync(ct).ConfigureAwait(false);
             return Result<FileObject>.Fail(badType ? ErrorCodes.FileTypeNotAllowed : ErrorCodes.FileHashMismatch);
