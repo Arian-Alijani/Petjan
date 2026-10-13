@@ -363,7 +363,7 @@
 - **Push**: `scripts/git/push.sh "fix(server): return per-item batch command results (B8 BUG-BATCH-01)"`
 - **Done note**: DONE. BatchAsync no longer collapses a mid-batch failure into one TransportError: items that already settled keep their real SettlementResult; the failing item and the not-yet-attempted remainder (order is a contract) get a typed per-item Deferred result (ErrorCode + ResponsibleRole, FinancialEffect Unknown, retry unchanged). A true HTTP error is kept only for whole-request problems (malformed/too large/invalid before any item runs) and for request-level failures (contract version/auth/entitlement) on the FIRST item before anything committed. New test MidBatchStoreFailure_KeepsEarlierSettlements_AndDefersTheRest_PerItem (FakeAudit.FailAfterWrites). Not compiled locally (CI only).
 
-### [ ] B9 · BUG-FILE-01 — Stream uploads instead of buffering + ToArray (MEDIUM)
+### [x] B9 · BUG-FILE-01 — Stream uploads instead of buffering + ToArray (MEDIUM)
 - **Why**: `Files/FileEndpoints.cs:63-66` reads the body into a `MemoryStream` then
   `memory.ToArray()` (second full copy) before `WriteAsync`. With `MaxChunkBytes=1 MiB`
   each in-flight upload holds ~2 MiB (LOH), driving Gen2/LOH GC pressure; `files`
@@ -374,7 +374,7 @@
   semaphore (not only the rate limiter). Keep the existing `Flush(true)` fsync.
 - **Accept**: no full-buffer copy; concurrent uploads bounded.
 - **Push**: `scripts/git/push.sh "perf(server): stream file-chunk uploads and bound concurrency (B9 BUG-FILE-01)"`
-- **Done note**: _______
+- **Done note**: DONE. Upload chunk path no longer buffers through MemoryStream + ToArray: it reads the body into ONE right-sized byte[] (ContentLength-sized, bounded growth to MaxChunkBytes, oversize detected by a 1-byte probe). New FileUploadGate (singleton semaphore, Server:Files:MaxConcurrentUploads=16, UploadWaitSeconds=5, validated, in appsettings) bounds concurrent uploads; a full gate returns 503 SERVER_BUSY + Retry-After. FileStore.WriteChunkAsync keeps Flush(true). Not compiled locally (CI only).
 
 ### [ ] B10 · BUG-RECOVERY-01 + BUG-OUTBOX-01 — Decouple recovery/outbox throughput from admission gate (MEDIUM)
 - **Why**: `Workers/IntakeRecoveryWorker.cs:17-39` is tenant-serial, cap `remaining=50`
@@ -570,7 +570,7 @@
 | B6 | BUG-SIGN-01 | MEDIUM | [x] |
 | B7 | BUG-CORR-01 | MEDIUM | [x] |
 | B8 | BUG-BATCH-01 | MEDIUM | [x] |
-| B9 | BUG-FILE-01 | MEDIUM | [ ] |
+| B9 | BUG-FILE-01 | MEDIUM | [x] |
 | B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [ ] |
 | C1 | CONS-GATE-01 | MEDIUM | [ ] |
 | C2 | BUG-OPLOCK-01 | LOW | [ ] |

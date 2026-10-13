@@ -7,7 +7,7 @@ internal static class FilesServiceCollectionExtensions
 {
     public static IServiceCollection AddAnimoraFiles(this IServiceCollection services)
     {
-        services.AddSingleton<FileStore>(); services.AddSingleton<ValetKeyService>();
+        services.AddSingleton<FileUploadGate>(); services.AddSingleton<FileStore>(); services.AddSingleton<ValetKeyService>();
         services.AddScoped<FileTransferService>(); services.AddScoped<IFileExistenceChecker, FileExistenceChecker>();
         services.AddSingleton<FileMaintenanceStore>(); services.AddSingleton<IFileStoreManifest, FileStoreManifest>();
         services.AddSingleton<IReadinessProbe, FilesRootProbe>(); services.AddHostedService<FileReconciliationWorker>();

@@ -35,6 +35,19 @@ internal sealed class ServerOptions
 
     /// <summary>Short-TTL authorization/entitlement verdict cache (PERF-AUTHZ-01).</summary>
     public AuthCacheSettings AuthCache { get; set; } = new();
+
+    /// <summary>File-plane upload concurrency (BUG-FILE-01).</summary>
+    public FileSettings Files { get; set; } = new();
+}
+
+/// <summary>BUG-FILE-01: bounds on simultaneous chunk uploads (each in-flight chunk holds up to one chunk buffer).</summary>
+internal sealed class FileSettings
+{
+    /// <summary>Concurrent chunk uploads per instance (1..256). Default 16 (≈16 MiB of pooled buffers worst case).</summary>
+    public int MaxConcurrentUploads { get; set; } = 16;
+
+    /// <summary>How long an upload waits for a slot before 503 + Retry-After (1..60). Default 5.</summary>
+    public int UploadWaitSeconds { get; set; } = 5;
 }
 
 /// <summary>PERF-QB-01: reporting-query admission bounds.</summary>

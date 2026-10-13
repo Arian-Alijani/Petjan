@@ -76,6 +76,16 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
             failures.Add($"'{ServerOptions.SectionName}:AuthCache:MaxEntries' must be at least 1.");
         }
 
+        if (options.Files.MaxConcurrentUploads is < 1 or > 256)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:Files:MaxConcurrentUploads' must be between 1 and 256.");
+        }
+
+        if (options.Files.UploadWaitSeconds is < 1 or > 60)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:Files:UploadWaitSeconds' must be between 1 and 60.");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

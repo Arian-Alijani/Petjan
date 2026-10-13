@@ -60,12 +60,39 @@ internal static class FileEndpoints
         if (c.Request.ContentLength > FileStore.MaxChunkBytes) return Error(c, ErrorCodes.FileTooLarge);
         var feature = c.Features.Get<IHttpMaxRequestBodySizeFeature>();
         if (feature is { IsReadOnly: false }) feature.MaxRequestBodySize = FileStore.MaxChunkBytes;
-        using var memory = new MemoryStream(); var buffer = new byte[65536]; int read;
-        while ((read = await c.Request.Body.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
-        { if (memory.Length + read > FileStore.MaxChunkBytes) return Error(c, ErrorCodes.FileTooLarge); memory.Write(buffer, 0, read); }
-        var outcome = await service.WriteAsync(uploadId, offset, memory.ToArray(), ct).ConfigureAwait(false);
-        c.Response.Headers["X-Animora-Next-Offset"] = outcome.NextOffset.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return outcome.Error is { } error ? Error(c, error) : outcome.Accepted ? Results.NoContent() : Failure(c, ServerErrorCodes.FileOffsetMismatch, 409);
+        // Bound simultaneous chunk uploads (the rate limiter alone does not bound concurrency): a full gate sheds
+        // with 503 SERVER_BUSY + Retry-After instead of queueing unbounded 1 MiB buffers on the LOH.
+        var gate = c.RequestServices.GetRequiredService<FileUploadGate>();
+        if (!await gate.WaitAsync(ct).ConfigureAwait(false))
+        {
+            c.Response.Headers.RetryAfter = "1";
+            return Failure(c, ServerErrorCodes.ServerBusy, 503);
+        }
+        try
+        {
+            // Single right-sized buffer (no MemoryStream growth + ToArray second copy).
+            int expected = c.Request.ContentLength is > 0 and <= FileStore.MaxChunkBytes ? (int)c.Request.ContentLength.Value : FileStore.MaxChunkBytes;
+            byte[] data = new byte[expected]; int length = 0, read;
+            while ((read = await c.Request.Body.ReadAsync(data.AsMemory(length), ct).ConfigureAwait(false)) > 0)
+            {
+                length += read;
+                if (length == data.Length)
+                {
+                    if (data.Length >= FileStore.MaxChunkBytes)
+                    {
+                        // Full: any further byte means the chunk is oversized.
+                        if (await c.Request.Body.ReadAsync(new byte[1], ct).ConfigureAwait(false) > 0) return Error(c, ErrorCodes.FileTooLarge);
+                        break;
+                    }
+                    Array.Resize(ref data, Math.Min(data.Length * 2, FileStore.MaxChunkBytes));
+                }
+            }
+            if (length != data.Length) Array.Resize(ref data, length);
+            var outcome = await service.WriteAsync(uploadId, offset, data, ct).ConfigureAwait(false);
+            c.Response.Headers["X-Animora-Next-Offset"] = outcome.NextOffset.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return outcome.Error is { } error ? Error(c, error) : outcome.Accepted ? Results.NoContent() : Failure(c, ServerErrorCodes.FileOffsetMismatch, 409);
+        }
+        finally { gate.Release(); }
     }
     private static async Task<IResult> Resume(string uploadId, HttpContext c, FileTransferService service, ValetKeyService keys, CancellationToken ct)
     {
