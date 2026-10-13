@@ -242,7 +242,7 @@
      blocking indefinitely (tie into the WireApiError pattern used elsewhere).
 - **Accept**: reporting concurrency > 1 and configurable; bounded wait with 503 on timeout.
 - **Push**: `scripts/git/push.sh "perf(server): size reporting query budget to read pool with wait-timeout 503 (A5 PERF-QB-01)"`
-- **Done note**: _______
+- **Done note**: DONE. New `Authorization/AuthzDecisionCache` (per-process, ABSOLUTE TTL `Server:AuthCache:TtlSeconds` default 10, 0 disables; bounded by MaxEntries; validated). `MembershipResolver` now reads membership+device through new `IIdentityReadStore` on the READ pool (no tracking) and caches only SUCCESSFUL resolutions keyed by user+device+token stamp (rotated stamp = miss; tenant still bound from stored user). `ServerEntitlementGate` caches only POSITIVE verdicts per tenant+device; denials/revocations never cached. Invalidation: device approve/revoke/reinstate, staff status/permission changes, operator subscription mutations and licence revoke/recheck call `InvalidateUser/InvalidateTenant`. CONS-ENT-01: `EntitlementMiddleware` skips POST /api/commands* — the command-type-aware check in `CommandIntakeService` is the single authoritative one (documented in code). Npgsql pool wait is bounded (`Database:PoolWaitSeconds`, default 5, validated) and `GlobalExceptionMiddleware` maps pool exhaustion (`DatabaseFailure.IsPoolExhausted`) to typed 503 SERVER_BUSY + Retry-After. Tests: new `AuthzDecisionCacheTests`; test hosts set TtlSeconds=0 so direct world mutation stays deterministic. Not compiled locally (CI only).
 
 ---
 
