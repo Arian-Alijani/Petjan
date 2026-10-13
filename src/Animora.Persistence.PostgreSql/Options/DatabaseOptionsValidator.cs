@@ -39,6 +39,8 @@ public sealed class DatabaseOptionsValidator : IValidateOptions<DatabaseOptions>
         if (options.WorkerMax < 1) failures.Add("Database:WorkerMax must be >= 1.");
 
         if (options.SyncAdmissionMax is < 0 or > 64) failures.Add("Database:SyncAdmissionMax must be 0 (auto) or between 1 and 64.");
+        if (options.SyncAdmissionWaitSeconds is < 1 or > 60) failures.Add("Database:SyncAdmissionWaitSeconds must be between 1 and 60.");
+        if (options.SyncAdmissionQueueMax is < 0 or > 1024) failures.Add("Database:SyncAdmissionQueueMax must be 0 (auto) or between 1 and 1024.");
         if (options.WorkerAdmissionMax is < 0 or > 16) failures.Add("Database:WorkerAdmissionMax must be 0 (auto) or between 1 and 16.");
         if (options.CommandTimeoutSeconds is < 5 or > 300) failures.Add("Database:CommandTimeoutSeconds must be between 5 and 300.");
         if (options.ConnectionIdleLifetimeSeconds is < 10 or > 3600) failures.Add("Database:ConnectionIdleLifetimeSeconds must be between 10 and 3600.");

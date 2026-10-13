@@ -498,7 +498,7 @@
 - **Push**: `scripts/git/push.sh "feat(server): emit scaling-signal metrics (C8 IMP-04)"`
 - **Done note**: DONE. All six signals are emitted (low-cardinality labels only; exported via the existing OTLP setup, new `Animora.Admission` meter registered in `TelemetrySetup`). (1) Pool saturation: `animora.pg.pool.saturation{source}` = in-use / configured max per pool (limits fed from `DatabaseOptions` by `SnapshotAgeMonitor`, usage from `DatabasePoolUsage`), next to the existing `animora.pg.pool.in_use`. (2) Admission-gate wait: `AdmissionMetrics` (Persistence) - histogram `animora.admission.wait.seconds{gate=worker|sync}` plus gauges `animora.admission.in_use` / `animora.admission.waiting`, recorded inside both `SemaphoreBackgroundAdmission` and `SemaphoreSyncAdmission`. (3) AuthZ query count/latency: `animora.authz.queries` + `animora.authz.duration.seconds.total` counters recorded around the UNCACHED store paths of `MembershipResolver` and `ServerEntitlementGate` (cache hits correctly cost nothing). (4) Outbox lag: `animora.outbox.lag.seconds` = age of the oldest due outbox row (new column in `ServerDatabaseStatisticsReader`). (5) Intake-recovery backlog: `animora.intake.recovery.backlog` = InProgress intake rows with expired lease. (6) Reporting-budget wait: `animora.reporting.budget{stat=in_use|max|wait_seconds_total|waits_total|timeouts_total}` wired from `QueryBudget` (A5) in `Program.cs`. Tests: `Observability/ScalingSignalsTests` (MeterListener based). Not compiled locally (CI only).
 
-### [ ] C9 · IMP-05 + IMP-06 — Backpressure (bounded queues → 503) + per-op authZ timeouts (improvement)
+### [x] C9 · IMP-05 + IMP-06 — Backpressure (bounded queues → 503) + per-op authZ timeouts (improvement)
 - **Why**: Fire-and-wait global semaphores block request threads under overload; a single
   slow authZ query can pin a request+connection for the full 30s `CommandTimeout`.
 - **Files**: the admission/budget gates (A1/A5), authZ pipeline DB calls (A4 files).
@@ -507,7 +507,7 @@
   timeouts around each DB call in the authZ pipeline so one slow query can't pin a request.
 - **Accept**: overload sheds with 503+Retry-After; authZ DB calls have bounded per-op timeouts.
 - **Push**: `scripts/git/push.sh "perf(server): backpressure 503 + per-op authZ timeouts (C9 IMP-05/IMP-06)"`
-- **Done note**: _______
+- **Done note**: DONE. IMP-05 (backpressure): the request-path sync gate (`SemaphoreSyncAdmission`, via shared `AdmissionGate`/`AdmissionMetrics.EnterAsync`) is now BOUNDED - a free permit enters immediately, otherwise at most `Database:SyncAdmissionQueueMax` callers (0 = auto = 4 x permits) may queue and each waits at most `Database:SyncAdmissionWaitSeconds` (default 5); beyond that it throws `AdmissionSaturatedException` (`queue_full` sheds instantly, `wait_timeout` after the budget), counted by `animora.admission.rejected{gate,reason}`. `GlobalExceptionMiddleware` maps it (together with pool exhaustion and the reporting budget) to typed `503 SERVER_BUSY` + `Retry-After`. The worker gate stays unbounded on purpose (blocking a background tick is harmless; cancellation still works); reporting budget (A5) and file-upload gate (B9) already shed with 503. IMP-06 (per-op timeouts): new `Authorization/AuthzOperationGuard` (`Server:Authz:OperationTimeoutSeconds`, default 5, validated 1..30) wraps EACH authZ store call - user lookup, membership, tenant, device (`MembershipResolver`) and grant / active licence / revoked-licence (`ServerEntitlementGate`) - in a linked per-operation CTS; exceeding it throws `AuthzOperationTimeoutException` -> 503 + Retry-After instead of pinning a request+connection for the 30 s command timeout; a client abort still propagates as a plain cancellation (never mislabeled 503). Tests: `Resilience/BackpressureTests` (+ new options cases in `DatabaseProfileScalingTests`). Not compiled locally (CI only).
 
 ### [ ] C10 · IMP-08 + CONS-INT-01 — File-complete re-validation + document intake lease ordering (improvement/INFO)
 - **Why**: IMP-08: on `Complete`, re-validate content-type/extension; periodic integrity
@@ -580,7 +580,7 @@
 | C6 | SCALE-N1-01 | MEDIUM | [x] |
 | C7 | IMP-01 / IMP-09 | IMP | [x] |
 | C8 | IMP-04 | IMP | [x] |
-| C9 | IMP-05 / IMP-06 | IMP | [ ] |
+| C9 | IMP-05 / IMP-06 | IMP | [x] |
 | C10 | IMP-08 / CONS-INT-01 | IMP/INFO | [ ] |
 | C11 | IMP-11 | IMP | [ ] |
 | T-END | (cleanup) | — | [ ] |

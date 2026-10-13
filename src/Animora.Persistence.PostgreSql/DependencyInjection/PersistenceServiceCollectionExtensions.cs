@@ -112,7 +112,10 @@ public static class PersistenceServiceCollectionExtensions
         {
             var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             // Leave ~2 write connections as headroom for actual mutations; never below 2.
-            return new SemaphoreSyncAdmission(db.SyncAdmissionMax > 0 ? db.SyncAdmissionMax : Math.Max(2, db.OltpWriteMax - 2));
+            int permits = db.SyncAdmissionMax > 0 ? db.SyncAdmissionMax : Math.Max(2, db.OltpWriteMax - 2);
+            // IMP-05: bounded queue + wait budget => overload sheds as 503 + Retry-After instead of blocking request threads.
+            return new SemaphoreSyncAdmission(permits, TimeSpan.FromSeconds(Math.Clamp(db.SyncAdmissionWaitSeconds, 1, 60)),
+                db.SyncAdmissionQueueMax > 0 ? db.SyncAdmissionQueueMax : permits * 4);
         });
         services.TryAddSingleton<FeedPageWriter>();
         services.TryAddScoped<RecordProjector>();
@@ -145,6 +148,8 @@ public static class PersistenceServiceCollectionExtensions
         options.WorkerMax = ReadInt(section, nameof(DatabaseOptions.WorkerMax), profile.Worker);
         options.PoolWaitSeconds = ReadInt(section, nameof(DatabaseOptions.PoolWaitSeconds), options.PoolWaitSeconds);
         options.SyncAdmissionMax = ReadInt(section, nameof(DatabaseOptions.SyncAdmissionMax), options.SyncAdmissionMax);
+        options.SyncAdmissionWaitSeconds = ReadInt(section, nameof(DatabaseOptions.SyncAdmissionWaitSeconds), options.SyncAdmissionWaitSeconds);
+        options.SyncAdmissionQueueMax = ReadInt(section, nameof(DatabaseOptions.SyncAdmissionQueueMax), options.SyncAdmissionQueueMax);
         options.WorkerAdmissionMax = ReadInt(section, nameof(DatabaseOptions.WorkerAdmissionMax), options.WorkerAdmissionMax);
         options.CommandTimeoutSeconds = ReadInt(section, nameof(DatabaseOptions.CommandTimeoutSeconds), options.CommandTimeoutSeconds);
         options.ConnectionIdleLifetimeSeconds = ReadInt(section, nameof(DatabaseOptions.ConnectionIdleLifetimeSeconds), options.ConnectionIdleLifetimeSeconds);

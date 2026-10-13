@@ -41,6 +41,9 @@ internal sealed class ServerOptions
     /// <summary>Reporting query admission (PERF-QB-01).</summary>
     public QueryBudgetSettings QueryBudget { get; set; } = new();
 
+    /// <summary>Per-operation bounds of the authorization pipeline's database calls (IMP-06).</summary>
+    public AuthzSettings Authz { get; set; } = new();
+
     /// <summary>Short-TTL authorization/entitlement verdict cache (PERF-AUTHZ-01).</summary>
     public AuthCacheSettings AuthCache { get; set; } = new();
 
@@ -111,6 +114,13 @@ internal sealed class WorkerSettings
 
     /// <summary>Tenants recovered in parallel per tick (1..16). Default 4.</summary>
     public int RecoveryParallelism { get; set; } = 4;
+}
+
+/// <summary>IMP-06: how long ONE authorization-pipeline store call may run before the request is shed with 503.</summary>
+internal sealed class AuthzSettings
+{
+    /// <summary>Per-operation timeout of membership/entitlement store lookups, 1..30 s. Default 5 (was: the full 30 s command timeout).</summary>
+    public int OperationTimeoutSeconds { get; set; } = 5;
 }
 
 /// <summary>BUG-FILE-01: bounds on simultaneous chunk uploads (each in-flight chunk holds up to one chunk buffer).</summary>

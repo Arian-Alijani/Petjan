@@ -81,6 +81,8 @@ public sealed class DatabaseProfileScalingTests
     [Theory]
     [InlineData(nameof(DatabaseOptions.SyncAdmissionMax), 65)]
     [InlineData(nameof(DatabaseOptions.WorkerAdmissionMax), 17)]
+    [InlineData(nameof(DatabaseOptions.SyncAdmissionWaitSeconds), 0)]
+    [InlineData(nameof(DatabaseOptions.SyncAdmissionQueueMax), 1025)]
     [InlineData(nameof(DatabaseOptions.CommandTimeoutSeconds), 4)]
     [InlineData(nameof(DatabaseOptions.CommandTimeoutSeconds), 301)]
     [InlineData(nameof(DatabaseOptions.ConnectionIdleLifetimeSeconds), 9)]

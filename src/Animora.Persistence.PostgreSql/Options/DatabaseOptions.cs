@@ -39,6 +39,12 @@ public sealed class DatabaseOptions
     /// </summary>
     public int SyncAdmissionMax { get; set; }
 
+    /// <summary>IMP-05: seconds a sync request waits for an admission permit before it is shed with 503 + Retry-After (1..60). Default 5.</summary>
+    public int SyncAdmissionWaitSeconds { get; set; } = 5;
+
+    /// <summary>IMP-05: max callers allowed to QUEUE for a sync permit; further callers are shed at once. 0 = auto = 4 x permits (1..1024).</summary>
+    public int SyncAdmissionQueueMax { get; set; }
+
     /// <summary>IMP-09: background-worker admission permits. 0 = auto = <c>clamp(WorkerMax, 1, 2)</c>.</summary>
     public int WorkerAdmissionMax { get; set; }
 

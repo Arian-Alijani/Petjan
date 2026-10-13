@@ -67,6 +67,11 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
             failures.Add($"'{ServerOptions.SectionName}:QueryBudget:WaitSeconds' must be between 1 and 120.");
         }
 
+        if (options.Authz.OperationTimeoutSeconds is < 1 or > 30)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:Authz:OperationTimeoutSeconds' must be between 1 and 30.");
+        }
+
         var cache = options.AuthCache;
         if (cache.TtlSeconds is < 0 or > 60)
         {

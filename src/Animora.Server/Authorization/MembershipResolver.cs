@@ -21,6 +21,7 @@ internal sealed class MembershipResolver(
     IIdentityReadStore repository,
     ITenantDirectory tenants,
     AuthzDecisionCache cache,
+    AuthzOperationGuard guard,
     Animora.Server.Observability.ServerMetrics? metrics = null) : IMembershipResolver
 {
     /// <inheritdoc />
@@ -57,7 +58,7 @@ internal sealed class MembershipResolver(
     {
         // 1. The tenant is not known yet, so the main (tenant-filtered) context cannot be used: read the user by
         //    primary key through the keyless lookup — one addressed row, no enumeration.
-        UserLookupEntry? user = await users.FindByIdAsync(userId, ct).ConfigureAwait(false);
+        UserLookupEntry? user = await guard.RunAsync(t => users.FindByIdAsync(userId, t), ct).ConfigureAwait(false);
         if (user is null || !string.Equals(user.SecurityStamp, securityStamp, StringComparison.Ordinal))
         {
             // Unknown user and rotated stamp are indistinguishable.
@@ -73,14 +74,14 @@ internal sealed class MembershipResolver(
         //    DbContext query filter throws on an unbound tenant, which is the intended fail-closed default).
         tenantContext.Bind(user.TenantId);
 
-        StaffMembership? membership = await repository.FindActiveMembershipAsync(user.Id, ct).ConfigureAwait(false);
+        StaffMembership? membership = await guard.RunAsync(t => repository.FindActiveMembershipAsync(user.Id, t), ct).ConfigureAwait(false);
         if (membership is null || !membership.IsActive
             || !string.Equals(membership.TenantId, user.TenantId, StringComparison.Ordinal))
         {
             return Result<ResolvedMembership>.Fail(ErrorCodes.MembershipNotActive);
         }
 
-        Result<TenantDirectoryEntry> tenant = await tenants.FindByIdAsync(user.TenantId, ct).ConfigureAwait(false);
+        Result<TenantDirectoryEntry> tenant = await guard.RunAsync(t => tenants.FindByIdAsync(user.TenantId, t), ct).ConfigureAwait(false);
         if (tenant.IsFailure)
         {
             return Result<ResolvedMembership>.Fail(ErrorCodes.SessionExpired);
@@ -91,7 +92,7 @@ internal sealed class MembershipResolver(
             return Result<ResolvedMembership>.Fail(ErrorCodes.TenantSuspended);
         }
 
-        Device? device = await repository.FindDeviceByIdAsync(deviceId, ct).ConfigureAwait(false);
+        Device? device = await guard.RunAsync(t => repository.FindDeviceByIdAsync(deviceId, t), ct).ConfigureAwait(false);
         if (device is null
             || device.Status == DeviceStatus.Revoked
             || !string.Equals(device.UserId, user.Id, StringComparison.Ordinal))

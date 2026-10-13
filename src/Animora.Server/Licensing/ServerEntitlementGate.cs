@@ -12,7 +12,7 @@ namespace Animora.Server.Licensing;
 /// issued licence is honoured at once while a revocation is observed within the TTL.
 /// </summary>
 internal sealed class ServerEntitlementGate(AnimoraEntitlementReadContext db, IClock clock, IHttpContextAccessor http,
-    AuthzDecisionCache cache, Animora.Server.Observability.ServerMetrics? metrics = null) : IServerEntitlementGate
+    AuthzDecisionCache cache, AuthzOperationGuard guard, Animora.Server.Observability.ServerMetrics? metrics = null) : IServerEntitlementGate
 {
     /// <summary>Exempt routes (single source: <see cref="ServerSurfacePolicy"/>).</summary>
     internal static bool IsExempt(PathString path) => ServerSurfacePolicy.IsEntitlementExempt(path);
@@ -32,21 +32,22 @@ internal sealed class ServerEntitlementGate(AnimoraEntitlementReadContext db, IC
 
     private async ValueTask<Result> EvaluateFromStoreAsync(TenantEntitlementContext context, string deviceId, CancellationToken ct)
     {
-        var grant = await db.Grants.AsNoTracking().Where(x => x.TenantId == context.TenantId)
-            .Select(x => new { x.Status, x.ValidUntilUtc }).SingleOrDefaultAsync(ct).ConfigureAwait(false);
+        // IMP-06: each store call has its own bounded budget.
+        var grant = await guard.RunAsync(t => db.Grants.AsNoTracking().Where(x => x.TenantId == context.TenantId)
+            .Select(x => new { x.Status, x.ValidUntilUtc }).SingleOrDefaultAsync(t), ct).ConfigureAwait(false);
         if (grant?.Status == LicenseGrantStatus.Revoked) return Result.Fail(ErrorCodes.LicenseRevoked);
         if (grant is null || grant.Status != LicenseGrantStatus.Active || clock.UtcNow > grant.ValidUntilUtc)
             return Result.Fail(ErrorCodes.EntitlementRequired, "license_not_active");
-        var active = await db.Licenses.AsNoTracking().Where(x => x.TenantId == context.TenantId && x.DeviceId == deviceId
+        var active = await guard.RunAsync(t => db.Licenses.AsNoTracking().Where(x => x.TenantId == context.TenantId && x.DeviceId == deviceId
                 && x.Status == LicenseRecordStatus.Active).Select(x => new { x.ExpiresUtc })
-            .SingleOrDefaultAsync(ct).ConfigureAwait(false);
+            .SingleOrDefaultAsync(t), ct).ConfigureAwait(false);
         if (active is not null && clock.UtcNow <= active.ExpiresUtc)
         {
             cache.SetEntitled(context.TenantId, deviceId);
             return Result.Ok();
         }
-        if (await db.Licenses.AsNoTracking().AnyAsync(x => x.TenantId == context.TenantId && x.DeviceId == deviceId
-            && x.Status == LicenseRecordStatus.Revoked, ct).ConfigureAwait(false)) return Result.Fail(ErrorCodes.LicenseRevoked);
+        if (await guard.RunAsync(t => db.Licenses.AsNoTracking().AnyAsync(x => x.TenantId == context.TenantId && x.DeviceId == deviceId
+            && x.Status == LicenseRecordStatus.Revoked, t), ct).ConfigureAwait(false)) return Result.Fail(ErrorCodes.LicenseRevoked);
         return Result.Fail(ErrorCodes.EntitlementRequired, "license_not_active");
     }
 }

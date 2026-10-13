@@ -37,6 +37,7 @@ internal static class AuthorizationServiceCollectionExtensions
         // Tenant binding + per-request state.
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<AuthzDecisionCache>();
+        services.TryAddSingleton<AuthzOperationGuard>(); // IMP-06: per-operation budget for authZ store calls
         services.AddScoped<IMembershipResolver, MembershipResolver>();
         services.AddScoped<ServerAuthorizationSubjectFactory>();
         services.AddScoped<IRequestAuthorizationState, RequestAuthorizationState>();
