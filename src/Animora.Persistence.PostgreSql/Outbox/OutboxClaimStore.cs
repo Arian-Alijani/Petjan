@@ -5,6 +5,11 @@ namespace Animora.Persistence.PostgreSql.Outbox;
 
 public sealed class OutboxClaimStore(OutboxDbContext context)
 {
+    /// <summary>
+    /// IMP-09: claim lease. A fixed invariant rather than an option: <c>ServerOptionsValidator</c> proves that
+    /// <c>ceil(Workers:OutboxClaimBatch / Workers:OutboxConsumers) x delivery timeout</c> stays inside it, so the
+    /// tunable batch/consumer knobs can never outlive the lease.
+    /// </summary>
     public static readonly TimeSpan Lease = TimeSpan.FromSeconds(60);
     public const string ClaimSql = """
         WITH due AS (

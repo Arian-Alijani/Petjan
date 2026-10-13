@@ -473,7 +473,7 @@
 - **Push**: `scripts/git/push.sh "perf(server): batch-load role definitions in staff directory (C6 SCALE-N1-01)"`
 - **Done note**: DONE. `IRoleDefinitionRepository` gained a default-interface `ListByTenantAsync(tenantId)` (falls back to per-role `FindByRoleAsync`, so the Sqlite/test implementers are unchanged). `ServerRoleDefinitionRepository` overrides it with ONE set-based `AsNoTracking` query for the tenant's whole role catalogue. `StaffProvisioningService.ListAsync` now builds `definitions` from that single call; effective-permission assembly per member stays in memory (roster was already one `ListStaffAsync` query). Result: role definitions N+1 (one query per `StaffRole`) -> 1 query. The directory read remains on the request-scoped `AnimoraServerDbContext` (its tenant filter is what scopes the query; moving it to the read pool would need a tenant-filtered read context - tracked under C7/C9 pool work). Tests: `Authorization/RoleCatalogueBatchTests`. Not compiled locally (CI only).
 
-### [ ] C7 · IMP-01 + IMP-09 — Scale pool sizes with profile + externalize magic numbers (improvement)
+### [x] C7 · IMP-01 + IMP-09 — Scale pool sizes with profile + externalize magic numbers (improvement)
 - **Why**: `appsettings.json` `OltpWriteMax=6 / OltpReadMax=3 / WorkerMax=2` is low for a
   command server. Magic numbers scattered: batch size 50, chunk 1 MiB, lease 60s,
   admission concurrency, outbox claim 2, recovery cap 50, snapshot lifetime 10s.
@@ -486,7 +486,7 @@
   finish and consolidate here.
 - **Accept**: pool sizes profile-scaled; the listed constants are options-driven + validated.
 - **Push**: `scripts/git/push.sh "chore(server): scale pools with profile, externalize tuning constants (C7 IMP-01/IMP-09)"`
-- **Done note**: _______
+- **Done note**: DONE. IMP-01: `DatabaseOptions.ForProfile(profileGiB)` supplies profile-scaled pool defaults (2 GiB: write 6 / read 3 / keyring 1 / worker 2 = 12; 4 GiB: 11/5/1/3 = 20 - each exactly fills the validator's budget). `appsettings.json` no longer hard-codes the four pool sizes, so changing `Database:ProfileGiB` scales every pool; any explicit `Database:*Max` still wins and the pool-sum budget validator still guards it. Npgsql `Timeout` (pool-wait, A4), `Connection Idle Lifetime` and `Connection Pruning Interval` are now explicit validated options; pool exhaustion -> typed 503 was done in A4. IMP-09: externalized + validated (`Database:`) `SyncAdmissionMax` / `WorkerAdmissionMax` (0 = auto formulas from A1), `CommandTimeoutSeconds` (5..300, was const 30), idle-lifetime/pruning; with B9/B10/A5/A4 the `Server:Files|Workers|QueryBudget|AuthCache|Health` options cover upload slots, outbox claim/consumers, recovery caps, reporting permits, TTLs. Intentionally NOT options (documented in code as invariants): batch size 50 and chunk 1 MiB (wire-protocol limits shared with the desktop client - unilateral change would break deployed clients) and the 60 s outbox lease (validator proves batch/consumers fit inside it); snapshot lifetime already lives in `FeedStorageOptions.MaxSnapshotLifetime`. Tests: `DatabaseProfileScalingTests`. Not compiled locally (CI only).
 
 ### [ ] C8 · IMP-04 — Emit scaling-signal metrics (improvement)
 - **Why**: The scaling findings predict exactly which signals turn red first; emit them.
@@ -578,7 +578,7 @@
 | C4 | BUG-HEALTH-01 / IMP-10 | LOW | [x] |
 | C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [x] |
 | C6 | SCALE-N1-01 | MEDIUM | [x] |
-| C7 | IMP-01 / IMP-09 | IMP | [ ] |
+| C7 | IMP-01 / IMP-09 | IMP | [x] |
 | C8 | IMP-04 | IMP | [ ] |
 | C9 | IMP-05 / IMP-06 | IMP | [ ] |
 | C10 | IMP-08 / CONS-INT-01 | IMP/INFO | [ ] |

@@ -32,7 +32,6 @@ public static class PersistenceServiceCollectionExtensions
     public const string WorkerKey = "worker";
 
     private const string ApplicationName = "Animora.Server";
-    private const int CommandTimeoutSeconds = 30;
 
     // RFC 2606 reserves ".invalid": DNS never resolves it, so an unconfigured data source cannot connect anywhere.
     private const string UnconfiguredConnectionString = "Host=database-not-configured.invalid;Timeout=2";
@@ -107,13 +106,13 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddSingleton<IBackgroundAdmission>(sp =>
         {
             var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-            return new SemaphoreBackgroundAdmission(Math.Clamp(db.WorkerMax, 1, 2));
+            return new SemaphoreBackgroundAdmission(db.WorkerAdmissionMax > 0 ? db.WorkerAdmissionMax : Math.Clamp(db.WorkerMax, 1, 2));
         });
         services.TryAddSingleton<ISyncAdmission>(sp =>
         {
             var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
             // Leave ~2 write connections as headroom for actual mutations; never below 2.
-            return new SemaphoreSyncAdmission(Math.Max(2, db.OltpWriteMax - 2));
+            return new SemaphoreSyncAdmission(db.SyncAdmissionMax > 0 ? db.SyncAdmissionMax : Math.Max(2, db.OltpWriteMax - 2));
         });
         services.TryAddSingleton<FeedPageWriter>();
         services.TryAddScoped<RecordProjector>();
@@ -136,12 +135,20 @@ public static class PersistenceServiceCollectionExtensions
             options.ConnectionString = connectionString;
         }
 
-        options.OltpWriteMax = ReadInt(section, nameof(DatabaseOptions.OltpWriteMax), options.OltpWriteMax);
-        options.OltpReadMax = ReadInt(section, nameof(DatabaseOptions.OltpReadMax), options.OltpReadMax);
-        options.KeyRingMax = ReadInt(section, nameof(DatabaseOptions.KeyRingMax), options.KeyRingMax);
-        options.WorkerMax = ReadInt(section, nameof(DatabaseOptions.WorkerMax), options.WorkerMax);
         options.ProfileGiB = ReadInt(section, nameof(DatabaseOptions.ProfileGiB), options.ProfileGiB);
+
+        // IMP-01: an unset pool size scales with the memory profile; an explicit value always wins.
+        var profile = DatabaseOptions.ForProfile(options.ProfileGiB);
+        options.OltpWriteMax = ReadInt(section, nameof(DatabaseOptions.OltpWriteMax), profile.OltpWrite);
+        options.OltpReadMax = ReadInt(section, nameof(DatabaseOptions.OltpReadMax), profile.OltpRead);
+        options.KeyRingMax = ReadInt(section, nameof(DatabaseOptions.KeyRingMax), profile.KeyRing);
+        options.WorkerMax = ReadInt(section, nameof(DatabaseOptions.WorkerMax), profile.Worker);
         options.PoolWaitSeconds = ReadInt(section, nameof(DatabaseOptions.PoolWaitSeconds), options.PoolWaitSeconds);
+        options.SyncAdmissionMax = ReadInt(section, nameof(DatabaseOptions.SyncAdmissionMax), options.SyncAdmissionMax);
+        options.WorkerAdmissionMax = ReadInt(section, nameof(DatabaseOptions.WorkerAdmissionMax), options.WorkerAdmissionMax);
+        options.CommandTimeoutSeconds = ReadInt(section, nameof(DatabaseOptions.CommandTimeoutSeconds), options.CommandTimeoutSeconds);
+        options.ConnectionIdleLifetimeSeconds = ReadInt(section, nameof(DatabaseOptions.ConnectionIdleLifetimeSeconds), options.ConnectionIdleLifetimeSeconds);
+        options.ConnectionPruningIntervalSeconds = ReadInt(section, nameof(DatabaseOptions.ConnectionPruningIntervalSeconds), options.ConnectionPruningIntervalSeconds);
     }
 
     private static int ReadInt(IConfigurationSection section, string key, int fallback) =>
@@ -166,7 +173,10 @@ public static class PersistenceServiceCollectionExtensions
             ApplicationName = ApplicationName + "/" + poolName,
             MaxPoolSize = maxPoolSize(options),
             MinPoolSize = 0,
-            CommandTimeout = CommandTimeoutSeconds,
+            CommandTimeout = options.CommandTimeoutSeconds,
+            // IMP-01: explicit pruning so an idle burst's connections are returned to PostgreSQL (not Npgsql defaults by accident).
+            ConnectionIdleLifetime = options.ConnectionIdleLifetimeSeconds,
+            ConnectionPruningInterval = options.ConnectionPruningIntervalSeconds,
             // PERF-AUTHZ-01: bounded wait for a pooled connection so exhaustion fails fast (typed 503).
             Timeout = Math.Clamp(options.PoolWaitSeconds, 1, 60),
         };

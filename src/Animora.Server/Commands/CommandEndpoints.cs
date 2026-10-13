@@ -9,6 +9,11 @@ namespace Animora.Server.Commands;
 
 internal static class CommandEndpoints
 {
+    /// <summary>
+    /// IMP-09: WIRE-PROTOCOL limit, deliberately NOT a tunable option - it must equal
+    /// <c>HttpCommandTransport.MaxBatchSize</c> in the client (<c>Animora.Sync.Custom</c>), so changing it unilaterally
+    /// would break every deployed desktop client. Change both together with a protocol version bump.
+    /// </summary>
     public const int MaxBatchSize = 50;
 
     public static IEndpointRouteBuilder MapCommandEndpoints(this IEndpointRouteBuilder endpoints)

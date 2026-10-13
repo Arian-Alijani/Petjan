@@ -7,6 +7,10 @@ namespace Animora.Server.Files;
 internal sealed class FileStore(IOptions<ServerOptions> options)
 {
     public const long MaxFileBytes = 64L * 1024 * 1024;
+    /// <summary>
+    /// IMP-09: WIRE-PROTOCOL limit (client chunking + request-size limit + upload buffers all derive from it), not a
+    /// tunable option. Upload CONCURRENCY - the real memory lever - is options-driven (<c>Server:Files</c>, B9).
+    /// </summary>
     public const int MaxChunkBytes = 1024 * 1024;
     public string Root => Path.Combine(options.Value.DataRootPath, "files");
     private static string Id(string value) => Regex.IsMatch(value, "^[0-9A-HJKMNP-TV-Z]{26}$", RegexOptions.CultureInvariant)
