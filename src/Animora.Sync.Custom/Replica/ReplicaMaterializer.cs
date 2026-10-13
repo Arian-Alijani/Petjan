@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Animora.Application.Activity;
+using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Events;
 using Animora.Domain.Primitives;
 using Animora.Persistence.Sqlite.Activity;
@@ -20,7 +21,7 @@ namespace Animora.Sync.Custom.Replica;
 /// <list type="bullet">
 /// <item>Server bookkeeping (<c>UpdatedAt</c>, <c>Version</c>, <c>Deleted</c>) is copied verbatim — raw SQL on purpose, so the local
 /// <c>SaveChanges</c> stamping never rewrites the server's values.</item>
-/// <item>A record whose aggregate has an unsettled local command (<c>LocallyPosted</c>/<c>PendingSettlement</c>) is <b>not</b> written: the local
+/// <item>A record whose aggregate has an unsettled local command (any state except <c>Settled</c>/<c>Reversed</c>) is <b>not</b> written: the local
 /// intent wins until the server settles it (the pending overlay is never edited by a pull — G04 non-destructive rule). The row still reaches
 /// <c>repl_base</c>.</item>
 /// <item>A wire tombstone (<c>Op = 'D'</c>) soft-deletes the local row; rows absent from a full snapshot are <b>never</b> removed (a snapshot
@@ -110,13 +111,15 @@ internal static class ReplicaMaterializer
             var map = byEntity[row.Entity];
             var updated = (row.UpdatedAtUtc ?? DateTimeOffset.UtcNow).UtcTicks;
 
-            if (row.Payload is null)
+            if (row.Deleted)
             {
                 written += await db.Database.ExecuteSqlRawAsync(map.TombstoneSql, new object[] { updated, Nullable(row.Version), row.EntityId, tenant }, ct)
                     .ConfigureAwait(false);
                 continue;
             }
 
+            if (row.Payload is null)
+                throw new InvalidOperationException($"Non-deleted replica row {row.Entity}/{row.EntityId} has no payload.");
             if (!TryReadValues(map, row.Payload, out var values)) continue;
             var args = new List<object>(map.Columns.Length + 6) { row.EntityId, tenant };
             foreach (var col in map.Columns) args.Add(Nullable(values[col.Name]));
@@ -172,8 +175,8 @@ internal static class ReplicaMaterializer
         // guard both the explicit AggregateId (updates / settled creates) and the slot-0 OperationId (unsettled creates).
         var pending = await db.Set<PendingCommand>().AsNoTracking()
             .Where(c => c.TenantId == tenant && Entities.Contains(c.AggregateType)
-                        && (c.Status == SettlementState.LocallyPosted || c.Status == SettlementState.PendingSettlement))
-            .Select(c => new { c.AggregateType, c.AggregateId, c.OperationId })
+                        && c.Status != SettlementState.Settled && c.Status != SettlementState.Reversed)
+            .Select(c => new { c.AggregateType, c.AggregateId, c.OperationId, c.CommandType, c.CreatedAtUtc })
             .ToListAsync(ct).ConfigureAwait(false);
         var set = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in pending)
@@ -182,6 +185,10 @@ internal static class ReplicaMaterializer
             // Belt-and-braces: when AggregateId is present it is the canonical key, but a slot-0 create whose id was not
             // echoed back into AggregateId must still be matched by OperationId.
             if (p.AggregateId is not null) set.Add(Key(p.AggregateType, p.OperationId));
+            // CreateOwnerCommand may also create a Pet at slot 1. Protect that deterministic key even
+            // though the command is journaled against Owner, without parsing or rewriting its payload.
+            if (p.CommandType == CommandTypes.PatientsOwnerCreate)
+                set.Add(Key("Pet", IdGenerator.ForOperation(p.OperationId, 1, p.CreatedAtUtc)));
         }
         return set;
     }

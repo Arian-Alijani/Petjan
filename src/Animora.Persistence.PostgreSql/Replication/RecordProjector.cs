@@ -28,13 +28,13 @@ public sealed class RecordProjector
             }
             var image = "to_jsonb(r)" + (extras.Count == 0 ? "" : " || jsonb_build_object(" + string.Join(",", extras) + ")");
             var sql = full
-                ? $"SELECT r.\"Id\", {image} FROM public.{Q(d.Table)} r WHERE r.\"TenantId\" = @tenant ORDER BY r.\"Id\""
+                ? $"SELECT r.\"Id\", {image}, 'U'::text FROM public.{Q(d.Table)} r WHERE r.\"TenantId\" = @tenant ORDER BY r.\"Id\""
                 : $"""
                     WITH keys AS (SELECT DISTINCT ON ("EntityId") "EntityId", "Op" FROM public."TenantJournal"
                       WHERE "TenantId"=@tenant AND "Entity"=@entity AND "Epoch"=@epoch
                         AND "ChangeSequence">@from AND "ChangeSequence"<=@watermark
                       ORDER BY "EntityId", "ChangeSequence" DESC)
-                    SELECT k."EntityId", CASE WHEN r."Id" IS NULL THEN NULL ELSE {image} END
+                    SELECT k."EntityId", CASE WHEN r."Id" IS NULL THEN NULL ELSE {image} END, k."Op"::text
                     FROM keys k LEFT JOIN public.{Q(d.Table)} r ON r."Id"=k."EntityId" AND r."TenantId"=@tenant
                     ORDER BY CASE WHEN r."Id" IS NULL THEN 1 ELSE 0 END, k."EntityId"
                     """;
@@ -47,44 +47,34 @@ public sealed class RecordProjector
             while (await reader.ReadAsync(ct).ConfigureAwait(false))
             {
                 var id = reader.GetString(0);
-                if (reader.IsDBNull(1)) { yield return new(d.Name, id, 'D', null, null, true, null); continue; }
-                using var document = JsonDocument.Parse(reader.GetString(1));
-                var row = document.RootElement;
-                // Defence in depth: a row image that is missing or has an unparseable Version/UpdatedAt/Deleted (schema
-                // drift, a partially-written row, a NULL system column) must NOT throw and crash the whole batch build —
-                // that surfaced as a blanket 500 UNEXPECTED on /sync/batches. Such a row is emitted as a tombstone so the
-                // client converges (drops any stale copy) and the feed stays live.
-                if (!TryGetVersion(row, out var version)
-                    || !row.TryGetProperty("UpdatedAt", out var updatedAt) || updatedAt.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
-                    || !row.TryGetProperty("Deleted", out var deleted) || deleted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                if (reader.IsDBNull(1))
                 {
+                    // A missing row is a deletion only when the captured journal operation says so.
+                    if (reader.GetString(2) != "D")
+                        throw new InvalidOperationException($"Missing sync row for {d.Name}/{id} without a delete operation.");
                     yield return new(d.Name, id, 'D', null, null, true, null);
                     continue;
                 }
-                // Fault-isolate the per-row projection: a single row whose field shape is unexpectedly off
-                // (schema drift, an unparseable UpdatedAt timestamp, a money/quantity column we failed to
-                // anticipate) must degrade to a tombstone — never bubble out and 500 the whole /sync/batches
-                // build. A yield cannot live inside a try/catch, so build the record under the guard here and
-                // yield it afterwards. The client converges by dropping any stale copy; the feed stays live.
-                SyncRecord record;
-                try
-                {
-                    record = new(d.Name, id, 'U', version, updatedAt.GetDateTimeOffset(),
-                        deleted.GetBoolean(), Project(d.Name, row));
-                }
-                catch
-                {
-                    record = new(d.Name, id, 'D', null, null, true, null);
-                }
-                yield return record;
+                using var document = JsonDocument.Parse(reader.GetString(1));
+                var row = document.RootElement;
+                // Fail closed: corrupt metadata/projection must abort this immutable batch, not manufacture
+                // a deletion or skip a change while advancing the cursor. BatchFreezer discards the workspace;
+                // the client keeps its existing business rows and checkpoint and can retry after repair.
+                if (!TryGetVersion(row, out var version)
+                    || !row.TryGetProperty("UpdatedAt", out var updatedAt) || updatedAt.ValueKind != JsonValueKind.String
+                    || !updatedAt.TryGetDateTimeOffset(out var updated) || updated == DateTimeOffset.MinValue || updated == DateTimeOffset.MaxValue
+                    || !row.TryGetProperty("Deleted", out var deleted) || deleted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    throw new InvalidOperationException($"Invalid sync metadata for {d.Name}/{id}.");
+
+                yield return new(d.Name, id, 'U', version, updated, deleted.GetBoolean(), Project(d.Name, row));
             }
         }
     }
 
     /// <summary>
     /// Reads the row's concurrency <c>Version</c> as a wire string, returning <see langword="false"/> (never throwing)
-    /// when the property is absent, null or not a parseable GUID so the caller can emit a safe tombstone instead of
-    /// faulting the whole batch build.
+    /// when the property is absent, null or not a parseable GUID so the caller can reject the batch without
+    /// converting a projection fault into a deletion.
     /// </summary>
     private static bool TryGetVersion(JsonElement row, out string? version)
     {

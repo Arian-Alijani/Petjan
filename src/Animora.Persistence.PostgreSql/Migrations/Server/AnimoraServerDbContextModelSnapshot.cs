@@ -203,6 +203,7 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                         .HasColumnType("character varying(26)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasPrecision(6)
                         .HasColumnType("timestamp with time zone");
 
@@ -255,6 +256,7 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                         .HasColumnType("character varying(26)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasPrecision(6)
                         .HasColumnType("timestamp with time zone");
 
@@ -310,6 +312,7 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                         .HasColumnType("character varying(26)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasPrecision(6)
                         .HasColumnType("timestamp with time zone");
 
@@ -395,6 +398,7 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                         .HasColumnType("character varying(64)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasPrecision(6)
                         .HasColumnType("timestamp with time zone");
 
@@ -470,6 +474,7 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                         .HasColumnType("character varying(26)");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAddOrUpdate()
                         .HasPrecision(6)
                         .HasColumnType("timestamp with time zone");
 

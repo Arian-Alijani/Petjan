@@ -99,10 +99,12 @@ public static class ServerModelConventions
         entity.Property(nameof(SyncableEntity.Id)).HasColumnType("character varying(26)").HasMaxLength(26);
         entity.Property(nameof(SyncableEntity.TenantId)).HasColumnType("character varying(26)").HasMaxLength(26).IsRequired();
 
+        // The same database trigger owns UpdatedAt and Version, including raw-SQL and child-only writes.
         entity.Property(nameof(SyncableEntity.UpdatedAt))
             .HasConversion(UtcConverter)
             .HasColumnType("timestamp with time zone")
-            .HasPrecision(6);
+            .HasPrecision(6)
+            .ValueGeneratedOnAddOrUpdate();
 
         entity.Property(nameof(SyncableEntity.Deleted)).HasColumnType("boolean").HasDefaultValue(false).IsRequired();
 

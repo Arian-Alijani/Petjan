@@ -412,7 +412,8 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             return;
         }
 
-        if (!IsBusy) _ = ReloadPageAsync();
+        // Queue a fresh read even if an earlier visit is still loading; its revision is now obsolete.
+        _ = ReloadPageAsync();
     }
 
     // F-05: this page's ViewModel is a singleton, so its result collections would otherwise stay resident
@@ -420,13 +421,20 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // always re-queries on the next visit, so returning repopulates them.
     public override void OnNavigatedFrom()
     {
+        _loadRevision++; // In-flight reads from this visit must not repopulate released collections.
         FilteredOwners.Clear();
         FilteredPets.Clear();
         OwnerRows.Clear();
         PetRows.Clear();
     }
 
-    private Task ReloadPageAsync() => TrackLoadResultAsync(LoadAsync);
+    private long _loadRevision;
+
+    private Task ReloadPageAsync()
+    {
+        var revision = ++_loadRevision;
+        return TrackLoadResultAsync(() => LoadAsync(revision));
+    }
 
     private readonly SemaphoreSlim _loadGate = new(1, 1);
     private bool _suppressReload;
@@ -463,25 +471,41 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private static bool IsAccessFailure(string code) => PatientsPresentation.IsAccessFailure(code);
 
     /// <returns>False when the load failed (already reported to the user here).</returns>
-    private async Task<bool> LoadAsync()
+    private async Task<bool> LoadAsync(long revision)
     {
         await _loadGate.WaitAsync();
+        if (revision != _loadRevision)
+        {
+            _loadGate.Release();
+            return true;
+        }
         IsBusy = true;
         try
         {
             // Wait for the local store (migrations/seed) before the first query — same as every Track C page.
             await _readiness.WaitAsync();
+            if (revision != _loadRevision) return true;
             var query = CurrentQuery();
+            var ownersView = IsOwnersView;
 
-            // Facets (totals + species counts) resolve alongside the active entity's page. Only the
-            // visible entity's rows are fetched — switching owners⇄pets re-queries on demand.
+            // Capture the query and entity mode together. A newer filter/navigation request supersedes
+            // this read; never publish an old owners response into the pets view (or a departed visit).
             var facetsTask = _patientsQueryService.GetDirectoryFacetsAsync(query);
-            if (IsOwnersView)
+            if (ownersView)
             {
                 var pageTask = _patientsQueryService.GetOwnersPageAsync(query);
                 await Task.WhenAll(facetsTask, pageTask);
-                PublishFacets(await facetsTask);
-                PublishOwners(await pageTask);
+                var page = await pageTask;
+                var validPage = ClampPage(query, page.TotalCount);
+                if (validPage != query.Page)
+                {
+                    query = query with { Page = validPage };
+                    page = await _patientsQueryService.GetOwnersPageAsync(query);
+                }
+                if (revision != _loadRevision) return true;
+                CurrentPage = query.Page;
+                PublishFacets((await facetsTask) with { TotalOwners = page.TotalCount });
+                PublishOwners(page);
                 FilteredPets.Clear();
                 PetRows.Clear();
             }
@@ -489,8 +513,17 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
             {
                 var pageTask = _patientsQueryService.GetPetsPageAsync(query);
                 await Task.WhenAll(facetsTask, pageTask);
-                PublishFacets(await facetsTask);
-                PublishPets(await pageTask);
+                var page = await pageTask;
+                var validPage = ClampPage(query, page.TotalCount);
+                if (validPage != query.Page)
+                {
+                    query = query with { Page = validPage };
+                    page = await _patientsQueryService.GetPetsPageAsync(query);
+                }
+                if (revision != _loadRevision) return true;
+                CurrentPage = query.Page;
+                PublishFacets((await facetsTask) with { TotalPets = page.TotalCount });
+                PublishPets(page);
                 FilteredOwners.Clear();
                 OwnerRows.Clear();
             }
@@ -500,11 +533,13 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         }
         catch (InvalidOperationException ex) when (IsAccessFailure(ex.Message))
         {
+            if (revision != _loadRevision) return true;
             _toast.Show(AccessLostMessage, Tone.Danger);
             return false;
         }
         catch (Exception)
         {
+            if (revision != _loadRevision) return true;
             _toast.Show("بارگذاری بیماران و سرپرستان انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
             return false;
         }
@@ -515,15 +550,14 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         }
     }
 
+    private static int ClampPage(PatientsDirectoryQuery query, int totalCount) =>
+        Math.Clamp(query.Page, 1, Math.Max(1, (int)Math.Ceiling(totalCount / (double)query.PageSize)));
+
     private void PublishFacets(PatientsDirectoryFacets facets)
     {
         _totalOwnerMatches = facets.TotalOwners;
         _totalPetMatches = facets.TotalPets;
         _totalMatchCount = IsOwnersView ? _totalOwnerMatches : _totalPetMatches;
-
-        // Clamp the requested page into range now that the real total is known (e.g. a filter that
-        // shrank the result set below the current page index).
-        CurrentPage = Math.Clamp(CurrentPage, 1, Math.Max(1, PageCount));
 
         BuildSpeciesChips(facets.SpeciesCounts);
     }
