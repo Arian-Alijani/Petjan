@@ -54,7 +54,16 @@ builder.Services.AddSingleton<ServerMetrics>();
 builder.Services.AddSingleton<ReadinessSnapshot>();
 builder.Services.AddAnimoraTelemetry(builder.Configuration);
 builder.Services.AddSingleton<IReportingQuerySessionFactory,ReportingQuerySessionFactory>();
-builder.Services.AddSingleton<IQueryBudget,QueryBudget>();
+builder.Services.AddSingleton<QueryBudget>(sp =>
+{
+    // PERF-QB-01: reporting sessions use the worker pool, so never allow more permits than that pool has connections.
+    var db = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Animora.Persistence.PostgreSql.Options.DatabaseOptions>>().Value;
+    var qb = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ServerOptions>>().Value.QueryBudget;
+    return new QueryBudget(sp.GetRequiredService<IReportingQuerySessionFactory>(),
+        Math.Clamp(qb.ReportingMax > 0 ? qb.ReportingMax : db.WorkerMax, 1, Math.Max(1, db.WorkerMax)),
+        TimeSpan.FromSeconds(Math.Max(1, qb.WaitSeconds)));
+});
+builder.Services.AddSingleton<IQueryBudget>(sp => sp.GetRequiredService<QueryBudget>());
 builder.Services.AddSingleton<IDatabaseCapabilityProbe,DatabaseCapabilityProbe>();
 builder.Services.AddSingleton<ServerDatabaseStatisticsReader>();
 builder.Services.AddSingleton<DatabasePoolUsage>();

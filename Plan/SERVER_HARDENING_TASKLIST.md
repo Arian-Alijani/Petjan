@@ -229,7 +229,7 @@
 - **Push**: `scripts/git/push.sh "perf(server): cache+read-pool authZ/entitlement, drop duplicate entitlement check (A4 PERF-AUTHZ-01/CONS-ENT-01)"`
 - **Done note**: DONE. New `Authorization/AuthzDecisionCache.cs` (absolute-TTL, bounded, per-process; `Server:AuthCache:TtlSeconds` default 10, 0 disables) caches ONLY successful membership resolutions (key = user+device+token stamp, so a rotated stamp is always a miss) and positive entitlement verdicts (tenant+device). Explicit invalidation on device approve/revoke/reinstate, staff status/permission changes, operator subscription/licence mutations (admin + operator API) so suspension/revocation is immediate on this instance and converges within the TTL elsewhere. `MembershipResolver` now uses new `IIdentityReadStore` (membership + device lookups on the OLTP READ pool, no tracking); entitlement gate already reads via `AnimoraEntitlementReadContext` (read pool). CONS-ENT-01: `EntitlementMiddleware` skips POST `/api/commands*`; the command-type-aware check in `CommandIntakeService` is the single authoritative one there. Npgsql pool wait is bounded (`Database:PoolWaitSeconds`, default 5, validated 1..60) and pool exhaustion maps to typed 503 `SERVER_BUSY` + Retry-After in `GlobalExceptionMiddleware` via `DatabaseFailure.IsPoolExhausted`. Tests: `AuthzDecisionCacheTests`; test hosts set TtlSeconds=0 and register a fake read store. Not compiled locally (CI only).
 
-### [ ] A5 · PERF-QB-01 — Size/partition the reporting query budget (HIGH)
+### [x] A5 · PERF-QB-01 — Size/partition the reporting query budget (HIGH)
 - **Why**: `Observability/QueryBudget.cs:19-20` uses `SemaphoreSlim(1,1)` for
   `QueryClass.Reporting` → ONE report at a time across ALL tenants per instance. One
   slow report blocks every tenant's report.
@@ -264,7 +264,7 @@
   tenant/user keys computed later. Confirm `PlaneOrderTests` still passes.
 - **Accept**: limiter positioned before authN; `PlaneOrderTests` green.
 - **Push**: `scripts/git/push.sh "fix(server): move rate limiter before authentication (B1 BUG-PIPE-01)"`
-- **Done note**: _______
+- **Done note**: DONE. `Observability/QueryBudget.cs`: reporting permits now come from `Server:QueryBudget:ReportingMax` (0 = auto = `Database:WorkerMax`, always clamped to the worker pool the sessions actually use), wired in `Program.cs`. Acquisition has a bounded wait (`Server:QueryBudget:WaitSeconds`, default 10); on timeout it throws `QueryBudgetExceededException`, mapped by `GlobalExceptionMiddleware` to typed 503 `SERVER_BUSY` + Retry-After. Added in-use/wait/timeout counters (consumed by C8). Per-tenant partitioning not done: tenant is unknown at Acquire and the shared worker pool is the real limit (C7 scales WorkerMax). Existing 1-permit tests still valid (defaults reportingMax=1); new concurrency/timeout unit test. Not compiled locally (CI only).
 
 ### [ ] B2 · SEC-STAMP-01 — Persist security-stamp rotation on refresh-reuse (MEDIUM/verify)
 - **Why**: On refresh-token REUSE detection (`Auth/LoginService.cs:211-218`), code does
@@ -561,7 +561,7 @@
 | A2 | SEC-RL-01 / SEC-FWD-01 / CONS-RL-01 | BLOCKER/HIGH | [x] |
 | A3 | SCALE-STATE-01 | CRITICAL | [x] |
 | A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [x] |
-| A5 | PERF-QB-01 | HIGH | [ ] |
+| A5 | PERF-QB-01 | HIGH | [x] |
 | B1 | BUG-PIPE-01 | HIGH | [ ] |
 | B2 | SEC-STAMP-01 | MEDIUM | [ ] |
 | B3 | SEC-ENUM-01 | MEDIUM | [ ] |

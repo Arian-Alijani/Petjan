@@ -55,6 +55,16 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
             failures.Add($"'{ServerOptions.SectionName}:{nameof(ServerOptions.ForwardedHeaders)}:{nameof(ForwardedHeadersSettings.ForwardLimit)}' must be greater than 0.");
         }
 
+        if (options.QueryBudget.ReportingMax < 0)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:QueryBudget:ReportingMax' must be 0 (auto) or greater.");
+        }
+
+        if (options.QueryBudget.WaitSeconds is < 1 or > 120)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:QueryBudget:WaitSeconds' must be between 1 and 120.");
+        }
+
         var cache = options.AuthCache;
         if (cache.TtlSeconds is < 0 or > 60)
         {

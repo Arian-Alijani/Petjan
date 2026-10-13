@@ -35,10 +35,12 @@ internal sealed class GlobalExceptionMiddleware(
             logger.LogDebug("Request {CorrelationId} aborted by the client.", correlationId);
         }
         catch (Exception ex) when (!context.Response.HasStarted
-            && Animora.Persistence.PostgreSql.Context.DatabaseFailure.IsPoolExhausted(ex))
+            && (Animora.Persistence.PostgreSql.Context.DatabaseFailure.IsPoolExhausted(ex)
+                || ex is Animora.Server.Observability.QueryBudgetExceededException))
         {
-            // PERF-AUTHZ-01: pool exhaustion fails fast (Database:PoolWaitSeconds) as a typed, retryable 503.
-            logger.LogWarning("Database pool exhausted for request {CorrelationId}; shedding with 503.", correlationId);
+            // PERF-AUTHZ-01/PERF-QB-01: pool exhaustion (Database:PoolWaitSeconds) or a saturated reporting budget
+            // (Server:QueryBudget:WaitSeconds) fails fast as a typed, retryable 503.
+            logger.LogWarning("Capacity exhausted (DB pool / reporting budget) for request {CorrelationId}; shedding with 503.", correlationId);
             context.Response.Clear();
             CorrelationHeader.Echo(context, correlationId);
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;

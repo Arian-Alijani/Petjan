@@ -30,8 +30,21 @@ internal sealed class ServerOptions
     /// <summary>Trusted-proxy / forwarded-headers configuration (SEC-FWD-01).</summary>
     public ForwardedHeadersSettings ForwardedHeaders { get; set; } = new();
 
+    /// <summary>Reporting query admission (PERF-QB-01).</summary>
+    public QueryBudgetSettings QueryBudget { get; set; } = new();
+
     /// <summary>Short-TTL authorization/entitlement verdict cache (PERF-AUTHZ-01).</summary>
     public AuthCacheSettings AuthCache { get; set; } = new();
+}
+
+/// <summary>PERF-QB-01: reporting-query admission bounds.</summary>
+internal sealed class QueryBudgetSettings
+{
+    /// <summary>Concurrent reporting queries per instance; 0 = size to the worker pool (<c>Database:WorkerMax</c>).</summary>
+    public int ReportingMax { get; set; }
+
+    /// <summary>How long a report waits for a permit before failing with 503 + Retry-After. Default 10.</summary>
+    public int WaitSeconds { get; set; } = 10;
 }
 
 /// <summary>

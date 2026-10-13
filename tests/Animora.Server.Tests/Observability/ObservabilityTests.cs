@@ -237,6 +237,33 @@ public sealed class ObservabilityBehaviorTests
 }
 public sealed class QueryBudgetTests
 {
+    private sealed class InstantFactory : IReportingQuerySessionFactory
+    {
+        public Task<ReportingQuerySession> OpenAsync(CancellationToken ct = default) => throw new InvalidOperationException("not opened in unit test");
+    }
+    [Fact] public async Task ReportingMax_AllowsConcurrentPermits_AndWaitTimesOutWithTypedException()
+    {
+        var gate = new TaskCompletionSource();
+        var sessions = new GatedFactory(gate);
+        using var budget = new QueryBudget(sessions, reportingMax: 2, wait: TimeSpan.FromMilliseconds(100));
+        Assert.Equal(2, budget.ReportingMax);
+        Task<QueryLease> a = budget.Acquire(QueryClass.Reporting).AsTask();
+        Task<QueryLease> b = budget.Acquire(QueryClass.Reporting).AsTask();
+        await sessions.WaitForCalls(2);
+        Assert.Equal(2, budget.ReportingInUse);
+        await Assert.ThrowsAsync<QueryBudgetExceededException>(async () => { await budget.Acquire(QueryClass.Reporting); });
+        Assert.Equal(1, budget.Timeouts);
+        gate.SetResult();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => a); await Assert.ThrowsAsync<InvalidOperationException>(() => b);
+        Assert.Equal(0, budget.ReportingInUse);
+    }
+    private sealed class GatedFactory(TaskCompletionSource gate) : IReportingQuerySessionFactory
+    {
+        private int _calls;
+        public async Task WaitForCalls(int n) { while (Volatile.Read(ref _calls) < n) await Task.Delay(5); }
+        public async Task<ReportingQuerySession> OpenAsync(CancellationToken ct = default)
+        { Interlocked.Increment(ref _calls); await gate.Task; throw new InvalidOperationException("released"); }
+    }
     private sealed class BlockingFactory : IReportingQuerySessionFactory
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
