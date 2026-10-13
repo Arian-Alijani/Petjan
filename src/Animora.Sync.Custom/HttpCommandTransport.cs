@@ -30,7 +30,7 @@ namespace Animora.Sync.Custom;
 /// </para>
 /// </summary>
 public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerEndpointOptions options, IClock clock,
-    ISessionStore? sessions = null)
+    ISessionStore? sessions = null, ISessionTenantBinding? binding = null)
     : ICommandTransport, ICommandBatchTransport
 {
     /// <summary>The server's batch ceiling; a larger batch is refused client-side without a request.</summary>
@@ -46,6 +46,8 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
+        if (!await CanSendAsync([envelope], ct).ConfigureAwait(false))
+            return Result<SettlementResult>.Ok(Deferred(envelope, "No matching active tenant session."));
         envelope = await RebindIdentityAsync(envelope, ct).ConfigureAwait(false);
         using var request = NewRequest(CommandsPath, envelope);
         var exchange = await SendAsync(request, ct).ConfigureAwait(false);
@@ -82,6 +84,8 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
         if (envelopes.Count > MaxBatchSize)
             return Result<IReadOnlyList<SettlementResult>>.Fail(ErrorCodes.BatchTooLarge, $"{envelopes.Count} > {MaxBatchSize}");
 
+        if (!await CanSendAsync(envelopes, ct).ConfigureAwait(false))
+            return Result<IReadOnlyList<SettlementResult>>.Ok(DeferAll(envelopes, "No matching active tenant session."));
         envelopes = await RebindIdentityAsync(envelopes, ct).ConfigureAwait(false);
         using var request = NewRequest(BatchPath, envelopes);
         var exchange = await SendAsync(request, ct).ConfigureAwait(false);
@@ -115,6 +119,17 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
             default:
                 return Result<IReadOnlyList<SettlementResult>>.Fail(ErrorCodes.SyncProtocolViolation, $"Unexpected status {(int)response.StatusCode}.");
         }
+    }
+
+    private async Task<bool> CanSendAsync(IReadOnlyList<CommandEnvelope> envelopes, CancellationToken ct)
+    {
+        if (binding is null) return true; // preserve standalone/offline transport compositions
+        if (!binding.CanSync || sessions is null) return false;
+        var read = await sessions.ReadAsync(ct).ConfigureAwait(false);
+        if (read.IsFailure || read.Value is not { AccessToken.Length: > 0 } session
+            || !binding.Matches(session.TenantId)) return false;
+        return envelopes.All(e => e.TenantId == Animora.Domain.Identity.Tenant.LocalDefaultId
+            || string.Equals(e.TenantId, session.TenantId, StringComparison.Ordinal));
     }
 
     private enum Disposition { Success, ContractUnsupported, Unauthorized, TooLarge, Invalid, Transient, Unexpected }

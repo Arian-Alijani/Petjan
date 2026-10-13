@@ -137,7 +137,7 @@
   - اگر فیکس سنگین شد، همان‌جا با پیام واضح push کن (قانون کاربر).
   - **push (نهایی تسک):** `scripts/git/push.sh "fix(identity): isolate each clinic's local store per server tenant (security)"`
 
-- [ ] **T1 — صحت سینک آفلاین (مشکل ۱):**
+- [x] **T1 — صحت سینک آفلاین (مشکل ۱):**
   - تأیید کن outbox/command-journal در آفلاین نگه می‌دارد و بعد از آنلاین‌شدن drain می‌شود (مسیرها در §1 مشکل ۱). محل drain/processor: `LocalSyncStatusService` + `SyncSchedulerHostedService`.
   - تأیید کن drain فقط برای tenant فعالِ منطبق با session اجرا می‌شود (پل با T2 — جلوگیری از ارسال envelope کلینیک A با session B). چون per-tenant DB است، هر outbox جداست؛ فقط gate منطبق‌بودن session/tenant را صریح کن/تست کن.
   - اگر نقص drain/ماندگاری/ترتیب/تطبیق‌tenant یافتی، فیکس هدفمند بزن.
@@ -157,6 +157,8 @@
 T3: خروج با تأیید، پاکسازی نشست محلی/آنلاین و بازسازی کامل DI برای حذف کش‌ها و صفحه‌های نشست قبلی پیاده‌سازی شد. بیلد/تست محلی اجرا نشد؛ اعتبارسنجی در T4 فقط GitHub Actions.
 
 T2: database-per-server/tenant با هش کامل SHA256 و secret-store مستقل پیاده‌سازی شد. تصمیم اجرایی: به‌جای تغییر مسیر mutable در DI زنده، یک provider مستقل و immutable برای هر تلاش ورود ساخته می‌شود؛ ابتدا store انتخاب‌شده initialize می‌شود چون OnlineAuthClient قبل از بازگشت موفق، session و mirror را می‌نویسد. فقط پس از احراز هویت محلی/آنلاین موفق، provider به shell منتقل و workers آغاز می‌شوند. provider قبلی dispose می‌شود و تمام cacheها، state نصب، صفحات و drafts مستقل هستند. دیتابیس مشترک قدیمی حذف/بازنویسی/کپی نمی‌شود تا داده‌ای از دست نرود یا به کلینیک نامعلوم نسبت داده نشود. حالت بدون سرور و preview محفوظ؛ اعتبارسنجی CI در T4.
+
+T1: زمان‌بند قبلاً فقط Pull می‌کرد؛ اکنون pass سریال مشترک Push/Pull را دوره‌ای اجرا می‌کند. gate قبل از claim جلوی مصرف retry بدون نشست منطبق را می‌گیرد. tenant واقعی سرور در secret-store همان کلینیک pin می‌شود؛ mismatch بدون حذف داده fail-closed است و transport تکی/batch نیز gate دارد. خروج gate را تعلیق می‌کند و refresh/clear سریال هستند. cursor روی Deferred یا transport آفلاین جلو نمی‌رود. journal بررسی شد: تراکنش مشترک business/enqueue، LocalSequence، lease قابل reclaim و deferral بدون مصرف retry محفوظ هستند؛ OperationId/Fingerprint/Payload دست‌نخورده‌اند.
 
 ## 3) نکات قفل‌شده / قیود
 - بررسی فایل‌ها فقط هدفمند و بر اساس نیاز؛ کاوش بیهوده ممنوع.

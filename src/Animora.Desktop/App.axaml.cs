@@ -183,6 +183,7 @@ public partial class App : global::Avalonia.Application
             var oldProvider = Services;
             DataTemplates.Remove(oldProvider.GetRequiredService<ViewLocator>());
             Services = ConfigureServices();
+            Services.GetRequiredService<GlobalExceptionHandler>().RegisterProcessHooks();
             DataTemplates.Add(Services.GetRequiredService<ViewLocator>());
             ShowLogin(desktop);
             desktop.MainWindow!.Show(); // change lifetime owner before closing the previous window
@@ -199,6 +200,7 @@ public partial class App : global::Avalonia.Application
         DataTemplates.Add(candidate.GetRequiredService<ViewLocator>());
         candidate.GetRequiredService<GlobalExceptionHandler>().RegisterProcessHooks();
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) ConfigureLogout(desktop);
+        candidate.GetRequiredService<TenantSessionBinding>().Activate();
         StartStoreWorkers(candidate);
         if (previous is IAsyncDisposable disposable) await disposable.DisposeAsync();
     }
@@ -319,6 +321,8 @@ public partial class App : global::Avalonia.Application
         if (tenantStore is not null)
         {
             services.AddSingleton(tenantStore);
+            services.AddSingleton<TenantSessionBinding>();
+            services.AddSingleton<Animora.Application.Security.ISessionTenantBinding>(sp => sp.GetRequiredService<TenantSessionBinding>());
             services.Configure<LocalStoreOptions>(tenantStore.ConfigureStore);
             services.AddSingleton<ISecretStore>(sp => tenantStore.CreateSecretStore(
                 sp.GetRequiredService<IOptions<LocalStoreOptions>>(), sp.GetRequiredService<ILogger<FileFallbackSecretStore>>()));

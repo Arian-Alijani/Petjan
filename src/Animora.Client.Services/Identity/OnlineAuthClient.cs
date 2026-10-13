@@ -17,7 +17,7 @@ namespace Animora.Client.Services.Identity;
 /// the credential mirror, capability snapshot and sealed licence it requires are written only after the device was approved.
 /// </summary>
 public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOfflineCredentialMirrorStore mirrors, DeviceLifecycleService devices,
-    CapabilityMirrorWriter capabilities, EntitlementSealer sealer, OfflineSessionAuthorizer offline, IDeviceFingerprintSource fingerprint, IClock clock)
+    CapabilityMirrorWriter capabilities, EntitlementSealer sealer, OfflineSessionAuthorizer offline, IDeviceFingerprintSource fingerprint, IClock clock, ISessionTenantBinding? binding = null)
     : IOnlineAuthClient, ISessionRefresher
 {
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
@@ -84,6 +84,7 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
         await _refreshGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            if (binding is { CanSync: false }) return Result.Fail(ErrorCodes.SessionExpired);
             var current = await sessions.ReadAsync(ct).ConfigureAwait(false);
             if (current.IsFailure) return current.ToResult();
             if (current.Value is not { } session) return Result.Fail(ErrorCodes.SessionExpired, "no_session");
@@ -122,15 +123,23 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
     /// <inheritdoc />
     public async Task<Result> LogoutAsync(CancellationToken ct = default)
     {
-        var current = await sessions.ReadAsync(ct).ConfigureAwait(false);
-        if (current.IsSuccess && current.Value is { } session)
+        binding?.Suspend();
+        await _refreshGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
         {
-            // Best effort: an unreachable server must never keep the user signed in locally.
-            var exchange = await api.SendAsync(HttpMethod.Post, "auth/logout", body: null, session.AccessToken, ct).ConfigureAwait(false);
-            exchange.Response?.Dispose();
+            var current = await sessions.ReadAsync(ct).ConfigureAwait(false);
+            if (current.IsSuccess && current.Value is { } session)
+            {
+                var exchange = await api.SendAsync(HttpMethod.Post, "auth/logout", body: null, session.AccessToken, ct).ConfigureAwait(false);
+                exchange.Response?.Dispose();
+            }
         }
-
-        return await sessions.ClearAsync(ct).ConfigureAwait(false);
+        finally
+        {
+            try { await sessions.ClearAsync(CancellationToken.None).ConfigureAwait(false); }
+            finally { _refreshGate.Release(); }
+        }
+        return Result.Ok();
     }
 
     private static bool IsPending(DeviceRegisterResponse? device) =>

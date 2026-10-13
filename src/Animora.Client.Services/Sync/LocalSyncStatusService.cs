@@ -1,3 +1,4 @@
+using Animora.Application.Security;
 using Animora.Application.Commands;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.Sync;
@@ -18,7 +19,7 @@ public sealed class LocalSyncStatusService(
     ICommandTransport transport,
     IClock clock,
     IStateSyncEngine? engine = null,
-    SyncOrchestrator? orchestrator = null)
+    SyncOrchestrator? orchestrator = null, ISessionStore? sessions = null, ISessionTenantBinding? binding = null)
     : ISyncStatusService, IDisposable
 {
     private readonly SemaphoreSlim _pass = new(1, 1);
@@ -44,6 +45,11 @@ public sealed class LocalSyncStatusService(
             await using var scope = scopes.CreateAsyncScope();
             var cursor = scope.ServiceProvider.GetRequiredService<ISyncCursorStore>();
             Result<SyncOutcome>? pull = null;
+            if (runPass && !await CanProcessAsync(ct).ConfigureAwait(false))
+            {
+                pull = Result<SyncOutcome>.Ok(SyncOutcome.Deferred);
+                runPass = false; // never claim or consume retry budget under another/no session
+            }
             if (runPass)
             {
                 Publish(new(SyncState.Syncing, previous.LastSyncedAt, previous.PendingChangeCount));
@@ -57,7 +63,9 @@ public sealed class LocalSyncStatusService(
                 if (PullConfigured)
                     pull = await orchestrator!.PullAllAsync(ct).ConfigureAwait(false);
                 // The command pass only counts as "synced" when no state-pull is configured or that pull was healthy.
-                if (pull is null || pull.Value.IsSuccess)
+                if (pull is null && transport is not NullCommandTransport && result.Value!.Deferred == 0
+                    && result.Value.SkippedUnsettledDependency == 0
+                    || pull is { IsSuccess: true, Value: SyncOutcome.Applied or SyncOutcome.UpToDate })
                     await cursor.MarkSyncedAsync(clock.UtcNow, ct).ConfigureAwait(false);
             }
             var last = await cursor.ReadAsync(ct).ConfigureAwait(false);
@@ -80,6 +88,15 @@ public sealed class LocalSyncStatusService(
             Publish(new(SyncState.Error, previous.LastSyncedAt, previous.PendingChangeCount));
         }
         finally { _pass.Release(); }
+    }
+
+    private async Task<bool> CanProcessAsync(CancellationToken ct)
+    {
+        if (binding is { CanSync: false }) return false;
+        if (sessions is null) return binding is null;
+        var read = await sessions.ReadAsync(ct).ConfigureAwait(false);
+        return read.IsSuccess && read.Value is { AccessToken.Length: > 0 } session
+            && (binding is null || binding.Matches(session.TenantId));
     }
 
     /// <summary>

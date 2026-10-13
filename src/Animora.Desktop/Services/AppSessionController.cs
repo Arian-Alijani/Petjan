@@ -1,3 +1,4 @@
+using Animora.Application.Security;
 using Animora.Client.Services.Identity;
 using Animora.Contracts.Identity;
 using Avalonia.Controls;
@@ -12,7 +13,7 @@ public interface IAppSessionController
 }
 
 public sealed class AppSessionController(IAuthenticationService authentication, IDialogService dialogs,
-    IOnlineAuthClient? onlineAuth = null) : IAppSessionController
+    IOnlineAuthClient? onlineAuth = null, ISessionTenantBinding? binding = null) : IAppSessionController
 {
     public Func<Task>? ReturnToLoginAsync { get; set; }
 
@@ -30,12 +31,13 @@ public sealed class AppSessionController(IAuthenticationService authentication, 
         confirm.Click += async (_, _) =>
         {
             confirm.IsEnabled = cancel.IsEnabled = false;
+            binding?.Suspend();
             // Local logout is mandatory even when the server is unavailable. Rebuilding the provider
             // also drops every page, draft, capability and query cache, not just the auth cache.
             try
             {
                 await authentication.SignOutAsync("USER_LOGOUT");
-                if (onlineAuth is not null) await onlineAuth.LogoutAsync();
+
             }
             catch (Exception ex)
             {
@@ -43,6 +45,14 @@ public sealed class AppSessionController(IAuthenticationService authentication, 
             }
             finally
             {
+                try
+                {
+                    if (onlineAuth is not null) await onlineAuth.LogoutAsync();
+                }
+                catch (Exception ex)
+                {
+                    Diagnostics.AppTrace.Error("server logout cleanup failed", ex, "auth");
+                }
                 dialogs.Close();
                 if (ReturnToLoginAsync is { } returnToLogin) await returnToLogin();
             }
