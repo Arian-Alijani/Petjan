@@ -63,9 +63,11 @@ public sealed class LocalSyncStatusService(
             var last = await cursor.ReadAsync(ct).ConfigureAwait(false);
             var summary = await scope.ServiceProvider.GetRequiredService<ICommandJournal>()
                 .GetSummaryAsync(ct).ConfigureAwait(false);
-            // Surface the unsent-backlog size so the topbar can explain whether a manual sync has outbound work
-            // to do; fall back to the previous count if the summary read failed.
-            var pendingCount = summary.IsSuccess ? summary.Value!.Total : previous.PendingChangeCount;
+            // Surface only the RETRIABLE backlog — the work a manual sync can actually flush — so the badge can
+            // reach zero. Terminal rows (Rejected/Conflict/NeedsAttention) are never re-claimed by the pass, so
+            // counting them here is what made the button show a count SyncNow could never clear. Fall back to the
+            // previous count if the summary read failed.
+            var pendingCount = summary.IsSuccess ? RetriableCount(summary.Value!) : previous.PendingChangeCount;
             Publish(new(MapState(summary, pull), last, pendingCount));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -80,12 +82,23 @@ public sealed class LocalSyncStatusService(
         finally { _pass.Release(); }
     }
 
+    /// <summary>
+    /// The backlog a sync pass can actually flush: unsettled rows minus the terminal states the processor never
+    /// re-claims (Rejected/Conflict/NeedsAttention). This equals Draft + LocallyPosted + PendingSettlement — the
+    /// exact set <c>ClaimBatchAsync</c> picks up — so the "unsent changes" badge can reach zero after a sync.
+    /// </summary>
+    private static int RetriableCount(PendingCommandSummary summary) =>
+        Math.Max(0, summary.Total - summary.Rejected - summary.Conflict - summary.NeedsAttention);
+
     private SyncState MapState(Result<PendingCommandSummary> summary, Result<SyncOutcome>? pull)
     {
         if (summary.IsFailure) return SyncState.Error;
         if (pull is { IsFailure: true } || pull is { Value: SyncOutcome.ResyncRequired }) return SyncState.Error;
         if (transport is NullCommandTransport && !PullConfigured) return SyncState.Offline;
-        if (summary.Value!.Total > 0) return SyncState.Pending;
+        // Only genuinely retriable (re-claimable) work keeps the badge in Pending. Terminal rows the pass can
+        // never resend must not pin the state to Pending forever — that was the root cause of the "sync does
+        // nothing / count never drops" report.
+        if (RetriableCount(summary.Value!) > 0) return SyncState.Pending;
         // A pass that deferred its pull (server unreachable) is not "synced".
         return pull is { Value: SyncOutcome.Deferred } ? SyncState.Offline : SyncState.Synced;
     }
