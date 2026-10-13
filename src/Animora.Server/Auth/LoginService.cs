@@ -319,7 +319,7 @@ internal sealed class LoginService(
             if (described || autoApproved)
             {
                 // Writing the audit row commits the staged device changes (description and/or approval) in one unit of work.
-                Result saved = await AuditAsync(
+                Result updated = await AuditAsync(
                     caller.TenantId,
                     SecurityAuditActions.DeviceRegistered,
                     correlationId,
@@ -327,9 +327,9 @@ internal sealed class LoginService(
                     existing.Id,
                     autoApproved ? "owner_auto_approved" : "device_described",
                     ct).ConfigureAwait(false);
-                if (saved.IsFailure)
+                if (updated.IsFailure)
                 {
-                    return Failure<DeviceRegisterResponse>(saved.Error);
+                    return Failure<DeviceRegisterResponse>(updated.Error);
                 }
             }
 
