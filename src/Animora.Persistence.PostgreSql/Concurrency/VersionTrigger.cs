@@ -4,9 +4,9 @@ namespace Animora.Persistence.PostgreSql.Concurrency;
 
 /// <summary>
 /// Migration helper that attaches/detaches the per-table <c>BEFORE INSERT OR UPDATE</c>
-/// trigger which regenerates <c>"Version"</c> via <c>animora_set_version()</c>. Because the
-/// database owns the value, even raw-SQL updates change the version. The function itself is
-/// created once in migration <c>101_ServerFoundation</c>.
+/// trigger which regenerates <c>"Version"</c> and <c>"UpdatedAt"</c> via <c>animora_set_version()</c>.
+/// Database ownership covers raw-SQL and child-only updates as well as EF saves. The function is
+/// created in <c>101_ServerFoundation</c> and extended by <c>116_SyncTimestamps</c>.
 /// </summary>
 public static class VersionTrigger
 {

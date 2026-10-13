@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Animora.Application.Ports;
 using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Results;
@@ -90,6 +91,14 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
             {
                 if (record.Entity is not { Length: > 0 and <= MaxKeyLength } || record.EntityId is not { Length: > 0 and <= MaxKeyLength })
                     return Result.Fail(ErrorCodes.SyncProtocolViolation, $"Page {page.PageOrdinal} carries a record with an invalid entity key.");
+                if (record.Op is not ('U' or 'D'))
+                    return Result.Fail(ErrorCodes.SyncProtocolViolation, $"Page {page.PageOrdinal} carries an unsupported record operation.");
+                // Validate the whole page before staging anything. Absence of data is not proof of deletion.
+                if (record.Op != 'D' && !record.Deleted
+                    && (record.Payload is not { ValueKind: JsonValueKind.Object }
+                        || string.IsNullOrWhiteSpace(record.Version) || record.UpdatedAt is null
+                        || record.UpdatedAt == DateTimeOffset.MinValue || record.UpdatedAt == DateTimeOffset.MaxValue))
+                    return Result.Fail(ErrorCodes.SyncProtocolViolation, $"Record {record.Entity}/{record.EntityId} has incomplete upsert data.");
             }
 
             await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
