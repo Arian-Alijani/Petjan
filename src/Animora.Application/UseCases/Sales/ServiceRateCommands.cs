@@ -54,8 +54,10 @@ internal static class ServiceRateRules
         return failures;
     }
 
-    public static string Code(string prefix, int length) =>
-        prefix + Guid.NewGuid().ToString("N")[..length].ToUpperInvariant();
+    /// <summary>Code for a new service. Derived from the creating command's operation id (its random ULID tail) so the client and the
+    /// server mint the <b>same</b> code; a fresh GUID is only the fallback for ad-hoc callers without an operation id.</summary>
+    public static string Code(string prefix, int length, string? operationId = null) =>
+        prefix + IdGenerator.CodeSuffix(operationId, length);
 }
 
 /// <summary>Creates a clinic service (a stock-free <see cref="ProductKind.Service"/> product). Returns the product id.</summary>
@@ -86,12 +88,13 @@ public sealed class CreateServiceRateCommandHandler(
         if (categoryId is null)
             return Result<string>.Fail(ErrorCodes.CategoryNotFound, "No product category exists to hold the service.");
 
-        var sku = ServiceRateRules.Code("SRV-", 8);
+        var sku = ServiceRateRules.Code("SRV-", 8, context.OperationId);
         var price = Money.Irt(c.PriceMinor);
-        var variant = new ProductVariant(IdGenerator.NewId(clock.UtcNow), sku + "-1",
+        var variant = new ProductVariant(IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow), sku + "-1",
             ProductVariant.DefaultAttributeName, sku, Money.Irt(0), price, Quantity.Zero(Unit), null, true);
         var created = Product.Create(context.TenantId, sku, c.Title, categoryId, ProductKind.Service, Unit,
-            Money.Irt(0), price, [variant], trackStock: false);
+            Money.Irt(0), price, [variant], trackStock: false,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
 
         products.Add(created.Value!);
@@ -120,13 +123,13 @@ public sealed class CreateBoardingServiceRateCommandValidator : IValidator<Creat
     }
 }
 
-public sealed class CreateBoardingServiceRateCommandHandler(IBoardingServiceRepository services)
+public sealed class CreateBoardingServiceRateCommandHandler(IBoardingServiceRepository services, IClock clock)
     : ICommandHandler<CreateBoardingServiceRateCommand, string>
 {
     public Task<Result<string>> HandleAsync(CreateBoardingServiceRateCommand c, CommandContext context, CancellationToken ct)
     {
-        var created = BoardingServiceDef.Create(context.TenantId, ServiceRateRules.Code("SVC-", 6), c.Title,
-            Money.Irt(c.PriceMinor), c.Billing);
+        var created = BoardingServiceDef.Create(context.TenantId, ServiceRateRules.Code("SVC-", 6, context.OperationId), c.Title,
+            Money.Irt(c.PriceMinor), c.Billing, IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         services.Add(created);
         return Task.FromResult(Result<string>.Ok(created.Id));
     }

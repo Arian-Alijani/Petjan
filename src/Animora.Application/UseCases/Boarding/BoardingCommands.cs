@@ -83,7 +83,8 @@ public sealed class CreateBoardingStayCommandHandler(IBoardingRepository reposit
         var from = new DateTimeOffset(ClinicCalendar.ToUtcTicks(c.CheckIn, 0, tz), TimeSpan.Zero);
         var until = new DateTimeOffset(ClinicCalendar.ToUtcTicks(c.CheckOut, 0, tz), TimeSpan.Zero);
         var created = BoardingStay.Reserve(context.TenantId, petId, ownerId, room.Id,
-            from, until, Money.Irt(c.DailyRateMinor), c.CareNote, paymentMode: c.PaymentMode);
+            from, until, Money.Irt(c.DailyRateMinor), c.CareNote, paymentMode: c.PaymentMode,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
         var stay = created.Value!;
         var activated = stay.Activate(clock);
@@ -120,7 +121,8 @@ public sealed class CreateBoardingStayCommandHandler(IBoardingRepository reposit
         var owner = await owners.FindByPhoneAsync(Owner.NormalizePhone(walkIn.OwnerPhone), ct);
         if (owner is null)
         {
-            owner = Owner.Register(context.TenantId, walkIn.OwnerName, walkIn.OwnerPhone, clock);
+            owner = Owner.Register(context.TenantId, walkIn.OwnerName, walkIn.OwnerPhone, clock,
+                id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
             owners.Add(owner);
         }
         var petName = walkIn.PetName.Trim();
@@ -129,7 +131,8 @@ public sealed class CreateBoardingStayCommandHandler(IBoardingRepository reposit
         {
             var breed = string.IsNullOrWhiteSpace(walkIn.Breed) ? null : walkIn.Breed.Trim();
             pet = Pet.Register(context.TenantId, owner.Id, petName, walkIn.Species, clock,
-                PetGender.Unknown, null, breed);
+                PetGender.Unknown, null, breed,
+                id: IdGenerator.ForOperation(context.OperationId, 2, clock.UtcNow));
             pets.Add(pet);
         }
         return (pet.Id, owner.Id);
@@ -161,7 +164,7 @@ public sealed class AddStayItemCommandHandler(IBoardingRepository repository, IB
             "ClinicService" => StayItemKind.ClinicService,
             _ => StayItemKind.Product,
         };
-        var item = new StayItem(IdGenerator.NewId(clock.UtcNow), kind, selected.Id, selected.Title,
+        var item = new StayItem(IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow), kind, selected.Id, selected.Title,
             new Quantity(c.Quantity, "PCS"), Money.Irt(selected.PriceMinor), clock.UtcNow, context.UserId);
         var result = stay.AddItem(item);
         return result.IsFailure ? Result<Unit>.Fail(ErrorCodes.StayNotEditable) : Result<Unit>.Ok(Unit.Value);

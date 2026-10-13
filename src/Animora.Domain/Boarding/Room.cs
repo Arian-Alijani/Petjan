@@ -86,7 +86,8 @@ public sealed class Room : AggregateRoot
         string displayName,
         RoomType type,
         int capacity,
-        string? notes = null)
+        string? notes = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
@@ -101,7 +102,7 @@ public sealed class Room : AggregateRoot
 
         return new Room
         {
-            Id = IdGenerator.NewId(),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId() : id,
             TenantId = tenantId,
             Code = code.Trim(),
             DisplayName = displayName.Trim(),

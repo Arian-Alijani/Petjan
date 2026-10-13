@@ -7,7 +7,9 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Boarding;
 using Animora.Domain.Identity;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
+using Animora.Domain.Time;
 
 namespace Animora.Application.UseCases.Boarding;
 
@@ -51,14 +53,15 @@ public sealed class CreateRoomCommandValidator : IValidator<CreateRoomCommand>
     }
 }
 
-public sealed class CreateRoomCommandHandler(IRoomRepository rooms) : ICommandHandler<CreateRoomCommand, string>
+public sealed class CreateRoomCommandHandler(IRoomRepository rooms, IClock clock) : ICommandHandler<CreateRoomCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateRoomCommand c, CommandContext context, CancellationToken ct)
     {
         var code = c.Code.Trim();
         if (await rooms.CodeExistsAsync(code, null, ct)) return Result<string>.Fail(ErrorCodes.RoomCodeDuplicate);
 
-        var created = Room.Create(context.TenantId, code, c.DisplayName, c.RoomType, c.Capacity, c.Notes);
+        var created = Room.Create(context.TenantId, code, c.DisplayName, c.RoomType, c.Capacity, c.Notes,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
 
         rooms.Add(created.Value!);

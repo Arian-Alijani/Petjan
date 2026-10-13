@@ -172,7 +172,8 @@ public sealed class BoardingStay : AggregateRoot
         Money dailyRate,
         string? careNote = null,
         string? dietNote = null,
-        StayPaymentMode paymentMode = StayPaymentMode.Postpaid)
+        StayPaymentMode paymentMode = StayPaymentMode.Postpaid,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -188,7 +189,7 @@ public sealed class BoardingStay : AggregateRoot
 
         return new BoardingStay
         {
-            Id = IdGenerator.NewId(checkInUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(checkInUtc) : id,
             TenantId = tenantId,
             PetId = petId,
             OwnerId = ownerId,

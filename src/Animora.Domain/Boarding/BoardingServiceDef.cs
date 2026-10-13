@@ -54,7 +54,8 @@ public sealed class BoardingServiceDef : AggregateRoot
         string code,
         string title,
         Money unitPrice,
-        BoardingServiceBilling billing)
+        BoardingServiceBilling billing,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
@@ -62,7 +63,7 @@ public sealed class BoardingServiceDef : AggregateRoot
 
         return new BoardingServiceDef
         {
-            Id = IdGenerator.NewId(),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId() : id,
             TenantId = tenantId,
             Code = code.Trim(),
             Title = title.Trim(),

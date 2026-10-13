@@ -77,6 +77,19 @@ public static class IdGenerator
         return new string(buffer);
     }
 
+    /// <summary>
+    /// Deterministic <paramref name="length"/>-char code suffix for a human-visible code (SKU/category/supplier code) a command mints.
+    /// Uses the tail of the operation id so client and server agree; falls back to a random suffix when the operation id is absent/not ULID-shaped.
+    /// </summary>
+    public static string CodeSuffix(string? operationId, int length)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(length, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(length, 16);
+        return LooksLikeUlid(operationId)
+            ? operationId![^length..]
+            : Guid.NewGuid().ToString("N")[..length].ToUpperInvariant();
+    }
+
     private static bool LooksLikeUlid(string? value)
     {
         if (value is null || value.Length != IdLength || value[0] > '7') return false;
