@@ -73,9 +73,10 @@ scripts/git/push.sh "type(scope): message"
     - بعد از sync موفق با pendingBefore=0 → «همه‌چیز به‌روز است».
     - حالت idle با retriable>0 → «N تغییر ارسال‌نشده» (کهربایی).
   - بررسی شد که هیچ UI دیگری شمارش جداگانه‌ی NeedsAttention/Rejected از ژورنال نمی‌خواند؛ پس فیکس خودکفاست و wiring اضافه لازم نیست. — پوش شد.
-- [ ] **T3 — تأیید build سبک پروژه‌های تغییرکرده (بدون full test/build طولانی).**
-  - فقط `Animora.Client.Services` را build کن (و وابسته‌های لازم). اگر محیط sandbox دات‌نت نداشت، یادداشت کن و رد شو.
-  - پوش شود.
+- [x] **T3 — تأیید صحت تغییر (بدون full test/build طولانی).** انجام شد.
+  - در این sandbox دات‌نت نصب نیست (`which dotnet` → خالی)؛ طبق قانون «بیلد/تست طولانی ممنوع» و وجود CI گیت‌هاب‌اکشن، بیلد به CI سپرده شد.
+  - بازبینی دستی: `ImplicitUsings` فعال است → `System.Math` در دسترس؛ `PendingCommandSummary` از `Animora.Application.UseCases.Sync` قبلاً import شده (خط ۳)؛ فیلدهای `Total/Rejected/Conflict/NeedsAttention` روی record موجودند؛ `summary.Value!` مثل قبل dereference می‌شود. تغییر syntactically/semantically درست است.
+  - پوش شد (CI اجرا می‌شود).
 - [ ] **T4 — تسک پایانی: حذف همین فایل todo از پوشه Plan.** (فقط همین فایل؛ به بقیه‌ی فایل‌ها و roadmap کاری نداشته باش.) — پوش شود.
 
 ---
