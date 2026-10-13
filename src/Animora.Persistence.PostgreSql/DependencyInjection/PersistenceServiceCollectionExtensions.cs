@@ -100,7 +100,21 @@ public static class PersistenceServiceCollectionExtensions
             sp));
 
         services.AddOptions<FeedStorageOptions>();
-        services.TryAddSingleton<IBackgroundAdmission>(_ => new SemaphoreBackgroundAdmission(1));
+        // SCALE-ADM-01: two independent admission gates. The worker gate stays small so
+        // maintenance work cannot swamp the instance; the request-path sync gate is sized to the
+        // write pool minus headroom so several tenants' sync pulls run concurrently instead of
+        // serializing behind one permit (and never block — or get blocked by — background ticks).
+        services.TryAddSingleton<IBackgroundAdmission>(sp =>
+        {
+            var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+            return new SemaphoreBackgroundAdmission(Math.Clamp(db.WorkerMax, 1, 2));
+        });
+        services.TryAddSingleton<ISyncAdmission>(sp =>
+        {
+            var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+            // Leave ~2 write connections as headroom for actual mutations; never below 2.
+            return new SemaphoreSyncAdmission(Math.Max(2, db.OltpWriteMax - 2));
+        });
         services.TryAddSingleton<FeedPageWriter>();
         services.TryAddScoped<RecordProjector>();
         services.TryAddScoped<BatchFreezer>();

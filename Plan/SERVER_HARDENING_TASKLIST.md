@@ -84,7 +84,7 @@
 
 ## PHASE A — Unblock production scale (BLOCKER / CRITICAL)
 
-### [ ] A1 · SCALE-ADM-01 — Split the single admission semaphore (BLOCKER)
+### [x] A1 · SCALE-ADM-01 — Split the single admission semaphore (BLOCKER)
 - **Why**: `IBackgroundAdmission` = `SemaphoreBackgroundAdmission(1)` is a single
   process-wide permit shared by ~12 background workers AND the user-facing sync
   path (`BatchFreezer.OpenAsync`). A sync snapshot build can hold the one permit
@@ -114,7 +114,14 @@
      Only do if cheap; otherwise leave a TODO note — the gate split is the blocker fix.
 - **Accept**: request sync no longer blocks workers and vice-versa; sync concurrency > 1.
 - **Push**: `scripts/git/push.sh "perf(server): split admission into worker+sync gates (A1 SCALE-ADM-01)"`
-- **Done note**: _______
+- **Done note**: DONE. Added `ISyncAdmission : IBackgroundAdmission` + `SemaphoreSyncAdmission`
+  in `Replication/IBackgroundAdmission.cs`. `BatchFreezer` now depends on `ISyncAdmission`
+  (request path); ALL ~12 workers + `FeedRetentionService` stay on `IBackgroundAdmission`
+  (worker gate). DI (`PersistenceServiceCollectionExtensions.cs`): worker gate =
+  `Math.Clamp(WorkerMax,1,2)`, sync gate = `Math.Max(2, OltpWriteMax-2)` (headroom for
+  mutations). `ServerWorkersServiceCollectionExtensions.cs` TryAdd fallbacks updated to add
+  `ISyncAdmission`. Per-tenant fairness deferred (stretch, not the blocker). NOT compiled —
+  no .NET SDK in sandbox (build/test forbidden by phase rules); verified by targeted review.
 
 ### [ ] A2 · SEC-RL-01 + SEC-FWD-01 + CONS-RL-01 — Tenant/user-scoped limits + trusted forwarded headers (BLOCKER)
 - **Why**: Every rate-limit policy partitions by raw `RemoteIpAddress` only
@@ -540,7 +547,7 @@
 
 | Task | Finding(s) | Sev | Status |
 |---|---|---|---|
-| A1 | SCALE-ADM-01 | BLOCKER | [ ] |
+| A1 | SCALE-ADM-01 | BLOCKER | [x] |
 | A2 | SEC-RL-01 / SEC-FWD-01 / CONS-RL-01 | BLOCKER/HIGH | [ ] |
 | A3 | SCALE-STATE-01 | CRITICAL | [ ] |
 | A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [ ] |

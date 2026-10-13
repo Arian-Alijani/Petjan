@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 namespace Animora.Persistence.PostgreSql.Replication;
 
-public sealed class BatchFreezer(IFeedContextFactory factory, IBackgroundAdmission admission,
+public sealed class BatchFreezer(IFeedContextFactory factory, ISyncAdmission admission,
     RecordProjector projector, FeedPageWriter writer, IOptions<FeedStorageOptions> options)
 {
     private static readonly Meter Meter = new("Animora.Sync");

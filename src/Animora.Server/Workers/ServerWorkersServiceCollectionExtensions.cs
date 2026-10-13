@@ -11,8 +11,12 @@ internal static class ServerWorkersServiceCollectionExtensions
     public static IServiceCollection AddAnimoraWorkers(this IServiceCollection services)
     {
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
-        // Same process-wide admission instance as S12 (TryAdd preserves that registration).
+        // SCALE-ADM-01: the authoritative, size-aware registrations for both admission gates live
+        // in AddAnimoraPostgreSql (worker gate = IBackgroundAdmission, request-path sync gate =
+        // ISyncAdmission). These TryAdd fallbacks only fire if persistence was not wired, keeping
+        // the two gates distinct so background workers never share a permit with the sync build.
         services.TryAddSingleton<IBackgroundAdmission>(_ => new SemaphoreBackgroundAdmission(1));
+        services.TryAddSingleton<ISyncAdmission>(_ => new SemaphoreSyncAdmission(2));
         services.TryAddSingleton<WorkerHeartbeat>(); services.TryAddSingleton<CircuitBreaker>();
         services.TryAddSingleton<OutboundTimeout>();
         services.AddScoped<IOutboxConsumer, FeedAdvancedHintConsumer>();
