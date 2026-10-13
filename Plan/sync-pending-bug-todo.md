@@ -67,9 +67,12 @@ scripts/git/push.sh "type(scope): message"
   - `PendingChangeCount` snapshot حالا از `RetriableCount` پر می‌شود.
   - `MapState` حالا `SyncState.Pending` را فقط وقتی `RetriableCount>0` برمی‌گرداند.
   - کامنت XML چرایی فیکس اضافه شد. — پوش شد.
-- [ ] **T2 — بازتاب در متن UI (`TopbarViewModel.SyncNowAsync` + `RefreshSyncPresentation`).**
-  - چون `PendingChangeCount` حالا retriable است، پیام‌ها خودبه‌خود درست می‌شوند؛ فقط مطمئن شو پیام toast بعد از sync موفق با pending=0 «همه‌چیز به‌روز است» می‌دهد. (بدون تغییر سنگین؛ اگر لازم نبود، تغییر نده و در همین فایل یادداشت کن.)
-  - پوش شود.
+- [x] **T2 — بازتاب در متن UI (`TopbarViewModel`).** بررسی شد؛ تغییر کد لازم نبود.
+  - چون `PendingChangeCount` حالا retriable و `State` وقتی retriable=0 برابر `Synced` است، پیام‌های موجود خودکار درست شدند:
+    - بعد از sync موفق با pendingBefore>0 → «N تغییر ارسال و همگام‌سازی شد».
+    - بعد از sync موفق با pendingBefore=0 → «همه‌چیز به‌روز است».
+    - حالت idle با retriable>0 → «N تغییر ارسال‌نشده» (کهربایی).
+  - بررسی شد که هیچ UI دیگری شمارش جداگانه‌ی NeedsAttention/Rejected از ژورنال نمی‌خواند؛ پس فیکس خودکفاست و wiring اضافه لازم نیست. — پوش شد.
 - [ ] **T3 — تأیید build سبک پروژه‌های تغییرکرده (بدون full test/build طولانی).**
   - فقط `Animora.Client.Services` را build کن (و وابسته‌های لازم). اگر محیط sandbox دات‌نت نداشت، یادداشت کن و رد شو.
   - پوش شود.
