@@ -117,7 +117,7 @@
 > نقش هر وضعیت: `[ ]` انجام‌نشده · `[~]` در حال انجام · `[x]` انجام‌شده.
 > بعد از هر `[x]` → `scripts/git/push.sh "..."` اجرا و در صورت نیاز setup_github_environment.
 
-- [ ] **T0 — آماده‌سازی برنچ:** روی `genspark_ai_developer` برو (`scripts/git/push.sh -b genspark_ai_developer "chore: start tenant-isolation/sync/logout work"`). بیلد پایه را یک‌بار بگیر تا baseline سبز بودن معلوم شود (`scripts/sandbox/build.sh`). **push.**
+- [x] **T0 — آماده‌سازی برنچ:** روی `genspark_ai_developer` برو (`scripts/git/push.sh -b genspark_ai_developer "chore: start tenant-isolation/sync/logout work"`). بیلد پایه را یک‌بار بگیر تا baseline سبز بودن معلوم شود (`scripts/sandbox/build.sh`). **push.**
 
 - [ ] **T3 — دکمهٔ خروج (مشکل ۳، اول چون مستقل و کم‌ریسک):**
   - seam سطح‌shell برای logout بساز: event/سرویس در `src/Animora.Desktop/Services/` (مثلاً `IAppSessionController` با متد `RequestSignOutAsync`) و در `App.axaml.cs` به آن گوش بده تا shell بسته و `LoginWindow` دوباره نشان داده شود (قرینهٔ هندلر `LoginSucceeded`).
