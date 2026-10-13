@@ -119,7 +119,7 @@
 
 - [x] **T0 — آماده‌سازی برنچ:** روی `genspark_ai_developer` برو (`scripts/git/push.sh -b genspark_ai_developer "chore: start tenant-isolation/sync/logout work"`). بیلد پایه را یک‌بار بگیر تا baseline سبز بودن معلوم شود (`scripts/sandbox/build.sh`). **push.**
 
-- [ ] **T3 — دکمهٔ خروج (مشکل ۳، اول چون مستقل و کم‌ریسک):**
+- [x] **T3 — دکمهٔ خروج (مشکل ۳، اول چون مستقل و کم‌ریسک):**
   - seam سطح‌shell برای logout بساز: event/سرویس در `src/Animora.Desktop/Services/` (مثلاً `IAppSessionController` با متد `RequestSignOutAsync`) و در `App.axaml.cs` به آن گوش بده تا shell بسته و `LoginWindow` دوباره نشان داده شود (قرینهٔ هندلر `LoginSucceeded`).
   - در `ProfilePageViewModel` یک `RelayCommand SignOutCommand` اضافه کن که `SignOutAsync` (+ در حالت سرور `IOnlineAuthClient.LogoutAsync`) را صدا بزند، سپس `RequestSignOutAsync`.
   - دکمه را در `ProfilePageView.axaml` (ترجیحاً تب overview/حساب کاربری) با متن فارسی «خروج از حساب کاربری» و استایل هشدار اضافه کن. RTL را از قبل App.axaml تنظیم کرده—دوباره تنظیم نکن.
@@ -127,7 +127,7 @@
   - بیلد: `scripts/sandbox/build.sh` (0/0). اسموک‌ران اگر DI/shell را لمس کردی.
   - **push:** `scripts/git/push.sh "feat(profile): add sign-out action returning to the login screen"`
 
-- [ ] **T2 — ایزولاسیون کلینیک/tenant (مشکل ۲، هستهٔ اصلی):**
+- [x] **T2 — ایزولاسیون کلینیک/tenant (مشکل ۲، هستهٔ اصلی):**
   - provider مسیر store فعال را بساز (`src/Animora.Infrastructure.Local/Storage/` — singleton، thread-safe) که مسیر دیتابیس/پوشهٔ داده + کلید secret را per-tenant می‌دهد؛ slug = هش پایدار tenantCode.
   - `LocalStoreOptions.DatabasePath` را در حالت سرور از این provider مشتق کن (بدون‌سرور: دست‌نخورده). جایی که `AddAnimoraLocalStore`/`AddAnimoraLocalInfrastructure` و options را می‌سازد: `src/Animora.Persistence.Sqlite/Context/LocalStoreServiceCollectionExtensions.cs` و `src/Animora.Infrastructure.Local/LocalInfrastructureServiceCollectionExtensions.cs`؛ wiring دسکتاپ در `App.axaml.cs` (~خط 250+).
   - `ISecretStore`/`ProtectedSessionStore` را per-tenant کن (الگوی `LocalTestProfile.CreateSecretStore`).
@@ -137,7 +137,7 @@
   - اگر فیکس سنگین شد، همان‌جا با پیام واضح push کن (قانون کاربر).
   - **push (نهایی تسک):** `scripts/git/push.sh "fix(identity): isolate each clinic's local store per server tenant (security)"`
 
-- [ ] **T1 — صحت سینک آفلاین (مشکل ۱):**
+- [x] **T1 — صحت سینک آفلاین (مشکل ۱):**
   - تأیید کن outbox/command-journal در آفلاین نگه می‌دارد و بعد از آنلاین‌شدن drain می‌شود (مسیرها در §1 مشکل ۱). محل drain/processor: `LocalSyncStatusService` + `SyncSchedulerHostedService`.
   - تأیید کن drain فقط برای tenant فعالِ منطبق با session اجرا می‌شود (پل با T2 — جلوگیری از ارسال envelope کلینیک A با session B). چون per-tenant DB است، هر outbox جداست؛ فقط gate منطبق‌بودن session/tenant را صریح کن/تست کن.
   - اگر نقص drain/ماندگاری/ترتیب/تطبیق‌tenant یافتی، فیکس هدفمند بزن.
@@ -153,6 +153,12 @@
   - **push:** `scripts/git/push.sh "chore(plan): remove completed tenant-isolation/sync/logout plan"`
 
 ---
+
+T3: خروج با تأیید، پاکسازی نشست محلی/آنلاین و بازسازی کامل DI برای حذف کش‌ها و صفحه‌های نشست قبلی پیاده‌سازی شد. بیلد/تست محلی اجرا نشد؛ اعتبارسنجی در T4 فقط GitHub Actions.
+
+T2: database-per-server/tenant با هش کامل SHA256 و secret-store مستقل پیاده‌سازی شد. تصمیم اجرایی: به‌جای تغییر مسیر mutable در DI زنده، یک provider مستقل و immutable برای هر تلاش ورود ساخته می‌شود؛ ابتدا store انتخاب‌شده initialize می‌شود چون OnlineAuthClient قبل از بازگشت موفق، session و mirror را می‌نویسد. فقط پس از احراز هویت محلی/آنلاین موفق، provider به shell منتقل و workers آغاز می‌شوند. provider قبلی dispose می‌شود و تمام cacheها، state نصب، صفحات و drafts مستقل هستند. دیتابیس مشترک قدیمی حذف/بازنویسی/کپی نمی‌شود تا داده‌ای از دست نرود یا به کلینیک نامعلوم نسبت داده نشود. حالت بدون سرور و preview محفوظ؛ اعتبارسنجی CI در T4.
+
+T1: زمان‌بند قبلاً فقط Pull می‌کرد؛ اکنون pass سریال مشترک Push/Pull را دوره‌ای اجرا می‌کند. gate قبل از claim جلوی مصرف retry بدون نشست منطبق را می‌گیرد. tenant واقعی سرور در secret-store همان کلینیک pin می‌شود؛ mismatch بدون حذف داده fail-closed است و transport تکی/batch نیز gate دارد. خروج gate را تعلیق می‌کند و refresh/clear سریال هستند. cursor روی Deferred یا transport آفلاین جلو نمی‌رود. journal بررسی شد: تراکنش مشترک business/enqueue، LocalSequence، lease قابل reclaim و deferral بدون مصرف retry محفوظ هستند؛ OperationId/Fingerprint/Payload دست‌نخورده‌اند.
 
 ## 3) نکات قفل‌شده / قیود
 - بررسی فایل‌ها فقط هدفمند و بر اساس نیاز؛ کاوش بیهوده ممنوع.

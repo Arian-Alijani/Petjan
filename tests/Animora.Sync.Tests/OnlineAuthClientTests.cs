@@ -214,4 +214,14 @@ public sealed class OnlineAuthClientTests
         Assert.Null((await stack.Services.GetRequiredService<ISessionStore>().ReadAsync()).Value);
         Assert.NotNull((await stack.Services.GetRequiredService<IOfflineCredentialMirrorStore>().ReadAsync()).Value);
     }
+    [Fact]
+    public async Task TenantIsolation_LogoutWhileServerUnreachableStillClearsLocalTokens()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        stack.Server.Handler.Unreachable = true;
+        await stack.Client.LogoutAsync();
+        Assert.Null((await stack.Services.GetRequiredService<ISessionStore>().ReadAsync()).Value);
+        Assert.NotNull((await stack.Services.GetRequiredService<IOfflineCredentialMirrorStore>().ReadAsync()).Value);
+    }
 }

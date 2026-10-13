@@ -22,7 +22,7 @@ public sealed class SyncOrchestrator(
     IServiceScopeFactory scopes,
     SyncScheduleOptions options,
     ISyncResyncHandler resync,
-    ISessionStore? sessions = null)
+    ISessionStore? sessions = null, ISessionTenantBinding? binding = null)
 {
     /// <summary>Pulls one scope; expected engine outcomes are values, never exceptions.</summary>
     public async Task<Result<SyncOutcome>> PullOnceAsync(SyncScope scope, CancellationToken ct = default)
@@ -78,9 +78,11 @@ public sealed class SyncOrchestrator(
 
     private async Task<bool> HasSessionAsync(CancellationToken ct)
     {
-        if (sessions is null) return true; // no session port wired (offline/unit composition): the engine's own configuration gate applies
+        if (binding is { CanSync: false }) return false;
+        if (sessions is null) return binding is null; // no session port wired (offline/unit composition): the engine's own configuration gate applies
         var read = await sessions.ReadAsync(ct).ConfigureAwait(false);
-        return read.IsSuccess && read.Value is { AccessToken.Length: > 0 };
+        return read.IsSuccess && read.Value is { AccessToken.Length: > 0 } session
+            && (binding is null || binding.Matches(session.TenantId));
     }
 
     private static int Rank(SyncOutcome outcome) => outcome switch

@@ -14,15 +14,17 @@ public sealed class StartupBudgetTests
         using var reader = new StreamReader(stream);
         var source = reader.ReadToEnd();
         var startup = Method(source, "public override void OnFrameworkInitializationCompleted()");
-        var registrations = Method(source, "public static void ConfigureServices(IServiceCollection services)");
+        var registrations = Method(source, "public static void ConfigureServices(IServiceCollection services, LocalTestProfile? testProfile, ActiveTenantStore? tenantStore)");
         var opened = Method(source, "private static async void OnLoginOpened");
-        var initialize = Method(source, "private static async Task<bool> InitializeLocalStoreAsync()");
+        var initialize = Method(source, "private static async Task<bool> InitializeLocalStoreAsync(IServiceProvider provider, CancellationToken ct)");
         var forbidden = @"\b(?:Migrate(?:Async)?|EnsureCreated(?:Async)?|Seed(?:Async)?|Rebuild\w*|InitializeLocalStoreAsync)\s*\(";
         Assert.DoesNotMatch(forbidden, startup);
         Assert.DoesNotMatch(forbidden, registrations);
-        Assert.Contains("login.Opened += OnLoginOpened", startup);
-        Assert.Contains("desktop.MainWindow = login", startup);
-        Assert.Contains("InitializeLocalStoreAsync()", opened);
+        var showLogin = Method(source, "private void ShowLogin");
+        Assert.Contains("ShowLogin(desktop)", startup);
+        Assert.Contains("login.Opened += OnLoginOpened", showLogin);
+        Assert.Contains("desktop.MainWindow = login", showLogin);
+        Assert.Contains("online || await InitializeLocalStoreAsync(Services, CancellationToken.None)", opened);
         Assert.Contains("Task.Run", initialize);
         Assert.Contains("GetRequiredService<ILocalStoreInitializer>()", initialize);
         Assert.True(initialize.IndexOf("initializer.InitializeAsync", StringComparison.Ordinal) <

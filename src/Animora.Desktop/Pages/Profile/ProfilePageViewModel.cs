@@ -18,12 +18,18 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     private readonly IUserProfileService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IAppSessionController? _sessionController;
 
-    public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast)
+    [RelayCommand]
+    private Task SignOutAsync() => _sessionController?.RequestSignOutAsync() ?? Task.CompletedTask;
+
+    public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast,
+        IAppSessionController? sessionController = null)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
+        _sessionController = sessionController;
 
         Title = "تنظیمات";
         Eyebrow = "حساب کاربری";

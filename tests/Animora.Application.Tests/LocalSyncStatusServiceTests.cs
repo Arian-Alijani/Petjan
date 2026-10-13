@@ -26,7 +26,7 @@ public sealed class LocalSyncStatusServiceTests
         Assert.Null(service.LastSyncedAt);
         await service.SyncNowAsync();
         Assert.Equal(new[] { SyncState.Syncing, SyncState.Offline }, states);
-        Assert.Equal(fixture.Clock.Now, service.LastSyncedAt);
+        Assert.Null(service.LastSyncedAt);
         fixture.Clock.Now = fixture.Clock.Now.AddHours(1);
         using var reopened = new LocalSyncStatusService(scopes, new NullCommandTransport(), fixture.Clock);
         await reopened.RefreshAsync();

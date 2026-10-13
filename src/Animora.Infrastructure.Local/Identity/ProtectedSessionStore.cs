@@ -18,7 +18,7 @@ namespace Animora.Infrastructure.Local.Identity;
 /// still start cold offline; only <see cref="WipeAllAsync"/> (device revoked) removes the mirror too.
 /// </para>
 /// </summary>
-public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretStore secrets, IClock clock)
+public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretStore secrets, IClock clock, ISessionTenantBinding? binding = null)
     : ISessionStore, IOfflineCredentialMirrorStore
 {
     private readonly TokenProtector _protector = new(secrets);
@@ -36,6 +36,8 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
                 .OrderByDescending(r => r.UpdatedUtc)
                 .FirstOrDefaultAsync(ct).ConfigureAwait(false);
             if (row is null) return Result<ClientSession?>.Ok(null);
+            if (binding is not null && !binding.Matches(row.TenantId))
+                return Result<ClientSession?>.Fail(ErrorCodes.Unauthorized, "store_tenant_mismatch");
 
             var access = _protector.Unprotect(row.AccessToken);
             var refresh = _protector.Unprotect(row.RefreshToken);
@@ -53,6 +55,11 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
     public async Task<Result> WriteAsync(ClientSession session, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(session);
+        if (binding is not null)
+        {
+            var bound = binding.Bind(session.TenantId);
+            if (bound.IsFailure) return bound;
+        }
         var access = _protector.Protect(session.AccessToken);
         var refresh = _protector.Protect(session.RefreshToken);
         if (access.IsFailure) return access.ToResult();
@@ -71,6 +78,12 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
                     session.AccessExpiresUtc, refresh.Value!, session.Role, session.SecurityStamp, offlineCredentialVerifier: null, now));
             else
                 row.Replace(access.Value!, session.AccessExpiresUtc, refresh.Value!, session.Role, session.SecurityStamp, offlineCredentialVerifier: null, now);
+            // A login/rotation leaves exactly one active row; never select an older user's token on a tied timestamp.
+            var oldSessions = await db.Set<ClientSessionRow>().AsTracking()
+                .Where(r => r.AccessToken != string.Empty && (r.TenantId != session.TenantId
+                    || r.UserId != session.UserId || r.DeviceId != session.DeviceId)).ToListAsync(ct).ConfigureAwait(false);
+            foreach (var old in oldSessions)
+                old.Replace(string.Empty, DateTimeOffset.UnixEpoch, string.Empty, old.Role, old.SecurityStamp, null, now);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
             return Result.Ok();
         }
@@ -121,6 +134,8 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
                 .Where(r => r.OfflineCredentialVerifier != null)
                 .OrderByDescending(r => r.UpdatedUtc)
                 .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+            if (row is not null && binding is not null && !binding.Matches(row.TenantId))
+                return Result<OfflineCredentialMirror?>.Fail(ErrorCodes.Unauthorized, "store_tenant_mismatch");
             return Result<OfflineCredentialMirror?>.Ok(row is null
                 ? null
                 : new OfflineCredentialMirror(row.TenantId, row.UserId, row.DeviceId, row.OfflineCredentialVerifier!, row.SecurityStamp, row.Role));
@@ -134,6 +149,7 @@ public sealed class ProtectedSessionStore(IServiceScopeFactory scopes, ISecretSt
     /// <inheritdoc />
     public async Task<Result> WriteVerifierAsync(string tenantId, string userId, string deviceId, string verifier, CancellationToken ct = default)
     {
+        if (binding is not null && !binding.Matches(tenantId)) return Result.Fail(ErrorCodes.Unauthorized, "store_tenant_mismatch");
         if (string.IsNullOrEmpty(verifier) || verifier.Length > ClientSessionRow.VerifierMaxLength)
             return Result.Fail(ErrorCodes.ValidationFailed, "verifier_invalid");
         await _gate.WaitAsync(ct).ConfigureAwait(false);

@@ -93,4 +93,61 @@ public sealed class SyncSchedulerTests
         Assert.True(stop.IsCancellationRequested);
         Assert.Equal(1, engine.Pulls);
     }
+    [Fact]
+    public async Task TenantIsolation_SchedulerRetriesDurableOfflineJournalAndAutomaticallyDrainsAfterReconnect()
+    {
+        var transport = new ReconnectTransport();
+        using var fixture = new LocalStoreTestFixture(configureServices: services => services.AddSingleton<Animora.Application.Commands.ICommandTransport>(transport));
+        await fixture.MigrateAsync();
+        using (var scope = fixture.CreateScope())
+        {
+            var journal = scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>();
+            var envelope = Animora.Contracts.Wire.Commands.CommandEnvelope.Create("OFFLINE-1", LocalStoreTestFixture.DefaultTenant,
+                "U", "D", "clinic.pet.update", "Pet", "P", "{}", "fp", fixture.Clock.Now, 1);
+            await journal.EnqueueAsync(envelope);
+            await scope.ServiceProvider.GetRequiredService<Animora.Persistence.Sqlite.Context.AnimoraLocalDbContext>().SaveChangesAsync();
+        }
+        var engine = new FakeStateSyncEngine().Then(FakeStateSyncEngine.Ok(SyncOutcome.Deferred, fixture.Clock.Now));
+        var options = new SyncScheduleOptions();
+        var orchestrator = Orchestrator(engine, fixture, options);
+        using var status = new LocalSyncStatusService(fixture.Services.GetRequiredService<IServiceScopeFactory>(), transport, fixture.Clock, engine, orchestrator);
+        using (var offlineStop = new CancellationTokenSource())
+        {
+            await using var offline = new SyncSchedulerHostedService(engine, orchestrator, options, new FakeDelayProvider(offlineStop, 1), status);
+            await offline.ExecuteAsync(offlineStop.Token);
+        }
+        Assert.Equal(1, status.PendingChangeCount);
+        Assert.Null(status.LastSyncedAt);
+        using (var scope = fixture.CreateScope())
+        {
+            var row = (await scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>().FindByOperationIdAsync("OFFLINE-1")).Value!;
+            Assert.Equal(0, row.Attempts); // offline deferral must not consume retry budget
+        }
+        fixture.Clock.Now = fixture.Clock.Now.AddHours(1); // deterministic retry due-time, no real wait
+        transport.Online = true;
+        engine.Then(FakeStateSyncEngine.Ok(SyncOutcome.UpToDate, fixture.Clock.Now));
+        using (var onlineStop = new CancellationTokenSource())
+        {
+            await using var online = new SyncSchedulerHostedService(engine, orchestrator, options, new FakeDelayProvider(onlineStop, 1), status);
+            await online.ExecuteAsync(onlineStop.Token);
+        }
+        Assert.Equal(0, status.PendingChangeCount);
+        Assert.Equal(Animora.Contracts.Sync.SyncState.Synced, status.State);
+        Assert.Equal(fixture.Clock.Now, status.LastSyncedAt);
+        Assert.Equal(2, transport.Sent.Count);
+        Assert.Equal(transport.Sent[0], transport.Sent[1]); // same operation, fingerprint and payload
+    }
+
+    private sealed class ReconnectTransport : Animora.Application.Commands.ICommandTransport
+    {
+        public bool Online { get; set; }
+        public List<Animora.Contracts.Wire.Commands.CommandEnvelope> Sent { get; } = [];
+        public Task<Result<Animora.Contracts.Wire.Commands.SettlementResult>> SubmitAsync(Animora.Contracts.Wire.Commands.CommandEnvelope envelope, CancellationToken ct = default)
+        {
+            Sent.Add(envelope);
+            return Task.FromResult(Result<Animora.Contracts.Wire.Commands.SettlementResult>.Ok(new(envelope.OperationId,
+                Online ? Animora.Contracts.Wire.Commands.SettlementOutcome.Accepted : Animora.Contracts.Wire.Commands.SettlementOutcome.Deferred,
+                null, null, null, null, envelope.CreatedAtUtc, Animora.Domain.Primitives.FinancialEffect.None, null)));
+        }
+    }
 }

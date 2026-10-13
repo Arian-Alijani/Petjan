@@ -1,4 +1,5 @@
 using Animora.Domain.Results;
+using Animora.Contracts.Sync;
 using Animora.Sync.Abstractions;
 
 namespace Animora.Client.Services.Sync;
@@ -16,14 +17,16 @@ public sealed class SyncSchedulerHostedService : IAsyncDisposable
     private readonly SyncScheduleOptions _options;
     private readonly IDelayProvider _delay;
     private readonly Random _random;
+    private readonly LocalSyncStatusService? _commandSync;
     private readonly CancellationTokenSource _stop = new();
     private Task? _loop;
 
     /// <summary>Creates the scheduler; the single jitter <see cref="Random"/> is seeded once here.</summary>
     public SyncSchedulerHostedService(
-        IStateSyncEngine engine, SyncOrchestrator orchestrator, SyncScheduleOptions options, IDelayProvider delay)
+        IStateSyncEngine engine, SyncOrchestrator orchestrator, SyncScheduleOptions options, IDelayProvider delay, LocalSyncStatusService? commandSync = null)
     {
         _engine = engine;
+        _commandSync = commandSync;
         _orchestrator = orchestrator;
         _options = options;
         _delay = delay;
@@ -51,7 +54,16 @@ public sealed class SyncSchedulerHostedService : IAsyncDisposable
                 Result<SyncOutcome> pull;
                 try
                 {
-                    pull = await _orchestrator.PullAllAsync(stoppingToken).ConfigureAwait(false);
+                    if (_commandSync is null)
+                        pull = await _orchestrator.PullAllAsync(stoppingToken).ConfigureAwait(false);
+                    else
+                    {
+                        // Same serialized pass as the manual button: push durable queued commands, then pull.
+                        await _commandSync.SyncNowAsync(stoppingToken).ConfigureAwait(false);
+                        pull = _commandSync.State == SyncState.Error
+                            ? Result<SyncOutcome>.Fail(ErrorCodes.NetworkUnavailable)
+                            : Result<SyncOutcome>.Ok(_commandSync.State == SyncState.Offline ? SyncOutcome.Deferred : SyncOutcome.UpToDate);
+                    }
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {

@@ -129,6 +129,114 @@ public sealed class StoreStartupTests
         Assert.Equal(ErrorCodes.StoreEncryptionNotApproved, result.Error);
     }
 
+    [Fact]
+    public void TenantIsolation_PathsAreStableSafeAndServerScoped()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "tenant-path-only");
+        var a = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(root, "https://server.test/api/", " clinic-A ");
+        var repeated = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(root, "https://server.test/api", "CLINIC-A");
+        var b = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(root, "https://server.test/api/", "clinic-B");
+        var otherServer = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(root, "https://other.test/api/", "clinic-A");
+        var traversal = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(root, "https://server.test/", "../../secret");
+        Assert.Equal(a.DatabasePath, repeated.DatabasePath);
+        Assert.NotEqual(a.DatabasePath, b.DatabasePath);
+        Assert.NotEqual(a.DatabasePath, otherServer.DatabasePath);
+        Assert.Matches("^[0-9a-f]{64}$", traversal.Slug);
+        Assert.Equal(Path.Combine(root, "tenants", traversal.Slug), traversal.DataDirectory);
+        var options = new Animora.Persistence.Sqlite.Options.LocalStoreOptions();
+        var localPath = options.DatabasePath;
+        a.ConfigureStore(options);
+        Assert.NotEqual(localPath, options.DatabasePath);
+        Assert.Equal(Path.Combine(a.DataDirectory, "backups"), options.BackupDirectory);
+        Assert.False(options.SeedSampleData);
+    }
+
+    [Fact]
+    public void TenantIsolation_BindingSurvivesProviderRecreationAndRejectsReassignedClinicCode()
+    {
+        var secrets = new MemorySecretStore();
+        var first = new Animora.Infrastructure.Local.Storage.TenantSessionBinding(secrets);
+        Assert.False(first.CanSync);
+        Assert.True(first.Bind("SERVER-A").IsSuccess);
+        first.Activate();
+        Assert.True(first.CanSync);
+        first.Suspend();
+        Assert.False(first.CanSync);
+        var reopened = new Animora.Infrastructure.Local.Storage.TenantSessionBinding(secrets);
+        Assert.True(reopened.Matches("SERVER-A"));
+        Assert.False(reopened.Matches("SERVER-B"));
+        Assert.True(reopened.Bind("SERVER-B").IsFailure);
+        Assert.True(reopened.Matches("SERVER-A")); // original binding/data are never erased on mismatch
+    }
+
+    [Fact]
+    public async Task TenantIsolation_AtoBtoA_PreservesOwnersOutboxAndIndependentSecrets()
+    {
+        using var root = new LocalStoreTestFixture();
+        var a = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(root.Directory, "https://server.test/", "A");
+        var b = new Animora.Infrastructure.Local.Storage.ActiveTenantStore(root.Directory, "https://server.test/", "B");
+        using var clinicA = new LocalStoreTestFixture(configureOptions: a.ConfigureStore);
+        using var clinicB = new LocalStoreTestFixture(configureOptions: b.ConfigureStore);
+        await clinicA.InitializeAsync();
+        await clinicB.InitializeAsync();
+        Assert.NotSame(clinicA.Services.GetRequiredService<LocalInstallationState>(), clinicB.Services.GetRequiredService<LocalInstallationState>());
+        var owner = Animora.Domain.Patients.Owner.Register(LocalStoreTestFixture.DefaultTenant, "Owner A", "09120000001", clinicA.Clock);
+        using (var scope = clinicA.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            db.Add(owner);
+            var envelope = Animora.Contracts.Wire.Commands.CommandEnvelope.Create("OFFLINE-A", LocalStoreTestFixture.DefaultTenant,
+                "U-A", "D-A", "clinic.pet.update", "Pet", "P-A", "{}", "fp-A", clinicA.Clock.Now, 1);
+            Assert.True((await scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>().EnqueueAsync(envelope)).IsSuccess);
+            await db.SaveChangesAsync();
+        }
+        using (var scope = clinicB.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            Assert.Empty(await db.Set<Animora.Domain.Patients.Owner>().ToListAsync());
+            var journal = scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>();
+            Assert.Null((await journal.FindByOperationIdAsync("OFFLINE-A")).Value);
+        }
+        using var reopened = clinicA.BuildProvider();
+        using (var scope = reopened.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            Assert.Equal(owner.Id, Assert.Single(await db.Set<Animora.Domain.Patients.Owner>().ToListAsync()).Id);
+            Assert.NotNull((await scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>()
+                .FindByOperationIdAsync("OFFLINE-A")).Value);
+        }
+        var secretsA = new MemorySecretStore();
+        var secretsB = new MemorySecretStore();
+        var sessionA = new Animora.Infrastructure.Local.Identity.ProtectedSessionStore(
+            clinicA.Services.GetRequiredService<IServiceScopeFactory>(), secretsA, clinicA.Clock,
+            new Animora.Infrastructure.Local.Storage.TenantSessionBinding(secretsA));
+        var saved = new Animora.Application.Security.ClientSession("access-A", clinicA.Clock.Now.AddHours(1), "refresh-A", "U-A", "SERVER-A", "D-A", "Manager", "stamp");
+        Assert.True((await sessionA.WriteAsync(saved)).IsSuccess);
+        var wrongKeys = new Animora.Infrastructure.Local.Identity.ProtectedSessionStore(
+            clinicA.Services.GetRequiredService<IServiceScopeFactory>(), secretsB, clinicA.Clock);
+        Assert.Null((await wrongKeys.ReadAsync()).Value);
+        Assert.Equal("access-A", (await sessionA.ReadAsync()).Value!.AccessToken);
+        Assert.True((await sessionA.WriteAsync(saved with { TenantId = "SERVER-B" })).IsFailure);
+        await sessionA.ClearAsync();
+        Assert.Null((await sessionA.ReadAsync()).Value);
+        using var scopeA = clinicA.CreateScope();
+        Assert.NotNull((await scopeA.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>()
+            .FindByOperationIdAsync("OFFLINE-A")).Value); // logout never deletes unsent work
+    }
+
+    [Fact]
+    public async Task TenantIsolation_SameTimestampLoginReadsOnlyCurrentUser()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        var store = new Animora.Infrastructure.Local.Identity.ProtectedSessionStore(
+            fixture.Services.GetRequiredService<IServiceScopeFactory>(), new MemorySecretStore(), fixture.Clock);
+        var session = new Animora.Application.Security.ClientSession("old", fixture.Clock.Now.AddHours(1), "r", "old-user", "A", "D", "Doctor", "s");
+        Assert.True((await store.WriteAsync(session)).IsSuccess);
+        Assert.True((await store.WriteAsync(session with { UserId = "new-user", AccessToken = "new" })).IsSuccess);
+        Assert.Equal("new-user", (await store.ReadAsync()).Value!.UserId);
+    }
+
     private static string Scalar(SqliteConnection connection, string sql)
     {
         using var command = connection.CreateCommand();
