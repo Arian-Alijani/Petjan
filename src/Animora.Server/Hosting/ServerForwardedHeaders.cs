@@ -31,7 +31,7 @@ internal static class ServerForwardedHeaders
 
         // Start from an empty allowlist: ASP.NET defaults trust loopback only; we want an explicit set.
         options.KnownProxies.Clear();
-        options.KnownNetworks.Clear();
+        options.KnownIPNetworks.Clear();
 
         foreach (var proxy in settings.KnownProxies)
         {
@@ -43,12 +43,11 @@ internal static class ServerForwardedHeaders
 
         foreach (var network in settings.KnownNetworks)
         {
-            var parts = network.Split('/', 2, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2
-                && IPAddress.TryParse(parts[0], out var prefix)
-                && int.TryParse(parts[1], out var length))
+            // System.Net.IPNetwork.TryParse accepts standard CIDR notation (e.g. "10.0.0.0/8")
+            // and fails safe (returns false, entry skipped) on malformed input instead of throwing.
+            if (System.Net.IPNetwork.TryParse(network, out var ipNetwork))
             {
-                options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, length));
+                options.KnownIPNetworks.Add(ipNetwork);
             }
         }
 
