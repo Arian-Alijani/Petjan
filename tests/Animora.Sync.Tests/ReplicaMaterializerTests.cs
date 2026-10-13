@@ -101,6 +101,35 @@ public sealed class ReplicaMaterializerTests
     }
 
     [Fact]
+    public async Task PendingCreate_WithNullAggregateId_IsProtectedByOperationId_SoServerEchoDoesNotClobberIt()
+    {
+        // Regression (ce00111b + tenant-isolation sync): a *create* carries AggregateIdOrNull => null, but its slot-0
+        // aggregate id IS the OperationId, and client & server now derive the SAME id. When the server echoes that row
+        // back, the overlay must still protect the just-created local row — keyed by OperationId, since AggregateId is
+        // null — or it "disappears from the UI while existing on the server".
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        const string ownerId = "00000000000000000000000001"; // = OperationId of the create (slot 0)
+        using (var scope = fixture.CreateScope())
+        {
+            var journal = scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>();
+            var uow = scope.ServiceProvider.GetRequiredService<Animora.Application.Abstractions.IUnitOfWork>();
+            // CreateOwner: AggregateId is null (slot-0 id == OperationId == ownerId).
+            var envelope = Animora.Contracts.Wire.Commands.CommandEnvelope.Create(ownerId, fixture.TenantId,
+                "U1", "D1", "patients.owner.create", "Owner", null, "{}", "fp", DateTimeOffset.UnixEpoch, 1);
+            Assert.True((await uow.ExecuteAsync(async ct => await journal.EnqueueAsync(envelope, ct))).IsSuccess);
+        }
+
+        var result = await ApplyAsync(store, Batch("b1", 1, 0, 10), Page("b1", 0, 1, Json("Owner", ownerId, "v1", OwnerJson)));
+        Assert.True(result.IsSuccess, result.Detail);
+
+        using var read = fixture.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.False(await db.Set<Owner>().AnyAsync(x => x.Id == ownerId)); // local unsettled create wins; the pull is skipped
+        Assert.Contains(await BaseRowsAsync(fixture), r => r.Entity == "Owner" && r.EntityId == ownerId); // server row still in repl_base
+    }
+
+    [Fact]
     public async Task SyncedAppointment_AppendsHistoryRow_AttributedToItsAuthor_NotTheLocalUser()
     {
         using var fixture = await NewFixtureAsync();
