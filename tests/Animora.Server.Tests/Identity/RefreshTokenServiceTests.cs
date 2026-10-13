@@ -1,3 +1,4 @@
+using Animora.Domain.Results;
 using Animora.Persistence.PostgreSql.Identity;
 using Xunit;
 
@@ -52,6 +53,39 @@ public sealed class RefreshTokenServiceTests
         // The legitimately-rotated token of the same family is dead too.
         var afterReuse = await h.NewRequestScope().RefreshAsync(new(rotated.RefreshToken), "c4");
         Assert.Equal("SESSION_EXPIRED", afterReuse.Error.Code);
+    }
+
+    [Fact]
+    public async Task Reuse_StagesRotatedStamp_BeforeCommit_AndGatesResponseOnSave()
+    {
+        var h = new AuthHarness();
+        var login = (await h.Service.LoginAsync(h.Login(), "c")).Value!;
+        await h.NewRequestScope().RefreshAsync(new(login.RefreshToken), "c2");
+        string stampBefore = h.User.SecurityStamp;
+
+        // The audit write is the commit point: the stored stamp must already be the rotated one there.
+        string? stampAtCommit = null;
+        h.Audit.OnWrite = e =>
+        {
+            if (e.Action == "auth.refresh.reuse_detected")
+            {
+                stampAtCommit = h.User.SecurityStamp;
+            }
+
+            return null;
+        };
+
+        var replay = await h.NewRequestScope().RefreshAsync(new(login.RefreshToken), "c3");
+
+        Assert.Equal("SESSION_EXPIRED", replay.Error.Code);
+        Assert.NotNull(stampAtCommit);
+        Assert.NotEqual(stampBefore, stampAtCommit);
+
+        // When the commit fails the response must surface the failure, not a clean SESSION_EXPIRED.
+        h.Audit.OnWrite = _ => Result.Fail(ErrorCodes.ConcurrencyConflict);
+        var failed = await h.NewRequestScope().RefreshAsync(new(login.RefreshToken), "c4");
+        Assert.True(failed.IsFailure);
+        Assert.Equal(ErrorCodes.ConcurrencyConflict.Code, failed.Error.Code);
     }
 
     [Fact]

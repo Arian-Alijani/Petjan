@@ -213,8 +213,14 @@ internal sealed class LoginService(
                     RefreshToken previous = outcome.Previous!; // set whenever Status is Reused
                     User? victim = await repository.FindUserByIdAsync(previous.UserId, ct).ConfigureAwait(false);
                     victim?.RotateSecurityStamp(); // invalidates every outstanding access token of the user
-                    await AuditAsync(tenant.Id, SecurityAuditActions.RefreshReuseDetected, correlationId, previous.UserId, previous.DeviceId, "token_reuse", ct).ConfigureAwait(false);
-                    return Failure<LoginResponse>(ErrorCodes.SessionExpired);
+
+                    // The audit writer commits every staged change on the unit of work, so the rotated stamp is
+                    // persisted atomically with the reuse audit row. The response is gated on that save: if the
+                    // stamp could not be committed the caller must NOT be told the session was cleanly closed.
+                    Result reuseSaved = await AuditAsync(tenant.Id, SecurityAuditActions.RefreshReuseDetected, correlationId, previous.UserId, previous.DeviceId, "token_reuse", ct).ConfigureAwait(false);
+                    return reuseSaved.IsFailure
+                        ? Failure<LoginResponse>(reuseSaved.Error)
+                        : Failure<LoginResponse>(ErrorCodes.SessionExpired);
                 }
 
             case RotationStatus.Rotated:

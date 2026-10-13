@@ -114,8 +114,17 @@ internal sealed class FakeAuditWriter : ISecurityAuditWriter
 {
     public List<SecurityAuditEntry> Entries { get; } = [];
 
+    /// <summary>Invoked at write (= commit) time; may return a failure to simulate a failed save.</summary>
+    public Func<SecurityAuditEntry, Result?>? OnWrite { get; set; }
+
     public Task<Result> WriteAsync(SecurityAuditEntry entry, CancellationToken ct = default)
     {
+        Result? forced = OnWrite?.Invoke(entry);
+        if (forced is { IsFailure: true })
+        {
+            return Task.FromResult(forced.Value);
+        }
+
         Entries.Add(entry);
         return Task.FromResult(Result.Ok());
     }

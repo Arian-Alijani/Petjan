@@ -266,7 +266,7 @@
 - **Push**: `scripts/git/push.sh "fix(server): move rate limiter before authentication (B1 BUG-PIPE-01)"`
 - **Done note**: DONE. `Observability/QueryBudget.cs`: reporting permits now come from `Server:QueryBudget:ReportingMax` (0 = auto = `Database:WorkerMax`, always clamped to the worker pool the sessions actually use), wired in `Program.cs`. Acquisition has a bounded wait (`Server:QueryBudget:WaitSeconds`, default 10); on timeout it throws `QueryBudgetExceededException`, mapped by `GlobalExceptionMiddleware` to typed 503 `SERVER_BUSY` + Retry-After. Added in-use/wait/timeout counters (consumed by C8). Per-tenant partitioning not done: tenant is unknown at Acquire and the shared worker pool is the real limit (C7 scales WorkerMax). Existing 1-permit tests still valid (defaults reportingMax=1); new concurrency/timeout unit test. Not compiled locally (CI only).
 
-### [ ] B2 · SEC-STAMP-01 — Persist security-stamp rotation on refresh-reuse (MEDIUM/verify)
+### [x] B2 · SEC-STAMP-01 — Persist security-stamp rotation on refresh-reuse (MEDIUM/verify)
 - **Why**: On refresh-token REUSE detection (`Auth/LoginService.cs:211-218`), code does
   `victim?.RotateSecurityStamp();` then returns `SessionExpired`. Whether the rotated
   stamp is flushed depends on `RevokeFamilyAsync`/audit calling `SaveChanges` in the
@@ -294,7 +294,7 @@
   rooms/vaccines), NOT a 500. Add a test for the concurrent first-login race.
 - **Accept**: no duplicate device rows; unique violation mapped to typed result; test added.
 - **Push**: `scripts/git/push.sh "fix(server): idempotent device upsert on login to fix first-login race (B3 SEC-ENUM-01)"`
-- **Done note**: _______
+- **Done note**: DONE. LoginService reuse branch now captures the audit/save Result of the RefreshReuseDetected write (the audit writer commits the staged RotateSecurityStamp together with the family revocation + audit row in one SaveChanges) and gates the response on it: a failed commit surfaces the typed failure instead of a clean SESSION_EXPIRED. New test Reuse_StagesRotatedStamp_BeforeCommit_AndGatesResponseOnSave asserts the stored stamp differs at commit time and the failure is surfaced (FakeAuditWriter gained OnWrite hook). Not compiled locally (CI only).
 
 ### [ ] B4 · SEC-ADV-01 — Split advisory-lock key into two int4 keys (MEDIUM)
 - **Why**: `Persistence/Repositories/MoneyResourceLock.cs:15-18` uses
@@ -563,7 +563,7 @@
 | A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [x] |
 | A5 | PERF-QB-01 | HIGH | [x] |
 | B1 | BUG-PIPE-01 | HIGH | [x] |
-| B2 | SEC-STAMP-01 | MEDIUM | [ ] |
+| B2 | SEC-STAMP-01 | MEDIUM | [x] |
 | B3 | SEC-ENUM-01 | MEDIUM | [ ] |
 | B4 | SEC-ADV-01 | MEDIUM | [ ] |
 | B5 | BUG-UOW-01 | MEDIUM | [ ] |
