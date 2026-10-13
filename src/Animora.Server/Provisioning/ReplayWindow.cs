@@ -6,6 +6,11 @@ namespace Animora.Server.Provisioning;
 /// within the window self-DoS all provisioning). Replay exposure after a shed is still bounded by the HMAC
 /// timestamp tolerance in <see cref="RequestSignatureVerifier"/> (+/- 5 min).
 /// <para>
+/// MULTI-INSTANCE EXPOSURE (SCALE-STATE-01): with N replicas a captured signed request can be accepted at most
+/// ONCE PER REPLICA inside the ±5-min skew (each replica has an independent window) before any one of them has
+/// seen it. This is accepted for single-instance and bounded otherwise because provisioning is an operator-only,
+/// low-volume plane gated by constant-time HMAC + timestamp skew. Global exactly-once requires the shared store
+/// in the TODO below.
 /// PER-PROCESS BY DESIGN. Single-instance components that must be replaced or explicitly accepted before running
 /// more than one server instance: this window, <c>AdminStatusCache</c>, <c>CircuitBreaker</c>,
 /// <c>WorkerFailureLogGate</c>, <c>QueryBudget</c> and the in-memory rate-limit partitions.
