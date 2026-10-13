@@ -48,7 +48,7 @@ internal static class ServerForwardedHeaders
                 && IPAddress.TryParse(parts[0], out var prefix)
                 && int.TryParse(parts[1], out var length))
             {
-                options.KnownNetworks.Add(new System.Net.IPNetwork(prefix, length));
+                options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(prefix, length));
             }
         }
 
