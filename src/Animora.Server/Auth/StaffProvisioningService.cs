@@ -155,6 +155,10 @@ internal sealed class StaffProvisioningService(
         {
             member.Suspend();
             user.Disable();
+            // Rotate the stamp so every live access token of the disabled user is invalid on its next request,
+            // making disable immediate and consistent across replicas (matches DeviceAdminService.RevokeAsync).
+            // Enable must NOT rotate: re-enabling should not invalidate any other already-fresh sessions.
+            user.RotateSecurityStamp();
         }
 
         Result statusSaved = await AuditAsync(actor, StaffStatusAction, correlationId, user.Id, ct).ConfigureAwait(false);
