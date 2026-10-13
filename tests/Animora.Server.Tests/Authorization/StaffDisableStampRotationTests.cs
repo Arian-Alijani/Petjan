@@ -21,7 +21,9 @@ public sealed class StaffDisableStampRotationTests
         Assert.True(disableIdx >= 0, "user.Disable() disable branch not found");
         string afterDisable = src[disableIdx..];
         int rotateIdx = afterDisable.IndexOf("user.RotateSecurityStamp();", StringComparison.Ordinal);
-        Assert.True(rotateIdx >= 0 && rotateIdx < 300,
+        // Allow for the explanatory comment lines between Disable() and the rotation; the window only needs to prove
+        // the rotation lives in the same (disable) branch, well before the next method member.
+        Assert.True(rotateIdx >= 0 && rotateIdx < 600,
             "user.RotateSecurityStamp() must follow user.Disable() in the disable branch");
     }
 
