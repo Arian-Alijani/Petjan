@@ -163,12 +163,27 @@ internal static class ReplicaMaterializer
 
     private static async Task<HashSet<string>> LoadPendingAsync(AnimoraLocalDbContext db, string tenant, CancellationToken ct)
     {
+        // Protect every locally-authored-but-unsettled aggregate from a pull clobber (G04 — local intent wins).
+        // A *create* command carries no AggregateId (AggregateIdOrNull => null), yet its primary aggregate is minted
+        // deterministically at slot 0, whose id is the OperationId itself (IdGenerator.ForOperation: "slot 0 is the
+        // operation id"). Since ce00111b made client and server derive that *same* id, the server's replicated echo now
+        // lands on the exact local row; without keying the overlay on OperationId too, the pull would overwrite (and
+        // can re-stamp Deleted/Version on) the just-created owner/pet — "saved on server, invisible in the UI". So we
+        // guard both the explicit AggregateId (updates / settled creates) and the slot-0 OperationId (unsettled creates).
         var pending = await db.Set<PendingCommand>().AsNoTracking()
-            .Where(c => c.TenantId == tenant && c.AggregateId != null && Entities.Contains(c.AggregateType)
+            .Where(c => c.TenantId == tenant && Entities.Contains(c.AggregateType)
                         && (c.Status == SettlementState.LocallyPosted || c.Status == SettlementState.PendingSettlement))
-            .Select(c => new { c.AggregateType, c.AggregateId })
+            .Select(c => new { c.AggregateType, c.AggregateId, c.OperationId })
             .ToListAsync(ct).ConfigureAwait(false);
-        return pending.Select(p => Key(p.AggregateType, p.AggregateId!)).ToHashSet(StringComparer.Ordinal);
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var p in pending)
+        {
+            set.Add(Key(p.AggregateType, p.AggregateId ?? p.OperationId));
+            // Belt-and-braces: when AggregateId is present it is the canonical key, but a slot-0 create whose id was not
+            // echoed back into AggregateId must still be matched by OperationId.
+            if (p.AggregateId is not null) set.Add(Key(p.AggregateType, p.OperationId));
+        }
+        return set;
     }
 
     private static bool TryReadValues(EntityMap map, string payload, out Dictionary<string, object?> values)
