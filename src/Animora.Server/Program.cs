@@ -149,8 +149,8 @@ var app = builder.Build();
 
 // 7. Middleware pipeline (fixed order):
 //    global exception → HSTS/HTTPS redirect (non-Development) → request logging
-//    (skips /health/*) → authN → tenant binding → authZ → entitlement → rate limiter →
-//    routing → endpoints.
+//    (skips /health/*) → authN (token decode, no DB) → rate limiter → tenant binding → authZ →
+//    entitlement → antiforgery → endpoints.
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // SEC-FWD-01: derive the client IP / scheme from a trusted-proxy allowlist BEFORE any
@@ -170,13 +170,18 @@ app.UseWhen(c=>c.Request.Path.StartsWithSegments(ServerRoutes.Commands),branch=>
 // Plane order is fixed and tested (PlaneOrderTests): authN (401) → tenant bound from the STORED membership →
 // permission authZ (403) → entitlement (S16 fills the gate; allow-all until then).
 app.UseMiddleware<AdminSecurityHeadersMiddleware>();
+// BUG-PIPE-01: the limiter runs BEFORE every database-backed plane (operator cookie validation, membership
+// resolution, permission authZ, entitlement) so a flood is throttled before it pays the 5-7 round-trip identity cost.
+// UseAuthentication() stays in front of it on purpose: the opaque bearer token is decrypted by Data Protection
+// (key ring cached in memory, NO database read), and the tenant+user partition keys of the authenticated policies
+// (SEC-RL-01) are derived from that principal. Endpoint policies are resolved by the routing the host adds first.
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseMiddleware<OperatorContextMiddleware>();
 app.UseMiddleware<TenantContextMiddleware>();
 app.UseAuthorization();
 app.UseMiddleware<EntitlementMiddleware>();
 
-app.UseRateLimiter();
 app.UseAntiforgery();
 app.UseMiddleware<AdminAntiforgeryMiddleware>();
 

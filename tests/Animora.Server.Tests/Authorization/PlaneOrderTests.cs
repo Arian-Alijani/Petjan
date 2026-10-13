@@ -77,3 +77,24 @@ public sealed class PlaneOrderTests
         Assert.Equal(ErrorCodes.TenantSuspended.Code, await CodeOf(response));
     }
 }
+
+/// <summary>BUG-PIPE-01: the rate limiter must sit in front of every database-backed identity plane.</summary>
+public sealed class RateLimiterOrderTests
+{
+    [Fact]
+    public void RateLimiter_RunsAfterTokenDecode_ButBeforeTenantAuthzAndEntitlement()
+    {
+        string program = Animora.Server.Tests.Licensing.LicensingSource.Read("src/Animora.Server/Program.cs");
+        int authn = program.IndexOf("app.UseAuthentication();", StringComparison.Ordinal);
+        int limiter = program.IndexOf("app.UseRateLimiter();", StringComparison.Ordinal);
+        int op = program.IndexOf("app.UseMiddleware<OperatorContextMiddleware>();", StringComparison.Ordinal);
+        int tenant = program.IndexOf("app.UseMiddleware<TenantContextMiddleware>();", StringComparison.Ordinal);
+        int authz = program.IndexOf("app.UseAuthorization();", StringComparison.Ordinal);
+        int entitlement = program.IndexOf("app.UseMiddleware<EntitlementMiddleware>();", StringComparison.Ordinal);
+
+        Assert.True(authn >= 0 && limiter > authn, "limiter needs the (DB-free) principal for tenant+user partitions");
+        Assert.True(limiter < op && limiter < tenant && limiter < authz && limiter < entitlement,
+            "limiter must precede every DB-backed plane");
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(program, @"app\.UseRateLimiter\(\);"));
+    }
+}

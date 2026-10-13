@@ -248,7 +248,7 @@
 
 ## PHASE B — Correctness & robustness (HIGH / MEDIUM)
 
-### [ ] B1 · BUG-PIPE-01 — Move `UseRateLimiter()` before authentication (HIGH)
+### [x] B1 · BUG-PIPE-01 — Move `UseRateLimiter()` before authentication (HIGH)
 - **Why**: Pipeline runs `...authN → tenant → authZ → entitlement → UseRateLimiter()`
   (`Program.cs` ~line 159-165). The limiter runs AFTER the 5–7 DB-query authN/authZ/
   entitlement work, so a flood pays full identity cost before being throttled —
@@ -279,7 +279,7 @@
   Add a focused test: after a detected reuse the user's stored `SecurityStamp` changed.
 - **Accept**: stamp rotation committed; test asserts stored stamp differs post-reuse.
 - **Push**: `scripts/git/push.sh "sec(server): persist security-stamp rotation on refresh-reuse (B2 SEC-STAMP-01)"`
-- **Done note**: _______
+- **Done note**: DONE. `Program.cs`: `UseRateLimiter()` moved from after entitlement to directly after `UseAuthentication()` and BEFORE `OperatorContextMiddleware`/`TenantContextMiddleware`/`UseAuthorization`/`EntitlementMiddleware`, so a flood is throttled before any DB-backed work (cookie validation, membership resolve, entitlement). Authentication itself stays first deliberately: bearer tokens are Data-Protection-decrypted in memory (no DB read) and the A2 tenant+user partition keys need the principal; endpoint `RequireRateLimiting` policies still apply (routing is auto-added at pipeline start). Pipeline comment updated. New source-order test `RateLimiterOrderTests` (PlaneOrderTests file); the runtime ordering tests in `PlaneOrderTests` are unaffected (401→403→entitlement ordering unchanged). Not compiled locally (CI only).
 
 ### [ ] B3 · SEC-ENUM-01 — Idempotent device upsert on login (MEDIUM)
 - **Why**: `Auth/LoginService.cs:124-138` auto-registers a `Device` for an unknown
@@ -562,7 +562,7 @@
 | A3 | SCALE-STATE-01 | CRITICAL | [x] |
 | A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [x] |
 | A5 | PERF-QB-01 | HIGH | [x] |
-| B1 | BUG-PIPE-01 | HIGH | [ ] |
+| B1 | BUG-PIPE-01 | HIGH | [x] |
 | B2 | SEC-STAMP-01 | MEDIUM | [ ] |
 | B3 | SEC-ENUM-01 | MEDIUM | [ ] |
 | B4 | SEC-ADV-01 | MEDIUM | [ ] |
