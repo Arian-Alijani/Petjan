@@ -209,7 +209,7 @@ NOT swallow. Keep it minimal.
 
 ## Task list (execute top→bottom; PUSH after each)
 
-- [ ] **T1 — BUG 1 fix.** Edit `src/Animora.Application/Commands/CommandFingerprint.cs`: add the
+- [x] **T1 — BUG 1 fix.** DONE (`CommandFingerprint.DropJournalingMembers` modifier in place, verified present). Edit `src/Animora.Application/Commands/CommandFingerprint.cs`: add the
       `DefaultJsonTypeInfoResolver` modifier dropping `CommandTypeName`/`AggregateTypeName`/
       `AggregateIdOrNull` for `IJournaledCommand` types. Build ONLY `Animora.Application`
       (`dotnet build src/Animora.Application` — short). → **PUSH**
