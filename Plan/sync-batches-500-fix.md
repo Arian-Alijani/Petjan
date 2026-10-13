@@ -276,9 +276,9 @@ Run `scripts/git/push.sh "<conventional message>"` after EACH task. If it exits 
       GlobalExceptionMiddleware UNEXPECTED mapping + unguarded `Project` money/qty/`GetDateTimeOffset`;
       PG tests seed only a Tenant so the path is untested.)
 - [x] **T1** — Create `Plan/` + write this plan. **push.** (this file)
-- [ ] **T2** — Implement §4.1 + §4.2 in `RecordProjector.cs` (and §4.3 if clean). **push**
+- [x] **T2** — Implement §4.1 + §4.2 in `RecordProjector.cs` (and §4.3 if clean). **push**
       `fix(sync): harden projector so a single bad field/row never 500s /sync/batches`.
-- [ ] **T3** — Add §5.1 `SeedProduct` to `SyncPgRig.cs` + §5.2 reproducing test to
+- [x] **T3** — Add §5.1 `SeedProduct` to `SyncPgRig.cs` + §5.2 reproducing test to
       `SyncBatchesResilienceTests.cs`. **push**
       `test(sync): /sync/batches stays BatchReady for money/quantity rows (repro)`.
 - [ ] **T4** — (CI feedback loop) If GitHub Actions reports a compile error (e.g. missing NOT NULL
