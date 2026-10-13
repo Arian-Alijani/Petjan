@@ -10,7 +10,7 @@ namespace Animora.Server.Auth;
 
 /// <summary>
 /// S05 device lifecycle + offline-capability endpoints under <see cref="ServerRoutes.Auth"/>:
-/// <c>POST /auth/device/{id}/approve|revoke</c> (policy <c>devices.manage</c>), <c>POST /auth/capabilities</c>
+/// <c>POST /auth/device/{id}/approve|revoke|reinstate</c> (policy <c>devices.manage</c>), <c>POST /auth/capabilities</c>
 /// (policy <see cref="CoarsePolicies.DeviceActive"/>) and the anonymous public <c>GET /auth/keys</c>.
 /// </summary>
 internal static class DeviceEndpoints
@@ -24,6 +24,7 @@ internal static class DeviceEndpoints
 
         group.MapPost("/device/{id}/approve", ApproveAsync).RequireAuthorization(PermissionCodes.DevicesManage);
         group.MapPost("/device/{id}/revoke", RevokeAsync).RequireAuthorization(PermissionCodes.DevicesManage);
+        group.MapPost("/device/{id}/reinstate", ReinstateAsync).RequireAuthorization(PermissionCodes.DevicesManage);
         group.MapPost("/capabilities", CapabilitiesAsync).RequireAuthorization(CoarsePolicies.DeviceActive);
 
         // Public key set: anonymous by design (clients verify snapshots offline) and exempt from tenant binding.
@@ -33,7 +34,9 @@ internal static class DeviceEndpoints
     }
 
     private static int StatusFor(ErrorCode error) =>
-        error.Code == ErrorCodes.NotFound.Code ? StatusCodes.Status404NotFound : AuthEndpoints.StatusFor(error);
+        error.Code == ErrorCodes.NotFound.Code ? StatusCodes.Status404NotFound
+        : error.Code == ErrorCodes.Forbidden.Code ? StatusCodes.Status403Forbidden // e.g. a manager revoking their own device
+        : AuthEndpoints.StatusFor(error);
 
     private static IResult Fail(HttpContext http, ErrorCode error)
     {
