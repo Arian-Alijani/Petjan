@@ -51,9 +51,12 @@ internal static class ServerRateLimiting
                 var options = httpContext.RequestServices.GetRequiredService<IOptions<ServerOptions>>().Value;
                 var window = options.RateLimits.ForPolicy(policyName);
 
-                // S01 partitions every policy by client IP. Tenant-scoped partitioning
-                // for commands/sync/files/operator arrives with tenant context (S04/S05).
-                var partitionKey = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                // SEC-RL-01 / CONS-RL-01: authenticated planes (commands/sync/files/operator) are
+                // partitioned by tenant+user so one tenant/user cannot be throttled by another sharing
+                // a NAT/proxy IP, and a single abusive user is isolated. The unauthenticated `auth`
+                // plane (login/refresh/device) is partitioned by the *trusted* client IP derived from
+                // the forwarded-headers allowlist (SEC-FWD-01) so brute-force protection stays effective.
+                var partitionKey = ResolvePartitionKey(policyName, httpContext);
                 return RateLimitPartition.GetFixedWindowLimiter(
                     $"{policyName}:{partitionKey}",
                     _ => new FixedWindowRateLimiterOptions
@@ -65,5 +68,27 @@ internal static class ServerRateLimiting
                     });
             });
         }
+    }
+
+    /// <summary>
+    /// Chooses the partition key for a policy. Authenticated planes key on tenant+user (falling back to
+    /// the trusted client IP only before the principal exists); the auth plane always keys on the
+    /// trusted client IP. The forwarded-headers middleware (SEC-FWD-01) has already normalized
+    /// <see cref="ConnectionInfo.RemoteIpAddress"/> to the real client when a proxy allowlist is configured.
+    /// </summary>
+    private static string ResolvePartitionKey(string policyName, HttpContext httpContext)
+    {
+        // The auth plane is inherently pre-authentication → IP is the only stable key.
+        if (policyName != RateLimitPolicies.Auth)
+        {
+            var caller = Animora.Server.Auth.AuthenticatedCaller.TryRead(httpContext.User);
+            if (caller is not null)
+            {
+                return $"t:{caller.TenantId}:u:{caller.UserId}";
+            }
+        }
+
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return $"ip:{ip}";
     }
 }

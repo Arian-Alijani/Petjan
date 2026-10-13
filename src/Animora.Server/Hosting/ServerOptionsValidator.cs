@@ -42,6 +42,19 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
             }
         }
 
+        // SEC-FWD-01: if forwarded headers are enabled, a trusted-proxy allowlist is mandatory —
+        // enabling them with an empty allowlist would make X-Forwarded-For attacker-controllable.
+        var fwd = options.ForwardedHeaders;
+        if (fwd.Enabled && fwd.KnownProxies.Length == 0 && fwd.KnownNetworks.Length == 0)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:{nameof(ServerOptions.ForwardedHeaders)}' is enabled but no KnownProxies/KnownNetworks allowlist is configured; forwarded headers must never be trusted without an allowlist.");
+        }
+
+        if (fwd.Enabled && fwd.ForwardLimit <= 0)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:{nameof(ServerOptions.ForwardedHeaders)}:{nameof(ForwardedHeadersSettings.ForwardLimit)}' must be greater than 0.");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

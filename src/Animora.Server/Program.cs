@@ -144,6 +144,11 @@ var app = builder.Build();
 //    routing → endpoints.
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+// SEC-FWD-01: derive the client IP / scheme from a trusted-proxy allowlist BEFORE any
+// IP-based decision (rate limiting, auditing) or HTTPS redirect runs. No-op (fail-safe)
+// unless Server:ForwardedHeaders:Enabled is set with a KnownProxies/KnownNetworks allowlist.
+ServerForwardedHeaders.Use(app);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();

@@ -123,7 +123,7 @@
   `ISyncAdmission`. Per-tenant fairness deferred (stretch, not the blocker). NOT compiled —
   no .NET SDK in sandbox (build/test forbidden by phase rules); verified by targeted review.
 
-### [ ] A2 · SEC-RL-01 + SEC-FWD-01 + CONS-RL-01 — Tenant/user-scoped limits + trusted forwarded headers (BLOCKER)
+### [x] A2 · SEC-RL-01 + SEC-FWD-01 + CONS-RL-01 — Tenant/user-scoped limits + trusted forwarded headers (BLOCKER)
 - **Why**: Every rate-limit policy partitions by raw `RemoteIpAddress` only
   (`ServerRateLimiting.cs:54-66`), despite the comment claiming tenant scoping
   arrives with S04/S05 (which ARE wired). Behind an LB this is per-process (limits
@@ -154,7 +154,17 @@
 - **Accept**: authenticated policies keyed by tenant+user; auth keyed by trusted IP;
   comment matches code; forwarded headers wired with allowlist.
 - **Push**: `scripts/git/push.sh "sec(server): tenant/user-scoped rate limits + trusted forwarded headers (A2 SEC-RL-01/SEC-FWD-01)"`
-- **Done note**: _______
+- **Done note**: DONE. (1) Added `ForwardedHeadersSettings` to `ServerOptions` (Enabled/KnownProxies/
+  KnownNetworks/ForwardLimit; default Enabled=false = trust nothing). (2) New
+  `Hosting/ServerForwardedHeaders.cs` applies `UseForwardedHeaders` with an explicit allowlist;
+  wired early in `Program.cs` right after `GlobalExceptionMiddleware`, before HSTS/redirect.
+  (3) `ServerRateLimiting.ResolvePartitionKey`: auth plane keys on trusted client IP; all other
+  (authenticated) planes key on `t:<tenant>:u:<user>` via `AuthenticatedCaller.TryRead(User)`,
+  falling back to IP pre-principal. (4) Comment fixed (CONS-RL-01). (5) Validator fails boot if
+  ForwardedHeaders enabled without allowlist. `IPNetwork` fully-qualified as `System.Net.IPNetwork`
+  to avoid ambiguity with the deprecated HttpOverrides type. MULTI-INSTANCE: distributed limiter
+  is still a documented follow-up (in-memory partitions remain per-process); the tenant/user
+  partition + trusted IP + allowlist is the committed single-instance-correct deliverable.
 
 ### [ ] A3 · SCALE-STATE-01 — Durable shared provisioning replay window + document single-instance state (CRITICAL)
 - **Why**: `Provisioning/ReplayWindow.cs:4-19` is in-memory single-host,
@@ -548,7 +558,7 @@
 | Task | Finding(s) | Sev | Status |
 |---|---|---|---|
 | A1 | SCALE-ADM-01 | BLOCKER | [x] |
-| A2 | SEC-RL-01 / SEC-FWD-01 / CONS-RL-01 | BLOCKER/HIGH | [ ] |
+| A2 | SEC-RL-01 / SEC-FWD-01 / CONS-RL-01 | BLOCKER/HIGH | [x] |
 | A3 | SCALE-STATE-01 | CRITICAL | [ ] |
 | A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [ ] |
 | A5 | PERF-QB-01 | HIGH | [ ] |
