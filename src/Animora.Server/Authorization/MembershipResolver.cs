@@ -20,7 +20,8 @@ internal sealed class MembershipResolver(
     RequestTenantContext tenantContext,
     IIdentityReadStore repository,
     ITenantDirectory tenants,
-    AuthzDecisionCache cache) : IMembershipResolver
+    AuthzDecisionCache cache,
+    Animora.Server.Observability.ServerMetrics? metrics = null) : IMembershipResolver
 {
     /// <inheritdoc />
     public async Task<Result<ResolvedMembership>> ResolveAsync(
@@ -40,6 +41,20 @@ internal sealed class MembershipResolver(
             return Result<ResolvedMembership>.Ok(cached);
         }
 
+        // IMP-04: only the uncached (database) path is counted - cache hits cost no query.
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        try
+        {
+            return await ResolveFromStoreAsync(userId, deviceId, securityStamp, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            metrics?.RecordAuthzQuery(System.Diagnostics.Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    private async Task<Result<ResolvedMembership>> ResolveFromStoreAsync(string userId, string deviceId, string securityStamp, CancellationToken ct)
+    {
         // 1. The tenant is not known yet, so the main (tenant-filtered) context cannot be used: read the user by
         //    primary key through the keyless lookup — one addressed row, no enumeration.
         UserLookupEntry? user = await users.FindByIdAsync(userId, ct).ConfigureAwait(false);

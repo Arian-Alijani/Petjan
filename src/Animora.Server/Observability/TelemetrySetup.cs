@@ -20,7 +20,7 @@ internal static class TelemetrySetup
             .WithTracing(t=>t.AddAspNetCoreInstrumentation(o=>o.Filter=c=>!c.Request.Path.StartsWithSegments("/health"))
                 .AddSource(ServerMetrics.MeterName)
                 .AddProcessor(sp=>new BatchActivityExportProcessor(new SafeOtlpTraceExporter(ExporterOptions(),sp.GetRequiredService<ExporterWarningGate>()),maxQueueSize:512,maxExportBatchSize:128)))
-            .WithMetrics(m=>m.AddAspNetCoreInstrumentation().AddRuntimeInstrumentation().AddMeter(ServerMetrics.MeterName)
+            .WithMetrics(m=>m.AddAspNetCoreInstrumentation().AddRuntimeInstrumentation().AddMeter(ServerMetrics.MeterName).AddMeter(Animora.Persistence.PostgreSql.Replication.AdmissionMetrics.MeterName)
                 .AddReader(sp=>new PeriodicExportingMetricReader(new SafeOtlpMetricExporter(ExporterOptions(),sp.GetRequiredService<ExporterWarningGate>()),exportIntervalMilliseconds:15000,exportTimeoutMilliseconds:2500)));
         // No database instrumentation is registered: statement text cannot enter traces.
         return services;

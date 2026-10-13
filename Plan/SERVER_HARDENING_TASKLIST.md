@@ -488,7 +488,7 @@
 - **Push**: `scripts/git/push.sh "chore(server): scale pools with profile, externalize tuning constants (C7 IMP-01/IMP-09)"`
 - **Done note**: DONE. IMP-01: `DatabaseOptions.ForProfile(profileGiB)` supplies profile-scaled pool defaults (2 GiB: write 6 / read 3 / keyring 1 / worker 2 = 12; 4 GiB: 11/5/1/3 = 20 - each exactly fills the validator's budget). `appsettings.json` no longer hard-codes the four pool sizes, so changing `Database:ProfileGiB` scales every pool; any explicit `Database:*Max` still wins and the pool-sum budget validator still guards it. Npgsql `Timeout` (pool-wait, A4), `Connection Idle Lifetime` and `Connection Pruning Interval` are now explicit validated options; pool exhaustion -> typed 503 was done in A4. IMP-09: externalized + validated (`Database:`) `SyncAdmissionMax` / `WorkerAdmissionMax` (0 = auto formulas from A1), `CommandTimeoutSeconds` (5..300, was const 30), idle-lifetime/pruning; with B9/B10/A5/A4 the `Server:Files|Workers|QueryBudget|AuthCache|Health` options cover upload slots, outbox claim/consumers, recovery caps, reporting permits, TTLs. Intentionally NOT options (documented in code as invariants): batch size 50 and chunk 1 MiB (wire-protocol limits shared with the desktop client - unilateral change would break deployed clients) and the 60 s outbox lease (validator proves batch/consumers fit inside it); snapshot lifetime already lives in `FeedStorageOptions.MaxSnapshotLifetime`. Tests: `DatabaseProfileScalingTests`. Not compiled locally (CI only).
 
-### [ ] C8 · IMP-04 — Emit scaling-signal metrics (improvement)
+### [x] C8 · IMP-04 — Emit scaling-signal metrics (improvement)
 - **Why**: The scaling findings predict exactly which signals turn red first; emit them.
 - **Files**: observability/metrics registration (search for the existing meter/metrics
   setup in `src/Animora.Server/Observability`).
@@ -496,7 +496,7 @@
   authZ query count/latency, outbox lag, intake-recovery backlog, reporting-budget wait (A5).
 - **Accept**: the six signals are observable.
 - **Push**: `scripts/git/push.sh "feat(server): emit scaling-signal metrics (C8 IMP-04)"`
-- **Done note**: _______
+- **Done note**: DONE. All six signals are emitted (low-cardinality labels only; exported via the existing OTLP setup, new `Animora.Admission` meter registered in `TelemetrySetup`). (1) Pool saturation: `animora.pg.pool.saturation{source}` = in-use / configured max per pool (limits fed from `DatabaseOptions` by `SnapshotAgeMonitor`, usage from `DatabasePoolUsage`), next to the existing `animora.pg.pool.in_use`. (2) Admission-gate wait: `AdmissionMetrics` (Persistence) - histogram `animora.admission.wait.seconds{gate=worker|sync}` plus gauges `animora.admission.in_use` / `animora.admission.waiting`, recorded inside both `SemaphoreBackgroundAdmission` and `SemaphoreSyncAdmission`. (3) AuthZ query count/latency: `animora.authz.queries` + `animora.authz.duration.seconds.total` counters recorded around the UNCACHED store paths of `MembershipResolver` and `ServerEntitlementGate` (cache hits correctly cost nothing). (4) Outbox lag: `animora.outbox.lag.seconds` = age of the oldest due outbox row (new column in `ServerDatabaseStatisticsReader`). (5) Intake-recovery backlog: `animora.intake.recovery.backlog` = InProgress intake rows with expired lease. (6) Reporting-budget wait: `animora.reporting.budget{stat=in_use|max|wait_seconds_total|waits_total|timeouts_total}` wired from `QueryBudget` (A5) in `Program.cs`. Tests: `Observability/ScalingSignalsTests` (MeterListener based). Not compiled locally (CI only).
 
 ### [ ] C9 · IMP-05 + IMP-06 — Backpressure (bounded queues → 503) + per-op authZ timeouts (improvement)
 - **Why**: Fire-and-wait global semaphores block request threads under overload; a single
@@ -579,7 +579,7 @@
 | C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [x] |
 | C6 | SCALE-N1-01 | MEDIUM | [x] |
 | C7 | IMP-01 / IMP-09 | IMP | [x] |
-| C8 | IMP-04 | IMP | [ ] |
+| C8 | IMP-04 | IMP | [x] |
 | C9 | IMP-05 / IMP-06 | IMP | [ ] |
 | C10 | IMP-08 / CONS-INT-01 | IMP/INFO | [ ] |
 | C11 | IMP-11 | IMP | [ ] |

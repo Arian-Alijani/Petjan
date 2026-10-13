@@ -16,10 +16,20 @@ internal sealed class SnapshotAgeMonitor : ResilientWorker,IReadinessProbe
     public string Name=>"snapshot-age";
     public bool IsRequired=>false;
     public SnapshotAgeMonitor(ServerDatabaseStatisticsReader reader,ServerMetrics metrics,IOptions<FeedStorageOptions> options,
-        IBackgroundAdmission admission,TimeProvider clock,WorkerHeartbeat heartbeat,ILogger<SnapshotAgeMonitor> logger,DatabasePoolUsage? poolUsage=null)
+        IBackgroundAdmission admission,TimeProvider clock,WorkerHeartbeat heartbeat,ILogger<SnapshotAgeMonitor> logger,DatabasePoolUsage? poolUsage=null,
+        IOptions<DatabaseOptions>? database=null)
         :base("snapshot-age",TimeSpan.FromSeconds(15),clock,heartbeat,logger)
     {
         _reader=reader; _metrics=metrics; _options=options; _admission=admission; _poolUsage=poolUsage;
+        if(database is not null)
+        {
+            var d=database.Value;
+            metrics.ConfigurePoolLimits(new Dictionary<string,int>
+            {
+                ["Animora.Server/oltp-write"]=d.OltpWriteMax,["Animora.Server/oltp-read"]=d.OltpReadMax,
+                ["Animora.Server/keyring"]=d.KeyRingMax,["Animora.Server/worker"]=d.WorkerMax,
+            },()=>Volatile.Read(ref _pools));
+        }
         metrics.ObservePools(()=>Volatile.Read(ref _pools).Select(p=>new Measurement<int>(p.Value,new KeyValuePair<string,object?>("source",p.Key))));
         metrics.ObserveWorkers(()=>heartbeat.Ages().Select(p=>new Measurement<double>(p.Value,new KeyValuePair<string,object?>("worker",p.Key))));
     }
@@ -29,6 +39,7 @@ internal sealed class SnapshotAgeMonitor : ResilientWorker,IReadinessProbe
         await using var lease=await _admission.EnterAsync(ct).ConfigureAwait(false);
         var stats=await _reader.ReadAsync(ct).ConfigureAwait(false);
         _metrics.SetSnapshotAge(stats.SnapshotAge); _metrics.SetQueues(stats.Pending,stats.Dead,stats.Intake);
+        _metrics.SetBacklogs(stats.OutboxLagSeconds,stats.ExpiredLeases);
         var pools=_poolUsage?.Snapshot()??stats.ActiveBySource;
         _metrics.SetPoolInUse(pools.Values.Sum());
         Volatile.Write(ref _pools,pools); _observed=true;

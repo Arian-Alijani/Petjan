@@ -12,7 +12,7 @@ namespace Animora.Server.Licensing;
 /// issued licence is honoured at once while a revocation is observed within the TTL.
 /// </summary>
 internal sealed class ServerEntitlementGate(AnimoraEntitlementReadContext db, IClock clock, IHttpContextAccessor http,
-    AuthzDecisionCache cache) : IServerEntitlementGate
+    AuthzDecisionCache cache, Animora.Server.Observability.ServerMetrics? metrics = null) : IServerEntitlementGate
 {
     /// <summary>Exempt routes (single source: <see cref="ServerSurfacePolicy"/>).</summary>
     internal static bool IsExempt(PathString path) => ServerSurfacePolicy.IsEntitlementExempt(path);
@@ -24,6 +24,14 @@ internal sealed class ServerEntitlementGate(AnimoraEntitlementReadContext db, IC
         var deviceId = request?.User.FindFirst("did")?.Value;
         if (string.IsNullOrEmpty(deviceId)) return Result.Fail(ErrorCodes.EntitlementRequired, "license_not_active");
         if (cache.IsEntitled(context.TenantId, deviceId)) return Result.Ok();
+        // IMP-04: only the uncached (database) verdict is counted as an authZ query.
+        long started = System.Diagnostics.Stopwatch.GetTimestamp();
+        try { return await EvaluateFromStoreAsync(context, deviceId, ct).ConfigureAwait(false); }
+        finally { metrics?.RecordAuthzQuery(System.Diagnostics.Stopwatch.GetElapsedTime(started)); }
+    }
+
+    private async ValueTask<Result> EvaluateFromStoreAsync(TenantEntitlementContext context, string deviceId, CancellationToken ct)
+    {
         var grant = await db.Grants.AsNoTracking().Where(x => x.TenantId == context.TenantId)
             .Select(x => new { x.Status, x.ValidUntilUtc }).SingleOrDefaultAsync(ct).ConfigureAwait(false);
         if (grant?.Status == LicenseGrantStatus.Revoked) return Result.Fail(ErrorCodes.LicenseRevoked);

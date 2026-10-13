@@ -64,7 +64,12 @@ builder.Services.AddSingleton<QueryBudget>(sp =>
         Math.Clamp(qb.ReportingMax > 0 ? qb.ReportingMax : db.WorkerMax, 1, Math.Max(1, db.WorkerMax)),
         TimeSpan.FromSeconds(Math.Max(1, qb.WaitSeconds)));
 });
-builder.Services.AddSingleton<IQueryBudget>(sp => sp.GetRequiredService<QueryBudget>());
+builder.Services.AddSingleton<IQueryBudget>(sp =>
+{
+    var budget = sp.GetRequiredService<QueryBudget>();
+    sp.GetRequiredService<ServerMetrics>().ObserveReportingBudget(budget); // IMP-04: reporting-budget wait/in-use signals
+    return budget;
+});
 builder.Services.AddSingleton<IDatabaseCapabilityProbe,DatabaseCapabilityProbe>();
 builder.Services.AddSingleton<ServerDatabaseStatisticsReader>();
 builder.Services.AddSingleton<DatabasePoolUsage>();
