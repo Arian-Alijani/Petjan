@@ -296,7 +296,7 @@
 - **Push**: `scripts/git/push.sh "fix(server): idempotent device upsert on login to fix first-login race (B3 SEC-ENUM-01)"`
 - **Done note**: DONE. LoginService reuse branch now captures the audit/save Result of the RefreshReuseDetected write (the audit writer commits the staged RotateSecurityStamp together with the family revocation + audit row in one SaveChanges) and gates the response on it: a failed commit surfaces the typed failure instead of a clean SESSION_EXPIRED. New test Reuse_StagesRotatedStamp_BeforeCommit_AndGatesResponseOnSave asserts the stored stamp differs at commit time and the failure is surfaced (FakeAuditWriter gained OnWrite hook). Not compiled locally (CI only).
 
-### [ ] B4 · SEC-ADV-01 — Split advisory-lock key into two int4 keys (MEDIUM)
+### [x] B4 · SEC-ADV-01 — Split advisory-lock key into two int4 keys (MEDIUM)
 - **Why**: `Persistence/Repositories/MoneyResourceLock.cs:15-18` uses
   `pg_advisory_xact_lock(hashtextextended($"{tenantId}:{resource}", 0))` — one 64-bit
   key from a concatenated string. Hash collisions cause FALSE mutual exclusion between
@@ -321,7 +321,7 @@
   asserting the outer transaction still commits the settlement receipt.
 - **Accept**: release only on success; nested-rejection test proves outer commit survives.
 - **Push**: `scripts/git/push.sh "fix(server): don't release savepoint on rollback path (B5 BUG-UOW-01)"`
-- **Done note**: _______
+- **Done note**: DONE. MoneyResourceLock now takes pg_advisory_xact_lock(hashtext(tenantId), hashtext(resource)) (two int4 keys) per resource, still acquired in distinct ordinal-sorted order (deadlock-free); collision now needs both 32-bit hashes to match. Not compiled locally (CI only).
 
 ### [ ] B6 · BUG-SIGN-01 — Guard signing-key creation + cache the active signer (MEDIUM)
 - **Why**: `Signing/SigningKeyStore.cs:23-70` `GetAsync` finds-or-CREATES a key; on a
@@ -565,7 +565,7 @@
 | B1 | BUG-PIPE-01 | HIGH | [x] |
 | B2 | SEC-STAMP-01 | MEDIUM | [x] |
 | B3 | SEC-ENUM-01 | MEDIUM | [x] |
-| B4 | SEC-ADV-01 | MEDIUM | [ ] |
+| B4 | SEC-ADV-01 | MEDIUM | [x] |
 | B5 | BUG-UOW-01 | MEDIUM | [ ] |
 | B6 | BUG-SIGN-01 | MEDIUM | [ ] |
 | B7 | BUG-CORR-01 | MEDIUM | [ ] |

@@ -10,11 +10,14 @@ public sealed class MoneyResourceLock(AnimoraServerDbContext db)
     {
         if (db.Database.CurrentTransaction is null)
             throw new InvalidOperationException("Financial locks require the command transaction.");
+        // Two int4 keys (tenant, resource) instead of one 64-bit hash of the concatenation: a collision now
+        // needs BOTH 32-bit hashes to match, so unrelated resources (and especially other tenants) are no longer
+        // falsely serialised. Sorted-order acquisition is kept, which is what prevents lock-order deadlocks.
+        var tenantId = db.CurrentTenantId;
         foreach (var resource in resources.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
-            var key = $"{db.CurrentTenantId}:{resource}";
             await db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", ct);
+                $"SELECT pg_advisory_xact_lock(hashtext({tenantId}), hashtext({resource}))", ct);
         }
     }
 }
