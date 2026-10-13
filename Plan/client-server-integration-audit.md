@@ -270,7 +270,7 @@ account-status refresh.
 
 ---
 
-## TASK-1..6 — Integration / sync / standards / performance audit  ·  status: ☐ TODO
+## TASK-1..6 — Integration / sync / standards / performance audit  ·  status: ☑ DONE
 
 These are audit tasks; apply only *safe, surgical* fixes and record findings. Pre-resolved findings:
 
@@ -306,6 +306,14 @@ These are audit tasks; apply only *safe, surgical* fixes and record findings. Pr
    correlation but was superseded by the dispatcher pipeline. **Safe fix:** delete the file
    (reduces confusion; nothing imports it). Confirm with a final `grep -rln "UiCorrelationScope" src/`
    returning only the file itself before deleting.
+
+### Audit result (recorded)
+- TASK-1/6: live surface verified consistent (shared `OnlineApi` + `BearerAuthHandler`); no change.
+- TASK-2/3: re-enable + self-revoke gaps closed by TASK-9; seat data surfaced by TASK-8.
+- TASK-4: seat-limit enforcement on staff creation (S16) explicitly **deferred** as a follow-up.
+- TASK-5: verified — actor names are resolved once at write time (`ActivityFeedWriter` / `SyncedActivityFeed`)
+  and stored on the row, so history reads do no per-row user lookup; no change needed.
+- Dead code: `UiCorrelationScope.cs` deleted (only its own definition + historical roadmap docs referenced it).
 
 ### Acceptance
 Findings recorded (this section). Safe fixes applied: delete dead `UiCorrelationScope.cs`. Follow-up
