@@ -22,7 +22,7 @@ internal sealed class EntitlementMiddleware(RequestDelegate next)
         // double the per-command cost, so POST /api/commands* skips this stage; every other route is gated here.
         bool commandSubmission = HttpMethods.IsPost(context.Request.Method)
             && context.Request.Path.StartsWithSegments(ServerRoutes.Commands, StringComparison.OrdinalIgnoreCase);
-        if (commandSubmission || context.Request.Path.StartsWithSegments(ServerRoutes.Admin) || ServerEntitlementGate.IsExempt(context.Request.Path)
+        if (commandSubmission || ServerSurfacePolicy.IsEntitlementExempt(context.Request.Path)
             || state.Membership is not { } membership)
         {
             await next(context).ConfigureAwait(false);

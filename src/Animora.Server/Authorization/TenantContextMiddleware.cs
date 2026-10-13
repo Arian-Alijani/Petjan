@@ -27,17 +27,8 @@ internal sealed class TenantContextMiddleware(RequestDelegate next)
 
     private const string TenantHintQuery = "tenantId";
 
-    /// <summary>Paths that never run tenant binding.</summary>
-    internal static bool IsSkipped(PathString path) =>
-        path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments(ServerRoutes.Admin, StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments("/_blazor", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments(ServerRoutes.Operator, StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments(ServerRoutes.Provisioning, StringComparison.OrdinalIgnoreCase)
-        || path.Equals(ServerRoutes.Auth + "/login", StringComparison.OrdinalIgnoreCase)
-        || path.Equals(ServerRoutes.Auth + "/refresh", StringComparison.OrdinalIgnoreCase)
-        || path.Equals(ServerRoutes.Auth + "/keys", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWithSegments(ServerRoutes.Licensing + "/keys", StringComparison.OrdinalIgnoreCase);
+    /// <summary>Paths that never run tenant binding (single source: <see cref="ServerSurfacePolicy"/>).</summary>
+    internal static bool IsSkipped(PathString path) => ServerSurfacePolicy.SkipsTenantBinding(path);
 
     /// <summary>Runs the stage.</summary>
     public async Task InvokeAsync(HttpContext context)

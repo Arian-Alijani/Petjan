@@ -2,6 +2,7 @@ using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.PostgreSql.Licensing;
 using Animora.Server.Authorization;
+using Animora.Server.Hosting;
 using Microsoft.EntityFrameworkCore;
 namespace Animora.Server.Licensing;
 
@@ -13,8 +14,8 @@ namespace Animora.Server.Licensing;
 internal sealed class ServerEntitlementGate(AnimoraEntitlementReadContext db, IClock clock, IHttpContextAccessor http,
     AuthzDecisionCache cache) : IServerEntitlementGate
 {
-    internal static bool IsExempt(PathString path) => new[] { "/health", "/auth", "/licensing", "/operator", "/provisioning", "/admin" }
-        .Any(prefix => path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase));
+    /// <summary>Exempt routes (single source: <see cref="ServerSurfacePolicy"/>).</summary>
+    internal static bool IsExempt(PathString path) => ServerSurfacePolicy.IsEntitlementExempt(path);
 
     public async ValueTask<Result> EvaluateAsync(TenantEntitlementContext context, CancellationToken ct = default)
     {

@@ -394,7 +394,7 @@
 
 ## PHASE C — Consistency, polish & improvements (LOW / INFO + IMP-*)
 
-### [ ] C1 · CONS-GATE-01 — Centralize plane-exemption policy (MEDIUM)
+### [x] C1 · CONS-GATE-01 — Centralize plane-exemption policy (MEDIUM)
 - **Why**: THREE divergent "which paths bypass this plane" lists exist, a classic drift source:
   - `Authorization/TenantContextMiddleware.IsSkipped` (`:31-40`): `/health`, `/admin`,
     `/_blazor`, `/operator`, `/provisioning`, `/auth/login`, `/auth/refresh`, `/auth/keys`, `/licensing/keys`.
@@ -411,7 +411,7 @@
   once the real `Licensing` gate is the registered impl — confirm `TryAdd` ordering picks the real one.
 - **Accept**: single policy source; test covers all endpoints; allow-all gate removed/confirmed unused.
 - **Push**: `scripts/git/push.sh "refactor(server): centralize plane-exemption policy (C1 CONS-GATE-01)"`
-- **Done note**: _______
+- **Done note**: DONE. New `Hosting/ServerSurfacePolicy.cs`: named `SurfaceClass` route classes (Health, OperatorConsole, Operator, Provisioning, AuthAnonymous [exact /auth/login|refresh|keys], LicensingKeys, AuthSession, Licensing, TenantData, Unclassified) with `SkipsTenantBinding` / `IsEntitlementExempt` as the ONE source. `TenantContextMiddleware.IsSkipped`, `ServerEntitlementGate.IsExempt` and `EntitlementMiddleware` now delegate to it (the extra `/admin` special-case is gone). Unknown paths classify `Unclassified` = tenant-bound + entitlement-gated (fail closed). `AllowAllServerEntitlementGate` + its `TryAdd` registration were REMOVED (the real `Licensing.ServerEntitlementGate` is registered via `Replace` in `AddAnimoraLicensing`; no silent allow-all fallback). Tests: `ServerSurfacePolicyTests` (table incl. case-insensitivity, no-contradiction invariant, and an endpoint-data-source test asserting every authorized mapped endpoint has a defined class; `AuthzHost.Services` exposed). Existing IsSkipped/IsExempt tests unchanged and still valid. Not compiled locally (CI only).
 
 ### [ ] C2 · BUG-OPLOCK-01 — Resolve operator account once per admin request (LOW)
 - **Why**: For `/admin` + `/_blazor`, `Operator/OperatorContextMiddleware.cs:17` calls
@@ -572,7 +572,7 @@
 | B8 | BUG-BATCH-01 | MEDIUM | [x] |
 | B9 | BUG-FILE-01 | MEDIUM | [x] |
 | B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [x] |
-| C1 | CONS-GATE-01 | MEDIUM | [ ] |
+| C1 | CONS-GATE-01 | MEDIUM | [x] |
 | C2 | BUG-OPLOCK-01 | LOW | [ ] |
 | C3 | BUG-BURN-01 | LOW | [ ] |
 | C4 | BUG-HEALTH-01 / IMP-10 | LOW | [ ] |

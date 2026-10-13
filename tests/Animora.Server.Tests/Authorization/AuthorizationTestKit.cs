@@ -214,6 +214,9 @@ internal sealed class AuthzHost : IAsyncDisposable
 
     public AuthzWorld World { get; }
 
+    /// <summary>The host's root service provider (endpoint inspection in policy tests).</summary>
+    public IServiceProvider Services => _factory.Services;
+
     /// <summary>Issues a real opaque access token. <paramref name="tenantClaim"/> / <paramref name="roleClaim"/> simulate a forged token.</summary>
     public string Token(User user, Device device, string? tenantClaim = null, string? roleClaim = null, string? stamp = null)
     {

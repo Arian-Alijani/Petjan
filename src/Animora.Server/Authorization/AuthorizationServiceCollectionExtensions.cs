@@ -57,8 +57,7 @@ internal static class AuthorizationServiceCollectionExtensions
 
         services.AddScoped<ICommandAuthorizer, CommandAuthorizer>();
 
-        // Entitlement slot (S16 replaces the gate).
-        services.TryAddSingleton<IServerEntitlementGate, AllowAllServerEntitlementGate>();
+        // Entitlement gate: registered by AddAnimoraLicensing. No allow-all fallback (CONS-GATE-01, fail closed).
 
         // Snapshot signing + device administration.
         services.AddSingleton<ActiveSignerCache>();
