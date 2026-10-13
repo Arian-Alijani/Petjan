@@ -220,11 +220,11 @@ NOT swallow. Keep it minimal.
       excludes the three journaling keys. Build/run just that test project if fast; otherwise keep
       it compile-checked. → **PUSH** `test(sync): assert command payload excludes journaling keys`
 
-- [ ] **T3 — BUG 2 confirm.** Attempt to retrieve the real stack trace by correlation id (Step 2A).
+- [x] **T3 — BUG 2 confirm.** DONE — server logs/correlation id not reachable from this environment; no code change needed, handler hardened via T4/T5 and now logs batch-build faults with correlation id for next diagnosis. Attempt to retrieve the real stack trace by correlation id (Step 2A).
       Record the finding inline in the commit message. (No code change if logs unreachable.)
       → **PUSH only if a code/doc change was made**, else skip push for this read-only step.
 
-- [ ] **T4 — BUG 2 fix (projector null-guard).** Edit `RecordProjector.ReadAsync` to use
+- [x] **T4 — BUG 2 fix (projector null-guard).** DONE (`RecordProjector` uses `TryGetProperty` guards for Version/UpdatedAt/Deleted). Edit `RecordProjector.ReadAsync` to use
       `TryGetProperty` for `Version`/`UpdatedAt`/`Deleted` and skip/tombstone instead of throwing.
       Build ONLY `Animora.Persistence.PostgreSql`. → **PUSH**
       `fix(sync): null-guard projection rows so /sync/batches never 500s (BUG 2)`
