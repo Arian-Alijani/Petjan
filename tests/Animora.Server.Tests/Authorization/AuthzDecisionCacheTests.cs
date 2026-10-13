@@ -71,6 +71,19 @@ public sealed class AuthzDecisionCacheTests
     }
 
     [Fact]
+    public void Ttl_IsClampedToSixtySeconds_EvenIfOptionsExceedTheRange()
+    {
+        // §2.1 defense-in-depth: an out-of-range TTL (validator is bypassed when constructing directly) must not
+        // produce a verdict that outlives the documented 0..60s ceiling.
+        var time = new ManualTime(DateTimeOffset.UnixEpoch);
+        var cache = Create(time, ttl: 999);
+        cache.SetMembership("u", "d", "stamp", Member());
+        Assert.True(cache.TryGetMembership("u", "d", "stamp", out _));
+        time.Advance(TimeSpan.FromSeconds(61));
+        Assert.False(cache.TryGetMembership("u", "d", "stamp", out _));
+    }
+
+    [Fact]
     public void Capacity_IsBounded()
     {
         var cache = Create(new ManualTime(DateTimeOffset.UnixEpoch), max: 3);
