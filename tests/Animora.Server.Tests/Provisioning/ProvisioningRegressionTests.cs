@@ -29,7 +29,7 @@ public sealed class RequestSignatureVerifierTests
         Assert.False(RequestSignatureVerifier.VerifySignature(secret, "GET", "/", "99999999999999999", new string('a', 64), [], Now));
     }
     [Fact]
-    public void ReplayWindow_Bounded_Expires_AndScopesKeys()
+    public void ReplayWindow_Bounded_ShedsOldest_Expires_AndScopesKeys()
     {
         var window = new ReplayWindow();
         Assert.True(window.TryAccept("key", "AB", Now));
@@ -37,6 +37,10 @@ public sealed class RequestSignatureVerifierTests
         Assert.True(window.TryAccept("other", "ab", Now));
         for (var i = 2; i < ReplayWindow.Capacity; i++) Assert.True(window.TryAccept("key", i.ToString(), Now));
         Assert.Equal(ReplayWindow.Capacity, window.Count);
+        // At capacity the window sheds the oldest entry instead of denying all new traffic (no self-DoS).
+        Assert.True(window.TryAccept("key", "overflow", Now));
+        Assert.Equal(ReplayWindow.Capacity, window.Count);
+        Assert.Equal(1, window.ShedCount);
         Assert.False(window.TryAccept("key", "overflow", Now));
         Assert.True(window.TryAccept("key", "ab", Now.AddMinutes(5)));
         Assert.Equal(1, window.Count);

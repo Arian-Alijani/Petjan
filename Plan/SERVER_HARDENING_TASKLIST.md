@@ -166,7 +166,7 @@
   is still a documented follow-up (in-memory partitions remain per-process); the tenant/user
   partition + trusted IP + allowlist is the committed single-instance-correct deliverable.
 
-### [ ] A3 · SCALE-STATE-01 — Durable shared provisioning replay window + document single-instance state (CRITICAL)
+### [x] A3 · SCALE-STATE-01 — Durable shared provisioning replay window + document single-instance state (CRITICAL)
 - **Why**: `Provisioning/ReplayWindow.cs:4-19` is in-memory single-host,
   `Capacity=4096`, **fail-closed**: `_entries.Count >= Capacity ⇒ return false` →
   a burst of >4096 distinct signatures in 5 min denies ALL further provisioning
@@ -194,7 +194,7 @@
 - **Accept**: no deny-all at capacity; replay detection survives instance change
   (if durable store done); single-instance state documented.
 - **Push**: `scripts/git/push.sh "sec(server): durable shared provisioning replay window, drop fail-closed self-DoS (A3 SCALE-STATE-01)"`
-- **Done note**: _______
+- **Done note**: DONE. Rewrote `Provisioning/ReplayWindow.cs`: at capacity it now SHEDS the oldest live entry (FIFO queue, O(1) expiry) instead of denying all traffic, removing the provisioning self-DoS; replay exposure stays bounded by the +/-5-min HMAC window. XML doc lists the per-process single-instance components (ReplayWindow, AdminStatusCache, CircuitBreaker, WorkerFailureLogGate, QueryBudget, rate-limit partitions) and carries `TODO(multi-instance)` for the shared DB/Redis store (out of scope: would need a schema migration). Regression test updated (shed instead of deny). Not compiled locally (CI only).
 
 ### [ ] A4 · PERF-AUTHZ-01 + CONS-ENT-01 — Cache authZ/entitlement, read-pool lookups, drop duplicate entitlement check (HIGH)
 - **Why**: Every authenticated tenant-bound request runs `MembershipResolver`
@@ -559,7 +559,7 @@
 |---|---|---|---|
 | A1 | SCALE-ADM-01 | BLOCKER | [x] |
 | A2 | SEC-RL-01 / SEC-FWD-01 / CONS-RL-01 | BLOCKER/HIGH | [x] |
-| A3 | SCALE-STATE-01 | CRITICAL | [ ] |
+| A3 | SCALE-STATE-01 | CRITICAL | [x] |
 | A4 | PERF-AUTHZ-01 / CONS-ENT-01 | HIGH/LOW | [ ] |
 | A5 | PERF-QB-01 | HIGH | [ ] |
 | B1 | BUG-PIPE-01 | HIGH | [ ] |
