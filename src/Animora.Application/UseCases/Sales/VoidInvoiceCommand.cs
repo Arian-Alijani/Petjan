@@ -39,7 +39,7 @@ public sealed class VoidInvoiceCommandHandler(IInvoiceRepository invoices, ICloc
         if (invoice.State == InvoiceState.Posted && invoice.DueTotal.Minor > 0)
         {
             var now = clock.UtcNow;
-            var adjustment = new InvoiceAdjustment(IdGenerator.NewId(now), AdjustmentKind.CreditNote,
+            var adjustment = new InvoiceAdjustment(IdGenerator.ForOperation(context.OperationId, 0, now), AdjustmentKind.CreditNote,
                 invoice.DueTotal, c.Reason.Trim(), now, context.UserId, context.OperationId, null);
             var credited = invoice.AddCreditNote(adjustment);
             if (credited.IsFailure) return Result<Unit>.Fail(credited.Error, credited.Detail);

@@ -77,6 +77,9 @@ public sealed class CreateProductCommandHandler(
     IProductRepository products, IStockMovementRepository movements, IClock clock)
     : ICommandHandler<CreateProductCommand, string>
 {
+    /// <summary>First deterministic-id slot for opening-balance movements (product = 0, variants = 1…n) — see <see cref="IdGenerator.ForOperation"/>.</summary>
+    private const int MovementSlotBase = 1_000_000;
+
     public async Task<Result<string>> HandleAsync(CreateProductCommand c, CommandContext context, CancellationToken ct)
     {
         if (c.Kind == ProductKind.Service)
@@ -93,14 +96,15 @@ public sealed class CreateProductCommandHandler(
         var variants = new List<ProductVariant>(variantInputs.Count);
         for (var i = 0; i < variantInputs.Count; i++)
         {
-            variants.Add(NewVariant(variantInputs[i], unit, clock.UtcNow));
+            variants.Add(NewVariant(variantInputs[i], unit, IdGenerator.ForOperation(context.OperationId, 1 + i, clock.UtcNow)));
         }
 
         var created = Product.Create(
             context.TenantId, c.Sku, c.Name, c.CategoryId, c.Kind, unit,
             Money.Irt(c.DefaultCostMinor), Money.Irt(c.DefaultSaleMinor), variants,
             trackStock: true, isPrescriptionOnly: c.IsPrescriptionOnly,
-            reorderLevel: QuantityOf(c.ReorderLevelScaled, unit), brand: c.Brand, notes: c.Notes);
+            reorderLevel: QuantityOf(c.ReorderLevelScaled, unit), brand: c.Brand, notes: c.Notes,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
 
         var product = created.Value!;
@@ -117,7 +121,8 @@ public sealed class CreateProductCommandHandler(
             var movement = StockMovement.Create(
                 context.TenantId, product.Id, variants[i].VariantId, MovementKind.AdjustmentIn,
                 new Quantity(opening / 1000m, unit), Money.Irt(variantInputs[i].CostMinor), clock.UtcNow,
-                context.UserId, operationId: context.OperationId, reason: AdjustmentReasons.OpeningBalance);
+                context.UserId, operationId: context.OperationId, reason: AdjustmentReasons.OpeningBalance,
+                id: IdGenerator.ForOperation(context.OperationId, MovementSlotBase + i, clock.UtcNow));
             if (movement.IsFailure) return Result<string>.Fail(movement.Error, movement.Detail);
             movements.Add(movement.Value!);
         }
@@ -126,8 +131,8 @@ public sealed class CreateProductCommandHandler(
         return Result<string>.Ok(product.Id);
     }
 
-    private static ProductVariant NewVariant(ProductVariantInput input, string unit, DateTimeOffset now) =>
-        new(IdGenerator.NewId(now), input.Sku.Trim(), input.AttributeName.Trim(), input.AttributeValue.Trim(),
+    private static ProductVariant NewVariant(ProductVariantInput input, string unit, string variantId) =>
+        new(variantId, input.Sku.Trim(), input.AttributeName.Trim(), input.AttributeValue.Trim(),
             Money.Irt(input.CostMinor), Money.Irt(input.SaleMinor),
             QuantityOf(input.ReorderLevelScaled, unit), input.Barcode, true);
 
@@ -209,11 +214,11 @@ public sealed class UpdateProductInfoCommandHandler(
             if (reordered.IsFailure) return Result<Unit>.Fail(reordered.Error, reordered.Detail);
         }
 
-        return ApplyVariants(product, c.Variants, clock.UtcNow);
+        return ApplyVariants(product, c.Variants, context.OperationId, clock.UtcNow);
     }
 
     private static Result<Unit> ApplyVariants(
-        Product product, IReadOnlyList<ProductVariantInput> inputs, DateTimeOffset now)
+        Product product, IReadOnlyList<ProductVariantInput> inputs, string operationId, DateTimeOffset now)
     {
         for (var i = 0; i < inputs.Count; i++)
         {
@@ -235,7 +240,7 @@ public sealed class UpdateProductInfoCommandHandler(
             }
 
             var added = product.AddVariant(new ProductVariant(
-                IdGenerator.NewId(now), input.Sku.Trim(), input.AttributeName.Trim(), input.AttributeValue.Trim(),
+                IdGenerator.ForOperation(operationId, 1 + i, now), input.Sku.Trim(), input.AttributeName.Trim(), input.AttributeValue.Trim(),
                 Money.Irt(input.CostMinor), Money.Irt(input.SaleMinor),
                 new Quantity(input.ReorderLevelScaled / 1000m, product.UnitCode), input.Barcode, true));
             if (added.IsFailure) return Result<Unit>.Fail(added.Error, added.Detail);
@@ -300,7 +305,7 @@ public sealed class AddProductVariantCommandHandler(IProductRepository products,
         var product = await products.FindAsync(c.ProductId, ct);
         if (product is null) return Result<string>.Fail(ErrorCodes.ProductNotFound);
 
-        var variantId = IdGenerator.NewId(clock.UtcNow);
+        var variantId = IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow);
         var added = product.AddVariant(new ProductVariant(
             variantId, c.Sku.Trim(), c.AttributeName.Trim(), c.AttributeValue.Trim(),
             Money.Irt(c.CostMinor), Money.Irt(c.SaleMinor),
@@ -433,7 +438,8 @@ public sealed class AdjustStockCommandHandler(
         var kind = c.DeltaQuantity > 0L ? MovementKind.AdjustmentIn : MovementKind.AdjustmentOut;
         var created = StockMovement.Create(
             context.TenantId, product.Id, c.VariantId, kind, quantity, Money.Irt(0), now, context.UserId,
-            operationId: context.OperationId, reason: c.ReasonCode);
+            operationId: context.OperationId, reason: c.ReasonCode,
+            id: IdGenerator.ForOperation(context.OperationId, 0, now));
         if (created.IsFailure) return Result<Unit>.Fail(created.Error, created.Detail);
 
         movements.Add(created.Value!);
@@ -534,7 +540,8 @@ public sealed class SetStockCommandHandler(
             var kind = delta > 0L ? MovementKind.AdjustmentIn : MovementKind.AdjustmentOut;
             var created = StockMovement.Create(
                 context.TenantId, product.Id, line.VariantId, kind, new Quantity(delta / 1000m, product.UnitCode),
-                Money.Irt(0), now, context.UserId, operationId: context.OperationId, reason: c.ReasonCode);
+                Money.Irt(0), now, context.UserId, operationId: context.OperationId, reason: c.ReasonCode,
+                id: IdGenerator.ForOperation(context.OperationId, i, now));
             if (created.IsFailure) return Result<Unit>.Fail(created.Error, created.Detail);
             pending.Add(created.Value!);
         }

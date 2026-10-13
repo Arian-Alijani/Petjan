@@ -7,7 +7,9 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Domain.Inventory;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
+using Animora.Domain.Time;
 
 namespace Animora.Application.UseCases.Inventory;
 
@@ -33,7 +35,7 @@ public sealed class CreateProductCategoryCommandValidator : IValidator<CreatePro
     }
 }
 
-public sealed class CreateProductCategoryCommandHandler(IProductCategoryRepository categories)
+public sealed class CreateProductCategoryCommandHandler(IProductCategoryRepository categories, IClock clock)
     : ICommandHandler<CreateProductCategoryCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateProductCategoryCommand c, CommandContext context, CancellationToken ct)
@@ -42,8 +44,9 @@ public sealed class CreateProductCategoryCommandHandler(IProductCategoryReposito
         if (await categories.NameExistsAsync(name, null, ct))
             return Result<string>.Fail(ErrorCodes.CategoryNameDuplicate, $"Category '{name}' already exists.");
 
-        var code = "CAT-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
-        var created = ProductCategory.Create(context.TenantId, code, name, sortOrder: await categories.NextSortOrderAsync(ct));
+        var code = "CAT-" + IdGenerator.CodeSuffix(context.OperationId, 8);
+        var created = ProductCategory.Create(context.TenantId, code, name, sortOrder: await categories.NextSortOrderAsync(ct),
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
 
         categories.Add(created.Value!);

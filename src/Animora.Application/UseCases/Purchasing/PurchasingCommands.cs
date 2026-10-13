@@ -90,7 +90,8 @@ public sealed class CreatePurchaseOrderCommandHandler(
         var sequence = await queries.CountOrdersAsync(ct) + 1;
         var created = PurchaseOrder.Create(
             context.TenantId, $"PO-{sequence:D5}", c.SupplierId, now, context.UserId,
-            expectedUtc: c.ExpectedUtc, notes: c.Notes);
+            expectedUtc: c.ExpectedUtc, notes: c.Notes,
+            id: IdGenerator.ForOperation(context.OperationId, 0, now));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
 
         var order = created.Value!;
@@ -105,7 +106,7 @@ public sealed class CreatePurchaseOrderCommandHandler(
 
             var unit = product.UnitCode;
             var line = new PurchaseOrderLine(
-                IdGenerator.NewId(now), product.Id, input.VariantId,
+                IdGenerator.ForOperation(context.OperationId, 1 + i, now), product.Id, input.VariantId,
                 new Quantity(input.OrderedQuantityScaled / 1000m, unit),
                 Quantity.Zero(unit),
                 Money.Irt(input.UnitCostMinor),
@@ -188,6 +189,9 @@ public sealed class ReceiveGoodsCommandHandler(
     IStockMovementRepository movements, IPurchasingQueries queries, IClock clock)
     : ICommandHandler<ReceiveGoodsCommand, string>
 {
+    /// <summary>First deterministic-id slot for stock movements (receipt = 0, lines = 1…n) — see <see cref="IdGenerator.ForOperation"/>.</summary>
+    private const int MovementSlotBase = 1_000_000;
+
     public async Task<Result<string>> HandleAsync(ReceiveGoodsCommand c, CommandContext context, CancellationToken ct)
     {
         PurchaseOrder? order = null;
@@ -204,7 +208,8 @@ public sealed class ReceiveGoodsCommandHandler(
         var receiptNumber = $"GR-{await queries.CountReceiptsAsync(ct) + 1:D5}";
         var createdReceipt = GoodsReceipt.Create(
             context.TenantId, receiptNumber, c.SupplierId, now, context.UserId,
-            purchaseOrderId: order?.Id, invoiceReference: c.InvoiceReference);
+            purchaseOrderId: order?.Id, invoiceReference: c.InvoiceReference,
+            id: IdGenerator.ForOperation(context.OperationId, 0, now));
         if (createdReceipt.IsFailure) return Result<string>.Fail(createdReceipt.Error, createdReceipt.Detail);
 
         var receipt = createdReceipt.Value!;
@@ -225,7 +230,7 @@ public sealed class ReceiveGoodsCommandHandler(
                 if (over.IsFailure) return Result<string>.Fail(over.Error, over.Detail);
             }
 
-            var line = new GoodsReceiptLine(IdGenerator.NewId(now), product.Id, input.VariantId,
+            var line = new GoodsReceiptLine(IdGenerator.ForOperation(context.OperationId, 1 + i, now), product.Id, input.VariantId,
                 quantity, unitCost, input.LotNumber, input.ExpiryUtc);
             var addedLine = receipt.AddLine(line);
             if (addedLine.IsFailure) return Result<string>.Fail(addedLine.Error, addedLine.Detail);
@@ -239,7 +244,8 @@ public sealed class ReceiveGoodsCommandHandler(
                 context.TenantId, product.Id, input.VariantId, MovementKind.Receipt, quantity, unitCost,
                 now, context.UserId, lotNumber: input.LotNumber, expiryUtc: input.ExpiryUtc,
                 sourceEntityType: "GoodsReceipt", sourceEntityId: receipt.Id,
-                operationId: context.OperationId);
+                operationId: context.OperationId,
+                id: IdGenerator.ForOperation(context.OperationId, MovementSlotBase + i, now));
             if (movement.IsFailure) return Result<string>.Fail(movement.Error, movement.Detail);
             stockMovements.Add(movement.Value!);
         }
@@ -352,7 +358,7 @@ public sealed class CreateSupplierCommandValidator : IValidator<CreateSupplierCo
     }
 }
 
-public sealed class CreateSupplierCommandHandler(ISupplierRepository suppliers)
+public sealed class CreateSupplierCommandHandler(ISupplierRepository suppliers, IClock clock)
     : ICommandHandler<CreateSupplierCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateSupplierCommand c, CommandContext context, CancellationToken ct)
@@ -362,9 +368,10 @@ public sealed class CreateSupplierCommandHandler(ISupplierRepository suppliers)
         if (existing is not null) return Result<string>.Ok(existing.Id);
 
         var code = string.IsNullOrWhiteSpace(c.Code)
-            ? "SUP-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()
+            ? "SUP-" + IdGenerator.CodeSuffix(context.OperationId, 8)
             : c.Code.Trim();
-        var created = Supplier.Create(context.TenantId, code, name, c.PaymentTermDays, phone: c.Phone);
+        var created = Supplier.Create(context.TenantId, code, name, c.PaymentTermDays, phone: c.Phone,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Result<string>.Fail(created.Error, created.Detail);
 
         suppliers.Add(created.Value!);

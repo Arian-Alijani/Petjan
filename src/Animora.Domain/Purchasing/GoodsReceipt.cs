@@ -94,7 +94,8 @@ public sealed class GoodsReceipt : AggregateRoot
         string receivedByUserId,
         string? purchaseOrderId = null,
         string? invoiceReference = null,
-        string? reversesReceiptId = null)
+        string? reversesReceiptId = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(receiptNumber);
@@ -103,7 +104,7 @@ public sealed class GoodsReceipt : AggregateRoot
 
         return new GoodsReceipt
         {
-            Id = IdGenerator.NewId(receivedUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(receivedUtc) : id,
             TenantId = tenantId,
             ReceiptNumber = receiptNumber.Trim(),
             PurchaseOrderId = Clean(purchaseOrderId),

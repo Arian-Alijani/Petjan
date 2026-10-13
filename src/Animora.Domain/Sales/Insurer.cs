@@ -27,7 +27,8 @@ public sealed class Insurer : AggregateRoot
         string code,
         string name,
         decimal coveragePercent,
-        long ceilingMinor)
+        long ceilingMinor,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
@@ -38,7 +39,7 @@ public sealed class Insurer : AggregateRoot
 
         return new Insurer
         {
-            Id = IdGenerator.NewId(),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId() : id,
             TenantId = tenantId,
             Code = code.Trim(),
             Name = name.Trim(),

@@ -49,7 +49,7 @@ public sealed class ReturnInvoiceLineCommandHandler(IInvoiceRepository invoices,
         // A whole-line return credits its documented line net. A post-time invoice-level discount
         // remains on the original immutable document; the compensating amount is explicit.
         var now = clock.UtcNow;
-        var adjustment = new InvoiceAdjustment(IdGenerator.NewId(now), AdjustmentKind.LineReturn,
+        var adjustment = new InvoiceAdjustment(IdGenerator.ForOperation(context.OperationId, 0, now), AdjustmentKind.LineReturn,
             line.LineNet, marker + c.Reason.Trim(), now, context.UserId, context.OperationId, null);
         var credited = invoice.AddCreditNote(adjustment);
         if (credited.IsFailure) return Result<Unit>.Fail(credited.Error, credited.Detail);
@@ -59,7 +59,8 @@ public sealed class ReturnInvoiceLineCommandHandler(IInvoiceRepository invoices,
             var movement = StockMovement.Create(context.TenantId, line.ProductId, line.VariantId,
                 MovementKind.ReturnIn, line.Quantity, cost, now, context.UserId,
                 sourceEntityType: "Invoice", sourceEntityId: invoice.Id,
-                operationId: context.OperationId, reason: c.Reason);
+                operationId: context.OperationId, reason: c.Reason,
+                id: IdGenerator.ForOperation(context.OperationId, 1, now));
             if (movement.IsFailure) return Result<Unit>.Fail(movement.Error, movement.Detail);
             movements.Add(movement.Value!);
         }

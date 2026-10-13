@@ -124,7 +124,8 @@ public sealed class Product : AggregateRoot
         Quantity? reorderLevel = null,
         string? brand = null,
         int? shelfLifeDays = null,
-        string? notes = null)
+        string? notes = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sku);
@@ -166,7 +167,7 @@ public sealed class Product : AggregateRoot
 
         var product = new Product
         {
-            Id = IdGenerator.NewId(),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId() : id,
             TenantId = tenantId,
             Sku = sku.Trim(),
             Name = name.Trim(),

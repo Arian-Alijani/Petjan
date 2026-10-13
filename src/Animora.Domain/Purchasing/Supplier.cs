@@ -61,7 +61,8 @@ public sealed class Supplier : AggregateRoot
         string? email = null,
         string? address = null,
         string? nationalId = null,
-        string? notes = null)
+        string? notes = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
@@ -76,7 +77,7 @@ public sealed class Supplier : AggregateRoot
 
         return new Supplier
         {
-            Id = IdGenerator.NewId(),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId() : id,
             TenantId = tenantId,
             Code = code.Trim(),
             Name = name.Trim(),

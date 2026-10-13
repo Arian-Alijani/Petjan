@@ -164,7 +164,8 @@ public sealed class StockMovement : SyncableEntity
         string? sourceEntityId = null,
         string? operationId = null,
         string? reason = null,
-        string? reversesMovementId = null)
+        string? reversesMovementId = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(productId);
@@ -182,7 +183,7 @@ public sealed class StockMovement : SyncableEntity
 
         return new StockMovement
         {
-            Id = IdGenerator.NewId(occurredUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(occurredUtc) : id,
             TenantId = tenantId,
             ProductId = productId,
             VariantId = variantId,

@@ -122,7 +122,8 @@ public sealed class PurchaseOrder : AggregateRoot
         string createdByUserId,
         string currency = CurrencyScale.Irt,
         DateTimeOffset? expectedUtc = null,
-        string? notes = null)
+        string? notes = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(orderNumber);
@@ -140,7 +141,7 @@ public sealed class PurchaseOrder : AggregateRoot
         var zero = Money.Zero(currency);
         return new PurchaseOrder
         {
-            Id = IdGenerator.NewId(orderedUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(orderedUtc) : id,
             TenantId = tenantId,
             OrderNumber = orderNumber.Trim(),
             SupplierId = supplierId,

@@ -9,6 +9,7 @@ using Animora.Domain.Identity;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
+using Animora.Domain.Time;
 
 namespace Animora.Application.UseCases.Sales;
 
@@ -48,7 +49,7 @@ public sealed class CreateInsurerCommandValidator : IValidator<CreateInsurerComm
         ValueTask.FromResult(InsurerRules.Validate(c.Name, c.CoveragePercent, c.CeilingMinor));
 }
 
-public sealed class CreateInsurerCommandHandler(IInsurerRepository insurers)
+public sealed class CreateInsurerCommandHandler(IInsurerRepository insurers, IClock clock)
     : ICommandHandler<CreateInsurerCommand, string>
 {
     public async Task<Result<string>> HandleAsync(CreateInsurerCommand c, CommandContext context, CancellationToken ct)
@@ -57,8 +58,9 @@ public sealed class CreateInsurerCommandHandler(IInsurerRepository insurers)
         if (await insurers.NameExistsAsync(name, null, ct))
             return Result<string>.Fail(ErrorCodes.InsurerNameDuplicate, $"Insurer '{name}' already exists.");
 
-        var code = "INS-" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
-        var created = Insurer.Create(context.TenantId, code, name, c.CoveragePercent, c.CeilingMinor);
+        var code = "INS-" + IdGenerator.CodeSuffix(context.OperationId, 8);
+        var created = Insurer.Create(context.TenantId, code, name, c.CoveragePercent, c.CeilingMinor,
+            IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         insurers.Add(created);
         return Result<string>.Ok(created.Id);
     }

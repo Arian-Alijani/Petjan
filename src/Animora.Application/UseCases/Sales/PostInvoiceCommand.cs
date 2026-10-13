@@ -9,6 +9,7 @@ using Animora.Domain.Identity;
 using Animora.Domain.Inventory;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
+using Animora.Domain.Primitives;
 using Animora.Domain.Time;
 using Animora.Domain.ValueObjects;
 
@@ -87,6 +88,7 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         var posted = invoice.Post(clock);
         if (posted.IsFailure) return Result<Unit>.Fail(posted.Error, posted.Detail);
 
+        var movementOrdinal = 0;
         foreach (var line in invoice.Lines)
         {
             if (line.ProductId is null || line.VariantId is null) continue;
@@ -94,7 +96,8 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
             var movement = StockMovement.Create(context.TenantId, key.ProductId, key.VariantId,
                 MovementKind.Sale, new Quantity(-line.Quantity.Value, line.Quantity.UnitCode), costs[key],
                 clock.UtcNow, context.UserId, sourceEntityType: "Invoice", sourceEntityId: invoice.Id,
-                operationId: context.OperationId);
+                operationId: context.OperationId,
+                id: IdGenerator.ForOperation(context.OperationId, movementOrdinal++, clock.UtcNow));
             if (movement.IsFailure) return Result<Unit>.Fail(movement.Error, movement.Detail);
             movements.Add(movement.Value!);
         }

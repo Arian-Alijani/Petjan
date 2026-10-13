@@ -50,7 +50,7 @@ public sealed class RefundInvoiceCommandHandler(IInvoiceRepository invoices, IPa
             cardReference: c.Method == PaymentMethod.Card ? c.Reference : null,
             operationId: context.OperationId);
         if (payment.IsFailure) return Result<Unit>.Fail(payment.Error, payment.Detail);
-        var adjustment = new InvoiceAdjustment(Animora.Domain.Primitives.IdGenerator.NewId(now),
+        var adjustment = new InvoiceAdjustment(Animora.Domain.Primitives.IdGenerator.ForOperation(context.OperationId, 0, now),
             AdjustmentKind.Refund, c.Amount.Negate(), c.Reason.Trim(), now, context.UserId, context.OperationId, null);
         var applied = invoice.ApplyRefund(adjustment, payment.Value!);
         if (applied.IsFailure) return Result<Unit>.Fail(applied.Error, applied.Detail);

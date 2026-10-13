@@ -48,14 +48,15 @@ public sealed class ProductCategory : AggregateRoot
         string displayName,
         string? parentCategoryId = null,
         IReadOnlyList<string>? parentAncestorIds = null,
-        int sortOrder = 0)
+        int sortOrder = 0,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
 
-        var id = IdGenerator.NewId();
-        var guard = EnsureNoCycle(id, parentCategoryId, parentAncestorIds);
+        var categoryId = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId() : id;
+        var guard = EnsureNoCycle(categoryId, parentCategoryId, parentAncestorIds);
         if (guard.IsFailure)
         {
             return Result<ProductCategory>.Fail(guard.Error, guard.Detail);
@@ -63,7 +64,7 @@ public sealed class ProductCategory : AggregateRoot
 
         return new ProductCategory
         {
-            Id = id,
+            Id = categoryId,
             TenantId = tenantId,
             Code = code.Trim(),
             DisplayName = displayName.Trim(),
