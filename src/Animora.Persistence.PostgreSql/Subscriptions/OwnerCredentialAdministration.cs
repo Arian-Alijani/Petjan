@@ -37,7 +37,9 @@ public sealed class OwnerCredentialAdministration(AnimoraOperatorDbContext db, I
         var owner = await tenant.Users.SingleOrDefaultAsync(x => x.Id == ownerId, ct).ConfigureAwait(false);
         if (owner is null) return Result<string>.Fail(ErrorCodes.NotFound);
         var password = ProvisioningEngine.GenerateTemporaryPassword();
-        owner.SetPasswordHash(hasher.HashPassword(ServerUserStore.ToAdapter(owner), password)); owner.RequirePasswordChange();
+        // Reset the owner's password without forcing a later change: the owner can sign in and use every
+        // capability right away with the freshly issued password (MustChangePassword stays false).
+        owner.SetPasswordHash(hasher.HashPassword(ServerUserStore.ToAdapter(owner), password));
         var now = clock.UtcNow;
         tenant.SecurityAudit.Add(SecurityAuditEntry.Create(IdGenerator.NewId(now), tenantId, now, "operator", "owner.password_reset",
             "success", subscription.Id, detailJson: SecurityAuditDetail.Create(("ownerId", owner.Id))));

@@ -66,7 +66,8 @@ public sealed class TenantProvisioner(
 
         var owner = User.Create(tenant.Id, ownerUserName, ownerDisplayName, clock);
         owner.SetPasswordHash(passwordHasher.HashPassword(ServerUserStore.ToAdapter(owner), ownerPassword));
-        owner.RequirePasswordChange();
+        // The owner may use every capability immediately after first login: we no longer force a
+        // password change on a freshly provisioned clinic owner (MustChangePassword stays false).
 
         // Save the serialization row first inside the same transaction. EF cannot infer
         // ordering between unrelated tables; the Tenant INSERT capture needs this row.

@@ -24,7 +24,14 @@
 
 ---
 
-## T1 — حذف الزام تغییر رمز بعد از ثبت/ورود اکانت  [ ] در حال انجام / [ ] انجام شد
+## T1 — حذف الزام تغییر رمز بعد از ثبت/ورود اکانت  [x] انجام شد ✅
+
+> **نتیجهٔ انجام T1 (2026-10-13):** دو فراخوانی `owner.RequirePasswordChange()` حذف شدند:
+> `TenantProvisioner.cs` (provisioning اولیهٔ Owner) و `OwnerCredentialAdministration.cs` (reset رمز توسط اپراتور).
+> حالا Owner تازه‌ساخته `MustChangePassword=false` دارد و بلافاصله بعد از ورود از همهٔ قابلیت‌ها استفاده می‌کند.
+> فراخوانی باقی‌مانده در `SignInCommand.cs:88` (`if (mustChange) user.RequirePasswordChange();`) بی‌خطر است —
+> فقط فلگِ از-قبل-true را حین rehash حفظ می‌کند و چون هیچ مسیری دیگر true نمی‌کند، هرگز فعال نمی‌شود.
+> سیستم اپراتور (`/admin/*`, `OperatorAccount`) دست‌نخورده. تست `AdminAuthTests.MustChangePassword_*` اپراتوری است و معتبر می‌ماند.
 
 **هدف**: کاربر با هر اکانتی بعد از ورود بتواند مستقیم از قابلیت‌ها استفاده کند، بدون مجبور شدن به تغییر رمز.
 
