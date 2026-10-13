@@ -1,3 +1,4 @@
+using Animora.Domain.Primitives;
 using Animora.Application.Abstractions;
 using Animora.Application.Auditing;
 using Animora.Application.Commands;
@@ -45,7 +46,8 @@ public sealed class CreateOwnerCommandHandler(IOwnerRepository owners, IPetRepos
 {
     public Task<Result<string>> HandleAsync(CreateOwnerCommand c, CommandContext context, CancellationToken ct)
     {
-        var owner = Owner.Register(context.TenantId, c.FullName, c.PhonePrimary, clock, c.Gender);
+        var owner = Owner.Register(context.TenantId, c.FullName, c.PhonePrimary, clock, c.Gender,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow)); // same id on client + server
         // Null email/city/notes are intentional: this is a brand-new owner row.
         owner.UpdateContactDetails(c.FullName, c.PhonePrimary, c.PhoneSecondary, c.NationalId,
             email: null, address: c.Address, city: null, gender: c.Gender, notes: null);
@@ -54,7 +56,8 @@ public sealed class CreateOwnerCommandHandler(IOwnerRepository owners, IPetRepos
         if (!string.IsNullOrWhiteSpace(c.PetName) && c.PetSpecies is { } species)
         {
             var pet = Pet.Register(context.TenantId, owner.Id, c.PetName, species, clock,
-                c.PetGender ?? PetGender.Unknown, c.PetBirthUtc, c.PetBreed);
+                c.PetGender ?? PetGender.Unknown, c.PetBirthUtc, c.PetBreed,
+                id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
             pet.UpdateProfile(c.PetName, c.PetBreed, c.PetGender, c.PetBirthUtc, c.PetNeutered, c.PetColor);
             if (!string.IsNullOrWhiteSpace(c.PetMicrochip))
                 pet.SetMicrochip(c.PetMicrochip, c.PetMicrochipUtc ?? clock.UtcNow);

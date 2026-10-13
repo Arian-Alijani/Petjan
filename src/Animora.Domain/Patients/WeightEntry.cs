@@ -55,7 +55,8 @@ public sealed class WeightEntry : SyncableEntity
         string recordedByUserId,
         IClock clock,
         string? note = null,
-        string? correctsEntryId = null)
+        string? correctsEntryId = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(petId);
@@ -71,7 +72,7 @@ public sealed class WeightEntry : SyncableEntity
 
         return Result<WeightEntry>.Ok(new WeightEntry
         {
-            Id = IdGenerator.NewId(clock.UtcNow),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(clock.UtcNow) : id,
             TenantId = tenantId,
             PetId = petId,
             WeightKg = weightKg,

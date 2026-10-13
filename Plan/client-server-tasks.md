@@ -178,6 +178,15 @@
      `RecurringExpense` (migration 029) aggregateهای post-C11 هستند؛ چک کن در `SyncContractCatalog` هستند یا نه.
      (در لیست grep بالا دیده نشدند — **اولویت بررسی اینجاست**.)
 
+### وضعیت اجرا (به‌روز)
+- [x] **T3a Patients/Owners** — یافته: همان ریشهٔ T2 (id تولیدی در هندلر ⇒ کلاینت/سرور id متفاوت). فیکس: `IdGenerator.ForOperation(operationId, slot, at)` (slot0 = خود OperationId، slotهای بعدی hash قطعی) + پارامتر `id:` در `Owner.Register`/`Pet.Register`/`WeightEntry.Record`؛ `CreateOwner` (owner=slot0, pet=slot1)، `CreatePet`، `AddWeightEntry` از آن استفاده می‌کنند.
+- [ ] T3b Visits/PetFile (+ همین الگوی id قطعی برای Visit/Rx؛ TreatmentPlan/TreatmentOccurrence/VaccineCatalogItem در SyncContractCatalog **حاضرند** ✓)
+- [ ] T3c Vaccination (+ id قطعی VaccinationRecord/TreatmentPlan/VaccineCatalogItem)
+- [ ] T3d Boarding (Room/Stay/StayItem id قطعی)
+- [ ] T3e Inventory + Purchasing (Product/Variant/Supplier/Order/Receipt id قطعی)
+- [ ] T3f Cheques + RecurringExpense (RecurringExpense در SyncContractCatalog **غایب** است ← بررسی/افزودن)
+- [ ] T3g History (read-only، فقط تأیید)
+
 ### ترتیب پیشنهادی (هر کدام یک push جدا)
 - T3a: Patients/Owners  → push
 - T3b: Visits/PetFile (+ Rx + TreatmentPlan/Occurrence replication) → push

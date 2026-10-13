@@ -129,7 +129,8 @@ public sealed class Pet : AggregateRoot
         IClock clock,
         PetGender gender = PetGender.Unknown,
         DateTimeOffset? birthDateUtc = null,
-        string? breed = null)
+        string? breed = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
@@ -139,7 +140,7 @@ public sealed class Pet : AggregateRoot
         var now = clock.UtcNow;
         var pet = new Pet
         {
-            Id = IdGenerator.NewId(now),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             OwnerId = ownerId,
             Name = name.Trim(),

@@ -71,13 +71,15 @@ public sealed class Owner : AggregateRoot
     /// on every write (C01). Derived data — the domain never reads it and a merge never writes it.</summary>
     public string SearchKey { get; set; } = string.Empty;
 
-    /// <summary>Registers a new, unblocked owner.</summary>
+    /// <summary>Registers a new, unblocked owner. <paramref name="id"/> is the deterministic id derived from the creating command's
+    /// operation (<see cref="IdGenerator.ForOperation"/>) so client and server agree; <see langword="null"/> mints a fresh ULID.</summary>
     public static Owner Register(
         string tenantId,
         string fullName,
         string phonePrimary,
         IClock clock,
-        OwnerGender gender = OwnerGender.Unspecified)
+        OwnerGender gender = OwnerGender.Unspecified,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
@@ -87,7 +89,7 @@ public sealed class Owner : AggregateRoot
         var now = clock.UtcNow;
         return new Owner
         {
-            Id = IdGenerator.NewId(now),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             FullName = fullName.Trim(),
             PhonePrimary = NormalizePhone(phonePrimary),

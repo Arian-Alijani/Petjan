@@ -51,6 +51,40 @@ public static class IdGenerator
     /// <exception cref="ArgumentOutOfRangeException">The instant is outside the 48-bit ULID range.</exception>
     public static string NewId(DateTimeOffset at) => Create(at, enforceMonotonic: false);
 
+    /// <summary>
+    /// Deterministic id for the <paramref name="slot"/>-th aggregate a command creates, derived from the command's
+    /// <paramref name="operationId"/>. The offline client and the server run the <b>same</b> handler for the same operation, so deriving
+    /// (rather than minting) ids makes both sides create the <b>same</b> aggregate ids: follow-up commands that address a just-created
+    /// aggregate by id (update owner, add invoice line, post …) resolve on the server, and the replicated row never duplicates the
+    /// local one. Slot 0 is the operation id itself; slot n keeps its 48-bit timestamp prefix and takes 80 bits of
+    /// <c>SHA-256(operationId ‖ ':' ‖ n)</c> as randomness. Falls back to a fresh ULID (<paramref name="at"/>) when the operation id is
+    /// absent or not ULID-shaped, so ad-hoc callers/tests are unaffected.
+    /// </summary>
+    /// <param name="operationId">The creating command's operation id.</param>
+    /// <param name="slot">Creation slot within the command (0 = primary aggregate).</param>
+    /// <param name="at">Timestamp for the non-deterministic fallback.</param>
+    public static string ForOperation(string? operationId, int slot, DateTimeOffset at)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(slot);
+        if (!LooksLikeUlid(operationId)) return NewId(at);
+        if (slot == 0) return operationId!;
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(operationId + ":" + slot.ToString(System.Globalization.CultureInfo.InvariantCulture)), hash);
+        Span<char> buffer = stackalloc char[IdLength];
+        operationId.AsSpan(0, TimestampChars).CopyTo(buffer);
+        EncodeGroup(hash[..5], buffer.Slice(TimestampChars, 8));
+        EncodeGroup(hash[5..10], buffer.Slice(TimestampChars + 8, 8));
+        return new string(buffer);
+    }
+
+    private static bool LooksLikeUlid(string? value)
+    {
+        if (value is null || value.Length != IdLength || value[0] > '7') return false;
+        foreach (var c in value)
+            if (Alphabet.IndexOf(c) < 0) return false;
+        return true;
+    }
+
     private static string Create(DateTimeOffset at, bool enforceMonotonic)
     {
         var ms = at.ToUnixTimeMilliseconds();

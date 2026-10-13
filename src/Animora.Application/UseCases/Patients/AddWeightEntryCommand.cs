@@ -1,3 +1,4 @@
+using Animora.Domain.Primitives;
 using Animora.Application.Abstractions;
 using Animora.Application.Auditing;
 using Animora.Application.Commands;
@@ -41,7 +42,8 @@ public sealed class AddWeightEntryCommandHandler(IPetRepository pets, IWeightEnt
         if (c.WeightKg <= 0m) return Result<Unit>.Fail(ErrorCodes.WeightEntryInvalid, "Weight must be positive.");
         var pet = await pets.FindAsync(c.PetId, ct);
         if (pet is null) return Result<Unit>.Fail(ErrorCodes.PetNotFound);
-        var entry = WeightEntry.Record(context.TenantId, c.PetId, c.WeightKg, c.MeasuredUtc, context.UserId, clock, c.Note);
+        var entry = WeightEntry.Record(context.TenantId, c.PetId, c.WeightKg, c.MeasuredUtc, context.UserId, clock, c.Note,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (entry.IsFailure) return Result<Unit>.Fail(ErrorCodes.WeightEntryInvalid, entry.Detail);
         weights.Add(entry.Value!);
         return Result<Unit>.Ok(Unit.Value);

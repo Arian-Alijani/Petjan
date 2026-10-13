@@ -1,3 +1,4 @@
+using Animora.Domain.Primitives;
 using Animora.Application.Abstractions;
 using Animora.Application.Auditing;
 using Animora.Application.Commands;
@@ -43,7 +44,8 @@ public sealed class CreatePetCommandHandler(IOwnerRepository owners, IPetReposit
     {
         var owner = await owners.FindAsync(c.OwnerId, ct);
         if (owner is null) return Result<string>.Fail(ErrorCodes.OwnerNotFound);
-        var pet = Pet.Register(context.TenantId, c.OwnerId, c.Name, c.Species, clock, c.Gender, c.BirthUtc, c.Breed);
+        var pet = Pet.Register(context.TenantId, c.OwnerId, c.Name, c.Species, clock, c.Gender, c.BirthUtc, c.Breed,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         pet.UpdateProfile(c.Name, c.Breed, c.Gender, c.BirthUtc, c.Neutered, c.Color);
         if (!string.IsNullOrWhiteSpace(c.Microchip)) pet.SetMicrochip(c.Microchip, c.MicrochipUtc ?? clock.UtcNow);
         pets.Add(pet);
