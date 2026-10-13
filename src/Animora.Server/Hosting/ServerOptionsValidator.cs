@@ -88,6 +88,17 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
             failures.Add($"'{ServerOptions.SectionName}:Files:UploadWaitSeconds' must be between 1 and 60.");
         }
 
+        // SEC-HSTS-01: a TLS-terminating proxy is only safe/functional with trusted forwarded-proto (else redirect loop).
+        if (options.Tls.Termination == TlsTermination.Proxy && !fwd.Enabled)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:Tls:Termination' = Proxy requires '{ServerOptions.SectionName}:ForwardedHeaders:Enabled' = true with a KnownProxies/KnownNetworks allowlist (otherwise the HTTPS redirect loops behind the proxy).");
+        }
+
+        if (options.Tls.PublicHttpsPort is < 1 or > 65535)
+        {
+            failures.Add($"'{ServerOptions.SectionName}:Tls:PublicHttpsPort' must be between 1 and 65535.");
+        }
+
         if (options.Health.ReadinessCacheSeconds is < 0 or > 60)
             failures.Add($"'{ServerOptions.SectionName}:Health:ReadinessCacheSeconds' must be between 0 and 60.");
 

@@ -448,7 +448,7 @@
 - **Push**: `scripts/git/push.sh "perf(server): cache readiness probes, add /health/startup (C4 BUG-HEALTH-01/IMP-10)"`
 - **Done note**: DONE. New `Hosting/ReadinessEvaluator` (singleton): `/health/ready` is served from a report cached for `Server:Health:ReadinessCacheSeconds` (default 5, validated 0..60, 0 = no cache); concurrent callers on an expired entry share ONE evaluation (single-flight `SemaphoreSlim`), probes inside a round run in parallel and a throwing probe reads unhealthy (never a 500); it still feeds `ReadinessSnapshot` (admin status unchanged). Response bodies unchanged (names only). New anonymous `GET /health/startup` (`ServerRoutes.HealthStartup`): 503 `starting` until every required probe has been healthy once, then 200 `started` for the process lifetime (latched) - already classified `Health` by `ServerSurfacePolicy` (C1), so tenant/entitlement-exempt. `/health/live` untouched (trivial). RestoreDrill host pins TTL=0 so its state-transition polling is never served stale. Tests: `Hosting/ReadinessEvaluatorTests` (cache, single-flight, ttl 0, required vs optional, startup latch). Not compiled locally (CI only).
 
-### [ ] C5 · SEC-HSTS-01 + SEC-OPENAPI-01 — Confirm TLS/forwarded-proto contract; document OpenAPI gating (MEDIUM/LOW)
+### [x] C5 · SEC-HSTS-01 + SEC-OPENAPI-01 — Confirm TLS/forwarded-proto contract; document OpenAPI gating (MEDIUM/LOW)
 - **Why**: `Program.cs:147-151` runs `UseHsts()`+`UseHttpsRedirection()` only outside
   Development; if TLS terminates at the LB and the app gets HTTP without forwarded-proto
   wired (depends on A2), redirect may loop/no-op. `Program.cs:127-132` `EnableOpenApi`
@@ -460,7 +460,7 @@
   default off; document the risk and (optional) gate behind operator auth / separate network.
 - **Accept**: no redirect loop with forwarded-proto; OpenAPI gating documented, default off.
 - **Push**: `scripts/git/push.sh "sec(server): confirm TLS/forwarded-proto contract, document OpenAPI gating (C5 SEC-HSTS-01/SEC-OPENAPI-01)"`
-- **Done note**: _______
+- **Done note**: DONE. TLS contract made explicit + enforced: new `Server:Tls` (`Termination` = `App` default | `Proxy`, `PublicHttpsPort` default 443). In `Proxy` mode the validator FAILS BOOT unless `Server:ForwardedHeaders` is enabled with an allowlist (A2), because the scheme must come from the trusted `X-Forwarded-Proto` - otherwise every request looks like HTTP and `UseHttpsRedirection` loops; the redirect target port is set from `PublicHttpsPort` via `HttpsRedirectionOptions`. Forwarded headers already run BEFORE HSTS/redirect (A2), so a request the proxy received over HTTPS is not redirected again. Who enforces TLS is documented in `ServerOptions` XML docs + the Program.cs pipeline comment: main API = app redirect+HSTS (non-Development); admin = additionally HTTP 400 via `AdminSecurityHeadersMiddleware` (`RequireHttps`). OpenAPI: default stays OFF; `ServerOptions.EnableOpenApi` XML doc documents the anonymous-schema disclosure risk (restrict to a management network), and the host now logs a startup WARNING whenever it is exposed outside Development. Gating behind operator auth was NOT done (optional; network ACL is the documented control). Tests: `Hosting/TlsContractTests`. Not compiled locally (CI only).
 
 ### [ ] C6 · SCALE-N1-01 — Batch-load role definitions in staff directory (MEDIUM)
 - **Why**: `Auth/StaffProvisioningService.cs:249-257` loops every `StaffRole` enum value
@@ -576,7 +576,7 @@
 | C2 | BUG-OPLOCK-01 | LOW | [x] |
 | C3 | BUG-BURN-01 | LOW | [x] |
 | C4 | BUG-HEALTH-01 / IMP-10 | LOW | [x] |
-| C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [ ] |
+| C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [x] |
 | C6 | SCALE-N1-01 | MEDIUM | [ ] |
 | C7 | IMP-01 / IMP-09 | IMP | [ ] |
 | C8 | IMP-04 | IMP | [ ] |

@@ -141,6 +141,17 @@ if (enableOpenApi)
     builder.Services.AddOpenApi();
 }
 
+// SEC-HSTS-01: when a proxy terminates TLS the redirect target must use the PUBLIC https port (the app only sees
+// the proxy's plain-HTTP port). Scheme detection itself comes from the allowlisted X-Forwarded-Proto (see below).
+builder.Services.AddOptions<Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionOptions>()
+    .Configure<Microsoft.Extensions.Options.IOptions<ServerOptions>>((redirect, server) =>
+    {
+        if (server.Value.Tls.Termination == TlsTermination.Proxy)
+        {
+            redirect.HttpsPort = server.Value.Tls.PublicHttpsPort;
+        }
+    });
+
 // Rate limiting: five named fixed-window policies (ARCHITECTURE.md §4). Windows
 // are options-driven; a rejection becomes a 429 WireApiError + Retry-After.
 // Health endpoints are never limited (they carry no [EnableRateLimiting]).
@@ -149,7 +160,7 @@ builder.Services.AddRateLimiter(ServerRateLimiting.Configure);
 var app = builder.Build();
 
 // 7. Middleware pipeline (fixed order):
-//    global exception → HSTS/HTTPS redirect (non-Development) → request logging
+//    global exception → forwarded headers → HSTS/HTTPS redirect (non-Development) → request logging
 //    (skips /health/*) → authN (token decode, no DB) → rate limiter → tenant binding → authZ →
 //    entitlement → antiforgery → endpoints.
 app.UseMiddleware<GlobalExceptionMiddleware>();
@@ -159,6 +170,9 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 // unless Server:ForwardedHeaders:Enabled is set with a KnownProxies/KnownNetworks allowlist.
 ServerForwardedHeaders.Use(app);
 
+// TLS contract (SEC-HSTS-01): non-Development always enforces HTTPS in-app. With Server:Tls:Termination=Proxy the
+// scheme comes from the allowlisted X-Forwarded-Proto (validator guarantees ForwardedHeaders is enabled), so a
+// request the proxy already received over HTTPS is NOT redirected again (no loop); a plain-HTTP client request is.
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
@@ -188,6 +202,12 @@ app.UseMiddleware<AdminAntiforgeryMiddleware>();
 
 if (enableOpenApi)
 {
+    if (!app.Environment.IsDevelopment())
+    {
+        // SEC-OPENAPI-01: the schema is anonymous; make an opt-in outside Development impossible to miss in logs.
+        app.Logger.LogWarning("OpenAPI schema is exposed anonymously outside Development (Server:EnableOpenApi=true); restrict it to a management network.");
+    }
+
     app.MapOpenApi();
 }
 

@@ -18,8 +18,16 @@ internal sealed class ServerOptions
     /// </summary>
     public string DataRootPath { get; set; } = string.Empty;
 
-    /// <summary>Expose first-party OpenAPI even outside Development. Default false.</summary>
+    /// <summary>
+    /// Expose first-party OpenAPI even outside Development. Default <b>false</b> (SEC-OPENAPI-01). The schema lists
+    /// every route, parameter and error shape and is served ANONYMOUSLY by <c>MapOpenApi</c>, so enabling it in
+    /// production is an information-disclosure decision: only do so on a non-public listener / management network
+    /// (reverse-proxy ACL). The host logs a warning at startup whenever it is exposed outside Development.
+    /// </summary>
     public bool EnableOpenApi { get; set; }
+
+    /// <summary>Who terminates TLS and how the app enforces HTTPS (SEC-HSTS-01).</summary>
+    public TlsSettings Tls { get; set; } = new();
 
     /// <summary>Optional public base URL (absolute) used to build external links.</summary>
     public string? PublicBaseUrl { get; set; }
@@ -44,6 +52,35 @@ internal sealed class ServerOptions
 
     /// <summary>Health-probe caching (BUG-HEALTH-01).</summary>
     public HealthSettings Health { get; set; } = new();
+}
+
+/// <summary>Where TLS terminates (SEC-HSTS-01).</summary>
+internal enum TlsTermination
+{
+    /// <summary>Kestrel terminates TLS (or the app is reached over HTTPS directly). Redirect/HSTS use the real scheme.</summary>
+    App,
+
+    /// <summary>
+    /// A reverse proxy / load balancer terminates TLS and talks plain HTTP to the app. REQUIRES
+    /// <c>Server:ForwardedHeaders</c> (allowlisted proxy) so <c>X-Forwarded-Proto</c> is the source of the scheme;
+    /// without it every request looks like HTTP and the HTTPS redirect would loop. Enforced at boot by the validator.
+    /// </summary>
+    Proxy,
+}
+
+/// <summary>
+/// SEC-HSTS-01: transport-security contract. Outside Development the main API relies on
+/// <c>UseHttpsRedirection</c> + <c>UseHsts</c>; the admin surface additionally answers 400 on non-HTTPS
+/// (<c>AdminSecurityHeadersMiddleware</c>). Both read <c>Request.IsHttps</c>, which behind a proxy is correct only
+/// when forwarded-proto processing is active - hence <see cref="TlsTermination.Proxy"/> demands it.
+/// </summary>
+internal sealed class TlsSettings
+{
+    /// <summary>Default <see cref="TlsTermination.App"/>.</summary>
+    public TlsTermination Termination { get; set; } = TlsTermination.App;
+
+    /// <summary>Public HTTPS port used in redirect targets when the proxy terminates TLS (1..65535). Default 443.</summary>
+    public int PublicHttpsPort { get; set; } = 443;
 }
 
 /// <summary>BUG-HEALTH-01: how long a <c>/health/ready</c> evaluation is reused by subsequent pollers.</summary>
