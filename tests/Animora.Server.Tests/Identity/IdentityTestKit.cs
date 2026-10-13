@@ -55,6 +55,22 @@ internal sealed class FakeIdentityRepository : IIdentityRepository
 
     public void AddDevice(Device device) => Devices.Add(device);
 
+    /// <summary>Runs just before the idempotent insert — lets a test play the concurrent winner of the race.</summary>
+    public Action<Device>? OnBeforeAddDevice { get; set; }
+
+    public Task<Result<Device>> AddDeviceIdempotentAsync(Device device, CancellationToken ct = default)
+    {
+        OnBeforeAddDevice?.Invoke(device);
+        Device? existing = Devices.FirstOrDefault(d => d.UserId == device.UserId && d.InstallationIdHash == device.InstallationIdHash);
+        if (existing is not null)
+        {
+            return Task.FromResult(Result<Device>.Ok(existing));
+        }
+
+        Devices.Add(device);
+        return Task.FromResult(Result<Device>.Ok(device));
+    }
+
     public void AddUser(User user) => Users.Add(user);
 
     public void AddMembership(StaffMembership membership) => Memberships.Add(membership);

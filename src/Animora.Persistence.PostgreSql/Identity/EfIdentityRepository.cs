@@ -72,6 +72,33 @@ public sealed class EfIdentityRepository(AnimoraServerDbContext context) : IIden
     }
 
     /// <inheritdoc />
+    public async Task<Result<Device>> AddDeviceIdempotentAsync(Device device, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(device);
+
+        context.Devices.Add(device);
+        try
+        {
+            await context.SaveChangesAsync(ct).ConfigureAwait(false);
+            return Result<Device>.Ok(device);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        {
+            // Lost the first-login race on the unique (tenant, user, installation) index: converge on the winner.
+            context.Entry(device).State = EntityState.Detached;
+            Device? existing = await FindDeviceByInstallationAsync(device.UserId, device.InstallationIdHash, ct).ConfigureAwait(false);
+            return existing is null
+                ? Result<Device>.Fail(ErrorCodes.ConcurrencyConflict, "unique")
+                : Result<Device>.Ok(existing);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            context.Entry(device).State = EntityState.Detached;
+            return Result<Device>.Fail(ErrorCodes.ConcurrencyConflict);
+        }
+    }
+
+    /// <inheritdoc />
     public void AddUser(User user)
     {
         ArgumentNullException.ThrowIfNull(user);

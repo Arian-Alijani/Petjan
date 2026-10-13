@@ -42,6 +42,15 @@ public interface IIdentityRepository
     /// <summary>Stages a new device (committed by the next save).</summary>
     void AddDevice(Device device);
 
+    /// <summary>
+    /// Idempotently inserts <paramref name="device"/> for its <c>(UserId, InstallationIdHash)</c> and commits it
+    /// immediately. When a concurrent first login already created that device (unique-index violation) the
+    /// candidate is discarded and the <b>existing</b> row is returned instead, so two racing first logins converge
+    /// on one device and never surface a 500. A fault that leaves no row to converge on maps to
+    /// <c>ConcurrencyConflict</c>. Callers detect "mine" with <see cref="object.ReferenceEquals"/>.
+    /// </summary>
+    Task<Result<Device>> AddDeviceIdempotentAsync(Device device, CancellationToken ct = default);
+
     /// <summary>Stages a new user (committed by the next save). Used by the staff-provisioning plane.</summary>
     void AddUser(User user);
 

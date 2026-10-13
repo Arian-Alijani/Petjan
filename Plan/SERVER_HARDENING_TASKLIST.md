@@ -281,7 +281,7 @@
 - **Push**: `scripts/git/push.sh "sec(server): persist security-stamp rotation on refresh-reuse (B2 SEC-STAMP-01)"`
 - **Done note**: DONE. `Program.cs`: `UseRateLimiter()` moved from after entitlement to directly after `UseAuthentication()` and BEFORE `OperatorContextMiddleware`/`TenantContextMiddleware`/`UseAuthorization`/`EntitlementMiddleware`, so a flood is throttled before any DB-backed work (cookie validation, membership resolve, entitlement). Authentication itself stays first deliberately: bearer tokens are Data-Protection-decrypted in memory (no DB read) and the A2 tenant+user partition keys need the principal; endpoint `RequireRateLimiting` policies still apply (routing is auto-added at pipeline start). Pipeline comment updated. New source-order test `RateLimiterOrderTests` (PlaneOrderTests file); the runtime ordering tests in `PlaneOrderTests` are unaffected (401→403→entitlement ordering unchanged). Not compiled locally (CI only).
 
-### [ ] B3 · SEC-ENUM-01 — Idempotent device upsert on login (MEDIUM)
+### [x] B3 · SEC-ENUM-01 — Idempotent device upsert on login (MEDIUM)
 - **Why**: `Auth/LoginService.cs:124-138` auto-registers a `Device` for an unknown
   installation hash during `/auth/login`. Two concurrent first logins can both see
   `device is null` and both `AddDevice(...)` → duplicate rows, or an unhandled
@@ -308,7 +308,7 @@
   to avoid deadlocks. If keeping the single key, document the accepted collision prob.
 - **Accept**: lock uses two-key form keyed by tenant + resource; ordering preserved.
 - **Push**: `scripts/git/push.sh "fix(server): two-key advisory lock to avoid cross-domain collisions (B4 SEC-ADV-01)"`
-- **Done note**: _______
+- **Done note**: DONE. Added IIdentityRepository.AddDeviceIdempotentAsync (EfIdentityRepository: insert+SaveChanges; on unique violation 23505 on the existing unique (tenant,user,installation) index it detaches the candidate and converges on the winner's row; otherwise typed ConcurrencyConflict, never a 500). LoginService device auto-register now uses it (loser adopts winner, deviceIsNew only for the inserting call, revoked winner is refused). Index confirmed in DeviceConfiguration (TenantIndex(InstallationIdHash, UserId).IsUnique()). Fake repo gained the method + OnBeforeAddDevice hook; new test ConcurrentFirstLogin_ConvergesOnOneDevice_NoDuplicateRows. Not compiled locally (CI only).
 
 ### [ ] B5 · BUG-UOW-01 — Do not release savepoint on the rollback path (MEDIUM/verify)
 - **Why**: `Commands/CommandPlaneUnitOfWork.cs:42-48` on nested failure does
@@ -564,7 +564,7 @@
 | A5 | PERF-QB-01 | HIGH | [x] |
 | B1 | BUG-PIPE-01 | HIGH | [x] |
 | B2 | SEC-STAMP-01 | MEDIUM | [x] |
-| B3 | SEC-ENUM-01 | MEDIUM | [ ] |
+| B3 | SEC-ENUM-01 | MEDIUM | [x] |
 | B4 | SEC-ADV-01 | MEDIUM | [ ] |
 | B5 | BUG-UOW-01 | MEDIUM | [ ] |
 | B6 | BUG-SIGN-01 | MEDIUM | [ ] |

@@ -49,6 +49,29 @@ public sealed class LoginServiceTests
     }
 
     [Fact]
+    public async Task ConcurrentFirstLogin_ConvergesOnOneDevice_NoDuplicateRows()
+    {
+        var h = new AuthHarness();
+
+        // A concurrent first login commits the same (user, installation) device just before ours inserts.
+        Device? winner = null;
+        h.Repository.OnBeforeAddDevice = _ =>
+        {
+            winner = Device.Register(h.TenantId, h.User.Id, "Unnamed device", AuthHarness.Installation, "unknown", h.Clock);
+            h.Repository.Devices.Add(winner);
+            h.Repository.OnBeforeAddDevice = null;
+        };
+
+        var result = await h.Service.LoginAsync(h.Login(), "race");
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(h.Repository.Devices);
+        Assert.Equal(winner!.Id, result.Value!.DeviceId);
+        // The loser adopted an existing row, so it is not audited as a fresh registration.
+        Assert.DoesNotContain(h.Audit.Entries, e => e.DeviceId == winner.Id && e.DetailJson != null && e.DetailJson.Contains("device_registered"));
+    }
+
+    [Fact]
     public async Task RevokedDevice_Returns_DEVICE_REVOKED()
     {
         var h = new AuthHarness();

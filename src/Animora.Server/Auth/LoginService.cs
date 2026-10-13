@@ -128,13 +128,27 @@ internal sealed class LoginService(
             // a tenant Manager's own device is auto-approved so the owner is never locked out of their own
             // tenant — otherwise the first/only manager device stays Pending forever with no active device able
             // to approve it, which blocks capability issuance and every entitlement-gated feature.
-            device = Device.Register(tenant.Id, user.Id, "Unnamed device", installationHash, "unknown", clock);
+            Device candidate = Device.Register(tenant.Id, user.Id, "Unnamed device", installationHash, "unknown", clock);
             if (membership.Role == StaffRole.Manager)
             {
-                device.Approve();
+                candidate.Approve();
             }
 
-            repository.AddDevice(device);
+            // Idempotent on (user, installation): two concurrent first logins converge on ONE row (the loser
+            // adopts the winner's device) instead of duplicating it or failing on the unique index with a 500.
+            Result<Device> added = await repository.AddDeviceIdempotentAsync(candidate, ct).ConfigureAwait(false);
+            if (added.IsFailure)
+            {
+                return Failure<LoginResponse>(added.Error);
+            }
+
+            device = added.Value!; // non-null on success
+            deviceIsNew = ReferenceEquals(device, candidate);
+            if (device.Status == DeviceStatus.Revoked)
+            {
+                await AuditAsync(tenant.Id, SecurityAuditActions.DeviceRevokedContact, correlationId, user.Id, device.Id, "device_revoked", ct).ConfigureAwait(false);
+                return Failure<LoginResponse>(ErrorCodes.DeviceRevoked);
+            }
         }
 
         user.RegisterSuccessfulLogin(clock);
