@@ -72,9 +72,19 @@ internal static class ProvisioningEndpoints
             if (identity.IsFailure) return Results.Json(new { code = ErrorCodes.ProvisioningSignatureInvalid.Code }, statusCode: 401);
             var polled = await store.PollAsync(idempotencyKey, identity.Value ?? string.Empty, clock.UtcNow, ct).ConfigureAwait(false);
             if (polled.IsFailure || polled.Value is not { } result) return OperatorEndpoints.Failure(polled.Error, http);
-            JsonElement? data = result.ResultJson is null ? null : JsonSerializer.Deserialize<JsonElement>(result.ResultJson);
-            string? password = result.ProtectedTempPassword is null ? null : protection.CreateProtector("Animora.Provisioning.Intent.v1")
-                .Unprotect(Encoding.UTF8.GetString(result.ProtectedTempPassword));
+            JsonElement? data; string? password;
+            // IMP-08 mirror: a corrupted ResultJson or a TempPassword protected under a rotated/purged key must map to a
+            // typed error, not a raw 500 that leaves the intent un-pollable. (POST already guards Protect with try/finally.)
+            try
+            {
+                data = result.ResultJson is null ? null : JsonSerializer.Deserialize<JsonElement>(result.ResultJson);
+                password = result.ProtectedTempPassword is null ? null : protection.CreateProtector("Animora.Provisioning.Intent.v1")
+                    .Unprotect(Encoding.UTF8.GetString(result.ProtectedTempPassword));
+            }
+            catch (Exception ex) when (ex is JsonException or CryptographicException or FormatException)
+            {
+                return OperatorEndpoints.Failure(ErrorCodes.ProvisioningSignatureInvalid, http);
+            }
             return Results.Ok(new { status = result.Status.ToString(), tenantId = Property(data, "tenantId"),
                 tenantCode = Property(data, "tenantCode"), subscriptionId = Property(data, "subscriptionId"), ownerTemporaryPassword = password, result.ErrorCode });
         });

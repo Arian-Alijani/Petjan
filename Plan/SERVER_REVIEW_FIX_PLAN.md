@@ -93,7 +93,7 @@ Legend: `[ ]` todo · `[x]` done.
 
 ---
 
-### [ ] TASK 1 — §3.1 Rotate security stamp on staff **disable** (highest impact, trivial)
+### [x] TASK 1 — §3.1 Rotate security stamp on staff **disable** (highest impact, trivial) — DONE
 **Why:** disabling a staff member currently only calls `decisions.InvalidateUser` (local
 cache) and relies on `Status==Disabled` being re-read after cache TTL. On multi-instance (or
 within the ≤10s TTL) the disabled user keeps a working session. `DeviceAdminService.RevokeAsync`
