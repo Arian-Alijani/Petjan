@@ -338,7 +338,7 @@
 - **Push**: `scripts/git/push.sh "fix(server): guard signing-key creation and cache active signer (B6 BUG-SIGN-01)"`
 - **Done note**: DONE. SigningKeyStore: first-key creation now runs in a transaction under pg_advisory_xact_lock(hashtext('animora.signing-keys'), hashtext(purpose)) and re-reads the active key under the lock, so a cold-start race (any number of instances) yields ONE active snapshot key (losers adopt the winner). New singleton ActiveSignerCache keeps the resolved signer (private key already unprotected/imported) for 5 min (capped by key NotAfterUtc; Invalidate() for rotation) so steady-state signing does no DB read and no Data-Protection unprotect; documented as per-process state converging within the window. DI registers the cache. New PG test SigningKey_ConcurrentColdStart_YieldsOneActiveKey_AndSteadyStateIsCached. Not compiled locally (CI only).
 
-### [ ] B7 · BUG-CORR-01 — Memoize correlation id in `HttpContext.Items` (MEDIUM)
+### [x] B7 · BUG-CORR-01 — Memoize correlation id in `HttpContext.Items` (MEDIUM)
 - **Why**: `Hosting/CorrelationHeader.cs:24-40` `Resolve` mints a FRESH ULID each call
   when no valid inbound `X-Correlation-Id`. Correctness relies on the implicit contract
   "resolve once in `GlobalExceptionMiddleware`, echo, then read from the response header"
@@ -348,7 +348,7 @@
   the memoized value. Makes "same value everywhere" structural, not conventional.
 - **Accept**: repeated `Resolve` returns the same id within a request.
 - **Push**: `scripts/git/push.sh "fix(server): memoize correlation id in HttpContext.Items (B7 BUG-CORR-01)"`
-- **Done note**: _______
+- **Done note**: DONE. CorrelationHeader.Resolve now memoizes the id in HttpContext.Items on first call (valid inbound header reused, else ONE minted ULID); Echo also stores the echoed value, so every Resolve/Echo within a request agrees structurally. All ~50 existing call sites benefit unchanged. New CorrelationHeaderTests. Not compiled locally (CI only).
 
 ### [ ] B8 · BUG-BATCH-01 — Per-item results instead of whole-batch abort (MEDIUM)
 - **Why**: `Commands/CommandEndpoints.cs:47-55` `BatchAsync` processes envelopes
@@ -568,7 +568,7 @@
 | B4 | SEC-ADV-01 | MEDIUM | [x] |
 | B5 | BUG-UOW-01 | MEDIUM | [x] |
 | B6 | BUG-SIGN-01 | MEDIUM | [x] |
-| B7 | BUG-CORR-01 | MEDIUM | [ ] |
+| B7 | BUG-CORR-01 | MEDIUM | [x] |
 | B8 | BUG-BATCH-01 | MEDIUM | [ ] |
 | B9 | BUG-FILE-01 | MEDIUM | [ ] |
 | B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [ ] |
