@@ -483,7 +483,7 @@
                 </StackPanel>
 
         <Button Content="خروج از حساب کاربری" Command="{Binding SignOutCommand}"
-                Classes="danger" HorizontalAlignment="Left" Margin="0,12,0,12" />
+                Classes="danger-ghost" HorizontalAlignment="Left" Margin="0,12,0,12" />
 
         <!-- ═══════════ TAB · پروفایل کاربری ═══════════ -->
         <Grid x:Name="ProfileCards" IsVisible="{Binding IsProfileTab}" ColumnDefinitions="*,*" ColumnSpacing="14" VerticalAlignment="Top">

@@ -19,7 +19,7 @@ public sealed class AppSessionController(IAuthenticationService authentication, 
 
     public Task RequestSignOutAsync()
     {
-        var confirm = new Button { Content = "خروج از حساب کاربری", Classes = { "danger" } };
+        var confirm = new Button { Content = "خروج از حساب کاربری", Classes = { "danger-ghost" } };
         var cancel = new Button { Content = "انصراف" };
         var panel = new StackPanel { Spacing = 16 };
         panel.Children.Add(new TextBlock { Text = "آیا از حساب کاربری خارج می‌شوید؟" });
@@ -37,7 +37,6 @@ public sealed class AppSessionController(IAuthenticationService authentication, 
             try
             {
                 await authentication.SignOutAsync("USER_LOGOUT");
-
             }
             catch (Exception ex)
             {

@@ -1,3 +1,7 @@
+using Animora.Application.Security;
+using Animora.Infrastructure.Local.Storage;
+using Animora.Persistence.Tests;
+using Animora.Sync.Custom;
 using System.Net;
 using System.Text.Json;
 using Animora.Contracts.Wire;
@@ -141,5 +145,55 @@ public sealed class HttpCommandTransportTests
         Assert.Equal(first.Value, retry.Value);
         Assert.Equal(2, handler.Requests.Count);
         Assert.Equal(bodies[0], bodies[1]); // byte-identical retry: same OperationId and fingerprint, never re-minted
+    }
+    [Theory]
+    [InlineData(true, "B")]
+    [InlineData(false, "A")]
+    public async Task TenantIsolation_MismatchedOrSuspendedSessionDefersSingleAndBatchWithoutNetwork(bool active, string sessionTenant)
+    {
+        var binding = new TenantSessionBinding(new MemorySecretStore());
+        Assert.True(binding.Bind("A").IsSuccess);
+        if (active) binding.Activate();
+        var handler = new FakeFeedHandler(_ => throw new InvalidOperationException("Cross-tenant request must not leave the device."));
+        var transport = new HttpCommandTransport(new SingleClientFactory(new HttpClient(handler) { BaseAddress = new Uri("https://sync.test/") }),
+            FeedFixtures.Options(), new FixedClock(FeedFixtures.Now), new FixedSessions(sessionTenant), binding);
+        var envelope = CommandFixtures.Envelope("OP1") with { TenantId = "T-LOCAL-DEFAULT" };
+        Assert.Equal(SettlementOutcome.Deferred, (await transport.SubmitAsync(envelope)).Value!.Outcome);
+        Assert.Equal(SettlementOutcome.Deferred, Assert.Single((await transport.SubmitBatchAsync([envelope])).Value!).Outcome);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task TenantIsolation_MatchingSessionRebindsWithoutChangingIdempotencyAndRejectsForeignEnvelope()
+    {
+        var binding = new TenantSessionBinding(new MemorySecretStore());
+        binding.Bind("A");
+        binding.Activate();
+        var bodies = new List<string>();
+        var handler = new FakeFeedHandler(req =>
+        {
+            bodies.Add(req.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+            return FeedFixtures.JsonResponse(CommandFixtures.Accepted("OP1"));
+        });
+        var transport = new HttpCommandTransport(new SingleClientFactory(new HttpClient(handler) { BaseAddress = new Uri("https://sync.test/") }),
+            FeedFixtures.Options(), new FixedClock(FeedFixtures.Now), new FixedSessions("A"), binding);
+        var envelope = CommandFixtures.Envelope("OP1") with { TenantId = "T-LOCAL-DEFAULT" };
+        Assert.Equal(SettlementOutcome.Accepted, (await transport.SubmitAsync(envelope)).Value!.Outcome);
+        Assert.Equal(SettlementOutcome.Accepted, (await transport.SubmitAsync(envelope)).Value!.Outcome);
+        Assert.Equal(bodies[0], bodies[1]);
+        using var json = JsonDocument.Parse(bodies[0]);
+        Assert.Equal("A", json.RootElement.GetProperty("tenantId").GetString());
+        Assert.Equal(envelope.CommandFingerprint, json.RootElement.GetProperty("commandFingerprint").GetString());
+        Assert.Equal(envelope.PayloadJson, json.RootElement.GetProperty("payloadJson").GetString());
+        Assert.Equal(SettlementOutcome.Deferred, (await transport.SubmitAsync(envelope with { TenantId = "B" })).Value!.Outcome);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    private sealed class FixedSessions(string tenant) : ISessionStore
+    {
+        public Task<Result<ClientSession?>> ReadAsync(CancellationToken ct = default) => Task.FromResult(Result<ClientSession?>.Ok(
+            new ClientSession("access", FeedFixtures.Now.AddHours(1), "refresh", "U", tenant, "D", "Manager", "s")));
+        public Task<Result> WriteAsync(ClientSession session, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result> ClearAsync(CancellationToken ct = default) => throw new NotSupportedException();
     }
 }
