@@ -62,12 +62,11 @@ scripts/git/push.sh "type(scope): message"
 ## تسک‌ها
 
 - [x] **T0 — ساخت پوشه Plan + این فایل todo.** (این فایل) — پوش شود.
-- [ ] **T1 — فیکس شمارش pending در `LocalSyncStatusService`.**
-  - یک helper محلی برای محاسبه‌ی `retriable = Total - Rejected - Conflict - NeedsAttention` اضافه کن.
-  - `PendingChangeCount` snapshot را از retriable پر کن (خط ۶۸).
-  - `MapState` را طوری کن که `SyncState.Pending` فقط وقتی retriable>0 باشد؛ در غیر این‌صورت منطق قبلی (Offline/Deferred/Synced) اعمال شود.
-  - کامنت XML کوتاه و دقیق چرایی فیکس را بگذار.
-  - پوش شود.
+- [x] **T1 — فیکس شمارش pending در `LocalSyncStatusService`.** انجام شد.
+  - helper `RetriableCount(summary) = max(0, Total - Rejected - Conflict - NeedsAttention)` اضافه شد.
+  - `PendingChangeCount` snapshot حالا از `RetriableCount` پر می‌شود.
+  - `MapState` حالا `SyncState.Pending` را فقط وقتی `RetriableCount>0` برمی‌گرداند.
+  - کامنت XML چرایی فیکس اضافه شد. — پوش شد.
 - [ ] **T2 — بازتاب در متن UI (`TopbarViewModel.SyncNowAsync` + `RefreshSyncPresentation`).**
   - چون `PendingChangeCount` حالا retriable است، پیام‌ها خودبه‌خود درست می‌شوند؛ فقط مطمئن شو پیام toast بعد از sync موفق با pending=0 «همه‌چیز به‌روز است» می‌دهد. (بدون تغییر سنگین؛ اگر لازم نبود، تغییر نده و در همین فایل یادداشت کن.)
   - پوش شود.
