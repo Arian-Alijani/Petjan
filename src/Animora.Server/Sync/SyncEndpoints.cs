@@ -8,6 +8,7 @@ using Animora.Persistence.PostgreSql.Replication;
 using Animora.Persistence.PostgreSql.Tenancy;
 using Animora.Server.Authorization;
 using Animora.Server.Hosting;
+using Microsoft.Extensions.Logging;
 namespace Animora.Server.Sync;
 
 internal static class SyncEndpoints
@@ -45,6 +46,23 @@ internal static class SyncEndpoints
         {
             http.Response.Headers.RetryAfter = "1";
             return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (AdmissionSaturatedException)
+        {
+            // IMP-05: request-path admission gate full/expired — shed cleanly as a retryable 503
+            // instead of surfacing a bare 500 (BUG 2 candidate #4). Mirrors SnapshotLifetimeExceeded.
+            http.Response.Headers.RetryAfter = "1";
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (Exception ex)
+        {
+            // BUG 2 observability (Step 2C): capture the exact failure class, message and stack with
+            // the correlation id so any residual /sync/batches fault is diagnosable, then rethrow so
+            // GlobalExceptionMiddleware still shapes the 500 WireApiError. Never swallowed.
+            http.RequestServices.GetService<ILoggerFactory>()?.CreateLogger("Animora.Server.Sync.Batches")
+                .LogError(ex, "Sync batch build failed ({FailureClass}) for request {CorrelationId}.",
+                    ex.GetType().FullName, CorrelationHeader.Resolve(http));
+            throw;
         }
     }
     internal static async Task<IResult> Download(string batchId, int ordinal, HttpContext http,

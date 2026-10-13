@@ -128,7 +128,7 @@ files, easy to miss new commands. Centralized modifier is superior.
   the ctor params. Do NOT run full solution test; target this one test project only if runnable
   quickly, else rely on the assertion-level reasoning + build of the project.
 
-**STATUS: [ ] not started**
+**STATUS: [x] DONE — T1 (CommandFingerprint drops journaling members) + T2 (CommandPayloadShapeTests).**
 
 ---
 
@@ -203,7 +203,7 @@ NOT swallow. Keep it minimal.
 - A fresh tenant returns `UpToDate`/empty 200.
 - Do NOT run the full test suite or long PG integration build. Target the specific project/test.
 
-**STATUS: [ ] not started**
+**STATUS: [x] projector null-guard (T4) + endpoint 503 mapping & batch-fault observability (T5) done; verification test (T6) pending.**
 
 ---
 
@@ -229,10 +229,14 @@ NOT swallow. Keep it minimal.
       Build ONLY `Animora.Persistence.PostgreSql`. → **PUSH**
       `fix(sync): null-guard projection rows so /sync/batches never 500s (BUG 2)`
 
-- [ ] **T5 — BUG 2 fix (endpoint exception mapping).** In `SyncEndpoints.Open` map
-      `AdmissionSaturatedException` → 503+Retry-After (alongside `SnapshotLifetimeExceededException`).
-      Optional: minimal error-log-with-rethrow in `BatchFreezer.OpenAsync` for residual diagnosis.
-      Build ONLY the two affected projects. → **PUSH**
+- [x] **T5 — BUG 2 fix (endpoint exception mapping).** DONE. In `SyncEndpoints.Open`:
+      added `catch (AdmissionSaturatedException)` → 503 + `Retry-After: 1` (mirrors
+      `SnapshotLifetimeExceededException`); added a narrow `catch (Exception ex)` that logs
+      `ex.GetType().FullName` + message + stack with the correlation id (Step 2C observability)
+      and **rethrows** (GlobalExceptionMiddleware still shapes the 500) — never swallowed.
+      Note: `AdmissionSaturatedException` was already mapped to 503 globally in
+      `GlobalExceptionMiddleware.cs:41`; the local catch makes the shed explicit at the endpoint
+      (defense-in-depth) and keeps batch-build faults diagnosable. → **PUSH**
       `fix(sync): map admission saturation to 503 and log batch build faults (BUG 2)`
 
 - [ ] **T6 — BUG 2 verification test.** Focused test: tenant with journal rows →
