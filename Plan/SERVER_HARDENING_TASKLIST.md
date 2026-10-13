@@ -524,7 +524,7 @@
 - **Push**: `scripts/git/push.sh "chore(server): file-complete re-validation + document intake lease ordering (C10 IMP-08/CONS-INT-01)"`
 - **Done note**: DONE. IMP-08: `FileTypePolicy.ExtensionMatches(type, name)` (per-content-type extension allowlist; no extension tolerated). Enforced at declare AND re-validated in `FileTransferService.CompleteAsync` together with allowlist + magic-byte match, so a name/type mismatch ends in `Mismatch` + `FILE_TYPE_NOT_ALLOWED` at Complete. Periodic integrity scrub already exists in `FileReconciliationWorker` (sampled bitrot hash + blob_missing), unchanged. CONS-INT-01: doc comment at the `store.TryBeginAsync` call in `CommandIntakeService` explaining the intentional outside-transaction lease insert. Tests: `FileExtensionPolicyTests`. Not compiled locally (CI only).
 
-### [ ] C11 · IMP-11 — Consolidate the explicit regression tests (improvement)
+### [x] C11 · IMP-11 — Consolidate the explicit regression tests (improvement)
 - **Why**: The review asks for explicit tests; several were added inline in B-tasks.
   This task ensures the full set exists and passes (quick, targeted test project only — NOT a full suite run).
 - **Tests required** (add any still missing from B-tasks):
@@ -537,7 +537,7 @@
 - **Do**: Confirm/add the five tests. Run ONLY that focused test project if fast; otherwise reason + leave a note.
 - **Accept**: the five regression tests exist (and pass if run was quick).
 - **Push**: `scripts/git/push.sh "test(server): consolidate hardening regression tests (C11 IMP-11)"`
-- **Done note**: _______
+- **Done note**: DONE. Audited the test project: four of the five regression tests already exist from B-tasks — `RefreshTokenServiceTests.Reuse_StagesRotatedStamp_BeforeCommit_AndGatesResponseOnSave` (B2), `LoginServiceTests.ConcurrentFirstLogin_ConvergesOnOneDevice_NoDuplicateRows` (B3), `S08NestedRejectionTests` (B5), `RateLimiterOrderTests` in `PlaneOrderTests.cs` (B1). The missing one was added: `GlobalExceptionMiddlewareTests.PoolExhaustion_Returns503ServerBusy_WithRetryAfter` (Npgsql pool-exhausted timeout wrapped in an outer exception -> typed 503 `SERVER_BUSY` + Retry-After, no detail leak). Not run locally (CI only).
 
 ---
 
@@ -582,7 +582,7 @@
 | C8 | IMP-04 | IMP | [x] |
 | C9 | IMP-05 / IMP-06 | IMP | [x] |
 | C10 | IMP-08 / CONS-INT-01 | IMP/INFO | [x] |
-| C11 | IMP-11 | IMP | [ ] |
+| C11 | IMP-11 | IMP | [x] |
 | T-END | (cleanup) | — | [ ] |
 
 > SEC-OBS-01 and CONS-INT-01's "by design" note are INFO positives — nothing to change
