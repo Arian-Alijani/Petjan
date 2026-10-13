@@ -115,36 +115,7 @@ public partial class App : global::Avalonia.Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Startup gate: show the sign-in window first. Once credentials are
-            // accepted, swap in the main shell (resolved lazily so no page/mock
-            // is built until the user is in). The shell then owns the app
-            // lifetime and the login window is closed.
-            var login = Services.GetRequiredService<LoginWindow>();
-            if (Program.TestProfile is { } loginProfile)
-                login.Title += loginProfile.WindowSuffix;
-
-            if (login.DataContext is LoginViewModel loginViewModel)
-            {
-                loginViewModel.LoginSucceeded += async (_, _) =>
-                {
-                    Diagnostics.AppTrace.Navigate("LoginWindow", "MainWindow (shell)");
-                    var shell = Services.GetRequiredService<MainWindow>();
-                    if (Program.TestProfile is { } shellProfile)
-                        shell.Title += shellProfile.WindowSuffix;
-                    desktop.MainWindow = shell;
-                    shell.Show();
-                    login.Close();
-                    await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync();
-                    Diagnostics.AppTrace.Milestone("shell shown");
-                };
-            }
-
-            desktop.MainWindow = login;
-            Diagnostics.AppTrace.Milestone("login window set", Program.StartupTimer.Elapsed);
-
-            // Local store startup runs only after the login window is up so the first frame is never
-            // blocked (PERFORMANCE §4); the form stays disabled until it completes.
-            login.Opened += OnLoginOpened;
+            ShowLogin(desktop);
 
             // F-02: on application exit dispose the root provider so every IDisposable/IAsyncDisposable
             // singleton (FinanceProjectionWorker, MaintenanceScheduler, …) shuts down cleanly — background
@@ -166,6 +137,48 @@ public partial class App : global::Avalonia.Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void ShowLogin(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var provider = Services;
+        var login = provider.GetRequiredService<LoginWindow>();
+        if (Program.TestProfile is { } profile) login.Title += profile.WindowSuffix;
+        if (login.DataContext is LoginViewModel viewModel)
+        {
+            viewModel.LoginSucceeded += async (_, _) =>
+            {
+                try
+                {
+                    var shell = Services.GetRequiredService<MainWindow>();
+                    if (Program.TestProfile is { } shellProfile) shell.Title += shellProfile.WindowSuffix;
+                    desktop.MainWindow = shell;
+                    shell.Show();
+                    login.Close();
+                    await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync();
+                }
+                catch (Exception ex)
+                {
+                    Diagnostics.AppTrace.Error("opening shell failed", ex, "auth");
+                }
+            };
+        }
+        provider.GetRequiredService<AppSessionController>().ReturnToLoginAsync = async () =>
+        {
+            var shell = desktop.MainWindow;
+            if (shell?.DataContext is MainWindowViewModel shellViewModel)
+                shellViewModel.CurrentPage?.OnNavigatedFrom();
+            var oldProvider = Services;
+            DataTemplates.Remove(oldProvider.GetRequiredService<ViewLocator>());
+            Services = ConfigureServices();
+            DataTemplates.Add(Services.GetRequiredService<ViewLocator>());
+            ShowLogin(desktop);
+            desktop.MainWindow!.Show(); // change lifetime owner before closing the previous window
+            shell?.Close();
+            if (oldProvider is IAsyncDisposable disposable) await disposable.DisposeAsync();
+        };
+        desktop.MainWindow = login;
+        login.Opened += OnLoginOpened;
     }
 
     // async void only at the Avalonia lifecycle-event boundary; every exception is caught here.
@@ -295,6 +308,8 @@ public partial class App : global::Avalonia.Application
         // Phase 05: identity seam + navigation + shell composition.
         services.AddSingleton<ICurrentUserContext, CurrentUserContextService>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
+        services.AddSingleton<AppSessionController>();
+        services.AddSingleton<IAppSessionController>(sp => sp.GetRequiredService<AppSessionController>());
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<IDataChangeNotifier, DataChangeNotifier>();
 

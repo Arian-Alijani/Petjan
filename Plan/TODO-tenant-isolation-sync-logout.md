@@ -119,7 +119,7 @@
 
 - [x] **T0 — آماده‌سازی برنچ:** روی `genspark_ai_developer` برو (`scripts/git/push.sh -b genspark_ai_developer "chore: start tenant-isolation/sync/logout work"`). بیلد پایه را یک‌بار بگیر تا baseline سبز بودن معلوم شود (`scripts/sandbox/build.sh`). **push.**
 
-- [ ] **T3 — دکمهٔ خروج (مشکل ۳، اول چون مستقل و کم‌ریسک):**
+- [x] **T3 — دکمهٔ خروج (مشکل ۳، اول چون مستقل و کم‌ریسک):**
   - seam سطح‌shell برای logout بساز: event/سرویس در `src/Animora.Desktop/Services/` (مثلاً `IAppSessionController` با متد `RequestSignOutAsync`) و در `App.axaml.cs` به آن گوش بده تا shell بسته و `LoginWindow` دوباره نشان داده شود (قرینهٔ هندلر `LoginSucceeded`).
   - در `ProfilePageViewModel` یک `RelayCommand SignOutCommand` اضافه کن که `SignOutAsync` (+ در حالت سرور `IOnlineAuthClient.LogoutAsync`) را صدا بزند، سپس `RequestSignOutAsync`.
   - دکمه را در `ProfilePageView.axaml` (ترجیحاً تب overview/حساب کاربری) با متن فارسی «خروج از حساب کاربری» و استایل هشدار اضافه کن. RTL را از قبل App.axaml تنظیم کرده—دوباره تنظیم نکن.
@@ -153,6 +153,8 @@
   - **push:** `scripts/git/push.sh "chore(plan): remove completed tenant-isolation/sync/logout plan"`
 
 ---
+
+T3: خروج با تأیید، پاکسازی نشست محلی/آنلاین و بازسازی کامل DI برای حذف کش‌ها و صفحه‌های نشست قبلی پیاده‌سازی شد. بیلد/تست محلی اجرا نشد؛ اعتبارسنجی در T4 فقط GitHub Actions.
 
 ## 3) نکات قفل‌شده / قیود
 - بررسی فایل‌ها فقط هدفمند و بر اساس نیاز؛ کاوش بیهوده ممنوع.
