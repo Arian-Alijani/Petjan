@@ -38,6 +38,32 @@ internal sealed class ServerOptions
 
     /// <summary>File-plane upload concurrency (BUG-FILE-01).</summary>
     public FileSettings Files { get; set; } = new();
+
+    /// <summary>Background-worker throughput tuning (BUG-RECOVERY-01 / BUG-OUTBOX-01).</summary>
+    public WorkerSettings Workers { get; set; } = new();
+}
+
+/// <summary>
+/// BUG-RECOVERY-01 / BUG-OUTBOX-01: throughput knobs of the outbox relay and the intake-recovery worker.
+/// Both run on the WORKER admission gate (never the request-path sync gate), so raising these only
+/// trades background DB load for drain speed.
+/// </summary>
+internal sealed class WorkerSettings
+{
+    /// <summary>Outbox messages claimed per relay tick (1..20, store ceiling). Default 10.</summary>
+    public int OutboxClaimBatch { get; set; } = 10;
+
+    /// <summary>Concurrent outbox consumers per tick (1..8). Default 4.</summary>
+    public int OutboxConsumers { get; set; } = 4;
+
+    /// <summary>Expired intake leases recovered per tenant per tick (1..50). Default 10.</summary>
+    public int RecoveryPerTenantCap { get; set; } = 10;
+
+    /// <summary>Expired intake leases recovered across all tenants per tick (1..2000). Default 200.</summary>
+    public int RecoveryTotalCap { get; set; } = 200;
+
+    /// <summary>Tenants recovered in parallel per tick (1..16). Default 4.</summary>
+    public int RecoveryParallelism { get; set; } = 4;
 }
 
 /// <summary>BUG-FILE-01: bounds on simultaneous chunk uploads (each in-flight chunk holds up to one chunk buffer).</summary>

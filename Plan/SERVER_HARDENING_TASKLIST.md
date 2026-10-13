@@ -376,7 +376,7 @@
 - **Push**: `scripts/git/push.sh "perf(server): stream file-chunk uploads and bound concurrency (B9 BUG-FILE-01)"`
 - **Done note**: DONE. Upload chunk path no longer buffers through MemoryStream + ToArray: it reads the body into ONE right-sized byte[] (ContentLength-sized, bounded growth to MaxChunkBytes, oversize detected by a 1-byte probe). New FileUploadGate (singleton semaphore, Server:Files:MaxConcurrentUploads=16, UploadWaitSeconds=5, validated, in appsettings) bounds concurrent uploads; a full gate returns 503 SERVER_BUSY + Retry-After. FileStore.WriteChunkAsync keeps Flush(true). Not compiled locally (CI only).
 
-### [ ] B10 · BUG-RECOVERY-01 + BUG-OUTBOX-01 — Decouple recovery/outbox throughput from admission gate (MEDIUM)
+### [x] B10 · BUG-RECOVERY-01 + BUG-OUTBOX-01 — Decouple recovery/outbox throughput from admission gate (MEDIUM)
 - **Why**: `Workers/IntakeRecoveryWorker.cs:17-39` is tenant-serial, cap `remaining=50`
   expired leases TOTAL per 30s tick (≤100 rows/min globally). `Workers/OutboxRelayWorker.cs:20,26,32`
   claims at most 2 messages with 2 consumers and holds the global admission permit the
@@ -388,7 +388,7 @@
   the sync admission gate (use the WORKER gate from A1, scaled with `WorkerMax`).
 - **Accept**: recovery drains faster under backlog; outbox concurrency configurable and sync-independent.
 - **Push**: `scripts/git/push.sh "perf(server): decouple intake-recovery/outbox throughput, make configurable (B10 BUG-RECOVERY-01/BUG-OUTBOX-01)"`
-- **Done note**: _______
+- **Done note**: DONE. New `Server:Workers` options (`WorkerSettings`, validated at boot; defaults in appsettings.json): `OutboxClaimBatch` (10, <=20), `OutboxConsumers` (4), `RecoveryPerTenantCap` (10), `RecoveryTotalCap` (200 per tick, was 50 total), `RecoveryParallelism` (4). `IntakeRecoveryWorker` now caps recovery PER TENANT (no starvation by one deep backlog), processes tenants with bounded `Parallel.ForEachAsync`, takes the WORKER gate only per tenant unit, and isolates per-tenant failures. `OutboxRelayWorker` claim size/consumer count come from options, and the worker-gate permit is released right after the claim (delivery no longer holds it); validator enforces `ceil(batch/consumers) * 10 s` stays inside the 60 s claim lease. Both stay on `IBackgroundAdmission` (A1 worker gate), independent of `ISyncAdmission`. Not compiled locally (CI only).
 
 ---
 
@@ -571,7 +571,7 @@
 | B7 | BUG-CORR-01 | MEDIUM | [x] |
 | B8 | BUG-BATCH-01 | MEDIUM | [x] |
 | B9 | BUG-FILE-01 | MEDIUM | [x] |
-| B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [ ] |
+| B10 | BUG-RECOVERY-01 / BUG-OUTBOX-01 | MEDIUM | [x] |
 | C1 | CONS-GATE-01 | MEDIUM | [ ] |
 | C2 | BUG-OPLOCK-01 | LOW | [ ] |
 | C3 | BUG-BURN-01 | LOW | [ ] |

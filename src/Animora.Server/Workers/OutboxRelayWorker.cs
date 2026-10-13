@@ -1,7 +1,9 @@
 using Animora.Domain.Results;
 using Animora.Persistence.PostgreSql.Outbox;
 using Animora.Persistence.PostgreSql.Replication;
+using Animora.Server.Hosting;
 using Animora.Server.Resilience;
+using Microsoft.Extensions.Options;
 namespace Animora.Server.Workers;
 
 internal sealed class OutboxRelayWorker : ResilientWorker
@@ -10,26 +12,32 @@ internal sealed class OutboxRelayWorker : ResilientWorker
     private readonly IBackgroundAdmission _admission;
     private readonly CircuitBreaker _breaker;
     private readonly OutboundTimeout _timeout;
+    private readonly WorkerSettings _settings;
+    // BUG-OUTBOX-01: claim size and consumer count are options-driven (Server:Workers). The relay runs on the WORKER
+    // admission gate only (never the request-path sync gate) and holds it just for the claim, not for delivery.
     public OutboxRelayWorker(IServiceScopeFactory scopes, IBackgroundAdmission admission, CircuitBreaker breaker,
-        OutboundTimeout timeout, TimeProvider clock, WorkerHeartbeat heartbeat, ILogger<OutboxRelayWorker> logger)
+        OutboundTimeout timeout, IOptions<ServerOptions> options, TimeProvider clock, WorkerHeartbeat heartbeat, ILogger<OutboxRelayWorker> logger)
         : base("outbox-relay", TimeSpan.FromSeconds(1), clock, heartbeat, logger)
-    { _scopes = scopes; _admission = admission; _breaker = breaker; _timeout = timeout; }
+    { _scopes = scopes; _admission = admission; _breaker = breaker; _timeout = timeout; _settings = options.Value.Workers; }
 
     protected override async Task TickAsync(CancellationToken ct)
     {
-        await using var admission = await _admission.EnterAsync(ct).ConfigureAwait(false);
         IReadOnlyList<OutboxMessage> messages;
+        // The permit covers only the claim query; delivery runs after release so a slow consumer never
+        // pins the worker gate (and never the sync gate, which is a distinct semaphore).
+        await using (var admission = await _admission.EnterAsync(ct).ConfigureAwait(false))
         await using (var scope = _scopes.CreateAsyncScope())
-            // Two in-flight claims bound the total delivery time below the 60-second lease,
-            // while honoring the required <=20 claim ceiling and two-consumer bulkhead.
+            // The validator guarantees ceil(batch / consumers) * delivery timeout stays below the 60-second
+            // claim lease, so claimed rows cannot expire before they are delivered.
             messages = await scope.ServiceProvider.GetRequiredService<OutboxClaimStore>()
-                .ClaimAsync(Clock.GetUtcNow(), BoundedWorkerQueue<OutboxMessage>.MaxConcurrentConsumers, ct).ConfigureAwait(false);
+                .ClaimAsync(Clock.GetUtcNow(), _settings.OutboxClaimBatch, ct).ConfigureAwait(false);
+        // A full batch means a backlog: re-tick immediately-ish; an empty claim backs off exponentially to 15 s.
         Period = messages.Count == 0 ? TimeSpan.FromSeconds(Math.Min(15, Period.TotalSeconds * 2)) : TimeSpan.FromSeconds(1);
         if (messages.Count == 0) return;
         var queue = new BoundedWorkerQueue<OutboxMessage>();
         foreach (var message in messages) await queue.WriteAsync(message, ct).ConfigureAwait(false);
         queue.Complete();
-        await Task.WhenAll(Enumerable.Range(0, BoundedWorkerQueue<OutboxMessage>.MaxConcurrentConsumers)
+        await Task.WhenAll(Enumerable.Range(0, _settings.OutboxConsumers)
             .Select(_ => Consume(queue, ct))).ConfigureAwait(false);
     }
     private async Task Consume(BoundedWorkerQueue<OutboxMessage> queue, CancellationToken ct)

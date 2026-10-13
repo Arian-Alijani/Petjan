@@ -9,6 +9,8 @@ namespace Animora.Server.Hosting;
 /// </summary>
 internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
 {
+    private static readonly int OutboundTimeoutSeconds = (int)Animora.Server.Resilience.OutboundTimeout.Default.TotalSeconds;
+
     public ValidateOptionsResult Validate(string? name, ServerOptions options)
     {
         var failures = new List<string>();
@@ -85,6 +87,23 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
         {
             failures.Add($"'{ServerOptions.SectionName}:Files:UploadWaitSeconds' must be between 1 and 60.");
         }
+
+        var w = options.Workers;
+        if (w.OutboxClaimBatch is < 1 or > 20)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxClaimBatch' must be between 1 and 20.");
+        if (w.OutboxConsumers is < 1 or > 8)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxConsumers' must be between 1 and 8.");
+        // Each delivery is bounded by OutboundTimeout.Default (10 s); every consumer drains
+        // ceil(batch / consumers) messages sequentially, which must stay inside the 60 s claim lease.
+        else if (w.OutboxClaimBatch is >= 1 and <= 20 &&
+                 (int)Math.Ceiling(w.OutboxClaimBatch / (double)w.OutboxConsumers) * OutboundTimeoutSeconds > 50)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxClaimBatch' is too large for OutboxConsumers: worst-case delivery time would exceed the outbox claim lease.");
+        if (w.RecoveryPerTenantCap is < 1 or > 50)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:RecoveryPerTenantCap' must be between 1 and 50.");
+        if (w.RecoveryTotalCap is < 1 or > 2000)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:RecoveryTotalCap' must be between 1 and 2000.");
+        if (w.RecoveryParallelism is < 1 or > 16)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:RecoveryParallelism' must be between 1 and 16.");
 
         return failures.Count == 0
             ? ValidateOptionsResult.Success
