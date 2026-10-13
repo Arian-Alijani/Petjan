@@ -61,8 +61,22 @@ public sealed class RecordProjector
                     yield return new(d.Name, id, 'D', null, null, true, null);
                     continue;
                 }
-                yield return new(d.Name, id, 'U', version, updatedAt.GetDateTimeOffset(),
-                    deleted.GetBoolean(), Project(d.Name, row));
+                // Fault-isolate the per-row projection: a single row whose field shape is unexpectedly off
+                // (schema drift, an unparseable UpdatedAt timestamp, a money/quantity column we failed to
+                // anticipate) must degrade to a tombstone — never bubble out and 500 the whole /sync/batches
+                // build. A yield cannot live inside a try/catch, so build the record under the guard here and
+                // yield it afterwards. The client converges by dropping any stale copy; the feed stays live.
+                SyncRecord record;
+                try
+                {
+                    record = new(d.Name, id, 'U', version, updatedAt.GetDateTimeOffset(),
+                        deleted.GetBoolean(), Project(d.Name, row));
+                }
+                catch
+                {
+                    record = new(d.Name, id, 'D', null, null, true, null);
+                }
+                yield return record;
             }
         }
     }
@@ -93,9 +107,19 @@ public sealed class RecordProjector
             var name = property.Name;
             if (row.TryGetProperty(name, out var value)) allowed[name] = Clean(value);
             else if (row.TryGetProperty(name + "Minor", out var minor))
-                allowed[name] = new { minor = minor.GetInt64(), currency = row.GetProperty(name + "Currency").GetString() };
+            {
+                // Optional money value object: only emit when BOTH the amount is a real number AND the
+                // currency column is a non-null string. A null/absent amount or currency means the VO is
+                // unset — omit the field (client treats it as null). Never GetInt64() a JSON null nor
+                // GetProperty() a missing currency column (both threw a raw 500 before).
+                if (TryInt64(minor, out var m) && TryString(row, name + "Currency", out var currency))
+                    allowed[name] = new { minor = m, currency };
+            }
             else if (row.TryGetProperty(name + "Scaled", out var scaled))
-                allowed[name] = new { value = scaled.GetInt64() / 1000m, unitCode = row.GetProperty(name + "Unit").GetString() };
+            {
+                if (TryInt64(scaled, out var s) && TryString(row, name + "Unit", out var unitCode))
+                    allowed[name] = new { value = s / 1000m, unitCode };
+            }
             else if (name == "Vitals")
                 allowed[name] = new { weightKg = row.TryGetProperty("Vitals_WeightKg", out var w) ? Clean(w) : null,
                     temperatureC = row.TryGetProperty("Vitals_TemperatureC", out var t) ? Clean(t) : null };
@@ -103,10 +127,31 @@ public sealed class RecordProjector
         return JsonSerializer.SerializeToElement(allowed, SyncSerializerV2.Options);
     }
 
+    /// <summary>True only for a real JSON number that fits an <see cref="long"/>; never throws on null/strings.</summary>
+    private static bool TryInt64(JsonElement element, out long value)
+    {
+        value = 0;
+        return element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out value);
+    }
+
+    /// <summary>True only when <paramref name="property"/> is present and a non-null JSON string; never throws.</summary>
+    private static bool TryString(JsonElement row, string property, out string value)
+    {
+        value = string.Empty;
+        if (!row.TryGetProperty(property, out var element) || element.ValueKind != JsonValueKind.String)
+            return false;
+        value = element.GetString()!;
+        return true;
+    }
+
     private static object? Clean(JsonElement value) => value.ValueKind switch
     {
+        // GroupBy+Last (not ToDictionary) so two members that camelCase to the same key never throw an
+        // ArgumentException that would fault the whole batch build; the last value wins deterministically.
         JsonValueKind.Object => value.EnumerateObject().Where(x => x.Name != "TenantId" && x.Name != "tenantId")
-            .OrderBy(x => x.Name, StringComparer.Ordinal).ToDictionary(x => JsonNamingPolicy.CamelCase.ConvertName(x.Name), x => Clean(x.Value)),
+            .OrderBy(x => x.Name, StringComparer.Ordinal)
+            .GroupBy(x => JsonNamingPolicy.CamelCase.ConvertName(x.Name))
+            .ToDictionary(g => g.Key, g => Clean(g.Last().Value)),
         JsonValueKind.Array => value.EnumerateArray().Select(Clean).ToArray(),
         JsonValueKind.Null => null,
         _ => value.Clone(),
