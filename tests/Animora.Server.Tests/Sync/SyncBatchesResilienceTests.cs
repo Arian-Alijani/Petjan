@@ -34,6 +34,28 @@ public sealed class SyncBatchesResilienceTests(PgFixture pg) : IClassFixture<PgF
     }
 
     [PgFact]
+    public async Task TenantWithMoneyAndQuantityRows_OpenBatch_ReturnsBatchReady_NotFault()
+    {
+        await using var rig = new SyncPgRig(pg.ConnectionString);
+        await rig.Initialize();
+        await rig.SeedProduct(); // money + quantity value objects — the shape that used to 500
+
+        // {epoch:1, fromSequence:0} — the exact request from the client LIVE TRACE.
+        var result = await rig.Freezer.OpenAsync(new(1, 0), false, CancellationToken.None);
+
+        Assert.Equal("BatchReady", result.Kind);
+        Assert.NotNull(result.Batch);
+
+        // The hardened projector must MATERIALIZE the Product (not drop it to a tombstone): its money and
+        // quantity value objects project without throwing, proving /sync/batches no longer 500s on them.
+        var records = await rig.Download(result.Batch!);
+        var product = Assert.Single(records, r => r.Entity == "Product");
+        Assert.Equal('U', product.Op);
+        Assert.False(product.Deleted);
+        Assert.NotNull(product.Payload);
+    }
+
+    [PgFact]
     public async Task CursorAtWatermark_OpenBatch_ReturnsUpToDate_NotFault()
     {
         await using var rig = new SyncPgRig(pg.ConnectionString);

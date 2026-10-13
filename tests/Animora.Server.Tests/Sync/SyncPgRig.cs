@@ -33,6 +33,27 @@ internal sealed class SyncPgRig : IAsyncDisposable
         await using var db = Factory.Create(); await db.Database.MigrateAsync();
         await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO public.\"Tenants\" (\"Id\",\"TenantId\",\"DisplayName\",\"Timezone\",\"DefaultCurrency\",\"Status\",\"UpdatedAt\") VALUES ({Tenant},{Tenant},'Clinic','Asia/Tehran','IRT',0,now())");
     }
+    /// <summary>
+    /// Seeds one <c>Products</c> row carrying money (<c>DefaultCostPrice</c>/<c>DefaultSalePrice</c>) and
+    /// quantity (<c>ReorderLevel</c>) value objects — the exact projection shape that used to throw a raw
+    /// 500 UNEXPECTED on <c>/sync/batches</c>. The Products insert is journaled by the capture trigger, so
+    /// an incremental open from sequence 0 must project (not drop) it. CategoryId has no FK, so no category
+    /// row is required; Version/Deleted use their DB defaults.
+    /// </summary>
+    public async Task SeedProduct()
+    {
+        await using var db = Factory.Create();
+        var product = IdGenerator.NewId(DateTimeOffset.UtcNow);
+        await db.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO public.""Products""
+            (""Id"",""TenantId"",""UpdatedAt"",""Sku"",""Name"",""CategoryId"",""Kind"",""UnitCode"",
+             ""IsPrescriptionOnly"",""IsActive"",""TrackStock"",
+             ""ReorderLevelScaled"",""ReorderLevelUnit"",
+             ""DefaultCostPriceMinor"",""DefaultCostPriceCurrency"",
+             ""DefaultSalePriceMinor"",""DefaultSalePriceCurrency"")
+            VALUES ({product},{Tenant},now(),'SKU1','Kibble','cat-1',0,'unit',false,true,true,
+             5000,'unit',12345,'IRT',20000,'IRT')");
+    }
+
     public async Task<List<SyncRecord>> Download(BatchReady batch)
     {
         var records = new List<SyncRecord>(); var reader = new FeedPageReader(Factory, Writer);
