@@ -310,7 +310,7 @@
 - **Push**: `scripts/git/push.sh "fix(server): two-key advisory lock to avoid cross-domain collisions (B4 SEC-ADV-01)"`
 - **Done note**: DONE. Added IIdentityRepository.AddDeviceIdempotentAsync (EfIdentityRepository: insert+SaveChanges; on unique violation 23505 on the existing unique (tenant,user,installation) index it detaches the candidate and converges on the winner's row; otherwise typed ConcurrencyConflict, never a 500). LoginService device auto-register now uses it (loser adopts winner, deviceIsNew only for the inserting call, revoked winner is refused). Index confirmed in DeviceConfiguration (TenantIndex(InstallationIdHash, UserId).IsUnique()). Fake repo gained the method + OnBeforeAddDevice hook; new test ConcurrentFirstLogin_ConvergesOnOneDevice_NoDuplicateRows. Not compiled locally (CI only).
 
-### [ ] B5 · BUG-UOW-01 — Do not release savepoint on the rollback path (MEDIUM/verify)
+### [x] B5 · BUG-UOW-01 — Do not release savepoint on the rollback path (MEDIUM/verify)
 - **Why**: `Commands/CommandPlaneUnitOfWork.cs:42-48` on nested failure does
   `RollbackToSavepointAsync(savepoint)` then UNCONDITIONALLY `ReleaseSavepointAsync`.
   Post-rollback release is redundant and, if the driver treats it inconsistently, can
@@ -336,7 +336,7 @@
   signing does no DB read and no repeated unprotect.
 - **Accept**: concurrent cold-start yields one active key; steady-state signing hits no DB/unprotect.
 - **Push**: `scripts/git/push.sh "fix(server): guard signing-key creation and cache active signer (B6 BUG-SIGN-01)"`
-- **Done note**: _______
+- **Done note**: DONE. CommandPlaneUnitOfWork nested path: on a failed nested Result it now RollbackToSavepoint + ChangeTracker.Clear and returns immediately; ReleaseSavepointAsync runs only on the success branch (the exception path already rolled back without release). New PG test S08NestedRejectionTests proves a nested rejection discards only its own effect while the outer transaction still commits the later write (settlement receipt). Not compiled locally (CI only).
 
 ### [ ] B7 · BUG-CORR-01 — Memoize correlation id in `HttpContext.Items` (MEDIUM)
 - **Why**: `Hosting/CorrelationHeader.cs:24-40` `Resolve` mints a FRESH ULID each call
@@ -566,7 +566,7 @@
 | B2 | SEC-STAMP-01 | MEDIUM | [x] |
 | B3 | SEC-ENUM-01 | MEDIUM | [x] |
 | B4 | SEC-ADV-01 | MEDIUM | [x] |
-| B5 | BUG-UOW-01 | MEDIUM | [ ] |
+| B5 | BUG-UOW-01 | MEDIUM | [x] |
 | B6 | BUG-SIGN-01 | MEDIUM | [ ] |
 | B7 | BUG-CORR-01 | MEDIUM | [ ] |
 | B8 | BUG-BATCH-01 | MEDIUM | [ ] |

@@ -41,9 +41,14 @@ internal sealed class CommandPlaneUnitOfWork(ServerUnitOfWork inner, AnimoraServ
             Result<T> result = await work(ct).ConfigureAwait(false);
             if (result.IsFailure)
             {
+                // Rejection path: roll back and stop. The savepoint is deliberately NOT released afterwards — a
+                // post-rollback release is redundant and, were the driver to treat it inconsistently, would turn a
+                // clean domain rejection into a transaction-aborting exception. Release is for the success path only.
                 await transaction.RollbackToSavepointAsync(savepoint, ct).ConfigureAwait(false);
                 context.ChangeTracker.Clear();
+                return result;
             }
+
             await transaction.ReleaseSavepointAsync(savepoint, ct).ConfigureAwait(false);
             return result;
         }

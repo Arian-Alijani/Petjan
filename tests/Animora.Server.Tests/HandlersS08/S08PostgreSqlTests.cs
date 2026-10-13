@@ -45,6 +45,43 @@ public sealed class S08EndToEndTests(PgFixture pg) : IClassFixture<PgFixture>
         Assert.Null(await b.Db.Set<Room>().AsNoTracking().SingleOrDefaultAsync(r => r.Id == ra.Value.ServerEntityId));
     }
 }
+public sealed class S08NestedRejectionTests(PgFixture pg) : IClassFixture<PgFixture>
+{
+    [PgFact]
+    public async Task NestedRejection_RollsBackToSavepoint_AndOuterTransactionStillCommits()
+    {
+        await using var h = new PgCommandHarness(pg.ConnectionString);
+        await h.Db.MigrateAndSeedAsync(h.Intake.TenantId);
+        var tenant = new FixedTenantContext(h.Intake.TenantId);
+        var uow = new Animora.Server.Commands.CommandPlaneUnitOfWork(
+            new Animora.Persistence.PostgreSql.Transactions.ServerUnitOfWork(
+                h.Db, new Animora.Persistence.PostgreSql.Transactions.ServerTransactionRunner(h.Db, tenant, new Animora.Persistence.PostgreSql.Tenancy.NoopTenantSessionInitializer())),
+            h.Db);
+        var rejectedOwner = Owner.Register(h.Intake.TenantId, "Rejected", "09120000001", h.Intake.Clock);
+        var settledOwner = Owner.Register(h.Intake.TenantId, "Settled", "09120000002", h.Intake.Clock);
+
+        var outer = await uow.ExecuteAsync<bool>(async ct =>
+        {
+            // A handler effect staged and saved, then rejected: only its savepoint is rolled back.
+            var nested = await uow.ExecuteAsync<int>(async c =>
+            {
+                h.Db.Add(rejectedOwner);
+                await h.Db.SaveChangesAsync(c);
+                return Result<int>.Fail(ErrorCodes.DependencyRejected);
+            }, ct);
+            Assert.True(nested.IsFailure);
+
+            // The settlement receipt written by the OUTER transaction after the rejection must still commit.
+            h.Db.Add(settledOwner);
+            await h.Db.SaveChangesAsync(ct);
+            return Result<bool>.Ok(true);
+        });
+
+        Assert.True(outer.IsSuccess);
+        Assert.Null(await h.Db.Set<Owner>().AsNoTracking().SingleOrDefaultAsync(o => o.Id == rejectedOwner.Id));
+        Assert.NotNull(await h.Db.Set<Owner>().AsNoTracking().SingleOrDefaultAsync(o => o.Id == settledOwner.Id));
+    }
+}
 public sealed class S08ConcurrencyTests(PgFixture pg) : IClassFixture<PgFixture>
 {
     [PgFact]
