@@ -462,7 +462,7 @@
 - **Push**: `scripts/git/push.sh "sec(server): confirm TLS/forwarded-proto contract, document OpenAPI gating (C5 SEC-HSTS-01/SEC-OPENAPI-01)"`
 - **Done note**: DONE. TLS contract made explicit + enforced: new `Server:Tls` (`Termination` = `App` default | `Proxy`, `PublicHttpsPort` default 443). In `Proxy` mode the validator FAILS BOOT unless `Server:ForwardedHeaders` is enabled with an allowlist (A2), because the scheme must come from the trusted `X-Forwarded-Proto` - otherwise every request looks like HTTP and `UseHttpsRedirection` loops; the redirect target port is set from `PublicHttpsPort` via `HttpsRedirectionOptions`. Forwarded headers already run BEFORE HSTS/redirect (A2), so a request the proxy received over HTTPS is not redirected again. Who enforces TLS is documented in `ServerOptions` XML docs + the Program.cs pipeline comment: main API = app redirect+HSTS (non-Development); admin = additionally HTTP 400 via `AdminSecurityHeadersMiddleware` (`RequireHttps`). OpenAPI: default stays OFF; `ServerOptions.EnableOpenApi` XML doc documents the anonymous-schema disclosure risk (restrict to a management network), and the host now logs a startup WARNING whenever it is exposed outside Development. Gating behind operator auth was NOT done (optional; network ACL is the documented control). Tests: `Hosting/TlsContractTests`. Not compiled locally (CI only).
 
-### [ ] C6 · SCALE-N1-01 — Batch-load role definitions in staff directory (MEDIUM)
+### [x] C6 · SCALE-N1-01 — Batch-load role definitions in staff directory (MEDIUM)
 - **Why**: `Auth/StaffProvisioningService.cs:249-257` loops every `StaffRole` enum value
   calling `FindByRoleAsync` each (one query per role), then per-member effective-permission
   assembly (`:260-278`). Runs on the write context.
@@ -471,7 +471,7 @@
   keep member assembly in memory. (Pair with A4's read-pool routing where applicable.)
 - **Accept**: role definitions loaded in one query; N+1 removed.
 - **Push**: `scripts/git/push.sh "perf(server): batch-load role definitions in staff directory (C6 SCALE-N1-01)"`
-- **Done note**: _______
+- **Done note**: DONE. `IRoleDefinitionRepository` gained a default-interface `ListByTenantAsync(tenantId)` (falls back to per-role `FindByRoleAsync`, so the Sqlite/test implementers are unchanged). `ServerRoleDefinitionRepository` overrides it with ONE set-based `AsNoTracking` query for the tenant's whole role catalogue. `StaffProvisioningService.ListAsync` now builds `definitions` from that single call; effective-permission assembly per member stays in memory (roster was already one `ListStaffAsync` query). Result: role definitions N+1 (one query per `StaffRole`) -> 1 query. The directory read remains on the request-scoped `AnimoraServerDbContext` (its tenant filter is what scopes the query; moving it to the read pool would need a tenant-filtered read context - tracked under C7/C9 pool work). Tests: `Authorization/RoleCatalogueBatchTests`. Not compiled locally (CI only).
 
 ### [ ] C7 · IMP-01 + IMP-09 — Scale pool sizes with profile + externalize magic numbers (improvement)
 - **Why**: `appsettings.json` `OltpWriteMax=6 / OltpReadMax=3 / WorkerMax=2` is low for a
@@ -577,7 +577,7 @@
 | C3 | BUG-BURN-01 | LOW | [x] |
 | C4 | BUG-HEALTH-01 / IMP-10 | LOW | [x] |
 | C5 | SEC-HSTS-01 / SEC-OPENAPI-01 | MEDIUM/LOW | [x] |
-| C6 | SCALE-N1-01 | MEDIUM | [ ] |
+| C6 | SCALE-N1-01 | MEDIUM | [x] |
 | C7 | IMP-01 / IMP-09 | IMP | [ ] |
 | C8 | IMP-04 | IMP | [ ] |
 | C9 | IMP-05 / IMP-06 | IMP | [ ] |

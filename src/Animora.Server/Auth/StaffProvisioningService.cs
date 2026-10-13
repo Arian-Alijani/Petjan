@@ -251,14 +251,11 @@ internal sealed class StaffProvisioningService(
                 .ToArray()
             : [];
 
+        // SCALE-N1-01: one query for all role definitions; member assembly below is purely in-memory.
         var definitions = new Dictionary<StaffRole, string[]>();
-        foreach (StaffRole role in Enum.GetValues<StaffRole>())
+        foreach ((StaffRole role, RoleDefinition stored) in await roles.ListByTenantAsync(actor.TenantId, ct).ConfigureAwait(false))
         {
-            RoleDefinition? stored = await roles.FindByRoleAsync(actor.TenantId, role, ct).ConfigureAwait(false);
-            if (stored is not null)
-            {
-                definitions[role] = stored.PermissionCodes.Order(StringComparer.Ordinal).ToArray();
-            }
+            definitions[role] = stored.PermissionCodes.Order(StringComparer.Ordinal).ToArray();
         }
 
         var members = new List<StaffAccountWire>();
