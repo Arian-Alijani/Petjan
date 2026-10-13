@@ -274,7 +274,7 @@ NOT swallow. Keep it minimal.
       was merged (no-ff) from it and `ci/sandbox` fast-forwarded to it. Final re-sync of all branches
       happens after T9 so they all carry the completed BUG1/BUG2 work.
 
-- [ ] **T9 — FINAL (last task): delete this plan file only.**
+- [x] **T9 — FINAL (last task): delete this plan file only.** DONE.
       `rm Plan/sync-fix-plan.md` (do NOT touch any other file, roadmap, or `.gitkeep`).
       → **PUSH** `chore(plan): remove completed sync-fix plan`
 
