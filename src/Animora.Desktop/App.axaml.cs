@@ -64,6 +64,11 @@ using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Animora.Infrastructure.Local;
 using Animora.Infrastructure.Local.Startup;
+using Animora.Infrastructure.Local.Storage;
+using Animora.Infrastructure.Local.Security;
+using Animora.Persistence.Sqlite.Options;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Animora.Infrastructure.Local.Workers;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Sync.Abstractions;
@@ -103,7 +108,7 @@ public partial class App : global::Avalonia.Application
         exceptionHandler.RegisterProcessHooks();
         Dispatcher.UIThread.UnhandledException += (_, args) =>
         {
-            args.Handled = exceptionHandler.HandleUiException(args.Exception);
+            args.Handled = Services.GetRequiredService<GlobalExceptionHandler>().HandleUiException(args.Exception);
         };
 
         // Convention-based ViewModel → View resolution is a single app-wide
@@ -163,7 +168,14 @@ public partial class App : global::Avalonia.Application
                 }
             };
         }
-        provider.GetRequiredService<AppSessionController>().ReturnToLoginAsync = async () =>
+        ConfigureLogout(desktop);
+        desktop.MainWindow = login;
+        login.Opened += OnLoginOpened;
+    }
+
+    private void ConfigureLogout(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        Services.GetRequiredService<AppSessionController>().ReturnToLoginAsync = async () =>
         {
             var shell = desktop.MainWindow;
             if (shell?.DataContext is MainWindowViewModel shellViewModel)
@@ -177,8 +189,25 @@ public partial class App : global::Avalonia.Application
             shell?.Close();
             if (oldProvider is IAsyncDisposable disposable) await disposable.DisposeAsync();
         };
-        desktop.MainWindow = login;
-        login.Opened += OnLoginOpened;
+    }
+
+    private async Task ActivateTenantAsync(IServiceProvider candidate)
+    {
+        var previous = Services;
+        DataTemplates.Remove(previous.GetRequiredService<ViewLocator>());
+        Services = candidate;
+        DataTemplates.Add(candidate.GetRequiredService<ViewLocator>());
+        candidate.GetRequiredService<GlobalExceptionHandler>().RegisterProcessHooks();
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) ConfigureLogout(desktop);
+        StartStoreWorkers(candidate);
+        if (previous is IAsyncDisposable disposable) await disposable.DisposeAsync();
+    }
+
+    private static void StartStoreWorkers(IServiceProvider provider)
+    {
+        provider.GetRequiredService<FinanceProjectionWorker>().Start();
+        provider.GetRequiredService<MaintenanceScheduler>().Start();
+        provider.GetRequiredService<SyncSchedulerHostedService>().Start();
     }
 
     // async void only at the Avalonia lifecycle-event boundary; every exception is caught here.
@@ -199,10 +228,12 @@ public partial class App : global::Avalonia.Application
 
         try
         {
-            var ready = await InitializeLocalStoreAsync();
+            // Online auth persists session/mirrors: prepare only the selected tenant on sign-in,
+            // never open the historical shared database or run workers before tenant selection.
+            var online = viewModel.RequiresClinicCode;
+            var ready = online || await InitializeLocalStoreAsync(Services, CancellationToken.None);
             Diagnostics.AppTrace.Milestone($"local store ready={ready}", Program.StartupTimer.Elapsed);
-            Services.GetRequiredService<MaintenanceScheduler>().Start();
-            Services.GetRequiredService<SyncSchedulerHostedService>().Start(); // dormant unless a server is configured
+            if (!online) StartStoreWorkers(Services);
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
         }
         catch (Exception ex)
@@ -220,26 +251,25 @@ public partial class App : global::Avalonia.Application
         }
     }
 
-    private static async Task<bool> InitializeLocalStoreAsync()
+    private static async Task<bool> InitializeLocalStoreAsync(IServiceProvider provider, CancellationToken ct)
     {
         try
         {
             // ILocalStoreInitializer is scoped: keep the scope alive for the whole await. Run off the UI thread.
             return await Task.Run(async () =>
             {
-                await using var scope = Services.CreateAsyncScope();
+                await using var scope = provider.CreateAsyncScope();
                 var initializer = scope.ServiceProvider.GetRequiredService<ILocalStoreInitializer>();
-                var result = await initializer.InitializeAsync(CancellationToken.None).ConfigureAwait(false);
+                var result = await initializer.InitializeAsync(ct).ConfigureAwait(false);
                 if (result.IsFailure) return false;
 
                 // C01: the 8-step startup succeeded — release any ViewModel awaiting the readiness gate.
-                Services.GetRequiredService<StoreReadinessGate>().MarkReady();
-                Services.GetRequiredService<FinanceProjectionWorker>().Start();
+                provider.GetRequiredService<StoreReadinessGate>().MarkReady();
 
-                var handler = Services.GetRequiredService<GlobalExceptionHandler>();
+                var handler = provider.GetRequiredService<GlobalExceptionHandler>();
                 handler.Diagnostics = result.Value;
-                var recovery = await Services.GetRequiredService<CrashRecoveryService>()
-                    .RecoverIfRequiredAsync(CancellationToken.None).ConfigureAwait(false);
+                var recovery = await provider.GetRequiredService<CrashRecoveryService>()
+                    .RecoverIfRequiredAsync(ct).ConfigureAwait(false);
                 return recovery.IsSuccess;
             }).ConfigureAwait(false);
         }
@@ -249,10 +279,20 @@ public partial class App : global::Avalonia.Application
         }
     }
 
-    private static IServiceProvider ConfigureServices()
+    private IServiceProvider ConfigureServices(ActiveTenantStore? tenantStore = null)
     {
         var services = new ServiceCollection();
-        ConfigureServices(services, Program.TestProfile);
+        ConfigureServices(services, Program.TestProfile, tenantStore);
+        if (tenantStore is null && IsServerConfigured() && Program.TestProfile?.ClinicBakPreviewPath is null)
+        {
+            var options = new LocalStoreOptions();
+            Program.TestProfile?.ConfigureStore(options);
+            var endpoint = new ServerEndpointOptions();
+            ConfigureServerEndpoint(endpoint);
+            services.AddSingleton<ITenantLoginWorkspace>(_ => new TenantLoginWorkspace(
+                code => ConfigureServices(new ActiveTenantStore(options.DataDirectory, endpoint.BaseAddress!, code)),
+                InitializeLocalStoreAsync, ActivateTenantAsync));
+        }
         return services.BuildServiceProvider();
     }
 
@@ -260,7 +300,10 @@ public partial class App : global::Avalonia.Application
     public static void ConfigureServices(IServiceCollection services) => ConfigureServices(services, null);
 
     /// <summary>Explicit test profile override; a null profile preserves the normal composition.</summary>
-    public static void ConfigureServices(IServiceCollection services, LocalTestProfile? testProfile)
+    public static void ConfigureServices(IServiceCollection services, LocalTestProfile? testProfile) =>
+        ConfigureServices(services, testProfile, null);
+
+    public static void ConfigureServices(IServiceCollection services, LocalTestProfile? testProfile, ActiveTenantStore? tenantStore)
     {
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
         services.AddAnimoraLocalInfrastructure(testProfile is null ? null : testProfile.ConfigureStore);
@@ -272,6 +315,13 @@ public partial class App : global::Avalonia.Application
                 testProfile.CreateSecretStore(
                     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Animora.Persistence.Sqlite.Options.LocalStoreOptions>>(),
                     sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Animora.Infrastructure.Local.Security.FileFallbackSecretStore>>()));
+        }
+        if (tenantStore is not null)
+        {
+            services.AddSingleton(tenantStore);
+            services.Configure<LocalStoreOptions>(tenantStore.ConfigureStore);
+            services.AddSingleton<ISecretStore>(sp => tenantStore.CreateSecretStore(
+                sp.GetRequiredService<IOptions<LocalStoreOptions>>(), sp.GetRequiredService<ILogger<FileFallbackSecretStore>>()));
         }
         services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddHistoryUseCases().AddDashboardUseCases().AddFinanceUseCases().AddChequeUseCases().AddSearchUseCases().AddProfileUseCases());
 
@@ -436,7 +486,11 @@ public partial class App : global::Avalonia.Application
         // is read from the ANIMORA_SERVER_URL environment variable so the same build can target any
         // server; the publish/build script bakes the production default (http://188.212.99.234:5000).
         // A blank/invalid value leaves the engine offline-only (unchanged behavior) — see ServerEndpointOptions.
-        services.AddAnimoraHttpSyncEngine(ConfigureServerEndpoint);
+        services.AddAnimoraHttpSyncEngine(options =>
+        {
+            // The explicit legacy-backup preview is intentionally offline-only.
+            if (testProfile?.ClinicBakPreviewPath is null) ConfigureServerEndpoint(options);
+        });
         services.AddAnimoraSyncOrchestration();
         services.AddAnimoraOnlineIdentity(); // G06: online auth/entitlement/device — no-op unless the server endpoint is configured
         services.AddSingleton<LocalSyncStatusService>();
@@ -502,10 +556,17 @@ public partial class App : global::Avalonia.Application
     /// desktop offline-only (the HTTP sync engine is not wired). Any explicit timeout override can be
     /// supplied through <c>ANIMORA_SERVER_TIMEOUT_SECONDS</c>.
     /// </summary>
+    private static bool IsServerConfigured()
+    {
+        var options = new ServerEndpointOptions();
+        ConfigureServerEndpoint(options);
+        return options.IsConfigured;
+    }
+
     private static void ConfigureServerEndpoint(ServerEndpointOptions options)
     {
         var fromEnv = Environment.GetEnvironmentVariable("ANIMORA_SERVER_URL");
-        var baseAddress = !string.IsNullOrWhiteSpace(fromEnv) ? fromEnv.Trim() : DefaultServerBaseAddress;
+        var baseAddress = fromEnv is not null ? fromEnv.Trim() : DefaultServerBaseAddress;
         if (!string.IsNullOrWhiteSpace(baseAddress))
             options.BaseAddress = baseAddress.Trim();
 

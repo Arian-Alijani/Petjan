@@ -17,20 +17,21 @@ namespace Animora.Desktop.Pages.Login;
 /// </summary>
 public sealed partial class LoginViewModel : ObservableObject
 {
-    private readonly IAuthenticationService _authentication;
+    private IAuthenticationService _authentication;
     private readonly IDialogService _dialogs;
     private readonly Func<FirstRunViewModel> _firstRunFactory;
     private FirstRunViewModel? _firstRun;
     private readonly LocalTestProfile? _localProfile;
     private readonly IServerConnectivityService? _connectivity;
-    private readonly IOnlineAuthClient? _onlineAuth;
+    private IOnlineAuthClient? _onlineAuth;
+    private readonly ITenantLoginWorkspace? _tenantWorkspace;
     private readonly ServerEndpointOptions? _serverOptions;
     private OnlineLoginOutcome? _onlineOutcome;
 
     public LoginViewModel(IAuthenticationService authentication, IDialogService dialogs,
         Func<FirstRunViewModel> firstRunFactory, IServerConnectivityService? connectivity = null,
         LocalTestProfile? localProfile = null, IOnlineAuthClient? onlineAuth = null,
-        ServerEndpointOptions? serverOptions = null)
+        ServerEndpointOptions? serverOptions = null, ITenantLoginWorkspace? tenantWorkspace = null)
     {
         _authentication = authentication;
         _dialogs = dialogs;
@@ -39,6 +40,7 @@ public sealed partial class LoginViewModel : ObservableObject
         _localProfile = localProfile;
         _onlineAuth = onlineAuth;
         _serverOptions = serverOptions;
+        _tenantWorkspace = tenantWorkspace;
 
         // The tenant code configured for this build/environment (ANIMORA_TENANT_CODE) only pre-fills the field;
         // each clinic types its own code at sign-in (multi-tenant SaaS).
@@ -210,8 +212,15 @@ public sealed partial class LoginViewModel : ObservableObject
         Animora.Desktop.Diagnostics.AppTrace.Interaction("SignIn", "click", $"user={user}");
         ErrorMessage = string.Empty;
         IsBusy = true;
+        var signedIn = false;
         try
         {
+            if (_tenantWorkspace is not null)
+            {
+                var tenant = await _tenantWorkspace.PrepareAsync(ClinicCode.Trim(), ct);
+                _authentication = tenant.Authentication;
+                _onlineAuth = tenant.OnlineAuth;
+            }
             // 1) ONLINE FIRST (mandatory when a server is configured): clinic code + user + password are checked by
             //    the central server, which also seals the licence/subscription. No server session ⇒ no shell.
             if (!await EstablishServerSessionAsync(user, Password, ct))
@@ -224,6 +233,9 @@ public sealed partial class LoginViewModel : ObservableObject
             var outcome = await SignInLocalAsync(user, Password, ct);
             if (outcome.Succeeded)
             {
+                if (_tenantWorkspace is not null) await _tenantWorkspace.CommitAsync();
+                signedIn = true;
+                Password = string.Empty;
                 Animora.Desktop.Diagnostics.AppTrace.Info($"local sign-in SUCCEEDED for '{user}'", "auth");
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
                 return;
@@ -236,10 +248,12 @@ public sealed partial class LoginViewModel : ObservableObject
         catch (Exception ex)
         {
             Animora.Desktop.Diagnostics.AppTrace.Error($"sign-in threw for '{user}'", ex, "auth");
-            throw;
+            ErrorMessage = "آماده‌سازی نشست کلینیک انجام نشد؛ دوباره تلاش کنید.";
+            Password = string.Empty;
         }
         finally
         {
+            if (!signedIn && _tenantWorkspace is not null) await _tenantWorkspace.ResetAsync();
             IsBusy = false;
         }
     }

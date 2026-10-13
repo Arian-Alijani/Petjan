@@ -127,7 +127,7 @@
   - بیلد: `scripts/sandbox/build.sh` (0/0). اسموک‌ران اگر DI/shell را لمس کردی.
   - **push:** `scripts/git/push.sh "feat(profile): add sign-out action returning to the login screen"`
 
-- [ ] **T2 — ایزولاسیون کلینیک/tenant (مشکل ۲، هستهٔ اصلی):**
+- [x] **T2 — ایزولاسیون کلینیک/tenant (مشکل ۲، هستهٔ اصلی):**
   - provider مسیر store فعال را بساز (`src/Animora.Infrastructure.Local/Storage/` — singleton، thread-safe) که مسیر دیتابیس/پوشهٔ داده + کلید secret را per-tenant می‌دهد؛ slug = هش پایدار tenantCode.
   - `LocalStoreOptions.DatabasePath` را در حالت سرور از این provider مشتق کن (بدون‌سرور: دست‌نخورده). جایی که `AddAnimoraLocalStore`/`AddAnimoraLocalInfrastructure` و options را می‌سازد: `src/Animora.Persistence.Sqlite/Context/LocalStoreServiceCollectionExtensions.cs` و `src/Animora.Infrastructure.Local/LocalInfrastructureServiceCollectionExtensions.cs`؛ wiring دسکتاپ در `App.axaml.cs` (~خط 250+).
   - `ISecretStore`/`ProtectedSessionStore` را per-tenant کن (الگوی `LocalTestProfile.CreateSecretStore`).
@@ -155,6 +155,8 @@
 ---
 
 T3: خروج با تأیید، پاکسازی نشست محلی/آنلاین و بازسازی کامل DI برای حذف کش‌ها و صفحه‌های نشست قبلی پیاده‌سازی شد. بیلد/تست محلی اجرا نشد؛ اعتبارسنجی در T4 فقط GitHub Actions.
+
+T2: database-per-server/tenant با هش کامل SHA256 و secret-store مستقل پیاده‌سازی شد. تصمیم اجرایی: به‌جای تغییر مسیر mutable در DI زنده، یک provider مستقل و immutable برای هر تلاش ورود ساخته می‌شود؛ ابتدا store انتخاب‌شده initialize می‌شود چون OnlineAuthClient قبل از بازگشت موفق، session و mirror را می‌نویسد. فقط پس از احراز هویت محلی/آنلاین موفق، provider به shell منتقل و workers آغاز می‌شوند. provider قبلی dispose می‌شود و تمام cacheها، state نصب، صفحات و drafts مستقل هستند. دیتابیس مشترک قدیمی حذف/بازنویسی/کپی نمی‌شود تا داده‌ای از دست نرود یا به کلینیک نامعلوم نسبت داده نشود. حالت بدون سرور و preview محفوظ؛ اعتبارسنجی CI در T4.
 
 ## 3) نکات قفل‌شده / قیود
 - بررسی فایل‌ها فقط هدفمند و بر اساس نیاز؛ کاوش بیهوده ممنوع.
