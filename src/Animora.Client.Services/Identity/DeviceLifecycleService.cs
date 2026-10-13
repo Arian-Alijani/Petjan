@@ -53,6 +53,37 @@ public sealed class DeviceLifecycleService(OnlineApi api, IDeviceFingerprintSour
         return name.Length <= MaxDeviceName ? name : name[..MaxDeviceName];
     }
 
-    private static string Platform() =>
-        OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
+    /// <summary>Upper bound for the <c>Platform</c> field the server accepts (<c>LoginService.MaxPlatform</c>).</summary>
+    private const int MaxPlatform = 64;
+
+    /// <summary>
+    /// A human-readable client platform string such as <c>"windows · Windows 10.0.19045"</c>. The leading token stays one of the
+    /// stable codes (<c>windows</c>/<c>macos</c>/<c>linux</c>) so any code that keys on the family still works, and the OS
+    /// version is appended so the manager's «دستگاه‌ها» card shows the real system instead of a bare/unknown value.
+    /// </summary>
+    private static string Platform()
+    {
+        string family = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
+
+        string description;
+        try
+        {
+            // e.g. "Microsoft Windows 10.0.19045"; trimmed of the "Microsoft " prefix for a shorter, clearer label.
+            description = System.Runtime.InteropServices.RuntimeInformation.OSDescription.Trim();
+            const string microsoft = "Microsoft ";
+            if (description.StartsWith(microsoft, StringComparison.OrdinalIgnoreCase))
+            {
+                description = description[microsoft.Length..].Trim();
+            }
+        }
+#pragma warning disable CA1031 // OS description is best-effort cosmetic data: never let it break registration.
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+            description = string.Empty;
+        }
+
+        string platform = string.IsNullOrWhiteSpace(description) ? family : $"{family} · {description}";
+        return platform.Length <= MaxPlatform ? platform : platform[..MaxPlatform];
+    }
 }

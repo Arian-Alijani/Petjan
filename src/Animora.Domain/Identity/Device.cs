@@ -92,6 +92,39 @@ public sealed class Device : AggregateRoot
     /// <summary><see langword="true"/> only for an approved, unrevoked device.</summary>
     public bool IsUsable => Status == DeviceStatus.Active;
 
+    /// <summary>
+    /// Refreshes the operator-visible description (name + platform) from a later <c>register</c> call. The first
+    /// server contact for an installation happens at <c>login</c>, which can only bind placeholder values
+    /// (<c>"Unnamed device"</c> / <c>"unknown"</c>) because the login request carries no device metadata; the client's
+    /// authenticated <c>register</c> call then supplies the real machine name and platform. A revoked device keeps
+    /// its stored description so the audit trail stays truthful. Returns <see langword="true"/> when anything changed.
+    /// </summary>
+    public bool DescribeInstallation(string? deviceName, string? platform)
+    {
+        if (Status == DeviceStatus.Revoked)
+        {
+            return false;
+        }
+
+        bool changed = false;
+
+        string? name = deviceName?.Trim();
+        if (!string.IsNullOrWhiteSpace(name) && !string.Equals(name, DeviceName, StringComparison.Ordinal))
+        {
+            DeviceName = name;
+            changed = true;
+        }
+
+        string? platformValue = platform?.Trim();
+        if (!string.IsNullOrWhiteSpace(platformValue) && !string.Equals(platformValue, Platform, StringComparison.Ordinal))
+        {
+            Platform = platformValue;
+            changed = true;
+        }
+
+        return changed;
+    }
+
     /// <summary>Approves a pending device. A revoked device is never re-approved.</summary>
     /// <exception cref="InvalidOperationException">The device is revoked.</exception>
     public void Approve()
