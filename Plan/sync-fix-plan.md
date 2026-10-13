@@ -247,18 +247,32 @@ NOT swallow. Keep it minimal.
       valid rows; (2) cursor at watermark → `UpToDate`. Both assert a 200-shaped response, i.e. no
       bare 500. → **PUSH** `test(sync): /sync/batches returns 200 for populated and empty tenants`
 
-- [ ] **T7 — Sync coherence review (Task 2 of the request).** Purposeful, targeted review (NO
-      wasteful scanning). Confirm/record that client↔server are standard & coherent:
-      - Contract version header `2` both sides ✔ (already confirmed).
-      - Push envelope fields vs server `CommandEnvelopeValidator` + `CommandPayloadCatalog`.
-      - Pull request/response records (`OpenBatchRequest`/`OpenBatchResponse`) match
-        `SyncFeedClient`/`OpenBatchOutcome` mapping.
-      - Identity rebind at push (`HttpCommandTransport.RebindIdentityAsync`) still correct after T1.
-      Fix any concrete mismatch found; if none, note it. → **PUSH** if any change; else no push.
+- [x] **T7 — Sync coherence review (Task 2 of the request).** DONE — targeted read, no fix needed.
+      Findings (all coherent, standard):
+      - **Contract header `2`** — client `HttpCommandTransport.NewRequest` sends
+        `X-Animora-Contract-Version: WireContract.Version(=2)`; server `SyncContractFilter` +
+        `CommandEnvelopeValidator.WireContract.IsSupported` accept it. ✔
+      - **Push envelope** — `CommandJournalBehavior` uses ONE `CanonicalJson(request)` for both
+        `PayloadJson` and the `CommandFingerprint`, and puts `CommandTypeName`/`AggregateTypeName`/
+        `AggregateIdOrNull` into the **envelope** (not payload). After T1 the payload is exactly the
+        ctor args, matching `CommandPayloadCatalog`'s set-equality check; `CommandEnvelopeValidator`
+        only needs a unique-key JSON object (still satisfied). Fingerprint = type+payload, so the
+        T1 shape change is applied identically on both sides and idempotent retries stay stable. ✔
+      - **Pull request/response** — server emits `Kind ∈ {BatchReady, UpToDate, ResyncRequired}`
+        (`BatchFreezer.Decide`/`Freeze`); client `SyncFeedClient` maps exactly those three to
+        `OpenBatchOutcome.{Ready,Current,Resync}` and fails any unknown/incomplete shape as
+        `SyncProtocolViolation`. `OpenBatchRequest(Epoch, FromSequence)` matches both sides. ✔
+      - **Identity rebind post-T1** — `HttpCommandTransport.Rebind` only re-stamps
+        `TenantId/UserId/DeviceId` via a `with` copy and never touches
+        `OperationId`/`CommandFingerprint`/`PayloadJson`; T1 changed only payload generation in
+        `CommandJournalBehavior`, so rebind + fingerprint identity remain correct. ✔
+      No concrete mismatch found → no code change. → **PUSH** (plan note only).
 
-- [ ] **T8 — Open/verify PR.** Ensure branch `genspark_ai_developer` is pushed and a PR to `main`
-      exists/updated with a summary of BUG 1 + BUG 2 fixes. Share PR URL with the user.
-      (`scripts/git/push.sh` already syncs/pushes; create PR via gh/API if needed.)
+- [x] **T8 — Integrate (no PR; direct sync per user request).** The user asked NOT to open a PR but
+      to apply changes directly and keep ALL branches (`main`, `ci/sandbox`, `genspark_ai_developer`)
+      in sync without losing any work. `genspark_ai_developer` is the furthest-ahead branch; `main`
+      was merged (no-ff) from it and `ci/sandbox` fast-forwarded to it. Final re-sync of all branches
+      happens after T9 so they all carry the completed BUG1/BUG2 work.
 
 - [ ] **T9 — FINAL (last task): delete this plan file only.**
       `rm Plan/sync-fix-plan.md` (do NOT touch any other file, roadmap, or `.gitkeep`).
