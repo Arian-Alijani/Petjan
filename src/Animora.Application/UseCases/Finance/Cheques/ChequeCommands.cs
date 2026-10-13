@@ -7,6 +7,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Finance;
 using Animora.Domain.Identity;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Domain.ValueObjects;
@@ -67,7 +68,7 @@ public sealed class RegisterChequeCommandValidator : IValidator<RegisterChequeCo
             Rules.MaxLength(c.Note, ChequeRules.MaxNoteLength, nameof(c.Note)));
 }
 
-public sealed class RegisterChequeCommandHandler(IChequeRepository cheques)
+public sealed class RegisterChequeCommandHandler(IChequeRepository cheques, IClock clock)
     : ICommandHandler<RegisterChequeCommand, string>
 {
     public Task<Result<string>> HandleAsync(RegisterChequeCommand c, CommandContext context, CancellationToken ct)
@@ -75,7 +76,8 @@ public sealed class RegisterChequeCommandHandler(IChequeRepository cheques)
         var created = Cheque.Register(context.TenantId, c.ChequeNumber, c.Direction, Money.Irt(c.AmountMinor), c.DueUtc,
             c.IssuedUtc, c.Direction == ChequeDirection.Inbound ? c.OwnerId : null,
             c.Direction == ChequeDirection.Outbound ? c.SupplierId : null,
-            c.BankName, c.BankBranch, c.AccountNumber, c.SayadId, note: c.Note);
+            c.BankName, c.BankBranch, c.AccountNumber, c.SayadId, note: c.Note,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Task.FromResult(Result<string>.Fail(created.Error, created.Detail));
         cheques.Add(created.Value!);
         return Task.FromResult(Result<string>.Ok(created.Value!.Id));

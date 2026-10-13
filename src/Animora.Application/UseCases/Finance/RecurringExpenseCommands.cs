@@ -8,6 +8,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Finance;
 using Animora.Domain.Identity;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
 using Animora.Domain.Time;
@@ -48,7 +49,8 @@ public sealed class AddRecurringExpenseCommandHandler(IRecurringExpenseRepositor
     public Task<Result<string>> HandleAsync(AddRecurringExpenseCommand c, CommandContext context, CancellationToken ct)
     {
         var created = RecurringExpense.Create(context.TenantId, c.CategoryCode, c.Title, Money.Irt(c.AmountMinor),
-            c.DayOfMonth, clock.UtcNow, c.SupplierId, c.Note);
+            c.DayOfMonth, clock.UtcNow, c.SupplierId, c.Note,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return Task.FromResult(Result<string>.Fail(created.Error, created.Detail));
         repository.Add(created.Value!);
         return Task.FromResult(Result<string>.Ok(created.Value!.Id));
@@ -160,7 +162,8 @@ public sealed class PayRecurringExpenseForPeriodCommandHandler(IRecurringExpense
         if (posted.IsFailure) return Result<string>.Fail(posted.Error, posted.Detail);
 
         var expenseId = posted.Value!.Id;
-        repository.AddPayment(RecurringExpensePayment.Create(context.TenantId, template.Id, period.Code, expenseId, now));
+        repository.AddPayment(RecurringExpensePayment.Create(context.TenantId, template.Id, period.Code, expenseId, now,
+            IdGenerator.ForOperation(context.OperationId, 1, now)));
         return Result<string>.Ok(expenseId);
     }
 }

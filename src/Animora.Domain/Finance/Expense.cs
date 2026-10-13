@@ -122,7 +122,8 @@ public sealed class Expense : AggregateRoot
         string? chequeId = null,
         string? receiptFileId = null,
         string? note = null,
-        string? reversesExpenseId = null)
+        string? reversesExpenseId = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(expenseNumber);
@@ -146,7 +147,7 @@ public sealed class Expense : AggregateRoot
 
         return new Expense
         {
-            Id = IdGenerator.NewId(incurredUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(incurredUtc) : id,
             TenantId = tenantId,
             ExpenseNumber = expenseNumber.Trim(),
             CategoryCode = categoryCode.Trim(),

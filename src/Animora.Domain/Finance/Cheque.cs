@@ -173,7 +173,8 @@ public sealed class Cheque : AggregateRoot
         string? sayadId = null,
         string? invoiceId = null,
         string? paymentId = null,
-        string? note = null)
+        string? note = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(chequeNumber);
@@ -201,7 +202,7 @@ public sealed class Cheque : AggregateRoot
 
         return new Cheque
         {
-            Id = IdGenerator.NewId(issuedUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(issuedUtc) : id,
             TenantId = tenantId,
             ChequeNumber = chequeNumber.Trim(),
             Direction = direction,

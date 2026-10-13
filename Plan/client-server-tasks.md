@@ -133,7 +133,7 @@
 
 ---
 
-## T3 — انسجام کلاینت↔سرور برای ماژول‌های لیست‌شده  [ ] در حال انجام / [ ] انجام شد
+## T3 — انسجام کلاینت↔سرور برای ماژول‌های لیست‌شده  [x] انجام شد ✅
 
 **ماژول‌ها**: دارو/واکسن، پانسیون (Boarding)، انبار (Inventory)، بیماران/سرپرستان (Patients/Owners)،
 چک (Cheques)، تاریخچه (History)، ویزیت/پرونده (Visits/PetFile).
@@ -184,8 +184,8 @@
 - [x] **T3c Vaccination** — همان ریشه: id تولیدی. فیکس: پارامتر `id:` در `VaccinationRecord.Administer`، `TreatmentPlan.Create` (+ `occurrenceId` برای هر occurrence)، `TreatmentOccurrence.Create`، `VaccineCatalogItem.Create`؛ `CreateTreatmentPlan` (plan=slot0, occurrenceها=1..n, ledger=slotهای ≥1_000_000)، `AddVaccineCatalogItem` (slot0)، `MarkVaccinationDone` (record=0, history=1)، `RecordVaccinationReminder`/`MarkTreatmentOccurrenceDone`/ledger سایر commandها نیز قطعی. VaccineCatalogItem/TreatmentPlan/Occurrence در SyncContractCatalog حاضرند ✓
 - [x] **T3d Boarding** — همان ریشه: id تولیدی. فیکس: پارامتر `id:` در `Room.Create`/`BoardingStay.Reserve`/`BoardingServiceDef.Create`؛ `CreateRoom` (slot0)، `CreateBoardingStay` (stay=0, owner=1, pet=2)، `AddStayItem` (item=slot0)، `CreateBoardingServiceRate` (id=slot0 + کد سرویس قطعی از `IdGenerator.CodeSuffix(OperationId)`) و `CreateServiceRate` (product=0, variant=1, SKU قطعی). کدهای رندوم (`Guid.NewGuid`) باعث ناهمخوانی SKU/Code بین کلاینت و سرور می‌شد — حالا از OperationId مشتق می‌شوند. Room/BoardingStay/Item/ServiceDef در SyncContractCatalog حاضرند ✓
 - [x] **T3e Inventory + Purchasing (+ Sales stock/adjustment ids)** — همان ریشه: id/کد تولیدی. فیکس: پارامتر `id:` در `Product.Create`/`ProductCategory.Create`/`StockMovement.Create`/`Supplier.Create`/`PurchaseOrder.Create`/`GoodsReceipt.Create`/`Insurer.Create`؛ `CreateProduct` (product=0, variants=1..n, opening movements=slot≥1_000_000)، `UpdateProductInfo`/`AddProductVariant` (variant id قطعی)، `AdjustStock`/`SetStock`، `CreatePurchaseOrder` (order=0, lines=1..n)، `ReceiveGoods` (receipt=0, lines=1..n, movements≥1_000_000)، `CreateSupplier`، `CreateProductCategory`، `CreateInsurer` + کدهای `CAT-/SUP-/INS-` از `IdGenerator.CodeSuffix(OperationId)` به‌جای `Guid.NewGuid`؛ `PostInvoice`/`ReturnInvoiceLine`/`RefundInvoice`/`VoidInvoice` نیز movement/adjustment id قطعی دارند. همهٔ aggregateها در SyncContractCatalog حاضرند ✓
-- [ ] T3f Cheques + RecurringExpense (RecurringExpense در SyncContractCatalog **غایب** است ← بررسی/افزودن)
-- [ ] T3g History (read-only، فقط تأیید)
+- [x] **T3f Cheques + RecurringExpense** — فیکس: پارامتر `id:` در `Cheque.Register`/`Expense.Create`/`RecurringExpense.Create`/`RecurringExpensePayment.Create`؛ `RegisterCheque` (slot0)، `AddExpense`/`ReverseExpense`/پرداخت دوره‌ای (expense=slot0)، `AddRecurringExpense` (slot0)، `PayRecurringExpenseForPeriod` (expense=0, payment=1) از `IdGenerator.ForOperation` استفاده می‌کنند. **یافتهٔ replication:** `Cheque/Expense/RecurringExpense/RecurringExpensePayment` عمداً در `SyncExclusions` (command-settled money/ledger؛ «money never replicated») هستند و تست `CatalogTests.PostC11_..._RecurringExpense_Excluded` همین را قفل می‌کند ⇒ مطابق طراحی، **نباید** به replication اضافه شوند (تغییر ندادم). هر دو سمت با command + id قطعی هماهنگ‌اند.
+- [x] **T3g History (read-only)** — coherent، بدون تغییر: `HistoryQueryService` فقط `ActivityFeedQuery/ActivityExportQuery` را روی store محلی اجرا می‌کند (هیچ command/نوشتنی ندارد)؛ ورودی‌اش `MedicalHistoryEntry` است که replicate می‌شود ✓ و حالا با idهای قطعی (T3a–T3c) ردیف تکراری بین رکورد محلی و replica‌شده نمی‌سازد.
 
 ### ترتیب پیشنهادی (هر کدام یک push جدا)
 - T3a: Patients/Owners  → push

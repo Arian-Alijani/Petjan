@@ -63,7 +63,8 @@ public sealed class RecurringExpense : AggregateRoot
         int dayOfMonth,
         DateTimeOffset createdUtc,
         string? supplierId = null,
-        string? note = null)
+        string? note = null,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
@@ -75,7 +76,7 @@ public sealed class RecurringExpense : AggregateRoot
 
         return new RecurringExpense
         {
-            Id = IdGenerator.NewId(createdUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(createdUtc) : id,
             TenantId = tenantId,
             CategoryCode = categoryCode.Trim(),
             Title = title.Trim(),
@@ -188,7 +189,8 @@ public sealed class RecurringExpensePayment : SyncableEntity
         string recurringExpenseId,
         string periodCode,
         string expenseId,
-        DateTimeOffset paidUtc)
+        DateTimeOffset paidUtc,
+        string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(recurringExpenseId);
@@ -197,7 +199,7 @@ public sealed class RecurringExpensePayment : SyncableEntity
 
         return new RecurringExpensePayment
         {
-            Id = IdGenerator.NewId(paidUtc),
+            Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(paidUtc) : id,
             TenantId = tenantId,
             RecurringExpenseId = recurringExpenseId,
             PeriodCode = periodCode.Trim(),

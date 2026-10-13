@@ -7,6 +7,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Finance;
 using Animora.Domain.Identity;
+using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
 using Animora.Domain.Time;
@@ -37,7 +38,8 @@ internal static class ExpenseRules
     {
         var number = await numbers.AllocateAsync(context.TenantId, incurredUtc, ct);
         var created = Expense.Create(context.TenantId, number, category, title, Money.Irt(amountMinor), incurredUtc,
-            context.UserId, method, supplierId, null, receiptFileId, note, reversesExpenseId);
+            context.UserId, method, supplierId, null, receiptFileId, note, reversesExpenseId,
+            id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         if (created.IsFailure) return created;
         var expense = created.Value!;
         var posted = expense.Post(clock);
