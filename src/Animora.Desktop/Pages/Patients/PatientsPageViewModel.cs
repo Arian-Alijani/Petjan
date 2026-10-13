@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Animora.Desktop.Diagnostics;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
@@ -22,6 +24,9 @@ namespace Animora.Desktop.Pages.Patients;
 /// </summary>
 public sealed partial class PatientsPageViewModel : PageViewModelBase
 {
+    private const string LogCat = "patients.page";
+    private int? _lastOwnerPublishCount;
+    private int? _lastPetPublishCount;
     private readonly IPatientsQueryService _patientsQueryService;
     private readonly IRecordSheetPresenter _presenter;
     private readonly IDialogService _dialogs;
@@ -103,7 +108,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         // Non-blocking init (PERFORMANCE.md §4): never block the UI thread on the first load.
         UseLoadStatus(ReloadPageAsync);
         // Owner/pet sheets edit records from over this page; the page's own wizard/add-pet writes reload directly.
-        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
+        RefreshOnDataChange(changes, () =>
+        {
+            AppTrace.Info($"Patients data-change refresh {DescribeState()}", LogCat);
+            _ = ReloadPageAsync();
+        }, DataDomain.Patients);
+        AppTrace.Info($"Constructor starts initial load {DescribeState()}", LogCat);
         _ = ReloadPageAsync();
         _hasLoadedOnce = true;   // the ctor-started load covers the first navigation (PERFORMANCE.md §13)
     }
@@ -404,10 +414,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // Singletons must refresh when returning from another screen that edited these records.
     public override void OnNavigatedTo()
     {
+        AppTrace.Info($"NAVIGATED_TO firstLoadCovered={_hasLoadedOnce} {DescribeState()}", LogCat);
         // The first navigation is already covered by the load the ctor started — skip it so first entry
         // does not queue a duplicate load behind the _loadGate. Later visits refresh as before.
         if (_hasLoadedOnce)
         {
+            AppTrace.Info("First navigation uses constructor load; no duplicate queued.", LogCat);
             _hasLoadedOnce = false;
             return;
         }
@@ -421,11 +433,13 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     // always re-queries on the next visit, so returning repopulates them.
     public override void OnNavigatedFrom()
     {
+        AppTrace.Info($"NAVIGATED_FROM invalidating revision={_loadRevision} and releasing collections {DescribeState()}", LogCat);
         _loadRevision++; // In-flight reads from this visit must not repopulate released collections.
         FilteredOwners.Clear();
         FilteredPets.Clear();
         OwnerRows.Clear();
         PetRows.Clear();
+        AppTrace.Info($"NAVIGATED_FROM cleared; facet totals remain cached until next publish {DescribeState()}", LogCat);
     }
 
     private long _loadRevision;
@@ -433,6 +447,7 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     private Task ReloadPageAsync()
     {
         var revision = ++_loadRevision;
+        AppTrace.Info($"Load#{revision} QUEUED {DescribeState()}", LogCat);
         return TrackLoadResultAsync(() => LoadAsync(revision));
     }
 
@@ -442,7 +457,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     /// <summary>A filter/sort/view/page-size change: snap back to page 1 and re-query the server.</summary>
     private void ReloadFromFilter()
     {
-        if (_suppressReload) return;
+        if (_suppressReload)
+        {
+            if (AppTrace.IsDebugEnabled) AppTrace.Debug("Filter reload suppressed during batch reset.", LogCat);
+            return;
+        }
+        AppTrace.Info($"Filter/view/sort/page-size reload resets to page 1 {DescribeState()}", LogCat);
         CurrentPage = 1;
         _ = ReloadPageAsync();
     }
@@ -473,9 +493,13 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     /// <returns>False when the load failed (already reported to the user here).</returns>
     private async Task<bool> LoadAsync(long revision)
     {
+        var timer = Stopwatch.StartNew();
+        AppTrace.Info($"Load#{revision} WAIT_GATE currentRevision={_loadRevision}", LogCat);
         await _loadGate.WaitAsync();
+        AppTrace.Info($"Load#{revision} GATE_ACQUIRED waitMs={timer.ElapsedMilliseconds}", LogCat);
         if (revision != _loadRevision)
         {
+            LogSuperseded(revision, "gate");
             _loadGate.Release();
             return true;
         }
@@ -483,10 +507,17 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         try
         {
             // Wait for the local store (migrations/seed) before the first query — same as every Track C page.
+            AppTrace.Info($"Load#{revision} WAIT_STORE_READY", LogCat);
             await _readiness.WaitAsync();
-            if (revision != _loadRevision) return true;
+            AppTrace.Info($"Load#{revision} STORE_READY elapsedMs={timer.ElapsedMilliseconds}", LogCat);
+            if (revision != _loadRevision)
+            {
+                LogSuperseded(revision, "readiness");
+                return true;
+            }
             var query = CurrentQuery();
             var ownersView = IsOwnersView;
+            AppTrace.Info($"Load#{revision} READ entity={(ownersView ? "owners" : "pets")} source=local-store searchActive={!string.IsNullOrWhiteSpace(query.Search)} species={query.Species?.ToString() ?? "all"} vaccine={query.Vaccine} sort={query.Sort} page={query.Page} size={query.PageSize}", LogCat);
 
             // Capture the query and entity mode together. A newer filter/navigation request supersedes
             // this read; never publish an old owners response into the pets view (or a departed visit).
@@ -499,13 +530,19 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
                 var validPage = ClampPage(query, page.TotalCount);
                 if (validPage != query.Page)
                 {
+                    AppTrace.Info($"Load#{revision} PAGE_CLAMP requested={query.Page} valid={validPage} total={page.TotalCount}; re-reading", LogCat);
                     query = query with { Page = validPage };
                     page = await _patientsQueryService.GetOwnersPageAsync(query);
                 }
-                if (revision != _loadRevision) return true;
+                if (revision != _loadRevision)
+                {
+                    LogSuperseded(revision, "before-publish");
+                    return true;
+                }
                 CurrentPage = query.Page;
                 PublishFacets((await facetsTask) with { TotalOwners = page.TotalCount });
                 PublishOwners(page);
+                LogPublish(revision, true, page.Items.Count, page.TotalCount);
                 FilteredPets.Clear();
                 PetRows.Clear();
             }
@@ -517,28 +554,39 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
                 var validPage = ClampPage(query, page.TotalCount);
                 if (validPage != query.Page)
                 {
+                    AppTrace.Info($"Load#{revision} PAGE_CLAMP requested={query.Page} valid={validPage} total={page.TotalCount}; re-reading", LogCat);
                     query = query with { Page = validPage };
                     page = await _patientsQueryService.GetPetsPageAsync(query);
                 }
-                if (revision != _loadRevision) return true;
+                if (revision != _loadRevision)
+                {
+                    LogSuperseded(revision, "before-publish");
+                    return true;
+                }
                 CurrentPage = query.Page;
                 PublishFacets((await facetsTask) with { TotalPets = page.TotalCount });
                 PublishPets(page);
+                LogPublish(revision, false, page.Items.Count, page.TotalCount);
                 FilteredOwners.Clear();
                 OwnerRows.Clear();
             }
 
             NotifyDerived();
+            AppTrace.Info($"Load#{revision} DONE elapsedMs={timer.ElapsedMilliseconds} {DescribeState()}", LogCat);
             return true;
         }
         catch (InvalidOperationException ex) when (IsAccessFailure(ex.Message))
         {
+            AppTrace.Warn($"Load#{revision} ACCESS_FAILURE code={ex.Message} superseded={revision != _loadRevision}; previous collections retained unless navigation cleared them.", LogCat);
             if (revision != _loadRevision) return true;
             _toast.Show(AccessLostMessage, Tone.Danger);
             return false;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Arbitrary exception messages may contain personal record fields; emit type + debug stack only.
+            AppTrace.Error($"Load#{revision} FAILED type={ex.GetType().FullName} superseded={revision != _loadRevision} elapsedMs={timer.ElapsedMilliseconds} {DescribeState()}", category: LogCat);
+            if (AppTrace.IsDebugEnabled) AppTrace.Debug($"Load#{revision} stack={ex.StackTrace}", LogCat);
             if (revision != _loadRevision) return true;
             _toast.Show("بارگذاری بیماران و سرپرستان انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
             return false;
@@ -547,7 +595,31 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         {
             IsBusy = false;
             _loadGate.Release();
+            AppTrace.Info($"Load#{revision} GATE_RELEASED currentRevision={_loadRevision} elapsedMs={timer.ElapsedMilliseconds}", LogCat);
         }
+    }
+
+    private string DescribeState() =>
+        $"revision={_loadRevision} section={Section} view={ViewMode} layout={Layout} busy={IsBusy} page={CurrentPage}/{PageCount} size={PageSize} ownerCards={FilteredOwners.Count} ownerRows={OwnerRows.Count} petCards={FilteredPets.Count} petRows={PetRows.Count} ownerMatches={_totalOwnerMatches} petMatches={_totalPetMatches} showEmptyState={ShowEmptyState}";
+
+    private void LogSuperseded(long revision, string stage) =>
+        AppTrace.Info($"Load#{revision} SUPERSEDED stage={stage} currentRevision={_loadRevision}; result not published", LogCat);
+
+    private void LogPublish(long revision, bool ownersView, int returned, int total)
+    {
+        var count = ownersView ? FilteredOwners.Count : FilteredPets.Count;
+        var rows = ownersView ? OwnerRows.Count : PetRows.Count;
+        var previous = ownersView ? _lastOwnerPublishCount : _lastPetPublishCount;
+        var entity = ownersView ? "owners" : "pets";
+        AppTrace.Info($"Load#{revision} PUBLISHED entity={entity} returned={returned} cards={count} rows={rows} total={total} showEmptyState={ShowEmptyState}", LogCat);
+        if (count == 0 && total > 0)
+            AppTrace.Warn($"Load#{revision} EMPTY_COLLECTION_WITH_MATCHES entity={entity} total={total}; content can be blank even with showEmptyState={ShowEmptyState}", LogCat);
+        else if (count == 0 && previous is > 0)
+            AppTrace.Warn($"Load#{revision} POPULATED_TO_EMPTY entity={entity} previousCards={previous} total={total} searchActive={HasSearchText} species={SelectedSpecies?.ToString() ?? "all"} vaccine={VaccineFilter}; local result only, not proof of server deletion", LogCat);
+        else if (count > 0 && previous == 0)
+            AppTrace.Info($"Load#{revision} EMPTY_TO_POPULATED entity={entity} cards={count}", LogCat);
+        if (ownersView) _lastOwnerPublishCount = count;
+        else _lastPetPublishCount = count;
     }
 
     private static int ClampPage(PatientsDirectoryQuery query, int totalCount) =>

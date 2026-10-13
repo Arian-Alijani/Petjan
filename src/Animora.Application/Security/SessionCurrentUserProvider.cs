@@ -1,3 +1,4 @@
+using Animora.Contracts.Diagnostics;
 using Animora.Application.Abstractions;
 using Animora.Application.Correlation;
 using Animora.Application.Ports;
@@ -19,8 +20,11 @@ public sealed class SessionCurrentUserProvider(
     SessionContextCache cache,
     ICorrelationContext correlation,
     OperationIdFactory operationIds,
-    IClock clock) : ICurrentUserProvider
+    IClock clock,
+    IClientDiagnosticsLog diag) : ICurrentUserProvider
 {
+    private const string LogCat = "identity.scope";
+
     public async Task<Result<CommandContext>> BuildCommandContextAsync(string? operationId, string? dependsOn,
         long? expectedVersion, CancellationToken ct)
     {
@@ -29,22 +33,35 @@ public sealed class SessionCurrentUserProvider(
         var snapshot = cache.Current;
         if (snapshot is null)
         {
+            if (diag.IsDebugEnabled) diag.Debug(LogCat, "Command context: cache empty; restoring local session.");
             var restored = await sessions.RestoreAsync(ct).ConfigureAwait(false);
             snapshot = restored.IsSuccess ? restored.Value : null;
             cache.Set(snapshot);
+            diag.Info(LogCat, $"Session restore success={restored.IsSuccess} tenant={installation.TenantId} {DescribeSession(snapshot)}");
         }
 
         var user = RequireActive(snapshot);
-        if (user.IsFailure) return Result<CommandContext>.Fail(user.Error, user.Detail);
+        if (user.IsFailure)
+        {
+            diag.Warn(LogCat, $"Command context DENIED code={user.Error.Code} tenant={installation.TenantId} {DescribeSession(snapshot)}");
+            return Result<CommandContext>.Fail(user.Error, user.Detail);
+        }
         return Result<CommandContext>.Ok(NewContext(user.Value!, operationId, dependsOn, expectedVersion));
     }
 
     public Result<QueryContext> BuildQueryContext()
     {
-        var user = RequireActive(cache.Current);
-        return user.IsFailure
-            ? Result<QueryContext>.Fail(user.Error, user.Detail)
-            : Result<QueryContext>.Ok(new QueryContext(installation.TenantId, user.Value!, CurrentCorrelationId()));
+        var snapshot = cache.Current;
+        var user = RequireActive(snapshot);
+        if (user.IsFailure)
+        {
+            diag.Warn(LogCat, $"Query context DENIED code={user.Error.Code} tenant={installation.TenantId} {DescribeSession(snapshot)}; no query will run.");
+            return Result<QueryContext>.Fail(user.Error, user.Detail);
+        }
+        var context = new QueryContext(installation.TenantId, user.Value!, CurrentCorrelationId());
+        if (diag.IsDebugEnabled)
+            diag.Debug(LogCat, $"Query context OK tenant={context.TenantId} user={context.UserId} corr={context.CorrelationId} {DescribeSession(snapshot)}");
+        return Result<QueryContext>.Ok(context);
     }
 
     public Result<CommandContext> BuildAnonymousCommandContext(string? operationId = null)
@@ -55,6 +72,10 @@ public sealed class SessionCurrentUserProvider(
 
     public QueryContext BuildAnonymousQueryContext() =>
         new(installation.TenantId, ICurrentUserProvider.AnonymousUserId, CurrentCorrelationId());
+
+    private string DescribeSession(SessionSnapshot? snapshot) => snapshot is null
+        ? "session=cache-empty"
+        : $"sessionUser={snapshot.UserId ?? "signed-out"} locked={snapshot.IsLocked} expiresUtc={snapshot.ExpiresAtUtc:O} expired={snapshot.ExpiresAtUtc is not { } expires || clock.UtcNow >= expires}";
 
     private Result<string> RequireActive(SessionSnapshot? snapshot)
     {

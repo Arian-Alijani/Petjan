@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Animora.Contracts.Diagnostics;
 using Animora.Application.Abstractions;
 using Animora.Application.Security;
 using Animora.Application.Ports;
@@ -14,8 +16,11 @@ namespace Animora.Client.Services.Patients;
 
 /// <summary>Real IPatientsQueryService over the C01 use cases (THE C01 pattern). Singleton; the scoped
 /// dispatcher + provider are resolved from a fresh async scope per call, never captured. No EF/SQL here.</summary>
-public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQueryService
+public sealed class PatientsService(IServiceScopeFactory scopes, IClientDiagnosticsLog diag) : IPatientsQueryService
 {
+    private const string LogCat = "patients.read";
+    private long _readSequence;
+
     private const int MaxPageSize = 200; // QueryPaging.HardMaxPageSize
 
     // ── Server-side directory reads (the C01 scalability path) ───────────────────────────────────
@@ -25,61 +30,129 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
     public async Task<PatientsPage<PetSummary>> GetPetsPageAsync(PatientsDirectoryQuery query)
     {
         ArgumentNullException.ThrowIfNull(query);
+        var readId = Interlocked.Increment(ref _readSequence);
+        var timer = Stopwatch.StartNew();
+        diag.Info(LogCat, $"Read#{readId} pets BEGIN source=local-store {DescribeQuery(query)}");
         // "Has vaccines" has no data source yet (C01) — it can only ever match zero pets, so short
         // out without a DB round-trip rather than returning a misleading full list.
         if (query.Vaccine == VaccineFilter.Has)
+        {
+            diag.Info(LogCat, $"Read#{readId} pets SKIPPED: Vaccine.Has has no local data source; returning zero matches.");
             return PatientsPage<PetSummary>.Empty(query.Page, ClampPageSize(query.PageSize));
+        }
 
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new ServiceException(qc.Error);
+        if (qc.IsFailure)
+        {
+            diag.Warn(LogCat, $"Read#{readId} pets CONTEXT_DENIED code={qc.Error.Code}; query not dispatched.");
+            throw new ServiceException(qc.Error);
+        }
+        diag.Info(LogCat, $"Read#{readId} scope tenant={qc.Value!.TenantId} user={qc.Value.UserId} corr={qc.Value.CorrelationId}");
 
         var r = await dispatcher.QueryAsync(
             new PetDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
-        if (r.IsFailure) throw new ServiceException(r.Error);
-        return ToPage(r.Value!, x => x.ToSummary());
+        if (r.IsFailure)
+        {
+            diag.Warn(LogCat, $"Read#{readId} pets QUERY_FAILED code={r.Error.Code} elapsedMs={timer.ElapsedMilliseconds}");
+            throw new ServiceException(r.Error);
+        }
+        var page = ToPage(r.Value!, x => x.ToSummary());
+        LogPage(readId, "pets", query, page.Items.Count, page.TotalCount, page.Page, page.PageSize, timer.ElapsedMilliseconds);
+        if (diag.IsDebugEnabled)
+            diag.Debug(LogCat, $"Read#{readId} sampleIds=[{string.Join(",", page.Items.Take(8).Select(x => x.Id))}] sampleLimit=8");
+        return page;
     }
 
     public async Task<PatientsPage<OwnerSummary>> GetOwnersPageAsync(PatientsDirectoryQuery query)
     {
         ArgumentNullException.ThrowIfNull(query);
+        var readId = Interlocked.Increment(ref _readSequence);
+        var timer = Stopwatch.StartNew();
+        diag.Info(LogCat, $"Read#{readId} owners BEGIN source=local-store {DescribeQuery(query)}");
         if (query.Vaccine == VaccineFilter.Has)
+        {
+            diag.Info(LogCat, $"Read#{readId} owners SKIPPED: Vaccine.Has has no local data source; returning zero matches.");
             return PatientsPage<OwnerSummary>.Empty(query.Page, ClampPageSize(query.PageSize));
+        }
 
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new ServiceException(qc.Error);
+        if (qc.IsFailure)
+        {
+            diag.Warn(LogCat, $"Read#{readId} owners CONTEXT_DENIED code={qc.Error.Code}; query not dispatched.");
+            throw new ServiceException(qc.Error);
+        }
+        diag.Info(LogCat, $"Read#{readId} scope tenant={qc.Value!.TenantId} user={qc.Value.UserId} corr={qc.Value.CorrelationId}");
 
         var r = await dispatcher.QueryAsync(
             new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
-        if (r.IsFailure) throw new ServiceException(r.Error);
-        return ToPage(r.Value!, x => x.ToSummary());
+        if (r.IsFailure)
+        {
+            diag.Warn(LogCat, $"Read#{readId} owners QUERY_FAILED code={r.Error.Code} elapsedMs={timer.ElapsedMilliseconds}");
+            throw new ServiceException(r.Error);
+        }
+        var page = ToPage(r.Value!, x => x.ToSummary());
+        LogPage(readId, "owners", query, page.Items.Count, page.TotalCount, page.Page, page.PageSize, timer.ElapsedMilliseconds);
+        if (diag.IsDebugEnabled)
+            diag.Debug(LogCat, $"Read#{readId} sampleIds=[{string.Join(",", page.Items.Take(8).Select(x => x.Id))}] sampleLimit=8");
+        return page;
     }
 
     public async Task<PatientsDirectoryFacets> GetDirectoryFacetsAsync(PatientsDirectoryQuery query)
     {
         ArgumentNullException.ThrowIfNull(query);
+        var readId = Interlocked.Increment(ref _readSequence);
+        var timer = Stopwatch.StartNew();
+        diag.Info(LogCat, $"Read#{readId} facets BEGIN source=local-store {DescribeQuery(query)}");
         // "Has vaccines" matches nothing (no source yet) — report zeros without a DB round-trip.
         if (query.Vaccine == VaccineFilter.Has)
+        {
+            diag.Info(LogCat, $"Read#{readId} facets SKIPPED: Vaccine.Has has no local data source; returning zero matches.");
             return new PatientsDirectoryFacets(0, 0, new Dictionary<PetSpecies, int>());
+        }
 
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new ServiceException(qc.Error);
+        if (qc.IsFailure)
+        {
+            diag.Warn(LogCat, $"Read#{readId} facets CONTEXT_DENIED code={qc.Error.Code}; query not dispatched.");
+            throw new ServiceException(qc.Error);
+        }
+        diag.Info(LogCat, $"Read#{readId} scope tenant={qc.Value!.TenantId} user={qc.Value.UserId} corr={qc.Value.CorrelationId}");
 
         var r = await dispatcher.QueryAsync(
             new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species)), qc.Value!);
-        if (r.IsFailure) throw new ServiceException(r.Error);
+        if (r.IsFailure)
+        {
+            diag.Warn(LogCat, $"Read#{readId} facets QUERY_FAILED code={r.Error.Code} elapsedMs={timer.ElapsedMilliseconds}");
+            throw new ServiceException(r.Error);
+        }
         var m = r.Value!;
+        diag.Info(LogCat, $"Read#{readId} facets DONE owners={m.TotalOwners} pets={m.TotalPets} elapsedMs={timer.ElapsedMilliseconds}");
         var species = m.SpeciesCounts.ToDictionary(kv => MapSpeciesToContract(kv.Key), kv => kv.Value);
         return new PatientsDirectoryFacets(m.TotalOwners, m.TotalPets, species);
+    }
+
+    // Search content may contain names/phone numbers: record only whether a filter exists.
+    private static string DescribeQuery(PatientsDirectoryQuery query) =>
+        $"searchActive={!string.IsNullOrWhiteSpace(query.Search)} species={query.Species?.ToString() ?? "all"} vaccine={query.Vaccine} sort={query.Sort} page={query.Page} requestedSize={query.PageSize} effectiveSize={ClampPageSize(query.PageSize)}";
+
+    private void LogPage(long readId, string entity, PatientsDirectoryQuery query, int count,
+        int total, int page, int pageSize, long elapsedMs)
+    {
+        diag.Info(LogCat, $"Read#{readId} {entity} DONE items={count} total={total} page={page} size={pageSize} elapsedMs={elapsedMs}");
+        if (count == 0 && total > 0)
+            diag.Warn(LogCat, $"Read#{readId} EMPTY_PAGE_WITH_MATCHES {entity}: local matches exist; inspect paging/revision before drawing conclusions about server data.");
+        else if (total == 0 && string.IsNullOrWhiteSpace(query.Search) && query.Species is null && query.Vaccine == VaccineFilter.All)
+            diag.Warn(LogCat, $"Read#{readId} UNFILTERED_LOCAL_EMPTY {entity}: no local matches in this scope; server contents were not queried.");
     }
 
     private static int ClampPageSize(int pageSize) => Math.Clamp(pageSize, 1, MaxPageSize);

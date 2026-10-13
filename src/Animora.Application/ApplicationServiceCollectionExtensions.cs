@@ -1,3 +1,4 @@
+using Animora.Contracts.Diagnostics;
 using Animora.Application.Commands;
 using Animora.Application.Correlation;
 using Animora.Application.Dispatch;
@@ -43,6 +44,7 @@ public static class ApplicationServiceCollectionExtensions
         services.TryAddScoped<IResourceAuthorizationRule<Invoice>, InvoiceAuthorizationRule>();
         services.TryAddScoped<IResourceAuthorizationRule<CashSession>, CashSessionAuthorizationRule>();
         services.TryAddSingleton<IEntitlementGate, AllowAllEntitlementGate>();
+        services.TryAddSingleton<IClientDiagnosticsLog, NullClientDiagnosticsLog>();
         services.TryAddSingleton<SessionContextCache>();
         services.TryAddScoped<ICurrentUserProvider, SessionCurrentUserProvider>();
         // B04b: offline capability issuer/evaluator (scoped: depend on the scoped store/role repository;

@@ -51,6 +51,9 @@ public static class AppTrace
     /// <summary>Absolute path of the active log file, once <see cref="Initialize"/> has run.</summary>
     public static string? LogFilePath => _logPath;
 
+    /// <summary>Allows callers to avoid constructing disabled verbose messages.</summary>
+    public static bool IsDebugEnabled => _debugEnabled;
+
     /// <summary>
     /// Opens the dated log file and prints a session banner. Call once, as early as possible in
     /// <c>Main</c> (before any other trace). Safe to call more than once (later calls are ignored).

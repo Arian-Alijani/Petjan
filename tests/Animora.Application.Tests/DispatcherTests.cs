@@ -150,6 +150,65 @@ public sealed class DispatcherTests
         Assert.Equal(ICurrentUserProvider.AnonymousUserId, provider.BuildAnonymousCommandContext().Value!.UserId);
     }
 
+    [Theory]
+    [InlineData("missing", "SESSION_EXPIRED")]
+    [InlineData("signed-out", "SESSION_EXPIRED")]
+    [InlineData("expired", "SESSION_EXPIRED")]
+    [InlineData("locked", "PERMISSION_DENIED")]
+    [InlineData("active", null)]
+    public void SessionDiagnostics_ExplainReadDenialWithoutChangingContext(string state, string? code)
+    {
+        var diagnostics = new RecordingDiagnostics();
+        var clock = new FixedClock();
+        var cache = new SessionContextCache();
+        cache.Set(state switch
+        {
+            "missing" => null,
+            "signed-out" => SessionSnapshot.SignedOut(false),
+            _ => new SessionSnapshot("U-TEST", "private-display-name", Domain.Identity.StaffRole.Manager,
+                state == "locked", false, state == "expired" ? clock.UtcNow : clock.UtcNow.AddHours(1)),
+        });
+        var correlation = new CorrelationContext();
+        using var correlationScope = correlation.Begin("COR-TEST");
+        var provider = new SessionCurrentUserProvider(new FixedInstallation(), new FakeSessionService(), cache,
+            correlation, new OperationIdFactory(), clock, diagnostics);
+        var result = provider.BuildQueryContext();
+        Assert.Equal(code is null, result.IsSuccess);
+        var text = string.Join("\n", diagnostics.Messages);
+        if (code is not null) Assert.Contains($"DENIED code={code} tenant=T-TEST", text);
+        else
+        {
+            Assert.Equal("T-TEST", result.Value!.TenantId);
+            Assert.Equal("U-TEST", result.Value.UserId);
+            Assert.Equal("COR-TEST", result.Value.CorrelationId);
+            Assert.Contains("Query context OK", text);
+        }
+        Assert.DoesNotContain("private-display-name", text);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void DiagnosticsRegistration_NullDefaultDoesNotOverrideHost(bool hostFirst)
+    {
+        var diagnostics = new RecordingDiagnostics();
+        var services = new ServiceCollection();
+        if (hostFirst) services.AddSingleton<Animora.Contracts.Diagnostics.IClientDiagnosticsLog>(diagnostics);
+        services.AddAnimoraApplication();
+        if (!hostFirst) services.AddSingleton<Animora.Contracts.Diagnostics.IClientDiagnosticsLog>(diagnostics);
+        using var provider = services.BuildServiceProvider();
+        Assert.Same(diagnostics, provider.GetRequiredService<Animora.Contracts.Diagnostics.IClientDiagnosticsLog>());
+    }
+
+    private sealed class RecordingDiagnostics : Animora.Contracts.Diagnostics.IClientDiagnosticsLog
+    {
+        public bool IsDebugEnabled => true;
+        public List<string> Messages { get; } = [];
+        public void Info(string category, string message) => Messages.Add(message);
+        public void Warn(string category, string message) => Messages.Add(message);
+        public void Debug(string category, string message) => Messages.Add(message);
+    }
+
     [Fact]
     public void CorrelationContext_BeginsAndRestores()
     {
