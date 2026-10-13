@@ -18,7 +18,7 @@ internal sealed class SyncPgRig : IAsyncDisposable
     public IFeedContextFactory Factory { get; }
     public FeedPageWriter Writer { get; }
     public FeedStorageOptions Settings { get; }
-    public SemaphoreBackgroundAdmission Admission { get; } = new(1);
+    public SemaphoreSyncAdmission Admission { get; } = new(1);
     private readonly ServiceProvider _services = new ServiceCollection().BuildServiceProvider();
     public SyncPgRig(string connection)
     {

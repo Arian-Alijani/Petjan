@@ -88,7 +88,7 @@ public sealed class BackpressureTests
         var watch = System.Diagnostics.Stopwatch.StartNew();
 
         await Assert.ThrowsAsync<AuthzOperationTimeoutException>(() =>
-            guard.RunAsync<int>(async token => { await Task.Delay(TimeSpan.FromSeconds(30), token); return 1; }, CancellationToken.None));
+            guard.RunAsync<int>((Func<CancellationToken, Task<int>>)(async token => { await Task.Delay(TimeSpan.FromSeconds(30), token); return 1; }), CancellationToken.None));
 
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), "the op must be cut at the budget, not run to the 30 s command timeout");
     }
@@ -101,7 +101,7 @@ public sealed class BackpressureTests
         cts.CancelAfter(TimeSpan.FromMilliseconds(50));
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            guard.RunAsync<int>(async token => { await Task.Delay(TimeSpan.FromSeconds(30), token); return 1; }, cts.Token));
+            guard.RunAsync<int>((Func<CancellationToken, Task<int>>)(async token => { await Task.Delay(TimeSpan.FromSeconds(30), token); return 1; }), cts.Token));
     }
 
     [Fact]
