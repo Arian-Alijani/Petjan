@@ -29,7 +29,7 @@
 
 ---
 
-## TASK-7 — History "انجام‌دهنده" always shows «سیستم» (ROOT CAUSE FOUND)  ·  status: ☐ TODO
+## TASK-7 — History "انجام‌دهنده" always shows «سیستم» (ROOT CAUSE FOUND)  ·  status: ☑ DONE
 
 ### Symptom
 Every history/activity screen's actor/performer column renders «سیستم» instead of the real user who
