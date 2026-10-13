@@ -1,7 +1,9 @@
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Animora.Application.Commands;
 
@@ -16,11 +18,46 @@ public static class CommandFingerprint
     /// <summary>Field separator inside the hashed input (unit separator, never present in a type name).</summary>
     public const char Separator = '\u001f';
 
+    /// <summary>
+    /// The <see cref="IJournaledCommand"/> members that describe the command's <b>identity/journaling</b>, not its
+    /// domain input. They are derived (expression-bodied) properties, so default serialization would emit them into the
+    /// canonical payload — but the server's payload-shape gate (<c>CommandPayloadCatalog</c>) requires the payload keys to
+    /// equal the command's <b>constructor parameters</b> exactly (set equality). Leaving these in produced a
+    /// <c>VALIDATION_FAILED "payload shape; ruleset=1"</c> rejection for every command. They are stripped here, in the one
+    /// place that builds the canonical payload, so every journaled command is correct without per-record attributes.
+    /// The same identity already travels in the command envelope (<c>CommandType</c>/<c>AggregateType</c>/<c>AggregateId</c>),
+    /// so nothing is lost.
+    /// </summary>
+    private static readonly string[] JournalingMemberNames =
+    {
+        nameof(IJournaledCommand.CommandTypeName),
+        nameof(IJournaledCommand.AggregateTypeName),
+        nameof(IJournaledCommand.AggregateIdOrNull),
+    };
+
     private static readonly JsonSerializerOptions SerializeOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { DropJournalingMembers } },
     };
+
+    /// <summary>
+    /// JSON type-info modifier: for any command implementing <see cref="IJournaledCommand"/>, removes the three journaling
+    /// members (matched by CLR member name via <see cref="JsonPropertyInfo.AttributeProvider"/>) so the canonical payload
+    /// contains only the domain constructor arguments.
+    /// </summary>
+    private static void DropJournalingMembers(JsonTypeInfo info)
+    {
+        if (info.Kind != JsonTypeInfoKind.Object || !typeof(IJournaledCommand).IsAssignableFrom(info.Type))
+            return;
+        for (var i = info.Properties.Count - 1; i >= 0; i--)
+        {
+            var memberName = (info.Properties[i].AttributeProvider as MemberInfo)?.Name;
+            if (memberName is not null && Array.IndexOf(JournalingMemberNames, memberName) >= 0)
+                info.Properties.RemoveAt(i);
+        }
+    }
 
     /// <summary>Hashes <paramref name="commandType"/> + <paramref name="payloadJson"/> into lowercase hex.</summary>
     public static string Compute(string commandType, string payloadJson)
