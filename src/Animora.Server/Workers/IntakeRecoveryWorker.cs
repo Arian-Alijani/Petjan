@@ -30,6 +30,9 @@ internal sealed class IntakeRecoveryWorker : ResilientWorker
         var parallel = new ParallelOptions { MaxDegreeOfParallelism = _settings.RecoveryParallelism, CancellationToken = ct };
         await Parallel.ForEachAsync(_tenants.ReadAsync(ct), parallel, async (tenant, token) =>
         {
+            // Advisory fast-path only: the authoritative budget is the atomic takeBudget decrement below. Under high
+            // parallelism a few items may be processed beyond RecoveryTotalCap before the decrement catches up — this
+            // overrun is bounded by RecoveryParallelism and is intentional/harmless (BUG-RECOVERY-01).
             if (Volatile.Read(ref remaining) <= 0) return;
             try { await RecoverTenantAsync(tenant, () => Interlocked.Decrement(ref remaining) >= 0, token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }

@@ -13,6 +13,8 @@ internal sealed class QueryLease(ReportingQuerySession? reporting,Action? releas
         if(Interlocked.Exchange(ref _disposed,1)!=0) return;
         try { if(Reporting is not null) await Reporting.DisposeAsync().ConfigureAwait(false); } finally { release?.Invoke(); }
     }
+    // Sync bridge for `using` callers only; prefer `await using` so this path is never hit. Safe here: no
+    // sync-context deadlock risk in ASP.NET Core (no captured UI/Winforms SynchronizationContext).
     public void Dispose()=>DisposeAsync().AsTask().GetAwaiter().GetResult();
 }
 /// <summary>The reporting budget stayed saturated for the whole bounded wait; callers shed with 503 + Retry-After.</summary>

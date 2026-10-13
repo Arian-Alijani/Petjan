@@ -10,7 +10,7 @@ internal sealed class AdminSecurityHeadersMiddleware(RequestDelegate next)
     {
         response.Headers.CacheControl="no-store"; response.Headers["X-Content-Type-Options"]="nosniff";
         response.Headers["X-Frame-Options"]="DENY"; response.Headers["Referrer-Policy"]="no-referrer";
-        response.Headers.ContentSecurityPolicy="default-src 'self'; frame-ancestors 'none'; form-action 'self'";
+        response.Headers.ContentSecurityPolicy="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; form-action 'self'; base-uri 'self'";
     }
     public async Task InvokeAsync(HttpContext http,IOptions<AdminOptions> options)
     {

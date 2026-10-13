@@ -16,6 +16,12 @@ namespace Animora.Server.Authorization;
 /// The TTL is absolute (not sliding) on purpose — a busy user can never keep a stale verdict alive.
 /// </para>
 /// Per-process by design (see the single-instance component list on <c>ReplayWindow</c>).
+/// <para>
+/// MULTI-INSTANCE: <see cref="InvalidateUser"/>/<see cref="InvalidateTenant"/> mutate only the local process.
+/// For &gt;1 replica either set <c>Server:AuthCache:TtlSeconds=0</c> (every request re-reads the store — the
+/// documented escape hatch, at a latency cost) or back invalidation with a shared signal (PG LISTEN/NOTIFY,
+/// Redis pub/sub). The server logs a startup warning when caching is enabled so this choice is operator-visible.
+/// </para>
 /// </summary>
 internal sealed class AuthzDecisionCache
 {
@@ -36,7 +42,9 @@ internal sealed class AuthzDecisionCache
         ArgumentNullException.ThrowIfNull(time);
         AuthCacheSettings settings = options.Value.AuthCache;
         _time = time;
-        _ttlTicks = TimeSpan.FromSeconds(Math.Max(0, settings.TtlSeconds)).Ticks;
+        // Defense-in-depth: ServerOptionsValidator already fails boot outside 0..60, but clamp here too so the cache
+        // can never honour an out-of-range TTL even if constructed outside the validated options pipeline (tests).
+        _ttlTicks = TimeSpan.FromSeconds(Math.Clamp(settings.TtlSeconds, 0, 60)).Ticks;
         _maxEntries = Math.Max(1, settings.MaxEntries);
     }
 
