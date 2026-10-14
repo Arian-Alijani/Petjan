@@ -231,7 +231,7 @@ Verified via `git log`:
 - If you touched tests/added a small test, push:
   `scripts/git/push.sh "test(sync): cover extended materializer entity set"`. Otherwise no-op (no push).
 
-### [ ] T6 — Open/refresh the PR to `genspark_ai_developer` and share the link — STATUS: pending
+### [x] T6 — Open/refresh the PR to `genspark_ai_developer` and share the link — STATUS: ✅ done (per user instruction: no PR; main fast-forwarded directly to genspark_ai_developer, which was 7 ahead / 0 behind; ci/fix-crypto-audit change already superseded on main by d2ce1c0e)
 - The push script auto-pushes the current branch. Ensure work is on `genspark_ai_developer`
   (use `scripts/git/push.sh -b genspark_ai_developer "..."` on the first push if needed), synced with
   `origin/main`. Then confirm/open the PR to `main` and give the user the PR URL.
