@@ -117,7 +117,7 @@ Verified via `git log`:
 - No push if nothing changed; if you had to re-apply: `scripts/git/push.sh "fix(server): re-assert UpdatedAt stamping"`.
 - Purpose: guarantees Owner/Pet already replicate before we extend the materializer.
 
-### [ ] T2 — Extend `ReplicaMaterializer` to project the inventory/sales/clinical entities (Root Cause A) — STATUS: pending
+### [x] T2 — Extend `ReplicaMaterializer` to project the inventory/sales/clinical entities (Root Cause A) — STATUS: ✅ done (22 new entity maps incl. Product+variants, Visit, BoardingStay items; Tenant/DocumentReference/billing-handoffs deliberately deferred, noted in class doc)
 - File: `src/Animora.Sync.Custom/Replica/ReplicaMaterializer.cs`.
 - Pattern to copy: each entity is one `new EntityMap(wireName, localTableName, [Col(...), ...], optional searchKey)`
   in the static `Maps` array. `Col(Name, Kind, Required)` where `Kind ∈ {Text, Int, Bool, Time}`. The upsert
