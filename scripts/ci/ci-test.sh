@@ -92,6 +92,13 @@ summary ""
 summary "| Test project | Result |"
 summary "|---|---|"
 
+# Workflow Restore has already populated every test project. Test-only still
+# compiles its tests; --no-build would incorrectly assume test binaries exist.
+RESTORE_OPTIONS=()
+if [ "$SCOPE" = "server" ] && [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+  RESTORE_OPTIONS=(--no-restore)
+fi
+
 RC=0
 START=$(date +%s)
 for p in "${PROJECTS[@]}"; do
@@ -100,7 +107,7 @@ for p in "${PROJECTS[@]}"; do
   log "testing $name ..."
 
   # --logger trx produces a machine-readable result file per project.
-  dotnet test "$TARGET" -c "$CONFIG" --nologo -v minimal \
+  dotnet test "$TARGET" -c "$CONFIG" --nologo -v minimal "${RESTORE_OPTIONS[@]}" \
     --logger "trx;LogFileName=$name.trx" \
     --results-directory "$RESULTS_DIR" \
     "${FILTER_OPT[@]}"
