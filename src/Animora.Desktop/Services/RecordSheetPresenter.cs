@@ -1,3 +1,4 @@
+using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Pages.Patients;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,15 +29,19 @@ public sealed class RecordSheetPresenter : IRecordSheetPresenter
 
     public async Task OpenOwnerSheetAsync(string ownerId)
     {
+        AppTrace.Info($"OpenOwnerSheetAsync(ownerId={ownerId}) — resolving OwnerSheetViewModel and loading…", "patients");
         var viewModel = _services.GetRequiredService<OwnerSheetViewModel>();
         await viewModel.LoadAsync(ownerId);
         _dialogs.ShowSheet(viewModel, width: 680, height: 760);
+        AppTrace.Info($"owner sheet presented (ownerId={ownerId}).", "patients");
     }
 
     public async Task OpenPetSheetAsync(string petId)
     {
+        AppTrace.Info($"OpenPetSheetAsync(petId={petId}) — resolving PetFileViewModel and loading…", "patients");
         var viewModel = _services.GetRequiredService<PetFileViewModel>();
         await viewModel.LoadAsync(petId);
         _dialogs.ShowSheet(viewModel, width: 1120, height: 880);
+        AppTrace.Info($"pet sheet presented (petId={petId}).", "patients");
     }
 }

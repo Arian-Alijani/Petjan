@@ -1,5 +1,6 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Behaviors;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Results;
 
 namespace Animora.Application.Dispatch;
@@ -45,6 +46,7 @@ public sealed class Dispatcher(HandlerRegistry registry, IServiceProvider servic
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(ctx);
+        TraceLog.Debug($"SendAsync {command.GetType().Name} (op={ctx.OperationId}, tenant={ctx.TenantId}, user={ctx.UserId})", "dispatch");
         return Run<TResult>(command, ctx, RequestKind.Command, ct);
     }
 
@@ -53,17 +55,31 @@ public sealed class Dispatcher(HandlerRegistry registry, IServiceProvider servic
     {
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(ctx);
+        TraceLog.Debug($"QueryAsync {query.GetType().Name} (tenant={ctx.TenantId}, user={ctx.UserId}, corr={ctx.CorrelationId})", "dispatch");
         return Run<TResult>(query, ctx, RequestKind.Query, ct);
     }
 
-    private Task<Result<TResult>> Run<TResult>(object request, object ctx, RequestKind kind, CancellationToken ct)
+    private async Task<Result<TResult>> Run<TResult>(object request, object ctx, RequestKind kind, CancellationToken ct)
     {
         var type = request.GetType();
         if (!registry.TryGet(type, out var entry))
-            return Task.FromResult(Result<TResult>.Fail(ErrorCodes.HandlerNotRegistered, type.FullName));
+        {
+            TraceLog.Error($"Dispatch {kind} {type.Name} → NO HANDLER REGISTERED (HANDLER_NOT_REGISTERED).", null, "dispatch");
+            return Result<TResult>.Fail(ErrorCodes.HandlerNotRegistered, type.FullName);
+        }
         if (entry.Kind != kind || entry.Pipeline is not PipelineStep<TResult> pipeline)
-            return Task.FromResult(Result<TResult>.Fail(ErrorCodes.DispatchFailed,
-                $"{type.FullName}: registered as {entry.Kind}/{entry.ResultType.Name}."));
-        return pipeline(services, request, ctx, ct);
+        {
+            TraceLog.Error($"Dispatch {kind} {type.Name} → KIND/RESULT MISMATCH (registered as {entry.Kind}/{entry.ResultType.Name}).", null, "dispatch");
+            return Result<TResult>.Fail(ErrorCodes.DispatchFailed,
+                $"{type.FullName}: registered as {entry.Kind}/{entry.ResultType.Name}.");
+        }
+
+        TraceLog.Debug($"Dispatch {kind} {type.Name} → running behaviour chain (Correlation→ExceptionMapping→Validation→Authorization→Entitlement→Transaction→[Journal]→Audit).", "dispatch");
+        var result = await pipeline(services, request, ctx, ct).ConfigureAwait(false);
+        if (result.IsFailure)
+            TraceLog.Warn($"Dispatch {kind} {type.Name} ← FAILED {result.Error} detail='{result.Detail}'", "dispatch");
+        else
+            TraceLog.Debug($"Dispatch {kind} {type.Name} ← Ok.", "dispatch");
+        return result;
     }
 }

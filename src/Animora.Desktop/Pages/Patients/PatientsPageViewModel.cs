@@ -1,6 +1,7 @@
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Patients.Settings;
 using Animora.Desktop.Services;
@@ -100,10 +101,16 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         Eyebrow = "مدیریت کلینیک";
         Breadcrumbs.Add("مدیریت کلینیک");
         Breadcrumbs.Add("بیماران");
+        AppTrace.Info("PatientsPageViewModel constructed (singleton).", "patients");
         // Non-blocking init (PERFORMANCE.md §4): never block the UI thread on the first load.
         UseLoadStatus(ReloadPageAsync);
         // Owner/pet sheets edit records from over this page; the page's own wizard/add-pet writes reload directly.
-        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Patients);
+        RefreshOnDataChange(changes, () =>
+        {
+            AppTrace.Info("data-change notification (Patients domain) → reloading directory.", "patients");
+            _ = ReloadPageAsync();
+        }, DataDomain.Patients);
+        AppTrace.Info("ctor-started initial directory load (view=Owners by default).", "patients");
         _ = ReloadPageAsync();
         _hasLoadedOnce = true;   // the ctor-started load covers the first navigation (PERFORMANCE.md §13)
     }
@@ -465,46 +472,75 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
     /// <returns>False when the load failed (already reported to the user here).</returns>
     private async Task<bool> LoadAsync()
     {
+        var view = IsOwnersView ? "Owners(سرپرستان)" : "Pets(بیماران)";
         await _loadGate.WaitAsync();
         IsBusy = true;
         try
         {
-            // Wait for the local store (migrations/seed) before the first query — same as every Track C page.
-            await _readiness.WaitAsync();
-            var query = CurrentQuery();
-
-            // Facets (totals + species counts) resolve alongside the active entity's page. Only the
-            // visible entity's rows are fetched — switching owners⇄pets re-queries on demand.
-            var facetsTask = _patientsQueryService.GetDirectoryFacetsAsync(query);
-            if (IsOwnersView)
+            return await AppTrace.FlowAsync($"PatientsPage.Load[{view}]", async () =>
             {
-                var pageTask = _patientsQueryService.GetOwnersPageAsync(query);
-                await Task.WhenAll(facetsTask, pageTask);
-                PublishFacets(await facetsTask);
-                PublishOwners(await pageTask);
-                FilteredPets.Clear();
-                PetRows.Clear();
-            }
-            else
-            {
-                var pageTask = _patientsQueryService.GetPetsPageAsync(query);
-                await Task.WhenAll(facetsTask, pageTask);
-                PublishFacets(await facetsTask);
-                PublishPets(await pageTask);
-                FilteredOwners.Clear();
-                OwnerRows.Clear();
-            }
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                // Wait for the local store (migrations/seed) before the first query — same as every Track C page.
+                AppTrace.Step(1, "await IStoreReadinessGate.WaitAsync (local store migrated/seeded)", category: "patients");
+                if (!_readiness.WaitAsync().IsCompleted)
+                    AppTrace.Info("readiness gate NOT yet satisfied — waiting for LocalStoreStartup to MarkReady()…", "patients");
+                await _readiness.WaitAsync();
+                AppTrace.Step(2, "readiness gate satisfied", $"waited {sw.ElapsedMilliseconds} ms", "patients");
 
-            NotifyDerived();
-            return true;
+                var query = CurrentQuery();
+                AppTrace.Step(3, "built directory query", DescribeQuery(query), "patients");
+                AppTrace.Info($"toolbar state — view={view}, section={Section}, layout={Layout}, vaccineFilter={VaccineFilter}, sort={Sort}, species={SelectedSpecies?.ToString() ?? "(all)"}, page={CurrentPage}, pageSize={PageSize}", "patients");
+
+                // Facets (totals + species counts) resolve alongside the active entity's page. Only the
+                // visible entity's rows are fetched — switching owners⇄pets re-queries on demand.
+                AppTrace.Step(4, "dispatching facets query + page query IN PARALLEL", category: "patients");
+                var facetsTask = _patientsQueryService.GetDirectoryFacetsAsync(query);
+                if (IsOwnersView)
+                {
+                    var pageTask = _patientsQueryService.GetOwnersPageAsync(query);
+                    await Task.WhenAll(facetsTask, pageTask);
+                    var facets = await facetsTask;
+                    var page = await pageTask;
+                    AppTrace.Info($"facets result — totalOwners={facets.TotalOwners}, totalPets={facets.TotalPets}, speciesCounts=[{DescribeSpecies(facets.SpeciesCounts)}]", "patients");
+                    AppTrace.Info($"owners page result — itemsReturned={page.Items.Count}, totalCount={page.TotalCount}, page={page.Page}, pageSize={page.PageSize}", "patients");
+                    PublishFacets(facets);
+                    PublishOwners(page);
+                    FilteredPets.Clear();
+                    PetRows.Clear();
+                    AppTrace.Info($"after PublishOwners — FilteredOwners={FilteredOwners.Count}, OwnerRows={OwnerRows.Count}, HasOwners={HasOwners}, ShowEmptyState={ShowEmptyState}", "patients");
+                }
+                else
+                {
+                    var pageTask = _patientsQueryService.GetPetsPageAsync(query);
+                    await Task.WhenAll(facetsTask, pageTask);
+                    var facets = await facetsTask;
+                    var page = await pageTask;
+                    AppTrace.Info($"facets result — totalOwners={facets.TotalOwners}, totalPets={facets.TotalPets}, speciesCounts=[{DescribeSpecies(facets.SpeciesCounts)}]", "patients");
+                    AppTrace.Info($"pets page result — itemsReturned={page.Items.Count}, totalCount={page.TotalCount}, page={page.Page}, pageSize={page.PageSize}", "patients");
+                    PublishFacets(facets);
+                    PublishPets(page);
+                    FilteredOwners.Clear();
+                    OwnerRows.Clear();
+                    AppTrace.Info($"after PublishPets — FilteredPets={FilteredPets.Count}, PetRows={PetRows.Count}, HasPets={HasPets}, ShowEmptyState={ShowEmptyState}", "patients");
+                }
+
+                NotifyDerived();
+                AppTrace.Step(5, "derived UI state notified", $"totalMatchCount={_totalMatchCount}, pageCount={PageCount}, resultCount='{ResultCountText}'", "patients");
+                if (ShowEmptyState)
+                    AppTrace.Warn($"EMPTY STATE — the {view} directory resolved ZERO rows for this query. If a record was just created, check the sync-apply (ApplyCommit/BusinessProjection) traces: the server row may not have been materialised into the local Owners/Pets tables (or is hidden by the pending-command overlay / tenant / soft-delete filter).", "patients");
+                AppTrace.Info($"load complete in {sw.ElapsedMilliseconds} ms.", "patients");
+                return true;
+            }, "patients");
         }
         catch (InvalidOperationException ex) when (IsAccessFailure(ex.Message))
         {
+            AppTrace.Warn($"PatientsPage load DENIED (access failure): {ex.Message}", "patients");
             _toast.Show(AccessLostMessage, Tone.Danger);
             return false;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            AppTrace.Error("PatientsPage load FAILED (unexpected) — the list will not render.", ex, "patients");
             _toast.Show("بارگذاری بیماران و سرپرستان انجام نشد؛ دوباره تلاش کنید", Tone.Danger);
             return false;
         }
@@ -515,6 +551,12 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
         }
     }
 
+    private static string DescribeQuery(PatientsDirectoryQuery q) =>
+        $"search='{q.Search}', species={q.Species?.ToString() ?? "(all)"}, vaccine={q.Vaccine}, sort={q.Sort}, page={q.Page}, pageSize={q.PageSize}";
+
+    private static string DescribeSpecies(IReadOnlyDictionary<PetSpecies, int> counts) =>
+        counts.Count == 0 ? "(none)" : string.Join(", ", counts.Select(kv => $"{kv.Key}={kv.Value}"));
+
     private void PublishFacets(PatientsDirectoryFacets facets)
     {
         _totalOwnerMatches = facets.TotalOwners;
@@ -523,9 +565,13 @@ public sealed partial class PatientsPageViewModel : PageViewModelBase
 
         // Clamp the requested page into range now that the real total is known (e.g. a filter that
         // shrank the result set below the current page index).
-        CurrentPage = Math.Clamp(CurrentPage, 1, Math.Max(1, PageCount));
+        var clamped = Math.Clamp(CurrentPage, 1, Math.Max(1, PageCount));
+        if (clamped != CurrentPage)
+            AppTrace.Info($"results shrank below current page — clamping page {CurrentPage} → {clamped} (pageCount={PageCount}).", "patients");
+        CurrentPage = clamped;
 
         BuildSpeciesChips(facets.SpeciesCounts);
+        AppTrace.Info($"facets published — _totalOwnerMatches={_totalOwnerMatches}, _totalPetMatches={_totalPetMatches}, _totalMatchCount={_totalMatchCount}, speciesChips={SpeciesChips.Count}", "patients");
     }
 
     private void PublishOwners(PatientsPage<OwnerSummary> page)

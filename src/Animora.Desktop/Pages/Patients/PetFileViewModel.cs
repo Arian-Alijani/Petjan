@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Sales.Shared;
 using Animora.Desktop.Services;
@@ -245,15 +246,29 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     /// </summary>
     public async Task LoadAsync(string petId)
     {
-        var detail = await _patients.GetPetAsync(petId);
-        if (detail is null)
+        await AppTrace.FlowAsync($"PetFile.Load[{petId}]", async () =>
         {
-            return;
-        }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            AppTrace.Info($"opening pet file for petId={petId} (GetPetAsync)…", "patients");
+            var detail = await _patients.GetPetAsync(petId);
+            if (detail is null)
+            {
+                AppTrace.Warn($"pet file: GetPetAsync returned NULL for petId={petId} — nothing to display. " +
+                    "The local Pets table has no such row for the current tenant (deleted, wrong tenant, or never materialised by sync-apply).", "patients");
+                return;
+            }
 
-        _owner = await _patients.GetOwnerAsync(detail.OwnerId);
-        Apply(detail);
-        SelectTab("summary");
+            AppTrace.Info($"pet detail loaded in {sw.ElapsedMilliseconds} ms — name='{detail.Name}', ownerId={detail.OwnerId}, weights={detail.Weights.Count}, visits={detail.Visits?.Count ?? 0}.", "patients");
+            AppTrace.Info($"resolving pet's owner (GetOwnerAsync ownerId={detail.OwnerId}) for the owner ribbon…", "patients");
+            _owner = await _patients.GetOwnerAsync(detail.OwnerId);
+            if (_owner is null)
+                AppTrace.Warn($"pet file: owner {detail.OwnerId} not found locally — the owner ribbon will be blank.", "patients");
+            else
+                AppTrace.Info($"pet file owner ribbon resolved — owner='{_owner.FirstName} {_owner.LastName}'.", "patients");
+            Apply(detail);
+            SelectTab("summary");
+            AppTrace.Info($"pet file fully loaded and rendered in {sw.ElapsedMilliseconds} ms.", "patients");
+        }, "patients");
     }
 
     private void Apply(PetDetail pet)

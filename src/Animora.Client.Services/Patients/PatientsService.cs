@@ -6,6 +6,7 @@ using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Vaccination;
 using Animora.Application.UseCases.Patients.ReadModels;
 using Animora.Domain.Results;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
 using Microsoft.Extensions.DependencyInjection;
 using CWeightEntry = Animora.Contracts.Patients.WeightEntry;
@@ -28,38 +29,66 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         // "Has vaccines" has no data source yet (C01) — it can only ever match zero pets, so short
         // out without a DB round-trip rather than returning a misleading full list.
         if (query.Vaccine == VaccineFilter.Has)
+        {
+            TraceLog.Info($"GetPetsPageAsync → SHORT-CIRCUIT (VaccineFilter.Has has no data source) → empty page.", "svc.patients");
             return PatientsPage<PetSummary>.Empty(query.Page, ClampPageSize(query.PageSize));
+        }
 
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new ServiceException(qc.Error);
+        if (qc.IsFailure)
+        {
+            TraceLog.Warn($"GetPetsPageAsync → BuildQueryContext FAILED ({qc.Error}) — throwing ServiceException.", "svc.patients");
+            throw new ServiceException(qc.Error);
+        }
 
+        TraceLog.Info($"GetPetsPageAsync → PetDirectoryQuery(search='{query.Search}', species={query.Species?.ToString() ?? "(all)"}, sort={query.Sort}, page={query.Page}, pageSize={ClampPageSize(query.PageSize)}); tenant={qc.Value!.TenantId}, user={qc.Value!.UserId}", "svc.patients");
         var r = await dispatcher.QueryAsync(
             new PetDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
-        if (r.IsFailure) throw new ServiceException(r.Error);
-        return ToPage(r.Value!, x => x.ToSummary());
+        if (r.IsFailure)
+        {
+            TraceLog.Error($"GetPetsPageAsync → dispatcher FAILED ({r.Error}) detail='{r.Detail}' — throwing ServiceException.", null, "svc.patients");
+            throw new ServiceException(r.Error);
+        }
+        var page = ToPage(r.Value!, x => x.ToSummary());
+        TraceLog.Info($"GetPetsPageAsync ← Ok: items={page.Items.Count}, totalCount={page.TotalCount}.", "svc.patients");
+        return page;
     }
 
     public async Task<PatientsPage<OwnerSummary>> GetOwnersPageAsync(PatientsDirectoryQuery query)
     {
         ArgumentNullException.ThrowIfNull(query);
         if (query.Vaccine == VaccineFilter.Has)
+        {
+            TraceLog.Info($"GetOwnersPageAsync → SHORT-CIRCUIT (VaccineFilter.Has has no data source) → empty page.", "svc.patients");
             return PatientsPage<OwnerSummary>.Empty(query.Page, ClampPageSize(query.PageSize));
+        }
 
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new ServiceException(qc.Error);
+        if (qc.IsFailure)
+        {
+            TraceLog.Warn($"GetOwnersPageAsync → BuildQueryContext FAILED ({qc.Error}) — throwing ServiceException.", "svc.patients");
+            throw new ServiceException(qc.Error);
+        }
 
+        TraceLog.Info($"GetOwnersPageAsync → OwnerDirectoryQuery(search='{query.Search}', species={query.Species?.ToString() ?? "(all)"}, sort={query.Sort}, page={query.Page}, pageSize={ClampPageSize(query.PageSize)}); tenant={qc.Value!.TenantId}, user={qc.Value!.UserId}", "svc.patients");
         var r = await dispatcher.QueryAsync(
             new OwnerDirectoryQuery(query.Search, MapSpecies(query.Species), MapSort(query.Sort),
                 query.Page, ClampPageSize(query.PageSize)),
             qc.Value!);
-        if (r.IsFailure) throw new ServiceException(r.Error);
-        return ToPage(r.Value!, x => x.ToSummary());
+        if (r.IsFailure)
+        {
+            TraceLog.Error($"GetOwnersPageAsync → dispatcher FAILED ({r.Error}) detail='{r.Detail}' — throwing ServiceException.", null, "svc.patients");
+            throw new ServiceException(r.Error);
+        }
+        var page = ToPage(r.Value!, x => x.ToSummary());
+        TraceLog.Info($"GetOwnersPageAsync ← Ok: items={page.Items.Count}, totalCount={page.TotalCount}.", "svc.patients");
+        return page;
     }
 
     public async Task<PatientsDirectoryFacets> GetDirectoryFacetsAsync(PatientsDirectoryQuery query)
@@ -67,19 +96,33 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         ArgumentNullException.ThrowIfNull(query);
         // "Has vaccines" matches nothing (no source yet) — report zeros without a DB round-trip.
         if (query.Vaccine == VaccineFilter.Has)
+        {
+            TraceLog.Info($"GetDirectoryFacetsAsync → SHORT-CIRCUIT (VaccineFilter.Has) → zero facets.", "svc.patients");
             return new PatientsDirectoryFacets(0, 0, new Dictionary<PetSpecies, int>());
+        }
 
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
         var qc = provider.BuildQueryContext();
-        if (qc.IsFailure) throw new ServiceException(qc.Error);
+        if (qc.IsFailure)
+        {
+            TraceLog.Warn($"GetDirectoryFacetsAsync → BuildQueryContext FAILED ({qc.Error}) — throwing ServiceException.", "svc.patients");
+            throw new ServiceException(qc.Error);
+        }
 
+        TraceLog.Info($"GetDirectoryFacetsAsync → PatientsDirectoryFacetsQuery(search='{query.Search}', species={query.Species?.ToString() ?? "(all)"})", "svc.patients");
         var r = await dispatcher.QueryAsync(
             new PatientsDirectoryFacetsQuery(query.Search, MapSpecies(query.Species)), qc.Value!);
-        if (r.IsFailure) throw new ServiceException(r.Error);
+        if (r.IsFailure)
+        {
+            TraceLog.Error($"GetDirectoryFacetsAsync → dispatcher FAILED ({r.Error}) detail='{r.Detail}' — throwing ServiceException.", null, "svc.patients");
+            throw new ServiceException(r.Error);
+        }
         var m = r.Value!;
         var species = m.SpeciesCounts.ToDictionary(kv => MapSpeciesToContract(kv.Key), kv => kv.Value);
-        return new PatientsDirectoryFacets(m.TotalOwners, m.TotalPets, species);
+        var facets = new PatientsDirectoryFacets(m.TotalOwners, m.TotalPets, species);
+        TraceLog.Info($"GetDirectoryFacetsAsync ← Ok: totalOwners={facets.TotalOwners}, totalPets={facets.TotalPets}.", "svc.patients");
+        return facets;
     }
 
     private static int ClampPageSize(int pageSize) => Math.Clamp(pageSize, 1, MaxPageSize);

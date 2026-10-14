@@ -1,4 +1,5 @@
 using Animora.Application.Ports;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Results;
 using Animora.Persistence.Sqlite.Context;
@@ -35,6 +36,7 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
         var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
         var tenant = di.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
         var cp = await ReadAsync(db, tenant, scope.Name, ct).ConfigureAwait(false);
+        TraceLog.Info($"ApplyStore.ReadCheckpoint — scope='{scope.Name}', tenant={tenant} → epoch={cp.Epoch}, watermark={cp.Watermark}, generation={cp.Generation}.", "sync.apply");
         return Result<SyncCheckpoint>.Ok(new SyncCheckpoint(cp.Epoch, cp.Watermark));
     }
 
@@ -49,6 +51,7 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
             di = scopes.CreateScope();
             var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var tenant = di.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
+            TraceLog.Info($"ApplyStore.Begin — scope='{scope.Name}', tenant={tenant}, batch={batch.BatchId}, epoch={batch.Epoch}, fromExclusive={batch.FromSequenceExclusive}, watermark={batch.Watermark}, pageCount={batch.PageCount}, generation={batch.Generation}.", "sync.apply");
             // Scratch rows of a crashed/aborted earlier session are meaningless: staging never feeds anything but its own commit.
             await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM repl_staging WHERE TenantId = {tenant}", ct).ConfigureAwait(false);
             return Result<ISyncApplySession>.Ok(new Session(this, di, db, tenant, scope, batch));
@@ -92,6 +95,10 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
                     return Result.Fail(ErrorCodes.SyncProtocolViolation, $"Page {page.PageOrdinal} carries a record with an invalid entity key.");
             }
 
+            var owner0 = page.Records.Count(r => r.Entity == "Owner");
+            var pet0 = page.Records.Count(r => r.Entity == "Pet");
+            TraceLog.Info($"ApplyStore.AcceptPage — batch={batch.BatchId}, page={page.PageOrdinal}/{batch.PageCount}, records={page.Records.Count} (Owner={owner0}, Pet={pet0}), pageHash={page.PageHash}.", "sync.apply");
+
             await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
             foreach (var record in page.Records)
             {
@@ -107,6 +114,7 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
                         PageOrdinal = excluded.PageOrdinal, Version = excluded.Version, Payload = excluded.Payload,
                         Deleted = excluded.Deleted, UpdatedAtUtc = excluded.UpdatedAtUtc
                     """, ct).ConfigureAwait(false);
+                TraceLog.Debug($"staged record entity={record.Entity}, id={record.EntityId}, deleted={deleted}, version={record.Version}, payloadBytes={payload?.Length ?? 0}.", "sync.apply");
             }
 
             await tx.CommitAsync(ct).ConfigureAwait(false);
@@ -121,15 +129,20 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
                     $"Batch {batch.BatchId} is incomplete ({_nextOrdinal}/{batch.PageCount} pages).");
 
             var snapshot = batch.FromSequenceExclusive == 0;
+            TraceLog.Info($"ApplyStore.Commit START — batch={batch.BatchId}, tenant={tenant}, scope='{scope.Name}', epoch={batch.Epoch}, fromExclusive={batch.FromSequenceExclusive}, watermark={batch.Watermark}, snapshot={snapshot}.", "sync.apply");
             // Resolved before the write transaction opens (a cold provider performs its own store read).
             var zone = await ResolveZoneAsync(ct).ConfigureAwait(false);
             await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
             var current = await ReadAsync(db, tenant, scope.Name, ct).ConfigureAwait(false);
+            TraceLog.Info($"ApplyStore.Commit — local checkpoint before: epoch={current.Epoch}, watermark={current.Watermark}, generation={current.Generation}.", "sync.apply");
 
             if (!snapshot && (current.Epoch != batch.Epoch || current.Watermark < batch.FromSequenceExclusive
                               || batch.Watermark < current.Watermark))
+            {
+                TraceLog.Error($"ApplyStore.Commit → CONFLICT: batch {batch.BatchId} (from {batch.FromSequenceExclusive}) does not continue local checkpoint ({current.Epoch}/{current.Watermark}).", null, "sync.apply");
                 return Result<SyncCheckpoint>.Fail(ErrorCodes.SyncApplyConflict,
                     $"Batch {batch.BatchId} (from {batch.FromSequenceExclusive}) does not continue the local checkpoint ({current.Epoch}/{current.Watermark}).");
+            }
 
             var target = snapshot ? current.Generation + 1 : Math.Max(current.Generation, 1);
             await db.Database.ExecuteSqlInterpolatedAsync($"""
@@ -148,7 +161,9 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
                     Generation = excluded.Generation, ServerGeneration = excluded.ServerGeneration
                 """, ct).ConfigureAwait(false);
             // Project onto the typed business tables the screens read, in this same transaction (staging is still present here).
-            await ReplicaMaterializer.ApplyAsync(db, tenant, batch.BatchId, zone, ct).ConfigureAwait(false);
+            TraceLog.Info($"ApplyStore.Commit — projecting staged replicas onto typed business tables (ReplicaMaterializer) for batch={batch.BatchId} …", "sync.apply");
+            var written = await ReplicaMaterializer.ApplyAsync(db, tenant, batch.BatchId, zone, ct).ConfigureAwait(false);
+            TraceLog.Info($"ApplyStore.Commit — ReplicaMaterializer wrote {written} typed business row(s).", "sync.apply");
             if (snapshot)
                 await db.Database.ExecuteSqlInterpolatedAsync(
                     $"DELETE FROM repl_base WHERE TenantId = {tenant} AND Generation <> {target}", ct).ConfigureAwait(false);
@@ -157,6 +172,7 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
 
             await tx.CommitAsync(ct).ConfigureAwait(false);
             _closed = true;
+            TraceLog.Info($"ApplyStore.Commit DONE — checkpoint advanced to epoch={batch.Epoch}, watermark={batch.Watermark}, generation={target}.", "sync.apply");
             return Result<SyncCheckpoint>.Ok(new SyncCheckpoint(batch.Epoch, batch.Watermark));
         }
 

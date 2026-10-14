@@ -218,21 +218,31 @@ rem  that comes back (status + timing + body), and every connection error. Use
 rem  it to diagnose server-connection problems. Keep this window open while you
 rem  use the app; close it (or press a key after the app exits) when done.
 rem
+rem  FULL PATIENTS/OWNERS TRACE: with ANIMORA_TRACE_DEBUG=1 below, the SAME
+rem  window also prints the complete end-to-end load path for the "سرپرستان"
+rem  (owners) and "بیماران" (patients) pages: the page ViewModel load, the query
+rem  service, the dispatcher, the LOCAL SQL projection, and the sync pull/apply
+rem  (including whether a synced Owner/Pet row was actually materialised into the
+rem  local tables). Categories to grep: patients, svc.patients, sql.patients,
+rem  dispatch, sync, sync.apply, sync.push.
+rem
 rem  To point this copy at a different server, edit the SET line below.
 rem  To run WITHOUT the server trace, set ANIMORA_NET_LOG=0.
 rem  The app ALSO writes its own activity log (startup, clicks, navigation,
 rem  errors) to: %LOCALAPPDATA%\Animora\logs\animora-<date>.log
-rem  Set ANIMORA_TRACE_DEBUG=1 for extra-verbose app diagnostics.
+rem  Set ANIMORA_TRACE_DEBUG=1 for extra-verbose app diagnostics (already on).
 rem ===========================================================================
 setlocal
 chcp 65001 >nul
 set "ANIMORA_SERVER_URL=$ServerUrl"
 set "ANIMORA_NET_LOG=1"
+set "ANIMORA_TRACE_DEBUG=1"
 echo =====================================================================
 echo  Animora - server-connected launch (LIVE TRACE)
 echo  Server : %ANIMORA_SERVER_URL%
 echo  This window shows every request/response to/from the server, plus the
-echo  app's own activity (startup, clicks, navigation, errors).
+echo  app's own activity (startup, clicks, navigation, errors) AND the full
+echo  patients/owners load trace (patients, sql.patients, sync.apply, ...).
 echo  App log file: %LOCALAPPDATA%\Animora\logs\animora-<date>.log
 echo  Leave this window open while you use the app.
 echo =====================================================================
@@ -260,6 +270,14 @@ $Ps1Content = @"
 # plus any connection error — use it to diagnose server-connection problems.
 # Sets the variables for THIS process only (no machine-wide change).
 # To run without the trace: set `$env:ANIMORA_NET_LOG = '0' before launching.
+#
+# FULL PATIENTS/OWNERS TRACE: with ANIMORA_TRACE_DEBUG=1 below, the SAME window
+# also prints the complete end-to-end load path for the "سرپرستان" (owners) and
+# "بیماران" (patients) pages: the page ViewModel load, the query service, the
+# dispatcher, the LOCAL SQL projection, and the sync pull/apply (including
+# whether a synced Owner/Pet row was actually materialised into the local
+# tables). Categories to grep: patients, svc.patients, sql.patients, dispatch,
+# sync, sync.apply, sync.push.
 `$ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 `$here = Split-Path -Parent `$MyInvocation.MyCommand.Path
@@ -267,10 +285,14 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 if (-not (Test-Path `$exe)) { Write-Error "Animora.Desktop.exe not found next to this launcher (`$exe)."; exit 1 }
 `$env:ANIMORA_SERVER_URL = '$ServerUrl'
 if (-not `$env:ANIMORA_NET_LOG) { `$env:ANIMORA_NET_LOG = '1' }
+if (-not `$env:ANIMORA_TRACE_DEBUG) { `$env:ANIMORA_TRACE_DEBUG = '1' }
 Write-Host '====================================================================='
 Write-Host ' Animora - server-connected launch (LIVE TRACE)'
 Write-Host "  Server : `$(`$env:ANIMORA_SERVER_URL)"
-Write-Host '  This window will show every request/response to/from the server.'
+Write-Host '  This window shows every request/response to/from the server, plus the'
+Write-Host '  app activity log (startup, clicks, navigation, errors) AND the full'
+Write-Host '  patients/owners load trace (patients, sql.patients, sync.apply, ...).'
+Write-Host "  App log file: `$env:LOCALAPPDATA\Animora\logs\animora-<date>.log"
 Write-Host '  Leave it open while you use the app.'
 Write-Host '====================================================================='
 Write-Host ''
@@ -306,6 +328,14 @@ Animora — نسخهٔ متصل به سرور (بدون نیاز به نصب)
   می‌شود، هر پاسخی که از سرور برمی‌گردد (کد وضعیت، زمان پاسخ و بدنهٔ پاسخ) و هر
   خطای اتصال. برای عیب‌یابی مشکلات ارتباط با سرور، این پنجره را باز نگه دارید.
   وقتی کارتان تمام شد، برنامه را ببندید و سپس در این پنجره یک کلید بزنید.
+
+  علاوه بر این، این پنجره «مسیر کامل بارگذاری» صفحهٔ سرپرستان/بیماران را هم
+  چاپ می‌کند: بارگذاری ViewModel صفحه، سرویس کوئری، دیسپچر، پروجکشن SQL محلی، و
+  مرحلهٔ pull/apply همگام‌سازی — از جمله اینکه آیا ردیف سرپرست/بیمارِ گرفته‌شده از
+  سرور واقعاً در جدول‌های محلی ساخته شده است یا خیر. برای پیدا کردن این خطوط از
+  این دسته‌ها استفاده کنید: patients، svc.patients، sql.patients، dispatch،
+  sync، sync.apply، sync.push. همهٔ این‌ها در پنجرهٔ ترمینال و همچنین در فایل
+  لاگ برنامه ثبت می‌شوند:
 
 برنامه به کدام سرور وصل می‌شود؟
       $ServerUrl
@@ -354,6 +384,14 @@ A TERMINAL WINDOW STAYS OPEN — THIS IS NORMAL
   it open while using the app to diagnose server-connection problems. When done,
   close the app, then press a key in that window.
 
+  On top of that, the same window prints the COMPLETE end-to-end load path for
+  the "سرپرستان" (owners) and "بیماران" (patients) pages: the page ViewModel
+  load, the query service, the dispatcher, the LOCAL SQL projection, and the
+  sync pull/apply step — including whether a synced Owner/Pet row was actually
+  materialised into the local tables. Grep these categories: patients,
+  svc.patients, sql.patients, dispatch, sync, sync.apply, sync.push. Everything
+  is also written to the app log file:
+
 CONNECTION TROUBLESHOOTING
   * Make sure the server is running and port 5000 is open in the firewall.
   * From this PC, open $ServerUrl in a browser to check reachability.
@@ -388,11 +426,15 @@ if (-not $NoZip) { Write-Host "   Zip    : $(Join-Path $OutputRoot "$PkgName.zip
 Write-Host "   Exe    : app\$ExeName ($ExeSize MB, self-contained)"
 Write-Host "   Server : $ServerUrl  (baked into Run-Animora.cmd)"
 Write-Host "   Trace  : ON — Run-Animora.cmd keeps a terminal open and logs every"
-Write-Host "            request/response/error to/from the server (ANIMORA_NET_LOG=1)."
+Write-Host "            request/response/error to/from the server (ANIMORA_NET_LOG=1)"
+Write-Host "            PLUS the full patients/owners load trace (ANIMORA_TRACE_DEBUG=1):"
+Write-Host "            patients, svc.patients, sql.patients, dispatch, sync, sync.apply,"
+Write-Host "            sync.push — every step, query, read/return and error on this page."
 Write-Host ''
 Write-Host ' Give the ZIP (or folder) to the clinic PC. They unzip anywhere and'
 Write-Host ' double-click "Run-Animora.cmd" — no install needed. The app connects'
 Write-Host ' to the real server and signs in with real accounts. A terminal window'
-Write-Host ' stays open showing the live server trace (for connection diagnosis).'
+Write-Host ' stays open showing the live server trace AND the full owners/patients'
+Write-Host ' load path (for diagnosing why data does not appear).'
 Write-Host '====================================================================='
 exit 0

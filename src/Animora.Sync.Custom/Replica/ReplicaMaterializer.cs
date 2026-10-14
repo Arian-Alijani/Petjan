@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Animora.Application.Activity;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Events;
 using Animora.Domain.Primitives;
 using Animora.Persistence.Sqlite.Activity;
@@ -95,29 +96,41 @@ internal static class ReplicaMaterializer
         AnimoraLocalDbContext db, string tenant, string batchId, TimeZoneInfo zone, CancellationToken ct)
     {
         var pending = await LoadPendingAsync(db, tenant, ct).ConfigureAwait(false);
+        TraceLog.Info($"ReplicaMaterializer.Apply — tenant={tenant}, batch={batchId}, entities=[{string.Join(", ", Entities)}], unsettledPendingKeys={pending.Count}.", "sync.apply");
         var rows = await db.Set<ReplicaStaging>().AsNoTracking()
             .Where(x => x.TenantId == tenant && x.BatchId == batchId && Entities.Contains(x.Entity))
             .OrderBy(x => x.PageOrdinal)
             .ToListAsync(ct).ConfigureAwait(false); // materialised: the connection is reused for the writes below
 
+        TraceLog.Info($"ReplicaMaterializer.Apply — {rows.Count} staged row(s) match the projected entity set.", "sync.apply");
         var written = 0;
         var booked = new List<ActivityEventDraft>();
         var byEntity = Maps.ToDictionary(m => m.Entity, StringComparer.Ordinal);
 
         foreach (var row in rows)
         {
-            if (pending.Contains(Key(row.Entity, row.EntityId))) continue; // local unsettled intent wins; base still holds the server row
+            if (pending.Contains(Key(row.Entity, row.EntityId)))
+            {
+                TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: a local UNSETTLED command (LocallyPosted/PendingSettlement) overlays it, so the local intent wins and the server row is NOT written to the typed table (it is still in repl_base).", "sync.apply");
+                continue;
+            }
             var map = byEntity[row.Entity];
             var updated = (row.UpdatedAtUtc ?? DateTimeOffset.UtcNow).UtcTicks;
 
             if (row.Payload is null)
             {
-                written += await db.Database.ExecuteSqlRawAsync(map.TombstoneSql, new object[] { updated, Nullable(row.Version), row.EntityId, tenant }, ct)
+                var tombstoned = await db.Database.ExecuteSqlRawAsync(map.TombstoneSql, new object[] { updated, Nullable(row.Version), row.EntityId, tenant }, ct)
                     .ConfigureAwait(false);
+                TraceLog.Info($"ReplicaMaterializer.Apply — TOMBSTONE {row.Entity}/{row.EntityId} (wire delete) → {tombstoned} row(s) soft-deleted.", "sync.apply");
+                written += tombstoned;
                 continue;
             }
 
-            if (!TryReadValues(map, row.Payload, out var values)) continue;
+            if (!TryReadValues(map, row.Payload, out var values))
+            {
+                TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: payload is missing a REQUIRED field (poisoned row; skipped so it cannot stall sync). rawPayload={Truncate(row.Payload)}", "sync.apply");
+                continue;
+            }
             var args = new List<object>(map.Columns.Length + 6) { row.EntityId, tenant };
             foreach (var col in map.Columns) args.Add(Nullable(values[col.Name]));
             if (map.SearchKey is not null) args.Add(map.SearchKey(values));
@@ -126,6 +139,7 @@ internal static class ReplicaMaterializer
             args.Add(row.Deleted ? 1 : 0);
             var affected = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
             written += affected;
+            TraceLog.Info($"ReplicaMaterializer.Apply — UPSERT {row.Entity}/{row.EntityId} → {affected} row(s) written to '{map.Table}' (deleted={row.Deleted}).", "sync.apply");
             if (affected > 0 && !row.Deleted && row.Entity == "Appointment" && TryBuildBookedDraft(tenant, row, values) is { } draft)
                 booked.Add(draft);
         }
@@ -136,10 +150,14 @@ internal static class ReplicaMaterializer
             foreach (var draft in booked)
                 if (await SyncedActivityFeed.AppendAsync(db, draft, zone, batchId, ct).ConfigureAwait(false)) staged++;
             if (staged > 0) await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            TraceLog.Info($"ReplicaMaterializer.Apply — appended {staged} 'booked' activity row(s).", "sync.apply");
         }
 
+        TraceLog.Info($"ReplicaMaterializer.Apply DONE — {written} typed business row(s) written for batch={batchId}.", "sync.apply");
         return written;
     }
+
+    private static string Truncate(string? s) => s is null ? "(null)" : s.Length <= 200 ? s : s[..200] + "…";
 
     /// <summary>The «booked» feed draft for a synced appointment, attributed to the record's own author; null when the author is unknown.</summary>
     private static ActivityEventDraft? TryBuildBookedDraft(string tenant, ReplicaStaging row, IReadOnlyDictionary<string, object?> v)
