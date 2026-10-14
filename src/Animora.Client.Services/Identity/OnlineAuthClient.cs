@@ -135,9 +135,16 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
     /// <inheritdoc />
     public async Task<Result> LogoutAsync(CancellationToken ct = default)
     {
-        var current = await sessions.ReadAsync(ct).ConfigureAwait(false);
-        var cleared = await sessions.ClearAsync(ct).ConfigureAwait(false);
-        if (cleared.IsFailure) return cleared;
+        Result<ClientSession?> current;
+        // Drain an already-running refresh before clearing: it must not resurrect bearer tokens after sign-out.
+        await _refreshGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            current = await sessions.ReadAsync(ct).ConfigureAwait(false);
+            var cleared = await sessions.ClearAsync(ct).ConfigureAwait(false);
+            if (cleared.IsFailure) return cleared;
+        }
+        finally { _refreshGate.Release(); }
         if (current.IsSuccess && current.Value is { } session)
         {
             // Revoke remotely only AFTER local tokens are gone: no background sync may retain bearer authority.

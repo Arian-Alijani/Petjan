@@ -105,7 +105,7 @@ public sealed class SyncSchedulerTests
         {
             Submitted++;
             return Task.FromResult(Result<SettlementResult>.Ok(new SettlementResult(envelope.OperationId,
-                SettlementOutcome.Settled, null, null, envelope.AggregateId, "v1", DateTimeOffset.UnixEpoch,
+                SettlementOutcome.Accepted, null, null, envelope.AggregateId, "v1", DateTimeOffset.UnixEpoch,
                 FinancialEffect.None, null)));
         }
     }

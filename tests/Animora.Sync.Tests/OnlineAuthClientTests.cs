@@ -325,7 +325,10 @@ public sealed class OnlineAuthClientTests
         {
             var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var table = db.Model.FindEntityType(typeof(LocalInstallation))!.GetTableName();
-            await db.Database.ExecuteSqlRawAsync($"CREATE TRIGGER fail_tenant_bind BEFORE UPDATE ON \"{table}\" BEGIN SELECT RAISE(ABORT, 'forced'); END;");
+            await db.Database.OpenConnectionAsync();
+            await using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = $"CREATE TRIGGER fail_tenant_bind BEFORE UPDATE ON \"{table}\" BEGIN SELECT RAISE(ABORT, 'forced'); END;";
+            await command.ExecuteNonQueryAsync();
         }
         stack.Server.TenantId = IdGenerator.NewId();
         var refused = await LoginAsync(stack);
@@ -347,7 +350,14 @@ public sealed class OnlineAuthClientTests
         {
             var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var table = db.Model.FindEntityType(typeof(LocalInstallation))!.GetTableName();
-            await db.Database.ExecuteSqlRawAsync($"UPDATE \"{table}\" SET \"TenantId\" = {{0}}", IdGenerator.NewId());
+            await db.Database.OpenConnectionAsync();
+            await using var command = db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = $"UPDATE \"{table}\" SET \"TenantId\" = @tenant";
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tenant";
+            parameter.Value = IdGenerator.NewId();
+            command.Parameters.Add(parameter);
+            await command.ExecuteNonQueryAsync();
         }
         using var restarted = stack.Fixture.BuildProvider();
         Assert.True((await restarted.GetRequiredService<ILocalStoreInitializer>().InitializeAsync(default)).IsSuccess);

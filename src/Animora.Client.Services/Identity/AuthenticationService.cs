@@ -57,7 +57,11 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
             await using var cleanup = scopes.CreateAsyncScope();
             cleanup.ServiceProvider.GetRequiredService<SessionContextCache>().Set(SessionSnapshot.SignedOut(isFirstRun: false));
             // Offline verifiers are intentionally retained for the currently bound clinic, but bearer authority is not.
-            if (online is not null) await online.LogoutAsync(CancellationToken.None);
+            if (online is not null)
+            {
+                var ended = await online.LogoutAsync(CancellationToken.None);
+                if (ended.IsFailure) throw new InvalidOperationException("Online session cleanup failed: " + ended.Error.Code);
+            }
         }
     }
 
