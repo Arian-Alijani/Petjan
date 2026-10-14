@@ -21,8 +21,8 @@ namespace Animora.Application.UseCases.Identity;
 /// <para><b>Tenant alignment (explicit decision).</b> The local store is a single-tenant replica whose tenant is the
 /// installation tenant (<c>context.TenantId</c> = <see cref="Tenant.LocalDefaultId"/> until bootstrap) — the very tenant
 /// the local <see cref="SignInCommand"/> and every query resolve against. The mirror is therefore written under
-/// <c>context.TenantId</c>, never the server tenant ULID, so the local lookup always matches; the server tenant stays
-/// authoritative in the stored online session (<see cref="ISessionStore"/>) and the sync cursor.</para>
+/// <c>context.TenantId</c>, which online login has already durably bound to the authenticated server tenant.
+/// The stored online session (<see cref="ISessionStore"/>) must match that installation before mirroring.</para>
 ///
 /// <para>Pre-authentication request (anonymous context) — callers MUST have completed a successful online login first;
 /// <c>AuthenticationService</c> enforces this against the stored online session before dispatching.</para>

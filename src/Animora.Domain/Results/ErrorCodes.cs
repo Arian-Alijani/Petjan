@@ -85,6 +85,9 @@ public static class ErrorCodes
 
     #endregion
 
+    /// <summary>Changing clinics would discard unsettled local work; settle it before switching.</summary>
+    public static readonly ErrorCode SyncPendingChanges = new("SYNC_PENDING_CHANGES", ErrorCode.Conflict);
+
     #region Identity (Phase A03)
 
     /// <summary>The tenant is suspended or closed; writes are refused.</summary>

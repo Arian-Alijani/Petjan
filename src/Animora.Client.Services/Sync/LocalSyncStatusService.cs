@@ -50,7 +50,7 @@ public sealed class LocalSyncStatusService(
                 Publish(new(SyncState.Syncing, previous.LastSyncedAt, previous.PendingChangeCount));
                 var state = scope.ServiceProvider.GetService<LocalInstallationState>();
                 if (state is not null) await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
-                Result<ProcessorPassResult> result;
+                Result<CommandProcessorPass> result;
                 try
                 {
                     result = await scope.ServiceProvider.GetRequiredService<LocalCommandProcessor>()
