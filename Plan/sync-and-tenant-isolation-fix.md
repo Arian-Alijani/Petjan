@@ -109,7 +109,7 @@ Verified via `git log`:
 
 ## 2. Tasks (do in order; push after EACH; ✅ when done)
 
-### [ ] T1 — Confirm Bug #1 fix is intact (read-only, no code change)  — STATUS: pending
+### [x] T1 — Confirm Bug #1 fix is intact (read-only, no code change)  — STATUS: ✅ done (verified: StampUpdatedAt + lenient cursor + DI wiring present)
 - Open `TenantStampingInterceptor.cs` and `RecordProjector.cs`; verify the `UpdatedAt` stamping +
   lenient-cursor logic described above is present. Verify DI wiring lines in
   `PersistenceServiceCollectionExtensions.cs` (~62-65).
