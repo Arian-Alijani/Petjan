@@ -50,26 +50,34 @@ public sealed class RecordProjector
                 if (reader.IsDBNull(1)) { yield return new(d.Name, id, 'D', null, null, true, null); continue; }
                 using var document = JsonDocument.Parse(reader.GetString(1));
                 var row = document.RootElement;
-                // Defence in depth: a row image that is missing or has an unparseable Version/UpdatedAt/Deleted (schema
-                // drift, a partially-written row, a NULL system column) must NOT throw and crash the whole batch build —
-                // that surfaced as a blanket 500 UNEXPECTED on /sync/batches. Such a row is emitted as a tombstone so the
+                // Defence in depth: a row image that is missing or has an unparseable Version/Deleted (schema drift, a
+                // partially-written row, a NULL system column) must NOT throw and crash the whole batch build — that
+                // surfaced as a blanket 500 UNEXPECTED on /sync/batches. Such a row is emitted as a tombstone so the
                 // client converges (drops any stale copy) and the feed stays live.
+                //
+                // UpdatedAt is handled separately and deliberately NOT treated as a tombstone trigger: it is a
+                // transport-only cursor and is nullable on the wire. A live root that merely carries an edge-case
+                // timestamp the server wrote at default (PostgreSQL '-infinity', serialised as the JSON string
+                // "-infinity") must still replicate as a full UPSERT — tombstoning it would silently delete a real
+                // owner/pet from every replica. See TenantStampingInterceptor for the write-side root-cause fix.
                 if (!TryGetVersion(row, out var version)
-                    || !row.TryGetProperty("UpdatedAt", out var updatedAt) || updatedAt.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
                     || !row.TryGetProperty("Deleted", out var deleted) || deleted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
                 {
                     yield return new(d.Name, id, 'D', null, null, true, null);
                     continue;
                 }
+                // Parse the cursor leniently: a null/absent/unparseable UpdatedAt becomes a null wire value (the
+                // client tolerates a null cursor) rather than a tombstone or a 500.
+                DateTimeOffset? updatedAt = TryGetUpdatedAt(row, out var parsed) ? parsed : null;
                 // Fault-isolate the per-row projection: a single row whose field shape is unexpectedly off
-                // (schema drift, an unparseable UpdatedAt timestamp, a money/quantity column we failed to
-                // anticipate) must degrade to a tombstone — never bubble out and 500 the whole /sync/batches
-                // build. A yield cannot live inside a try/catch, so build the record under the guard here and
-                // yield it afterwards. The client converges by dropping any stale copy; the feed stays live.
+                // (schema drift, a money/quantity column we failed to anticipate) must degrade to a tombstone —
+                // never bubble out and 500 the whole /sync/batches build. A yield cannot live inside a try/catch,
+                // so build the record under the guard here and yield it afterwards. The client converges by
+                // dropping any stale copy; the feed stays live.
                 SyncRecord record;
                 try
                 {
-                    record = new(d.Name, id, 'U', version, updatedAt.GetDateTimeOffset(),
+                    record = new(d.Name, id, 'U', version, updatedAt,
                         deleted.GetBoolean(), Project(d.Name, row));
                 }
                 catch
@@ -95,6 +103,22 @@ public sealed class RecordProjector
             return false;
         version = EntityVersionCodec.ToWire(guid);
         return true;
+    }
+
+    /// <summary>
+    /// Reads the transport <c>UpdatedAt</c> cursor as a <see cref="DateTimeOffset"/>, returning
+    /// <see langword="false"/> (never throwing) when the property is absent, null, or not a parseable
+    /// timestamp — most importantly the PostgreSQL <c>-infinity</c>/<c>infinity</c> sentinels, which
+    /// <c>to_jsonb</c> emits as the plain JSON strings <c>"-infinity"</c>/<c>"infinity"</c> and which
+    /// <see cref="JsonElement.GetDateTimeOffset"/> throws on. The caller substitutes a null wire cursor,
+    /// keeping the row a live upsert instead of faulting the batch or degrading it to a tombstone.
+    /// </summary>
+    private static bool TryGetUpdatedAt(JsonElement row, out DateTimeOffset value)
+    {
+        value = default;
+        if (!row.TryGetProperty("UpdatedAt", out var element) || element.ValueKind != JsonValueKind.String)
+            return false;
+        return element.TryGetDateTimeOffset(out value);
     }
 
     public static JsonElement Project(string entity, JsonElement row)

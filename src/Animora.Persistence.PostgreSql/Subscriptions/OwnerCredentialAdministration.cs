@@ -30,7 +30,7 @@ public sealed class OwnerCredentialAdministration(AnimoraOperatorDbContext db, I
         if (ownerId is null) return Result<string>.Fail(ErrorCodes.NotFound);
         var binding = new AuthTenantContext(); binding.Bind(tenantId);
         var opts = new DbContextOptionsBuilder<AnimoraServerDbContext>().UseNpgsql(db.Database.GetDbConnection())
-            .AddInterceptors(new TenantStampingInterceptor(binding), new NoUnnamedIgnoreFiltersInterceptor(binding))
+            .AddInterceptors(new TenantStampingInterceptor(binding, clock), new NoUnnamedIgnoreFiltersInterceptor(binding))
             .ConfigureWarnings(w => w.Ignore(CoreEventId.ManyServiceProvidersCreatedWarning)).Options;
         await using var tenant = new AnimoraServerDbContext(opts, binding);
         await tenant.Database.UseTransactionAsync(tx.GetDbTransaction(), ct).ConfigureAwait(false);
