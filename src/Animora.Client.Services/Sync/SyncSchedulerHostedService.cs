@@ -1,4 +1,5 @@
 using Animora.Domain.Results;
+using Animora.Contracts.Sync;
 using Animora.Sync.Abstractions;
 
 namespace Animora.Client.Services.Sync;
@@ -13,6 +14,7 @@ public sealed class SyncSchedulerHostedService : IAsyncDisposable
 {
     private readonly IStateSyncEngine _engine;
     private readonly SyncOrchestrator _orchestrator;
+    private readonly LocalSyncStatusService? _status;
     private readonly SyncScheduleOptions _options;
     private readonly IDelayProvider _delay;
     private readonly Random _random;
@@ -21,10 +23,11 @@ public sealed class SyncSchedulerHostedService : IAsyncDisposable
 
     /// <summary>Creates the scheduler; the single jitter <see cref="Random"/> is seeded once here.</summary>
     public SyncSchedulerHostedService(
-        IStateSyncEngine engine, SyncOrchestrator orchestrator, SyncScheduleOptions options, IDelayProvider delay)
+        IStateSyncEngine engine, SyncOrchestrator orchestrator, SyncScheduleOptions options, IDelayProvider delay, LocalSyncStatusService? status = null)
     {
         _engine = engine;
         _orchestrator = orchestrator;
+        _status = status;
         _options = options;
         _delay = delay;
         _random = new Random(unchecked(Environment.TickCount * 397) ^ Environment.ProcessId);
@@ -51,7 +54,20 @@ public sealed class SyncSchedulerHostedService : IAsyncDisposable
                 Result<SyncOutcome> pull;
                 try
                 {
-                    pull = await _orchestrator.PullAllAsync(stoppingToken).ConfigureAwait(false);
+                    if (_status is null)
+                        pull = await _orchestrator.PullAllAsync(stoppingToken).ConfigureAwait(false);
+                    else
+                    {
+                        // Flush durable offline commands on reconnect before pulling other clients' state.
+                        // Manual and scheduled passes share the status service's single-flight semaphore.
+                        await _status.SyncNowAsync(stoppingToken).ConfigureAwait(false);
+                        pull = _status.State switch
+                        {
+                            SyncState.Error => Result<SyncOutcome>.Fail(ErrorCodes.NetworkUnavailable),
+                            SyncState.Offline or SyncState.Pending => Result<SyncOutcome>.Ok(SyncOutcome.Deferred),
+                            _ => Result<SyncOutcome>.Ok(SyncOutcome.Applied),
+                        };
+                    }
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {

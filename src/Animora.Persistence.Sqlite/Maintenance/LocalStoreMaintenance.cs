@@ -8,6 +8,7 @@ using Animora.Domain.Identity;
 using Animora.Domain.Primitives;
 using Animora.Application.Security;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
@@ -88,8 +89,10 @@ public sealed class LocalStoreMaintenance(
             // Trigger-maintained caches go last: deletes of source rows can re-create their generation counters.
             foreach (var table in tables.OrderBy(t => t == "DashboardGenerations" ? 1 : 0))
             {
-                var quoted = "\"" + table.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
-                await db.Database.ExecuteSqlRawAsync("DELETE FROM " + quoted + ";", ct).ConfigureAwait(false);
+                await using var deletion = db.Database.GetDbConnection().CreateCommand();
+                deletion.Transaction = transaction.GetDbTransaction();
+                deletion.CommandText = "DELETE FROM " + db.GetService<ISqlGenerationHelper>().DelimitIdentifier(table) + ";";
+                await deletion.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
             installation.BindTenant(tenantId);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);

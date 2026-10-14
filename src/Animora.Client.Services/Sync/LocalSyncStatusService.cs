@@ -1,4 +1,5 @@
 using Animora.Application.Commands;
+using Animora.Application.Security;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.Sync;
@@ -53,6 +54,16 @@ public sealed class LocalSyncStatusService(
                 Result<CommandProcessorPass> result;
                 try
                 {
+                    // Signing out or a mismatched bearer must not consume the old clinic's retry budget.
+                    if (scope.ServiceProvider.GetService<ISessionStore>() is { } sessions)
+                    {
+                        var session = await sessions.ReadAsync(ct).ConfigureAwait(false);
+                        if (session.IsFailure || session.Value is null || (state is not null && state.TenantId != session.Value.TenantId))
+                        {
+                            Publish(new(SyncState.Offline, previous.LastSyncedAt, previous.PendingChangeCount));
+                            return;
+                        }
+                    }
                     result = await scope.ServiceProvider.GetRequiredService<LocalCommandProcessor>()
                         .RunPassAsync(ct).ConfigureAwait(false);
                 }

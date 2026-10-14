@@ -238,20 +238,3 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
             ServerEntityId: null, ServerVersion: null, clock.UtcNow, FinancialEffect.Unknown, ResponsibleRole: null);
     }
 }
- SettlementResult Deferred(CommandEnvelope envelope, string? detail) => new(
-        envelope.OperationId, SettlementOutcome.Deferred, ErrorCode: null, detail, ServerEntityId: null, ServerVersion: null,
-        clock.UtcNow, FinancialEffect.Unknown, ResponsibleRole: null);
-
-    private IReadOnlyList<SettlementResult> DeferAll(IReadOnlyList<CommandEnvelope> envelopes, string? detail) =>
-        envelopes.Select(e => Deferred(e, detail)).ToArray();
-
-    /// <summary>426 is never dropped: the command stays pending (Deferred) carrying the unsupported-contract code until the client is updated.</summary>
-    private SettlementResult ContractUnsupported(CommandEnvelope envelope, HttpResponseMessage response)
-    {
-        var supported = response.Headers.TryGetValues(WireContract.SupportedVersionsHeaderName, out var values) ? string.Join(",", values) : null;
-        return new SettlementResult(
-            envelope.OperationId, SettlementOutcome.Deferred, ErrorCodes.ContractVersionUnsupported.Code,
-            supported is null ? "Server does not support this contract version." : $"Server supports contract versions: {supported}.",
-            ServerEntityId: null, ServerVersion: null, clock.UtcNow, FinancialEffect.Unknown, ResponsibleRole: null);
-    }
-}
