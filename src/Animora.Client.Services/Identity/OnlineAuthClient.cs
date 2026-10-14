@@ -1,4 +1,7 @@
 using System.Net;
+using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Maintenance;
+using Microsoft.Extensions.DependencyInjection;
 using Animora.Application.Security;
 using Animora.Contracts.Wire.Auth;
 using Animora.Domain.Results;
@@ -10,14 +13,14 @@ namespace Animora.Client.Services.Identity;
 /// <summary>
 /// <see cref="IOnlineAuthClient"/> + <see cref="ISessionRefresher"/> over <c>/auth/*</c>. A definitive server answer is final; only an
 /// unreachable/failing server (no response, 408/429/5xx) falls back to <see cref="OfflineSessionAuthorizer"/>. After a successful online login
-/// the session is persisted FIRST, then the device is registered, the capability snapshot mirrored, the licence sealed and the one-way password
+/// the device is approved and the installation reconciled FIRST, then the session is persisted, the capability snapshot mirrored, the licence sealed and the one-way password
 /// verifier written. Mirroring is best effort for the online session (a mirror failure only means no offline start later — fail closed),
 /// except a revoked device which aborts the login and wipes all offline authority, and a still-<c>Pending</c> (never approved) device which
 /// aborts the login with <c>DEVICE_PENDING_APPROVAL</c>. The offline fallback can therefore only ever authorise a previously approved device:
 /// the credential mirror, capability snapshot and sealed licence it requires are written only after the device was approved.
 /// </summary>
 public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOfflineCredentialMirrorStore mirrors, DeviceLifecycleService devices,
-    CapabilityMirrorWriter capabilities, EntitlementSealer sealer, OfflineSessionAuthorizer offline, IDeviceFingerprintSource fingerprint, IClock clock)
+    CapabilityMirrorWriter capabilities, EntitlementSealer sealer, OfflineSessionAuthorizer offline, IDeviceFingerprintSource fingerprint, IClock clock, IServiceScopeFactory scopes)
     : IOnlineAuthClient, ISessionRefresher
 {
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
@@ -45,9 +48,6 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
         if (login is null || string.IsNullOrEmpty(login.AccessToken) || string.IsNullOrEmpty(login.RefreshToken))
             return Result<OnlineLoginOutcome>.Fail(ErrorCodes.SyncProtocolViolation, "Login response is incomplete.");
 
-        var stored = await sessions.WriteAsync(ToSession(login, stamp: string.Empty), ct).ConfigureAwait(false);
-        if (stored.IsFailure) return Result<OnlineLoginOutcome>.Fail(stored.Error, stored.Detail);
-
         var registered = await devices.RegisterAsync(login.AccessToken, ct).ConfigureAwait(false);
         if (registered.IsFailure && registered.Error.Code == ErrorCodes.DeviceRevoked.Code)
         {
@@ -64,6 +64,19 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
             await sessions.ClearAsync(ct).ConfigureAwait(false);
             return Result<OnlineLoginOutcome>.Fail(ErrorCodes.DevicePendingApproval);
         }
+
+        // Do not publish a bearer session until approval AND local tenant isolation are established.
+        // The transition gate drains earlier pulls before the atomic wipe; new pulls have no session yet.
+        var cleared = await sessions.ClearAsync(ct).ConfigureAwait(false);
+        if (cleared.IsFailure) return Result<OnlineLoginOutcome>.Fail(cleared.Error, cleared.Detail);
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            var bound = await scope.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>()
+                .EnsureBoundToAsync(login.TenantId, ct).ConfigureAwait(false);
+            if (bound.IsFailure) return Result<OnlineLoginOutcome>.Fail(bound.Error, bound.Detail);
+        }
+        var stored = await sessions.WriteAsync(ToSession(login, stamp: string.Empty), ct).ConfigureAwait(false);
+        if (stored.IsFailure) return Result<OnlineLoginOutcome>.Fail(stored.Error, stored.Detail);
 
         // Best-effort mirrors: failure here must not undo a valid online login — it only leaves offline start unavailable (fail closed).
         var snapshot = await capabilities.MirrorAsync(login.AccessToken, ct).ConfigureAwait(false);

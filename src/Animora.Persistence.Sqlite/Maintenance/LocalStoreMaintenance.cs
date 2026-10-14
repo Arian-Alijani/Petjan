@@ -4,6 +4,10 @@ using Animora.Application.Time;
 using Animora.Persistence.Sqlite.Activity;
 using Animora.Application.Ports;
 using Animora.Domain.Inventory;
+using Animora.Domain.Identity;
+using Animora.Domain.Primitives;
+using Animora.Application.Security;
+using Microsoft.EntityFrameworkCore.Storage;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
@@ -43,6 +47,88 @@ public sealed class LocalStoreMaintenance(
     private static int _rebuilding;
 
     private LocalStoreOptions Store => options.Value;
+
+    /// <summary>
+    /// Single-tenant store transition. The schema's relational table inventory includes owned/child tables,
+    /// replica generations, cursors, sessions and local projections; no hand-maintained business-table list.
+    /// Installation identity and global reference catalogs survive. No quarantine retains another clinic's rows.
+    /// </summary>
+    public async Task<Result> EnsureBoundToAsync(string tenantId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId) || tenantId.Length > 128 || tenantId == LocalInstallationState.DefaultTenantId)
+            return Result.Fail(ErrorCodes.ValidationFailed);
+        var state = services.GetRequiredService<LocalInstallationState>();
+        await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await using var db = await contexts.CreateDbContextAsync(ct).ConfigureAwait(false);
+            var installation = await db.Set<LocalInstallation>().AsTracking().SingleOrDefaultAsync(ct).ConfigureAwait(false);
+            if (installation is null) return Result.Fail(ErrorCodes.StoreUnavailable, "installation_not_initialized");
+            if (installation.TenantId == tenantId)
+            {
+                state.Set(installation);
+                return Result.Ok();
+            }
+
+            await db.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
+            await db.Database.ExecuteSqlRawAsync("PRAGMA secure_delete=ON;", ct).ConfigureAwait(false);
+            await using var transaction = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+            // Even rejected/conflicted work can contain a user's unresolved intent. Never silently throw it away.
+            if (await db.Set<PendingCommand>().IgnoreQueryFilters()
+                .AnyAsync(x => x.Status != SettlementState.Settled && x.Status != SettlementState.Reversed, ct).ConfigureAwait(false))
+                return Result.Fail(ErrorCodes.SyncPendingChanges, "tenant_switch_requires_settlement");
+            await db.Database.ExecuteSqlRawAsync("PRAGMA defer_foreign_keys=ON;", ct).ConfigureAwait(false);
+            var preserved = new HashSet<string>(StringComparer.Ordinal)
+            {
+                db.Model.FindEntityType(typeof(LocalInstallation))!.GetTableName()!,
+                db.Model.FindEntityType(typeof(Permission))!.GetTableName()!,
+            };
+            var tables = db.Model.GetRelationalModel().Tables.Select(t => t.Name)
+                .Where(t => !preserved.Contains(t)).ToArray();
+            // Trigger-maintained caches go last: deletes of source rows can re-create their generation counters.
+            foreach (var table in tables.OrderBy(t => t == "DashboardGenerations" ? 1 : 0))
+            {
+                var quoted = "\"" + table.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+                await db.Database.ExecuteSqlRawAsync("DELETE FROM " + quoted + ";", ct).ConfigureAwait(false);
+            }
+            installation.BindTenant(tenantId);
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+            // Bootstrap only identity reference data, never sample business data or a fake accounting period.
+            // A separate context shares this transaction but already uses the NEW tenant (the cache is still old).
+            var boundOptions = new DbContextOptionsBuilder<AnimoraLocalDbContext>()
+                .UseSqlite(db.Database.GetDbConnection()).Options;
+            await using (var bound = new AnimoraLocalDbContext(boundOptions, new BoundTenantContext(tenantId), clock))
+            {
+                await bound.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct).ConfigureAwait(false);
+                var tenant = Tenant.CreateLocalDefault("Animora Clinic");
+                bound.Entry(tenant).Property(x => x.Id).CurrentValue = tenantId;
+                tenant.TenantId = tenantId;
+                bound.Add(tenant);
+                bound.AddRange(Enum.GetValues<StaffRole>().Select(r => RoleDefinition.CreateSystem(tenantId, r, clock)));
+                await bound.SaveChangesAsync(ct).ConfigureAwait(false);
+            }
+            // The sidecar is not tenant-filtered; erase its cache and persisted clinic customization as well.
+            if (services.GetService<IAppointmentSettingsStore>() is { } settings)
+                await settings.SaveAsync(Animora.Contracts.Appointments.AppointmentSettings.Default, ct).ConfigureAwait(false);
+            await transaction.CommitAsync(ct).ConfigureAwait(false);
+            // Publish only after durable commit: a failed/cancelled wipe must leave the old filter intact.
+            state.Set(installation);
+            services.GetService<SessionContextCache>()?.Set(null);
+            services.GetService<IClinicTimeZoneProvider>()?.Invalidate();
+            return Result.Ok();
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result.Fail(Map(ex, ErrorCodes.StoreUnavailable), "tenant_binding_failed");
+        }
+        finally { state.TransitionGate.Release(); }
+    }
+
+    private sealed class BoundTenantContext(string tenantId) : ILocalTenantContext
+    {
+        public string TenantId => tenantId;
+    }
 
     public async Task<Result<string>> BackupAsync(CancellationToken ct)
     {

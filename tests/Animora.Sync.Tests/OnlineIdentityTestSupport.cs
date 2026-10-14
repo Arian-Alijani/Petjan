@@ -169,7 +169,7 @@ internal sealed class OnlineStack : IDisposable
         var server = new FakeIdentityServer(now, installation, capabilityWindow ?? TimeSpan.FromDays(7));
         var monotonic = new FakeMonotonicClock(now);
 
-        var fixture = new LocalStoreTestFixture(now: now, configureServices: services =>
+        var fixture = new LocalStoreTestFixture(now: now, followInstallation: true, configureServices: services =>
         {
             services.AddSingleton<Animora.Infrastructure.Local.Security.ISecretStore>(new MemorySecretStore());
             services.AddSingleton<Animora.Application.Security.IPasswordHasher>(new PlainPasswordHasher());
@@ -179,7 +179,7 @@ internal sealed class OnlineStack : IDisposable
             services.AddHttpClient(SyncFeedClient.HttpClientName).ConfigurePrimaryHttpMessageHandler(() => server.Handler);
             services.AddAnimoraOnlineIdentity();
         });
-        await fixture.MigrateAsync();
+        await fixture.InitializeAsync();
         return new OnlineStack(fixture, server, monotonic);
     }
 

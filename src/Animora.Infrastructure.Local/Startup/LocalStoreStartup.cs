@@ -120,8 +120,12 @@ public sealed class LocalStoreStartup(
                     .EnsureAsync(identity.ComputeMachineFingerprintHash(), ct);
                 if (installation.IsFailure)
                     return Result<LocalStoreDiagnostics>.Fail(installation.Error, installation.Detail);
-                var seeded = await scope.ServiceProvider.GetRequiredService<LocalSeeder>().SeedAsync(ct);
-                if (seeded.IsFailure) return Result<LocalStoreDiagnostics>.Fail(seeded.Error, seeded.Detail);
+                // A server-bound replica must never re-seed the default clinic or sample data on restart.
+                if (installation.Value!.TenantId == LocalInstallationState.DefaultTenantId)
+                {
+                    var seeded = await scope.ServiceProvider.GetRequiredService<LocalSeeder>().SeedAsync(ct);
+                    if (seeded.IsFailure) return Result<LocalStoreDiagnostics>.Fail(seeded.Error, seeded.Detail);
+                }
 
                 // 8. Diagnostics.
                 _steps.Add(StepDiagnostics);

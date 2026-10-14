@@ -1,4 +1,5 @@
 using Animora.Application.Ports;
+using Animora.Persistence.Sqlite.Context;
 using Animora.Application.Security;
 using Animora.Contracts.Diagnostics;
 using Animora.Domain.Results;
@@ -27,6 +28,15 @@ public sealed class SyncOrchestrator(
 {
     /// <summary>Pulls one scope; expected engine outcomes are values, never exceptions.</summary>
     public async Task<Result<SyncOutcome>> PullOnceAsync(SyncScope scope, CancellationToken ct = default)
+    {
+        using var di = scopes.CreateScope();
+        var state = di.ServiceProvider.GetService<LocalInstallationState>();
+        if (state is not null) await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
+        try { return await PullBoundAsync(scope, ct).ConfigureAwait(false); }
+        finally { state?.TransitionGate.Release(); }
+    }
+
+    private async Task<Result<SyncOutcome>> PullBoundAsync(SyncScope scope, CancellationToken ct)
     {
         if (!await HasSessionAsync(ct).ConfigureAwait(false))
         {
@@ -92,7 +102,10 @@ public sealed class SyncOrchestrator(
     {
         if (sessions is null) return true; // no session port wired (offline/unit composition): the engine's own configuration gate applies
         var read = await sessions.ReadAsync(ct).ConfigureAwait(false);
-        return read.IsSuccess && read.Value is { AccessToken.Length: > 0 };
+        using var di = scopes.CreateScope();
+        var state = di.ServiceProvider.GetService<LocalInstallationState>();
+        return read.IsSuccess && read.Value is { AccessToken.Length: > 0 } session
+            && (state is null || state.TenantId == session.TenantId);
     }
 
     private static int Rank(SyncOutcome outcome) => outcome switch

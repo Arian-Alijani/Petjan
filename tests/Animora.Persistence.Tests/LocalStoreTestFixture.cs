@@ -59,14 +59,16 @@ public sealed class LocalStoreTestFixture : IDisposable
     private readonly Action<IServiceCollection>? _configureServices;
     private readonly ServiceProvider _services;
     private bool _disposed;
+    private readonly bool _followInstallation;
 
     public LocalStoreTestFixture(
         string tenantId = DefaultTenant,
         Action<LocalStoreOptions>? configureOptions = null,
         Action<IServiceCollection>? configureServices = null,
-        DateTimeOffset? now = null)
+        DateTimeOffset? now = null, bool followInstallation = false)
     {
         TenantId = tenantId;
+        _followInstallation = followInstallation;
         _configureOptions = configureOptions;
         _configureServices = configureServices;
         Directory = Path.Combine(Path.GetTempPath(), "animora-a12-" + Guid.NewGuid().ToString("N"));
@@ -109,7 +111,7 @@ public sealed class LocalStoreTestFixture : IDisposable
             options.DatabasePath = DatabasePath;
             _configureOptions?.Invoke(options);
         });
-        services.AddScoped<ILocalTenantContext>(_ => new FixedTenantContext(TenantId));
+        if (!_followInstallation) services.AddScoped<ILocalTenantContext>(_ => new FixedTenantContext(TenantId));
         return services.BuildServiceProvider();
     }
 

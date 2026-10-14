@@ -5,6 +5,9 @@ namespace Animora.Persistence.Sqlite.Maintenance;
 /// <summary>Explicit local store maintenance operations; each appends a <c>StoreMaintenanceLog</c> row once the DB is usable.</summary>
 public interface ILocalStoreMaintenance
 {
+    /// <summary>Atomically clears the previous clinic and binds this installation; refuses to discard unsettled commands.</summary>
+    Task<Result> EnsureBoundToAsync(string tenantId, CancellationToken ct);
+
     /// <summary>Online backup into the backup directory; returns the verified backup path.</summary>
     Task<Result<string>> BackupAsync(CancellationToken ct);
 

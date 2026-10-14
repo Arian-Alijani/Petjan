@@ -59,7 +59,7 @@ public sealed class CompleteFirstRunSetupCommandHandler(
         var policy = PasswordPolicy.Validate(command.Password);
         if (policy.IsFailure) return Result<SignInResult>.Fail(policy.Error, policy.Detail);
 
-        const string tenantId = Tenant.LocalDefaultId;
+        var tenantId = context.TenantId;
         var tenant = await users.FindTenantAsync(tenantId, ct).ConfigureAwait(false);
         tenant?.Rename(command.ClinicName);
 

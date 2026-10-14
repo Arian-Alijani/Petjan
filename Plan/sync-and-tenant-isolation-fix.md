@@ -153,7 +153,7 @@ Verified via `git log`:
 - This is a sizeable change → **push with a clear message**:
   `scripts/git/push.sh "fix(sync): materialize inventory/sales/clinical entities on pull so records sync across clients"`.
 
-### [ ] T3 — Tenant switch on login: rebind + wipe (Root Cause B, the clinic A/B isolation bug) — STATUS: pending
+### [x] T3 — Tenant switch on login: rebind + wipe (Root Cause B, the clinic A/B isolation bug) — STATUS: done; atomic schema-driven wipe + durable bind, shared sync transition gate, fail-closed offline tenant check, restart-safe bootstrap; unsettled work blocks switching instead of being lost. Validation runs only in GitHub Actions in T5.
 - **Goal**: logging in as a server tenant different from the locally bound tenant must NOT show the old
   clinic's data; each clinic's data is isolated and preserved-for-its-own-user only, securely.
 - **Design (standard, matches single-tenant-per-install):**

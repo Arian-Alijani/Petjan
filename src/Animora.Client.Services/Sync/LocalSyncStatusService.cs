@@ -1,4 +1,5 @@
 using Animora.Application.Commands;
+using Animora.Persistence.Sqlite.Context;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.Sync;
 using Animora.Domain.Results;
@@ -47,8 +48,15 @@ public sealed class LocalSyncStatusService(
             if (runPass)
             {
                 Publish(new(SyncState.Syncing, previous.LastSyncedAt, previous.PendingChangeCount));
-                var result = await scope.ServiceProvider.GetRequiredService<LocalCommandProcessor>()
-                    .RunPassAsync(ct).ConfigureAwait(false);
+                var state = scope.ServiceProvider.GetService<LocalInstallationState>();
+                if (state is not null) await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
+                Result<ProcessorPassResult> result;
+                try
+                {
+                    result = await scope.ServiceProvider.GetRequiredService<LocalCommandProcessor>()
+                        .RunPassAsync(ct).ConfigureAwait(false);
+                }
+                finally { state?.TransitionGate.Release(); }
                 if (result.IsFailure || result.Value!.Failed > 0)
                 {
                     Publish(new(SyncState.Error, previous.LastSyncedAt, previous.PendingChangeCount));

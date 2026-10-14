@@ -397,6 +397,7 @@ public sealed partial class LoginViewModel : ObservableObject
 
         // Local-store infrastructure (fail-closed). These never reach the server, so they
         // must be actionable here instead of collapsing into a generic message.
+        "SYNC_PENDING_CHANGES" => "کلینیک قبلی تغییرات ارسال‌نشده دارد؛ ابتدا وارد همان کلینیک شوید و همگام‌سازی را کامل کنید.",
         "STORE_UNAVAILABLE" => "پایگاه دادهٔ محلی در دسترس نیست؛ برنامه را دوباره اجرا کنید.",
         "STORE_KEY_UNAVAILABLE" => "کلید پایگاه دادهٔ محلی خوانده نشد؛ برنامه را دوباره اجرا کنید.",
         "STORE_CORRUPT" => "پایگاه دادهٔ محلی آسیب دیده است؛ از پشتیبان بازیابی کنید.",

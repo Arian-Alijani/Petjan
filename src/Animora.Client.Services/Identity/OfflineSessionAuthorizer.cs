@@ -1,4 +1,6 @@
 using Animora.Application.Security;
+using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Server.Licensing.Verification;
@@ -39,6 +41,11 @@ public sealed class OfflineSessionAuthorizer(IOfflineCredentialMirrorStore mirro
 
         using (var di = scopes.CreateScope())
         {
+            var state = di.ServiceProvider.GetRequiredService<LocalInstallationState>();
+            if (state.TenantId != m.TenantId) return Unavailable("wrong_local_tenant");
+            var bound = await di.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>()
+                .EnsureBoundToAsync(m.TenantId, ct).ConfigureAwait(false);
+            if (bound.IsFailure) return Unavailable("local_tenant_unavailable");
             var store = di.ServiceProvider.GetRequiredService<ICapabilityStore>();
             var snapshot = await store.GetAsync(m.TenantId, m.UserId, m.DeviceId, ct).ConfigureAwait(false);
             if (snapshot.IsFailure || snapshot.Value is not { } s) return Unavailable("no_capability_snapshot");

@@ -20,6 +20,12 @@ public sealed class LocalInstallation
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public int SchemaVersion { get; private set; }
 
+    internal void BindTenant(string tenantId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        TenantId = tenantId;
+    }
+
     internal static LocalInstallation Create(string installationId, string tenantId, string fingerprintHash,
         DateTimeOffset nowUtc) => new()
     {
