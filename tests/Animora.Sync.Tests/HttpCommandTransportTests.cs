@@ -151,7 +151,7 @@ public sealed class HttpCommandTransportTests
     [InlineData(false, "A")]
     public async Task TenantIsolation_MismatchedOrSuspendedSessionDefersSingleAndBatchWithoutNetwork(bool active, string sessionTenant)
     {
-        var binding = new TenantSessionBinding(new MemorySecretStore());
+        var binding = new TenantSessionBinding(new MemorySecretStore(), new Animora.Contracts.Diagnostics.NullClientDiagnosticsLog());
         Assert.True(binding.Bind("A").IsSuccess);
         if (active) binding.Activate();
         var handler = new FakeFeedHandler(_ => throw new InvalidOperationException("Cross-tenant request must not leave the device."));
@@ -166,7 +166,7 @@ public sealed class HttpCommandTransportTests
     [Fact]
     public async Task TenantIsolation_MatchingSessionRebindsWithoutChangingIdempotencyAndRejectsForeignEnvelope()
     {
-        var binding = new TenantSessionBinding(new MemorySecretStore());
+        var binding = new TenantSessionBinding(new MemorySecretStore(), new Animora.Contracts.Diagnostics.NullClientDiagnosticsLog());
         binding.Bind("A");
         binding.Activate();
         var bodies = new List<string>();
@@ -187,6 +187,39 @@ public sealed class HttpCommandTransportTests
         Assert.Equal(envelope.PayloadJson, json.RootElement.GetProperty("payloadJson").GetString());
         Assert.Equal(SettlementOutcome.Deferred, (await transport.SubmitAsync(envelope with { TenantId = "B" })).Value!.Outcome);
         Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public void TenantBindingDiagnostics_ReportMismatchAndPreserveOriginalPin()
+    {
+        var diagnostics = new RecordingDiagnostics();
+        var binding = new TenantSessionBinding(new MemorySecretStore(), diagnostics);
+        Assert.True(binding.Bind("A").IsSuccess);
+        binding.Activate();
+        Assert.True(binding.CanSync);
+        var mismatch = binding.Bind("B");
+        Assert.Equal(ErrorCodes.Unauthorized, mismatch.Error);
+        Assert.Equal("store_tenant_mismatch", mismatch.Detail);
+        Assert.True(binding.Matches("A"));
+        Assert.False(binding.Matches("B"));
+        binding.Suspend();
+        Assert.False(binding.CanSync);
+        Assert.Equal(ErrorCodes.SessionExpired, binding.Bind("").Error);
+        var text = string.Join("\n", diagnostics.Messages);
+        Assert.Contains("PINNED tenant=A", text);
+        Assert.Contains("MISMATCH pinnedTenant=A serverTenant=B", text);
+        Assert.Contains("ACTIVATED canSync=true", text);
+        Assert.Contains("SUSPENDED canSync=false", text);
+        Assert.Contains("Matches=false", text);
+    }
+
+    private sealed class RecordingDiagnostics : Animora.Contracts.Diagnostics.IClientDiagnosticsLog
+    {
+        public bool IsDebugEnabled => true;
+        public List<string> Messages { get; } = [];
+        public void Info(string category, string message) => Messages.Add(message);
+        public void Warn(string category, string message) => Messages.Add(message);
+        public void Debug(string category, string message) => Messages.Add(message);
     }
 
     private sealed class FixedSessions(string tenant) : ISessionStore

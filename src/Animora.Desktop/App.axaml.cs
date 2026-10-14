@@ -353,6 +353,8 @@ public partial class App : global::Avalonia.Application
             (text, action) => sp.GetRequiredService<IDialogService>()
                 .ShowModal($"{text}\n{action.ActionCode}"),
             NotificationText.Resolve));
+        // Overrides the Application null sink; lower layers use the same live console/file trace.
+        services.AddSingleton<IClientDiagnosticsLog, AppTraceDiagnosticsLog>();
         services.AddSingleton<GlobalExceptionHandler>();
         services.AddSingleton<CrashRecoveryService>();
         services.AddSingleton<DraftStateStore>();

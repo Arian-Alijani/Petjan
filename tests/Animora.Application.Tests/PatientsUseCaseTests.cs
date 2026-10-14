@@ -234,7 +234,7 @@ public sealed class PatientsUseCaseTests
         }
 
         using var reopened = fixture.BuildProvider();
-        var service = new PatientsService(reopened.GetRequiredService<IServiceScopeFactory>());
+        var service = new PatientsService(reopened.GetRequiredService<IServiceScopeFactory>(), new Animora.Contracts.Diagnostics.NullClientDiagnosticsLog());
         var owners = await ReadAllPagesAsync(q => service.GetOwnersPageAsync(q), pageSize);
         var pets = await ReadAllPagesAsync(q => service.GetPetsPageAsync(q), pageSize);
         Assert.Equal(405, owners.Count);
@@ -255,7 +255,7 @@ public sealed class PatientsUseCaseTests
             services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
         });
         await fixture.MigrateAsync();
-        var service = new PatientsService(fixture.Services.GetRequiredService<IServiceScopeFactory>());
+        var service = new PatientsService(fixture.Services.GetRequiredService<IServiceScopeFactory>(), new Animora.Contracts.Diagnostics.NullClientDiagnosticsLog());
         Assert.Empty((await service.GetOwnersPageAsync(FirstPage())).Items);
         Assert.Empty((await service.GetPetsPageAsync(FirstPage())).Items);
     }
@@ -267,11 +267,139 @@ public sealed class PatientsUseCaseTests
         services.AddSingleton<IDispatcher>(new FailedDirectoryDispatcher());
         services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
         using var provider = services.BuildServiceProvider();
-        var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>());
+        var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>(), new Animora.Contracts.Diagnostics.NullClientDiagnosticsLog());
         var ownersError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetOwnersPageAsync(FirstPage(page: 2)));
         var petsError = await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPetsPageAsync(FirstPage(page: 2)));
         Assert.Equal(ErrorCodes.StoreUnavailable.Code, ownersError.Message);
         Assert.Equal(ErrorCodes.StoreUnavailable.Code, petsError.Message);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DirectoryDiagnostics_TraceScopeAndCountsWithoutPersonalFields(bool debug)
+    {
+        var diagnostics = new RecordingDiagnostics(debug);
+        var services = new ServiceCollection();
+        services.AddSingleton<IDispatcher>(new FailedDirectoryDispatcher());
+        services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
+        using var provider = services.BuildServiceProvider();
+        var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>(), diagnostics);
+        var query = FirstPage(pageSize: 999) with { Search = "private-search-09123456789" };
+        Assert.Single((await service.GetOwnersPageAsync(query)).Items);
+        Assert.Single((await service.GetPetsPageAsync(query)).Items);
+        var text = string.Join("\n", diagnostics.Messages);
+        Assert.Contains("tenant=T-LOCAL-DEFAULT user=U-1 corr=COR-1", text);
+        Assert.Contains("items=1 total=2", text);
+        Assert.Contains("requestedSize=999 effectiveSize=200", text);
+        Assert.Contains("searchActive=True", text);
+        Assert.DoesNotContain(query.Search!, text);
+        Assert.DoesNotContain("09120000000", text);
+        Assert.DoesNotContain("Owner", text);
+        Assert.DoesNotContain("Pet", text);
+        Assert.Equal(debug, text.Contains("sampleIds=[O-1]", StringComparison.Ordinal));
+        Assert.Equal(debug, text.Contains("sampleIds=[P-1]", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DirectoryDiagnostics_FailuresAreNotReportedAsEmptySuccess()
+    {
+        var diagnostics = new RecordingDiagnostics(false);
+        var services = new ServiceCollection();
+        services.AddSingleton<IDispatcher>(new FailedDirectoryDispatcher());
+        services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
+        using var provider = services.BuildServiceProvider();
+        var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>(), diagnostics);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetOwnersPageAsync(FirstPage(page: 2)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetPetsPageAsync(FirstPage(page: 2)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetDirectoryFacetsAsync(FirstPage()));
+        Assert.Equal(3, diagnostics.Messages.Count(m => m.Contains("QUERY_FAILED code=STORE_UNAVAILABLE", StringComparison.Ordinal)));
+        Assert.DoesNotContain(diagnostics.Messages, m => m.Contains(" DONE", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task DirectoryDiagnostics_DeniedContextDoesNotDispatchOrReturnEmpty()
+    {
+        var diagnostics = new RecordingDiagnostics(false);
+        var services = new ServiceCollection();
+        // Intentionally no dispatcher: Vaccine.Has short-circuits before resolving a scope.
+        using (var provider = services.BuildServiceProvider())
+        {
+            var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>(), diagnostics);
+            var query = FirstPage() with { Vaccine = Animora.Contracts.Patients.VaccineFilter.Has };
+            Assert.Empty((await service.GetOwnersPageAsync(query)).Items);
+            Assert.Empty((await service.GetPetsPageAsync(query)).Items);
+            Assert.Equal(0, (await service.GetDirectoryFacetsAsync(query)).TotalOwners);
+        }
+        Assert.Equal(3, diagnostics.Messages.Count(m => m.Contains(" SKIPPED", StringComparison.Ordinal)));
+        diagnostics.Messages.Clear();
+        var dispatcher = new EmptyDirectoryDispatcher(4);
+        services.AddSingleton<IDispatcher>(dispatcher);
+        services.AddSingleton<ICurrentUserProvider>(new DeniedDirectoryUserProvider());
+        using var deniedProvider = services.BuildServiceProvider();
+        var deniedService = new PatientsService(deniedProvider.GetRequiredService<IServiceScopeFactory>(), diagnostics);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => deniedService.GetOwnersPageAsync(FirstPage()));
+        Assert.Equal(ErrorCodes.SessionExpired.Code, error.Message);
+        Assert.Equal(0, dispatcher.Calls);
+        Assert.Contains(diagnostics.Messages, m => m.Contains("CONTEXT_DENIED code=SESSION_EXPIRED", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(0, "UNFILTERED_LOCAL_EMPTY")]
+    [InlineData(4, "EMPTY_PAGE_WITH_MATCHES")]
+    public async Task DirectoryDiagnostics_DistinguishNoMatchesFromEmptyPage(int total, string warning)
+    {
+        var diagnostics = new RecordingDiagnostics(false);
+        var dispatcher = new EmptyDirectoryDispatcher(total);
+        var services = new ServiceCollection();
+        services.AddSingleton<IDispatcher>(dispatcher);
+        services.AddSingleton<ICurrentUserProvider, DirectoryUserProvider>();
+        using var provider = services.BuildServiceProvider();
+        var service = new PatientsService(provider.GetRequiredService<IServiceScopeFactory>(), diagnostics);
+        Assert.Equal(total, (await service.GetOwnersPageAsync(FirstPage())).TotalCount);
+        Assert.Equal(total, (await service.GetPetsPageAsync(FirstPage())).TotalCount);
+        Assert.Equal(total, (await service.GetDirectoryFacetsAsync(FirstPage())).TotalOwners);
+        Assert.Equal(3, dispatcher.Calls); // logging adds no extra reads
+        Assert.Equal(2, diagnostics.Messages.Count(m => m.Contains(warning, StringComparison.Ordinal)));
+        Assert.Contains(diagnostics.Messages, m => m.Contains($"facets DONE owners={total} pets={total}", StringComparison.Ordinal));
+    }
+
+    private sealed class RecordingDiagnostics(bool debug) : Animora.Contracts.Diagnostics.IClientDiagnosticsLog
+    {
+        public bool IsDebugEnabled => debug;
+        public List<string> Messages { get; } = [];
+        public void Info(string category, string message) => Messages.Add($"INFO [{category}] {message}");
+        public void Warn(string category, string message) => Messages.Add($"WARN [{category}] {message}");
+        public void Debug(string category, string message) => Messages.Add($"DEBUG [{category}] {message}");
+    }
+
+    private sealed class DeniedDirectoryUserProvider : ICurrentUserProvider
+    {
+        public Result<QueryContext> BuildQueryContext() => Result<QueryContext>.Fail(ErrorCodes.SessionExpired);
+        public QueryContext BuildAnonymousQueryContext() => throw new NotSupportedException();
+        public Result<CommandContext> BuildAnonymousCommandContext(string? operationId = null) => throw new NotSupportedException();
+        public Task<Result<CommandContext>> BuildCommandContextAsync(string? operationId, string? dependsOn,
+            long? expectedVersion, System.Threading.CancellationToken ct) => throw new NotSupportedException();
+    }
+
+    private sealed class EmptyDirectoryDispatcher(int total) : IDispatcher
+    {
+        public int Calls { get; private set; }
+        public Task<Result<T>> SendAsync<T>(ICommand<T> command, CommandContext ctx,
+            System.Threading.CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<Result<T>> QueryAsync<T>(IQuery<T> query, QueryContext ctx,
+            System.Threading.CancellationToken ct = default)
+        {
+            Calls++;
+            object value = query switch
+            {
+                OwnerDirectoryQuery q => new PagedResult<OwnerSummaryReadModel>([], total, q.Page, q.PageSize),
+                PetDirectoryQuery q => new PagedResult<PetSummaryReadModel>([], total, q.Page, q.PageSize),
+                PatientsDirectoryFacetsQuery => new PatientDirectoryFacetsReadModel(total, total, new Dictionary<PetSpecies, int>()),
+                _ => throw new NotSupportedException(),
+            };
+            return Task.FromResult(Result<T>.Ok((T)value));
+        }
     }
 
     private static Animora.Contracts.Patients.PatientsDirectoryQuery FirstPage(int page = 1, int pageSize = 200) =>
