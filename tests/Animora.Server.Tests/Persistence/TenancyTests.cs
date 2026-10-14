@@ -30,7 +30,7 @@ public sealed class TenancyTests
     [Fact]
     public void Stamps_FromContext_Never_FromEntity()
     {
-        var stamping = new TenantStampingInterceptor(new FixedTenantContext("TENANT-CTX"));
+        var stamping = new TenantStampingInterceptor(new FixedTenantContext("TENANT-CTX"), new FixedClock());
         using var db = TestSupport.CreateContext(new FixedTenantContext("TENANT-CTX"));
         var tenant = NewTenant(string.Empty);
         db.Tenants.Add(tenant);
@@ -43,7 +43,7 @@ public sealed class TenancyTests
     [Fact]
     public void Stamping_WithoutAnyTenant_Throws_ContextMissing()
     {
-        var stamping = new TenantStampingInterceptor(new NullTenantContext());
+        var stamping = new TenantStampingInterceptor(new NullTenantContext(), new FixedClock());
         using var db = TestSupport.CreateContext();
         db.Tenants.Add(NewTenant(string.Empty));
 
@@ -53,7 +53,7 @@ public sealed class TenancyTests
     [Fact]
     public void Mismatch_Throws_TenantMismatch()
     {
-        var stamping = new TenantStampingInterceptor(new FixedTenantContext("TENANT-CTX"));
+        var stamping = new TenantStampingInterceptor(new FixedTenantContext("TENANT-CTX"), new FixedClock());
         using var db = TestSupport.CreateContext();
         db.Tenants.Add(NewTenant("TENANT-OTHER"));
 
@@ -65,7 +65,7 @@ public sealed class TenancyTests
     [Fact]
     public void Operator_MayWriteTenantRows()
     {
-        var stamping = new TenantStampingInterceptor(new FixedTenantContext(null, isOperator: true));
+        var stamping = new TenantStampingInterceptor(new FixedTenantContext(null, isOperator: true), new FixedClock());
         using var db = TestSupport.CreateContext();
         var tenant = NewTenant("T-NEW");
         db.Tenants.Add(tenant);

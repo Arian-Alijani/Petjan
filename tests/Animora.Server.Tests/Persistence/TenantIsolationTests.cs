@@ -1,4 +1,5 @@
 using Animora.Domain.Primitives;
+using Animora.Domain.Time;
 using Animora.Persistence.PostgreSql.Conventions;
 using Animora.Persistence.PostgreSql.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,13 @@ public sealed class TenantIsolationTests(PgFixture pg) : IClassFixture<PgFixture
         }
     }
 
+    /// <summary>Fixed UTC clock so stamped <c>UpdatedAt</c> values are deterministic within the suite.</summary>
+    private sealed class IsolationClock : IClock
+    {
+        public static readonly IsolationClock Instance = new();
+        public DateTimeOffset UtcNow { get; } = new(2026, 10, 9, 0, 0, 0, TimeSpan.Zero);
+    }
+
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (TenantStampingInterceptor, NoUnnamedIgnoreFiltersInterceptor)> Interceptors = new();
 
     private ProbeDbContext Create(ITenantContext tenant, NpgsqlDataSource? dataSource = null)
@@ -45,7 +53,7 @@ public sealed class TenantIsolationTests(PgFixture pg) : IClassFixture<PgFixture
         _ = dataSource is null ? builder.UseNpgsql(pg.ConnectionString) : builder.UseNpgsql(dataSource);
         // One interceptor pair per distinct tenant (same id => same behaviour): EF keys its internal service provider on the interceptor
         // instances, so a fresh pair per context would exhaust its 20-provider cache across the whole run.
-        var (stamping, ignoreFilters) = Interceptors.GetOrAdd(tenant.TenantId + "|" + tenant.IsOperator, _ => (new TenantStampingInterceptor(tenant), new NoUnnamedIgnoreFiltersInterceptor(tenant)));
+        var (stamping, ignoreFilters) = Interceptors.GetOrAdd(tenant.TenantId + "|" + tenant.IsOperator, _ => (new TenantStampingInterceptor(tenant, IsolationClock.Instance), new NoUnnamedIgnoreFiltersInterceptor(tenant)));
         builder.AddInterceptors(stamping, ignoreFilters);
         // The suite shares one process-wide EF provider cache; other fixtures may already have used most of its 20 slots.
         builder.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.ManyServiceProvidersCreatedWarning));
