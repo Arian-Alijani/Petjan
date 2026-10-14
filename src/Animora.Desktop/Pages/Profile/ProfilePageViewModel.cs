@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using Animora.Contracts.Identity;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -18,12 +21,37 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     private readonly IUserProfileService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
+    private readonly IAuthenticationService _authentication;
 
-    public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast)
+    public event EventHandler? SignedOut;
+
+    [ObservableProperty]
+    private bool _isSigningOut;
+
+    [RelayCommand]
+    private async Task SignOutAsync(CancellationToken ct)
+    {
+        IsSigningOut = true;
+        try
+        {
+            await _authentication.SignOutAsync("user_requested", ct);
+            SignedOut?.Invoke(this, EventArgs.Empty);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Error("sign-out failed", ex, "auth");
+            _toast.Show("خروج از حساب انجام نشد؛ دوباره تلاش کنید.", Tone.Danger);
+        }
+        finally { IsSigningOut = false; }
+    }
+
+    public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast, IAuthenticationService authentication)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
+        _authentication = authentication;
 
         Title = "تنظیمات";
         Eyebrow = "حساب کاربری";

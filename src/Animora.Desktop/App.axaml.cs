@@ -103,7 +103,7 @@ public partial class App : global::Avalonia.Application
         exceptionHandler.RegisterProcessHooks();
         Dispatcher.UIThread.UnhandledException += (_, args) =>
         {
-            args.Handled = exceptionHandler.HandleUiException(args.Exception);
+            args.Handled = Services.GetRequiredService<GlobalExceptionHandler>().HandleUiException(args.Exception);
         };
 
         // Convention-based ViewModel → View resolution is a single app-wide
@@ -119,32 +119,12 @@ public partial class App : global::Avalonia.Application
             // accepted, swap in the main shell (resolved lazily so no page/mock
             // is built until the user is in). The shell then owns the app
             // lifetime and the login window is closed.
-            var login = Services.GetRequiredService<LoginWindow>();
-            if (Program.TestProfile is { } loginProfile)
-                login.Title += loginProfile.WindowSuffix;
-
-            if (login.DataContext is LoginViewModel loginViewModel)
-            {
-                loginViewModel.LoginSucceeded += async (_, _) =>
-                {
-                    Diagnostics.AppTrace.Navigate("LoginWindow", "MainWindow (shell)");
-                    var shell = Services.GetRequiredService<MainWindow>();
-                    if (Program.TestProfile is { } shellProfile)
-                        shell.Title += shellProfile.WindowSuffix;
-                    desktop.MainWindow = shell;
-                    shell.Show();
-                    login.Close();
-                    await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync();
-                    Diagnostics.AppTrace.Milestone("shell shown");
-                };
-            }
-
+            var login = CreateLoginWindow(desktop);
             desktop.MainWindow = login;
             Diagnostics.AppTrace.Milestone("login window set", Program.StartupTimer.Elapsed);
 
             // Local store startup runs only after the login window is up so the first frame is never
             // blocked (PERFORMANCE §4); the form stays disabled until it completes.
-            login.Opened += OnLoginOpened;
 
             // F-02: on application exit dispose the root provider so every IDisposable/IAsyncDisposable
             // singleton (FinanceProjectionWorker, MaintenanceScheduler, …) shuts down cleanly — background
@@ -166,6 +146,82 @@ public partial class App : global::Avalonia.Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private bool _returningToLogin;
+
+    private LoginWindow CreateLoginWindow(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var login = Services.GetRequiredService<LoginWindow>();
+        if (Program.TestProfile is { } profile) login.Title += profile.WindowSuffix;
+        if (login.DataContext is LoginViewModel vm)
+        {
+            async void OnSucceeded(object? sender, EventArgs args)
+            {
+                try
+                {
+                    var shell = Services.GetRequiredService<MainWindow>();
+                    if (Program.TestProfile is { } shellProfile) shell.Title += shellProfile.WindowSuffix;
+                    Services.GetRequiredService<ProfilePageViewModel>().SignedOut += OnProfileSignedOut;
+                    desktop.MainWindow = shell;
+                    shell.Show();
+                    vm.LoginSucceeded -= OnSucceeded;
+                    login.Close();
+                    await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync();
+                    Diagnostics.AppTrace.Milestone("shell shown");
+                }
+                catch (Exception ex)
+                {
+                    Diagnostics.AppTrace.Error("shell transition failed", ex, "auth");
+                    vm.ErrorMessage = "باز کردن محیط کار انجام نشد؛ دوباره تلاش کنید.";
+                }
+            }
+            vm.LoginSucceeded += OnSucceeded;
+            login.Closed += (_, _) => vm.LoginSucceeded -= OnSucceeded;
+        }
+        login.Opened += OnLoginOpened;
+        return login;
+    }
+
+    // A fresh composition also discards every singleton page, view cache, navigation history and dialog host.
+    // Reusing only MainWindow would leak the previous clinic's in-memory rows into the next user's shell.
+    private async void OnProfileSignedOut(object? sender, EventArgs args)
+    {
+        if (_returningToLogin || ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
+        _returningToLogin = true;
+        if (sender is ProfilePageViewModel profile) profile.SignedOut -= OnProfileSignedOut;
+        var shell = desktop.MainWindow;
+        try
+        {
+            shell?.Hide();
+            if (Services.GetService<INavigationService>()?.CurrentViewModel is { } leaving)
+            {
+                leaving.IsCurrentPage = false;
+                leaving.OnNavigatedFrom();
+            }
+            Services.GetRequiredService<IDialogService>().Close();
+            var previous = Services;
+            DataTemplates.Remove(previous.GetRequiredService<ViewLocator>());
+            // Drain old workers and dispose page subscriptions before building any new tenant-bound service.
+            await Task.Run(async () =>
+            {
+                if (previous is IAsyncDisposable asynchronous) await asynchronous.DisposeAsync();
+                else if (previous is IDisposable disposable) disposable.Dispose();
+            });
+            Services = ConfigureServices();
+            Services.GetRequiredService<GlobalExceptionHandler>().RegisterProcessHooks();
+            DataTemplates.Add(Services.GetRequiredService<ViewLocator>());
+            var login = CreateLoginWindow(desktop);
+            desktop.MainWindow = login;
+            login.Show();
+            shell?.Close();
+        }
+        catch (Exception ex)
+        {
+            Diagnostics.AppTrace.Error("return to login failed; no signed-out shell is retained", ex, "auth");
+            desktop.Shutdown(GlobalExceptionHandler.FatalExitCode);
+        }
+        finally { _returningToLogin = false; }
     }
 
     // async void only at the Avalonia lifecycle-event boundary; every exception is caught here.

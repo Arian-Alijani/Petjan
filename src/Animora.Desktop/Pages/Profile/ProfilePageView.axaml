@@ -388,6 +388,8 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="{Binding UserName}" FontWeight="Bold" FontSize="13" />
                     <TextBlock Text="{Binding UserRole}" Classes="ps-sub" />
+                    <Button Classes="outline" Content="خروج از حساب" Command="{Binding SignOutCommand}"
+                            AutomationProperties.Name="خروج از حساب" />
                 </StackPanel>
             </Border>
         </Grid>

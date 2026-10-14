@@ -14,7 +14,7 @@ namespace Animora.Client.Services.Identity;
 /// operation, never captured. Awaits intentionally do not use <c>ConfigureAwait(false)</c> (results return to a
 /// ViewModel — CONVENTIONS §4).
 /// </summary>
-public sealed class AuthenticationService(IServiceScopeFactory scopes, CapabilityGateService gate)
+public sealed class AuthenticationService(IServiceScopeFactory scopes, CapabilityGateService gate, IOnlineAuthClient? online = null)
     : IAuthenticationService
 {
     public async Task<AuthOutcome> SignInAsync(string username, string password, bool rememberDevice,
@@ -47,17 +47,17 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
         try
         {
             await using var scope = scopes.CreateAsyncScope();
-            var (dispatcher, provider) = Resolve(scope);
-
-            var context = await provider.BuildCommandContextAsync(null, null, null, ct);
-            if (context.IsFailure) return; // no active session: sign-out is idempotent.
-
-            // Expected failures are not surfaced: the contract has no error channel for sign-out.
-            await dispatcher.SendAsync(new SignOutCommand(reason), context.Value!, ct);
+            // Sign-out must work even if the capability gate or command context has already expired.
+            var ended = await scope.ServiceProvider.GetRequiredService<ISessionService>().EndAsync(reason, ct);
+            if (ended.IsFailure) throw new InvalidOperationException("Local sign-out failed: " + ended.Error.Code);
         }
         finally
         {
-            gate.Clear(); // sign-out invalidates every cached decision, even if the command failed.
+            gate.Clear();
+            await using var cleanup = scopes.CreateAsyncScope();
+            cleanup.ServiceProvider.GetRequiredService<SessionContextCache>().Set(SessionSnapshot.SignedOut(isFirstRun: false));
+            // Offline verifiers are intentionally retained for the currently bound clinic, but bearer authority is not.
+            if (online is not null) await online.LogoutAsync(CancellationToken.None);
         }
     }
 

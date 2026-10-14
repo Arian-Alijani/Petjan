@@ -136,14 +136,16 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
     public async Task<Result> LogoutAsync(CancellationToken ct = default)
     {
         var current = await sessions.ReadAsync(ct).ConfigureAwait(false);
+        var cleared = await sessions.ClearAsync(ct).ConfigureAwait(false);
+        if (cleared.IsFailure) return cleared;
         if (current.IsSuccess && current.Value is { } session)
         {
-            // Best effort: an unreachable server must never keep the user signed in locally.
+            // Revoke remotely only AFTER local tokens are gone: no background sync may retain bearer authority.
             var exchange = await api.SendAsync(HttpMethod.Post, "auth/logout", body: null, session.AccessToken, ct).ConfigureAwait(false);
             exchange.Response?.Dispose();
         }
 
-        return await sessions.ClearAsync(ct).ConfigureAwait(false);
+        return Result.Ok();
     }
 
     private static bool IsPending(DeviceRegisterResponse? device) =>

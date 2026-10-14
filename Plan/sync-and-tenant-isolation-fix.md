@@ -198,7 +198,7 @@ Verified via `git log`:
 - This is a heavy change → **push with a clear message**:
   `scripts/git/push.sh "fix(identity): rebind local store to the authenticated tenant on login and wipe the previous clinic's data (per-clinic isolation)"`.
 
-### [ ] T4 — Add "Sign out" button in the user's Settings/Profile page (Root Cause C) — STATUS: pending
+### [x] T4 — Add "Sign out" button in the user's Settings/Profile page (Root Cause C) — STATUS: done; Persian sign-out command clears local/server authority, reusable login transition, old workers/provider/hooks disposed and fresh composition prevents stale singleton UI data. CI validation follows in T5.
 - UI lives in `src/Animora.Desktop/Pages/Profile/` (`ProfilePageView.axaml`, `ProfilePageViewModel.cs`).
   Confirm Profile is the user-facing "تنظیمات"/account area; if the app routes "Settings" elsewhere, place the
   button where the user manages their account. (Profile is the correct, verified location.)

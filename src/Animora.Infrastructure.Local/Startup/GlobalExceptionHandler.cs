@@ -28,7 +28,7 @@ public sealed class GlobalExceptionHandler(
     IClock clock,
     IServiceScopeFactory scopes,
     IUserNotificationPort notifications,
-    ILogger<GlobalExceptionHandler> logger)
+    ILogger<GlobalExceptionHandler> logger) : IDisposable
 {
     public const int FatalExitCode = 70;
     public const string MarkerFileName = "crash.marker";
@@ -41,6 +41,13 @@ public sealed class GlobalExceptionHandler(
         if (Interlocked.Exchange(ref _registered, 1) != 0) return;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _registered, 0) == 0) return;
+        AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+        TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
     }
 
     public bool HandleUiException(Exception exception)
