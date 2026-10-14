@@ -1,4 +1,18 @@
 using System.Net;
+using System.Text.Json;
+using Animora.Application.Abstractions;
+using Animora.Application.Commands;
+using Animora.Contracts.Wire.Commands;
+using Animora.Contracts.Wire.Sync;
+using Animora.Domain.Identity;
+using Animora.Domain.Patients;
+using Animora.Domain.Primitives;
+using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Entities;
+using Animora.Persistence.Sqlite.Maintenance;
+using Animora.Persistence.Sqlite.Replica;
+using Microsoft.EntityFrameworkCore;
+using static Animora.Sync.Tests.ReplicaTestSupport;
 using Animora.Application.Security;
 using Animora.Client.Services.Identity;
 using Animora.Domain.Results;
@@ -44,7 +58,7 @@ public sealed class OnlineAuthClientTests
         Assert.True((await stack.Services.GetRequiredService<IOfflineCredentialMirrorStore>().ReadAsync()).Value is not null);
 
         // Access/refresh tokens never sit in SQLite as plaintext.
-        using var db = stack.Fixture.CreateContext(stack.Fixture.TenantId);
+        using var db = stack.Fixture.CreateContext(stack.Server.TenantId);
         var row = db.Set<Animora.Persistence.Sqlite.Entities.ClientSessionRow>().Single();
         Assert.DoesNotContain(stack.Server.LastAccessToken, row.AccessToken, StringComparison.Ordinal);
         Assert.NotNull(row.OfflineCredentialVerifier);
@@ -214,4 +228,147 @@ public sealed class OnlineAuthClientTests
         Assert.Null((await stack.Services.GetRequiredService<ISessionStore>().ReadAsync()).Value);
         Assert.NotNull((await stack.Services.GetRequiredService<IOfflineCredentialMirrorStore>().ReadAsync()).Value);
     }
+    private static async Task AddSyncedOwnerAsync(OnlineStack stack)
+    {
+        var record = new SyncRecord("Owner", "OWNER-A", 'U', "v1", FeedFixtures.Now, false,
+            JsonDocument.Parse("""{"fullName":"Clinic A owner","phonePrimary":"09120000000","gender":1,"registeredUtc":"2026-10-01T08:00:00Z","isBlocked":false}""").RootElement.Clone());
+        var applied = await ApplyAsync(NewStore(stack.Fixture), Batch("tenant-batch", 1, 0, 10), Page("tenant-batch", 0, 1, record));
+        Assert.True(applied.IsSuccess, applied.Detail);
+    }
+
+    [Fact]
+    public async Task TenantBind_AdoptsServerTenant_AndSurvivesRestartWithoutDefaultSeed()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        var installation = stack.Services.GetRequiredService<LocalInstallationState>().Installation!;
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        Assert.Equal(stack.Server.TenantId, stack.Services.GetRequiredService<LocalInstallationState>().TenantId);
+        using var restarted = stack.Fixture.BuildProvider();
+        var result = await restarted.GetRequiredService<ILocalStoreInitializer>().InitializeAsync(default);
+        Assert.True(result.IsSuccess, result.Detail);
+        var state = restarted.GetRequiredService<LocalInstallationState>();
+        Assert.Equal(stack.Server.TenantId, state.TenantId);
+        Assert.Equal(installation.InstallationId, state.Installation!.InstallationId);
+        Assert.Equal(installation.MachineFingerprintHash, state.Installation.MachineFingerprintHash);
+        using var scope = restarted.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.False(await db.Set<Tenant>().IgnoreQueryFilters().AnyAsync(x => x.Id == Tenant.LocalDefaultId));
+        Assert.Equal(Enum.GetValues<StaffRole>().Length, await db.Set<RoleDefinition>().CountAsync());
+    }
+
+    [Fact]
+    public async Task TenantSwitch_WipesTypedReplicaAndCursorRows_ThenCanReturnToOriginalClinic()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        var tenantA = stack.Server.TenantId;
+        await AddSyncedOwnerAsync(stack);
+        Assert.True((await stack.Client.LogoutAsync()).IsSuccess);
+        stack.Server.TenantId = IdGenerator.NewId();
+        var loginB = await LoginAsync(stack);
+        Assert.True(loginB.IsSuccess, loginB.Detail);
+        using (var scope = stack.Fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            Assert.False(await db.Set<Owner>().IgnoreQueryFilters().AnyAsync());
+            Assert.False(await db.Set<ReplicaBase>().AnyAsync());
+            Assert.False(await db.Set<ReplicaCheckpoint>().AnyAsync());
+            Assert.False(await db.Set<ClientSessionRow>().AnyAsync(x => x.TenantId == tenantA));
+            Assert.False(await db.Set<RoleDefinition>().IgnoreQueryFilters().AnyAsync(x => x.TenantId == tenantA));
+        }
+        Assert.Equal(stack.Server.TenantId, stack.Services.GetRequiredService<LocalInstallationState>().TenantId);
+        Assert.True((await stack.Client.LogoutAsync()).IsSuccess);
+        stack.Server.TenantId = tenantA;
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        await AddSyncedOwnerAsync(stack); // fresh server hydration, not resurrection of old disk rows
+        using var read = stack.Fixture.CreateScope();
+        Assert.Equal(tenantA, (await read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>()
+            .Set<Owner>().SingleAsync()).TenantId);
+    }
+
+    [Fact]
+    public async Task TenantSwitch_WithUnsettledWork_IsRefusedWithoutDiscardingAnyIntent()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        var tenantA = stack.Server.TenantId;
+        await AddSyncedOwnerAsync(stack);
+        using (var scope = stack.Fixture.CreateScope())
+        {
+            var journal = scope.ServiceProvider.GetRequiredService<ICommandJournal>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var command = CommandEnvelope.Create(IdGenerator.NewId(), tenantA, "U1", "D1", "patients.owner.update", "Owner",
+                "OWNER-A", "{}", "fp", FeedFixtures.Now, 1);
+            Assert.True((await uow.ExecuteAsync(async ct => await journal.EnqueueAsync(command, ct))).IsSuccess);
+        }
+        // A same-tenant re-login is a genuine no-op, even with unsettled work.
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        stack.Server.TenantId = IdGenerator.NewId();
+        var refused = await LoginAsync(stack);
+        Assert.Equal(ErrorCodes.SyncPendingChanges, refused.Error);
+        Assert.Equal(tenantA, stack.Services.GetRequiredService<LocalInstallationState>().TenantId);
+        Assert.Null((await stack.Services.GetRequiredService<ISessionStore>().ReadAsync()).Value);
+        using var read = stack.Fixture.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.True(await db.Set<Owner>().AnyAsync(x => x.Id == "OWNER-A"));
+        Assert.Single(await db.Set<PendingCommand>().ToListAsync());
+    }
+
+    [Fact]
+    public async Task TenantSwitch_FailedCommit_RollsBackWipeAndCachedBinding()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        var tenantA = stack.Server.TenantId;
+        await AddSyncedOwnerAsync(stack);
+        using (var scope = stack.Fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var table = db.Model.FindEntityType(typeof(LocalInstallation))!.GetTableName();
+            await db.Database.ExecuteSqlRawAsync($"CREATE TRIGGER fail_tenant_bind BEFORE UPDATE ON \"{table}\" BEGIN SELECT RAISE(ABORT, 'forced'); END;");
+        }
+        stack.Server.TenantId = IdGenerator.NewId();
+        var refused = await LoginAsync(stack);
+        Assert.True(refused.IsFailure);
+        Assert.Equal(tenantA, stack.Services.GetRequiredService<LocalInstallationState>().TenantId);
+        using var read = stack.Fixture.CreateScope();
+        var dbRead = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.True(await dbRead.Set<Owner>().AnyAsync(x => x.Id == "OWNER-A"));
+        Assert.True(await dbRead.Set<ReplicaBase>().AnyAsync());
+        Assert.Equal(tenantA, (await dbRead.Set<LocalInstallation>().SingleAsync()).TenantId);
+    }
+
+    [Fact]
+    public async Task OfflineLogin_WrongInstallationTenant_FailsClosed()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        using (var scope = stack.Fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var table = db.Model.FindEntityType(typeof(LocalInstallation))!.GetTableName();
+            await db.Database.ExecuteSqlRawAsync($"UPDATE \"{table}\" SET \"TenantId\" = {{0}}", IdGenerator.NewId());
+        }
+        using var restarted = stack.Fixture.BuildProvider();
+        Assert.True((await restarted.GetRequiredService<ILocalStoreInitializer>().InitializeAsync(default)).IsSuccess);
+        stack.Server.Handler.Unreachable = true;
+        var offline = await restarted.GetRequiredService<IOnlineAuthClient>()
+            .LoginAsync(FakeIdentityServer.TenantCode, FakeIdentityServer.UserName, FakeIdentityServer.Password);
+        Assert.Equal(ErrorCodes.OfflineSessionUnavailable, offline.Error);
+        Assert.Equal("wrong_local_tenant", offline.Detail);
+    }
+
+    [Fact]
+    public async Task Logout_Offline_ClearsBearerAuthorityAndAllowsSameClinicOfflineRelogin()
+    {
+        using var stack = await OnlineStack.CreateAsync();
+        Assert.True((await LoginAsync(stack)).IsSuccess);
+        stack.Server.Handler.Unreachable = true;
+        Assert.True((await stack.Client.LogoutAsync()).IsSuccess);
+        Assert.Null((await stack.Services.GetRequiredService<ISessionStore>().ReadAsync()).Value);
+        var offline = await LoginAsync(stack);
+        Assert.True(offline.IsSuccess, offline.Detail);
+        Assert.True(offline.Value!.IsOffline);
+    }
+
 }

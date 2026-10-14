@@ -68,7 +68,7 @@ internal sealed class FakeIdentityServer
 
     public TestLicenseAuthority Licenses { get; }
 
-    public string TenantId { get; }
+    public string TenantId { get; set; }
 
     public string UserId { get; }
 

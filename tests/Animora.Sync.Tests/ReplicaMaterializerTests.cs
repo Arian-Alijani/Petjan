@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Animora.Domain.Inventory;
+using Animora.Sync.Custom.Replica;
 using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Patients;
 using Animora.Domain.Scheduling;
@@ -132,4 +134,42 @@ public sealed class ReplicaMaterializerTests
         var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
         Assert.False(await db.Set<ActivityEvent>().AnyAsync(x => x.EntityId == "A2"));
     }
+    [Fact]
+    public void SupportedEntities_CoversRequiredInventoryClinicalBoardingAndIdentitySurface()
+    {
+        string[] expected = ["Owner", "Pet", "Appointment", "ReceptionQueueEntry", "UnitOfMeasure", "ProductCategory", "Product",
+            "Supplier", "Insurer", "LedgerAccount", "AccountingPeriod", "WeightEntry", "MedicalHistoryEntry", "VaccinationRecord",
+            "VaccineCatalogItem", "Visit", "TreatmentPlan", "TreatmentOccurrence", "Room", "BoardingServiceDef", "BoardingStay",
+            "RoleDefinition", "StaffMembership"];
+        Assert.Equal(expected.OrderBy(x => x), ReplicaMaterializer.SupportedEntities.OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task ProductAndVariants_FromAnotherClient_MaterializeAndTombstone()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        const string product = """{"sku":"DRUG-1","name":"Antibiotic","categoryId":"CAT-1","kind":0,"unitCode":"PCS","isActive":true,"trackStock":true,"defaultCostPrice":{"minor":100,"currency":"IRT"},"defaultSalePrice":{"minor":150,"currency":"IRT"},"reorderLevel":{"value":2,"unitCode":"PCS"},"variants":[{"variantId":"V1","sku":"DRUG-1-10","attributeName":"Strength","attributeValue":"10mg","costPriceMinor":100,"costPriceCurrency":"IRT","salePriceMinor":150,"salePriceCurrency":"IRT","reorderLevelScaled":2000,"reorderLevelUnit":"PCS","isActive":true}]}""";
+        Assert.True((await ApplyAsync(store, Batch("products", 1, 0, 10), Page("products", 0, 1,
+            Json("ProductCategory", "CAT-1", "c1", """{"code":"MED","displayName":"Medicine","isActive":true}"""),
+            Json("UnitOfMeasure", "UNIT-1", "u1", """{"code":"PCS","displayKey":"unit.pcs","decimalPlaces":0}"""),
+            Json("Product", "PR-1", "p1", product)))).IsSuccess);
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var row = await db.Set<Product>().SingleAsync(x => x.Id == "PR-1");
+            Assert.Equal("Antibiotic", row.Name);
+            Assert.Equal("p1", row.Version);
+            Assert.Equal(FeedFixtures.Now, row.UpdatedAt);
+            Assert.Equal(150, row.DefaultSalePrice.Minor);
+            Assert.Single(row.Variants);
+            Assert.Equal("V1", row.Variants.Single().VariantId);
+            Assert.True(await db.Set<UnitOfMeasure>().AnyAsync(x => x.Id == "UNIT-1"));
+        }
+        Assert.True((await ApplyAsync(store, Batch("delete-product", 1, 10, 20), Page("delete-product", 0, 1,
+            Json("Product", "PR-1", "p2", "{}", 'D')))).IsSuccess);
+        using var read = fixture.CreateScope();
+        Assert.False(await read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>().Set<Product>().AnyAsync(x => x.Id == "PR-1"));
+    }
+
 }
