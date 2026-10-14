@@ -71,7 +71,7 @@ public sealed class SyncOrchestratorTests
         var (fixture, engine, _, _) = await ArrangeAsync();
         using (fixture)
         {
-            var session = new ClientSession("a", DateTimeOffset.UtcNow.AddHours(1), "r", "u", "t", "d", "Manager", "s");
+            var session = new ClientSession("a", fixture.Clock.Now.AddHours(1), "r", "u", fixture.TenantId, "d", "Manager", "s");
             var orchestrator = new SyncOrchestrator(engine, fixture.Services.GetRequiredService<IServiceScopeFactory>(),
                 new SyncScheduleOptions(), new RecordingResyncHandler(), new FakeSessionStore(session));
             engine.Then(FakeStateSyncEngine.Ok(SyncOutcome.UpToDate, fixture.Clock.Now));
@@ -139,4 +139,20 @@ public sealed class SyncOrchestratorTests
             Assert.Equal(2, engine.Pulls);
         }
     }
+    [Fact]
+    public async Task OnlineSession_ForAnotherTenant_DefersWithoutRequestOrCursorWrite()
+    {
+        var (fixture, engine, _, _) = await ArrangeAsync();
+        using (fixture)
+        {
+            var session = new ClientSession("a", fixture.Clock.Now.AddHours(1), "r", "u", "OTHER-CLINIC", "d", "Manager", "s");
+            var orchestrator = new SyncOrchestrator(engine, fixture.Services.GetRequiredService<IServiceScopeFactory>(),
+                new SyncScheduleOptions(), new RecordingResyncHandler(), new FakeSessionStore(session));
+            var result = await orchestrator.PullAllAsync();
+            Assert.Equal(SyncOutcome.Deferred, result.Value);
+            Assert.Equal(0, engine.Pulls);
+            Assert.Null(await CursorAsync(fixture));
+        }
+    }
+
 }
