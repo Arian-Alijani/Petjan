@@ -218,7 +218,7 @@ Verified via `git log`:
   shell. No orphaned windows.
 - Push: `scripts/git/push.sh "feat(desktop): add sign-out button in profile/settings returning to login"`.
 
-### [ ] T5 — Integration sanity for Task 1 ("offline adds sync when back online") — STATUS: pending
+### [x] T5 — Integration sanity for Task 1 ("offline adds sync when back online") — STATUS: ✅ done (reconnect flush + tenant-binding/offline-isolation/materializer tests added; GitHub Actions run on ci/sync-tenant-t5 desktop test-only = success)
 - No full test runs (user constraint). Instead do a **targeted reasoning + light verification** pass:
   - Confirm the offline command pipeline already queues commands in SQLite and the scheduler flushes on
     reconnect (`SyncSchedulerHostedService`, `HttpCommandTransport`). These are pre-existing and working per the
