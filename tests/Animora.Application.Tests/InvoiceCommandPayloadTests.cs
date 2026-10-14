@@ -74,7 +74,7 @@ public sealed class InvoiceCommandPayloadTests
     public async Task AddCustomLine_UsesOperationIdAsLineId_AndLandsOnTheInvoice()
     {
         var invoice = SalesTestData.Draft();
-        var handler = new AddCustomInvoiceLineCommandHandler(new SalesInvoiceRepository(invoice), SalesTestData.Clock);
+        var handler = new AddCustomInvoiceLineCommandHandler(new SalesInvoiceRepository(invoice));
         var before = invoice.Lines.Count;
 
         var result = await handler.HandleAsync(new AddCustomInvoiceLineCommand(invoice.Id, "Extra", 500, 1m), SalesTestData.Context, default);

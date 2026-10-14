@@ -10,7 +10,6 @@ using Animora.Domain.Identity;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Sales;
-using Animora.Domain.Time;
 using Animora.Domain.ValueObjects;
 
 namespace Animora.Application.UseCases.Sales;
@@ -31,7 +30,7 @@ public sealed class AddCustomInvoiceLineCommandValidator : IValidator<AddCustomI
             Rules.Required(c.Title, nameof(c.Title)), Rules.Range(c.UnitPriceMinor, 0L, long.MaxValue, nameof(c.UnitPriceMinor)),
             Rules.Range(c.Quantity, 0.001m, 1000000m, nameof(c.Quantity)));
 }
-public sealed class AddCustomInvoiceLineCommandHandler(IInvoiceRepository invoices, IClock clock)
+public sealed class AddCustomInvoiceLineCommandHandler(IInvoiceRepository invoices)
     : ICommandHandler<AddCustomInvoiceLineCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(AddCustomInvoiceLineCommand c, CommandContext context, CancellationToken ct)

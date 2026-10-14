@@ -44,7 +44,8 @@ case "$SCOPE" in
     # Whole solution in one shot — simplest and lets MSBuild parallelise.
     PROJECTS=("$SOLUTION") ;;
   server)
-    PROJECTS=("${SERVER_PROJECTS[@]}") ;;
+    # The host references every server sibling. One graph traversal, not four.
+    PROJECTS=("${SERVER_PROJECTS[0]}") ;;
   desktop)
     PROJECTS=("${DESKTOP_PROJECTS[@]}") ;;
   core)
@@ -64,6 +65,18 @@ summary ""
 summary "| Project | Result |"
 summary "|---|---|"
 
+# The workflow restores before invoking us. Fail visibly if NuGet rewrote a
+# committed lock file: a successful unlocked restore alone does not prove it valid.
+BUILD_OPTIONS=()
+if [ "$SCOPE" = "server" ] && [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+  if ! git -C "$REPO_ROOT" diff --exit-code -- '**/packages.lock.json'; then
+    err "Restore changed package locks. Commit the NuGet-generated diff above."
+    exit 1
+  fi
+  dotnet restore "$(abspath "${SERVER_PROJECTS[0]}")" --locked-mode -warnaserror -v minimal || exit $?
+  BUILD_OPTIONS=(--no-restore -warnaserror)
+fi
+
 RC=0
 START=$(date +%s)
 for p in "${PROJECTS[@]}"; do
@@ -72,7 +85,7 @@ for p in "${PROJECTS[@]}"; do
   name="$(basename "$TARGET")"
   log "building $name ..."
 
-  dotnet build "$TARGET" -c "$CONFIG" --nologo -v minimal
+  dotnet build "$TARGET" -c "$CONFIG" --nologo -v minimal "${BUILD_OPTIONS[@]}"
   rc=$?
   if [ "$rc" -eq 0 ]; then
     ok "$name"
@@ -83,6 +96,15 @@ for p in "${PROJECTS[@]}"; do
     RC=$rc
   fi
 done
+# Exercise the real server publish path in Actions without repeating restore or
+# compilation. Keep the output out of the source tree (Web SDK content globs).
+if [ "$RC" -eq 0 ] && [ "$SCOPE" = "server" ] && [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+  PUBLISH_START=$(date +%s)
+  dotnet publish "$(abspath "${SERVER_PROJECTS[0]}")" -c "$CONFIG" \
+    --no-build --no-restore -warnaserror -v minimal -o "$REPO_ROOT/publish/server"
+  RC=$?
+  summary "| Server publish (reuse build; $(( $(date +%s) - PUBLISH_START ))s) | exit $RC |"
+fi
 ELAPSED=$(( $(date +%s) - START ))
 
 summary ""
