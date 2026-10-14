@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Animora.Application.Commands;
 using Animora.Application.Security;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Wire;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Results;
@@ -46,10 +47,15 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
+        TraceLog.Info($"CommandTransport.Submit → op={envelope.OperationId}, type={envelope.CommandType}, aggregate={envelope.AggregateType}/{envelope.AggregateId}, localSequence={envelope.LocalSequence}.", "sync.push");
         envelope = await RebindIdentityAsync(envelope, ct).ConfigureAwait(false);
         using var request = NewRequest(CommandsPath, envelope);
         var exchange = await SendAsync(request, ct).ConfigureAwait(false);
-        if (exchange.Response is null) return Result<SettlementResult>.Ok(Deferred(envelope, exchange.Detail));
+        if (exchange.Response is null)
+        {
+            TraceLog.Warn($"CommandTransport.Submit ← op={envelope.OperationId} DEFERRED (transport): {exchange.Detail}", "sync.push");
+            return Result<SettlementResult>.Ok(Deferred(envelope, exchange.Detail));
+        }
 
         using var response = exchange.Response;
         switch (Classify(response))
@@ -58,16 +64,20 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
                 var body = await ReadAsync<SettlementResult>(response, ct).ConfigureAwait(false);
                 if (body is null || !string.Equals(body.OperationId, envelope.OperationId, StringComparison.Ordinal))
                     return Result<SettlementResult>.Fail(ErrorCodes.SyncProtocolViolation, "Settlement response does not answer the submitted operation.");
+                TraceLog.Info($"CommandTransport.Submit ← op={envelope.OperationId} HTTP {(int)response.StatusCode} SETTLED outcome={body.Outcome}, serverEntityId={body.ServerEntityId}, serverVersion={body.ServerVersion}, error={body.ErrorCode ?? "(none)"}.", "sync.push");
                 return Result<SettlementResult>.Ok(body);
             case Disposition.ContractUnsupported:
                 return Result<SettlementResult>.Ok(ContractUnsupported(envelope, response));
             case Disposition.Unauthorized:
+                TraceLog.Warn($"CommandTransport.Submit ← op={envelope.OperationId} UNAUTHORIZED (401/403).", "sync.push");
                 return Result<SettlementResult>.Fail(ErrorCodes.Unauthorized);
             case Disposition.TooLarge:
                 return Result<SettlementResult>.Fail(ErrorCodes.BatchTooLarge);
             case Disposition.Invalid:
+                TraceLog.Warn($"CommandTransport.Submit ← op={envelope.OperationId} INVALID ({(int)response.StatusCode}) → VALIDATION_FAILED.", "sync.push");
                 return Result<SettlementResult>.Fail(ErrorCodes.ValidationFailed, $"Server rejected the envelope ({(int)response.StatusCode}).");
             case Disposition.Transient:
+                TraceLog.Warn($"CommandTransport.Submit ← op={envelope.OperationId} TRANSIENT ({(int)response.StatusCode}) → Deferred, will retry same OperationId.", "sync.push");
                 return Result<SettlementResult>.Ok(Deferred(envelope, $"Server answered {(int)response.StatusCode}; will retry."));
             default:
                 return Result<SettlementResult>.Fail(ErrorCodes.SyncProtocolViolation, $"Unexpected status {(int)response.StatusCode}.");
@@ -212,6 +222,23 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
     }
 
     private SettlementResult Deferred(CommandEnvelope envelope, string? detail) => new(
+        envelope.OperationId, SettlementOutcome.Deferred, ErrorCode: null, detail, ServerEntityId: null, ServerVersion: null,
+        clock.UtcNow, FinancialEffect.Unknown, ResponsibleRole: null);
+
+    private IReadOnlyList<SettlementResult> DeferAll(IReadOnlyList<CommandEnvelope> envelopes, string? detail) =>
+        envelopes.Select(e => Deferred(e, detail)).ToArray();
+
+    /// <summary>426 is never dropped: the command stays pending (Deferred) carrying the unsupported-contract code until the client is updated.</summary>
+    private SettlementResult ContractUnsupported(CommandEnvelope envelope, HttpResponseMessage response)
+    {
+        var supported = response.Headers.TryGetValues(WireContract.SupportedVersionsHeaderName, out var values) ? string.Join(",", values) : null;
+        return new SettlementResult(
+            envelope.OperationId, SettlementOutcome.Deferred, ErrorCodes.ContractVersionUnsupported.Code,
+            supported is null ? "Server does not support this contract version." : $"Server supports contract versions: {supported}.",
+            ServerEntityId: null, ServerVersion: null, clock.UtcNow, FinancialEffect.Unknown, ResponsibleRole: null);
+    }
+}
+ SettlementResult Deferred(CommandEnvelope envelope, string? detail) => new(
         envelope.OperationId, SettlementOutcome.Deferred, ErrorCode: null, detail, ServerEntityId: null, ServerVersion: null,
         clock.UtcNow, FinancialEffect.Unknown, ResponsibleRole: null);
 

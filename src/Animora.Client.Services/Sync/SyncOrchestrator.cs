@@ -1,5 +1,6 @@
 using Animora.Application.Ports;
 using Animora.Application.Security;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Results;
 using Animora.Sync.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,12 +28,22 @@ public sealed class SyncOrchestrator(
     /// <summary>Pulls one scope; expected engine outcomes are values, never exceptions.</summary>
     public async Task<Result<SyncOutcome>> PullOnceAsync(SyncScope scope, CancellationToken ct = default)
     {
-        if (!await HasSessionAsync(ct).ConfigureAwait(false)) return Result<SyncOutcome>.Ok(SyncOutcome.Deferred);
+        if (!await HasSessionAsync(ct).ConfigureAwait(false))
+        {
+            TraceLog.Info($"SyncOrchestrator.PullOnce scope='{scope.Name}' → no authenticated online session → Deferred (no request leaves the device).", "sync");
+            return Result<SyncOutcome>.Ok(SyncOutcome.Deferred);
+        }
 
+        TraceLog.Info($"SyncOrchestrator.PullOnce scope='{scope.Name}' → engine.PullAsync …", "sync");
         var pull = await engine.PullAsync(scope, ct).ConfigureAwait(false);
-        if (pull.IsFailure) return Result<SyncOutcome>.Fail(pull.Error, pull.Detail);
+        if (pull.IsFailure)
+        {
+            TraceLog.Error($"SyncOrchestrator.PullOnce scope='{scope.Name}' → engine FAILED ({pull.Error}) detail='{pull.Detail}'.", null, "sync");
+            return Result<SyncOutcome>.Fail(pull.Error, pull.Detail);
+        }
 
         var result = pull.Value!;
+        TraceLog.Info($"SyncOrchestrator.PullOnce scope='{scope.Name}' ← outcome={result.Outcome}, watermark={result.Watermark?.ToString() ?? "(none)"}, batches={result.BatchesApplied}, records={result.RecordsApplied}, detail='{result.Detail}'.", "sync");
         switch (result.Outcome)
         {
             case SyncOutcome.Applied:
@@ -46,6 +57,7 @@ public sealed class SyncOrchestrator(
 
             case SyncOutcome.ResyncRequired:
                 // The handler owns rebuilding; the cursor stays put until a later pull succeeds.
+                TraceLog.Warn($"SyncOrchestrator.PullOnce scope='{scope.Name}' → RESYNC REQUIRED ({result.Detail ?? "resync"}) — rebuilding replica.", "sync");
                 await resync.HandleAsync(scope, result.Detail ?? "resync", ct).ConfigureAwait(false);
                 return Result<SyncOutcome>.Ok(SyncOutcome.ResyncRequired);
 

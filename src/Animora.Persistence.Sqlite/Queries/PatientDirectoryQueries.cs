@@ -2,6 +2,7 @@ using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Text;
 using Animora.Application.UseCases.Patients.ReadModels;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
@@ -23,6 +24,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct)
     {
+        TraceLog.Info($"SQL GetPetsAsync — search='{search}', species={species?.ToString() ?? "(all)"}, sort={sort}, page={page}, pageSize={pageSize}", "sql.patients");
         var filtered = FilterPets(db.Set<Pet>().AsNoTracking(), search, species);
 
         // Stable ORDER BY with a unique id tiebreaker so Skip/Take never drifts. "Recent" stays name-ordered
@@ -50,13 +52,16 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                 db.Set<Visit>().Where(v => v.PetId == p.Id && v.State != VisitState.Cancelled)
                     .OrderByDescending(v => v.StartedUtc).Select(v => v.Reason.ToString()).FirstOrDefault(),
                 p.MicrochipCode));
-        return await projected.ToPagedAsync(page, pageSize, Options, ct);
+        var result = await projected.ToPagedAsync(page, pageSize, Options, ct);
+        TraceLog.Info($"SQL GetPetsAsync ← {result.Items.Count} rows, TotalCount={result.TotalCount} (of Pets table for tenant).", "sql.patients");
+        return result;
     }
 
     public async Task<PagedResult<OwnerSummaryReadModel>> GetOwnersAsync(
         string? search, PetSpecies? species, PatientDirectorySort sort,
         int page, int pageSize, CancellationToken ct)
     {
+        TraceLog.Info($"SQL GetOwnersAsync — search='{search}', species={species?.ToString() ?? "(all)"}, sort={sort}, page={page}, pageSize={pageSize}", "sql.patients");
         var owners = FilterOwners(search, species);
 
         var ordered = sort switch
@@ -76,12 +81,15 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
                 o.RegisteredUtc,
                 db.Set<Pet>().Count(p => p.OwnerId == o.Id)));
-        return await projected.ToPagedAsync(page, pageSize, Options, ct);
+        var result = await projected.ToPagedAsync(page, pageSize, Options, ct);
+        TraceLog.Info($"SQL GetOwnersAsync ← {result.Items.Count} rows, TotalCount={result.TotalCount} (of Owners table for tenant).", "sql.patients");
+        return result;
     }
 
     public async Task<PatientDirectoryFacetsReadModel> GetFacetsAsync(
         string? search, PetSpecies? species, CancellationToken ct)
     {
+        TraceLog.Info($"SQL GetFacetsAsync — search='{search}', species={species?.ToString() ?? "(all)"}", "sql.patients");
         // Per-species chip counts ignore the species filter (chips show the full taxonomy under
         // the current text filter) — one grouped COUNT, not N queries.
         var speciesCounts = await FilterPets(db.Set<Pet>().AsNoTracking(), search, species: null)
@@ -98,6 +106,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         // Owners are cross-filtered to those with a matching pet, exactly like GetOwnersAsync.
         var totalOwners = await FilterOwners(search, species).CountAsync(ct);
 
+        TraceLog.Info($"SQL GetFacetsAsync ← totalOwners={totalOwners}, totalPets={totalPets}, speciesGroups={(speciesCounts.Count == 0 ? "(none)" : string.Join(", ", speciesCounts.Select(kv => $"{kv.Key}={kv.Value}")))}", "sql.patients");
         return new PatientDirectoryFacetsReadModel(totalOwners, totalPets, speciesCounts);
     }
 
@@ -163,18 +172,24 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
 
         var merged = visitRows.Concat(doseRows)
             .OrderByDescending(e => e.OccurredUtc).ThenBy(e => e.Id).Take(take).ToList();
+        TraceLog.Info($"SQL GetOwnerClinicalActivityAsync ← visitCount={visitCount}, doseCount={doseCount}, mergedRows={merged.Count}", "sql.patients");
         return new OwnerClinicalActivityReadModel(merged, visitCount, doseCount);
     }
 
     public async Task<OwnerDetailReadModel?> GetOwnerAsync(string ownerId, CancellationToken ct)
     {
+        TraceLog.Info($"SQL GetOwnerAsync — ownerId={ownerId}", "sql.patients");
         var owner = await db.Set<Owner>().AsNoTracking()
             .Where(o => o.Id == ownerId)
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
                 o.RegisteredUtc, db.Set<Pet>().Count(p => p.OwnerId == o.Id)))
             .FirstOrDefaultAsync(ct);
-        if (owner is null) return null;
+        if (owner is null)
+        {
+            TraceLog.Warn($"SQL GetOwnerAsync ← NULL — no Owner row with Id={ownerId} for this tenant (deleted, wrong tenant, or never materialised).", "sql.patients");
+            return null;
+        }
 
         var pets = await db.Set<Pet>().AsNoTracking()
             .Where(p => p.OwnerId == ownerId).OrderBy(p => p.Name).ThenBy(p => p.Id)
@@ -190,16 +205,22 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                     .OrderByDescending(v => v.StartedUtc).Select(v => v.Reason.ToString()).FirstOrDefault(),
                 p.MicrochipCode))
             .ToListAsync(ct);
+        TraceLog.Info($"SQL GetOwnerAsync ← Ok: owner='{owner.FullName}', pets={pets.Count}.", "sql.patients");
         return new OwnerDetailReadModel(owner, pets);
     }
 
     public async Task<PetDetailReadModel?> GetPetAsync(string petId, CancellationToken ct)
     {
+        TraceLog.Info($"SQL GetPetAsync — petId={petId}", "sql.patients");
         var pet = await db.Set<Pet>().AsNoTracking().Where(p => p.Id == petId)
             .Select(p => new { p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId,
                 p.BirthDateUtc, p.IsNeutered, p.MicrochipCode, p.MicrochipImplantUtc, p.AllergyNotes, p.ChronicNotes })
             .FirstOrDefaultAsync(ct);
-        if (pet is null) return null;
+        if (pet is null)
+        {
+            TraceLog.Warn($"SQL GetPetAsync ← NULL — no Pet row with Id={petId} for this tenant (deleted, wrong tenant, or never materialised).", "sql.patients");
+            return null;
+        }
 
         var weights = await db.Set<WeightEntry>().AsNoTracking()
             .Where(w => w.PetId == petId).OrderBy(w => w.MeasuredUtc)
@@ -207,6 +228,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
 
         var visits = await GetPetVisitsAsync(petId, ct);
 
+        TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}.", "sql.patients");
         return new PetDetailReadModel(pet.Id, pet.Name, pet.Species, pet.Breed, pet.Color, pet.Gender,
             pet.Status, pet.OwnerId, pet.BirthDateUtc, pet.IsNeutered, pet.MicrochipCode,
             pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits);

@@ -1,3 +1,4 @@
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -59,26 +60,47 @@ public sealed class HttpStateSyncEngine : IStateSyncEngine
     private async Task<Result<SyncResult>> PullCoreAsync(SyncScope scope, CancellationToken ct)
     {
         var checkpoint = await _store.ReadCheckpointAsync(scope, ct).ConfigureAwait(false);
-        if (checkpoint.IsFailure) return Result<SyncResult>.Fail(checkpoint.Error, checkpoint.Detail);
+        if (checkpoint.IsFailure)
+        {
+            TraceLog.Error($"SyncEngine.Pull scope='{scope.Name}' → ReadCheckpoint FAILED ({checkpoint.Error}) detail='{checkpoint.Detail}'.", null, "sync");
+            return Result<SyncResult>.Fail(checkpoint.Error, checkpoint.Detail);
+        }
+        TraceLog.Info($"SyncEngine.Pull scope='{scope.Name}' — local checkpoint epoch={checkpoint.Value.Epoch}, watermark={checkpoint.Value.Watermark}.", "sync");
 
+        TraceLog.Info("SyncEngine.Pull → GET /sync/manifest …", "sync");
         var manifest = await _feed.GetManifestAsync(ct).ConfigureAwait(false);
-        if (manifest.IsFailure) return Result<SyncResult>.Fail(manifest.Error, manifest.Detail);
+        if (manifest.IsFailure)
+        {
+            TraceLog.Error($"SyncEngine.Pull → manifest FAILED ({manifest.Error}) detail='{manifest.Detail}'.", null, "sync");
+            return Result<SyncResult>.Fail(manifest.Error, manifest.Detail);
+        }
+        TraceLog.Info($"SyncEngine.Pull ← manifest: serverEpoch={manifest.Value!.Epoch}.", "sync");
 
         var (epoch0, from0) = (checkpoint.Value.Epoch, checkpoint.Value.Watermark);
         var serverEpoch = manifest.Value!.Epoch;
         if (epoch0 != 0 && epoch0 != serverEpoch)
+        {
+            TraceLog.Warn($"SyncEngine.Pull → EPOCH CHANGED (local={epoch0}, server={serverEpoch}) → ResyncRequired.", "sync");
             return Result<SyncResult>.Ok(SyncResult.ResyncRequired("EPOCH_CHANGED", _clock.UtcNow));
+        }
         if (epoch0 == 0) from0 = 0;
 
+        TraceLog.Info($"SyncEngine.Pull → POST /sync/batches (epoch={serverEpoch}, fromSequence={from0}) …", "sync");
         var opened = await _feed.OpenBatchAsync(serverEpoch, from0, ct).ConfigureAwait(false);
-        if (opened.IsFailure) return Result<SyncResult>.Fail(opened.Error, opened.Detail);
+        if (opened.IsFailure)
+        {
+            TraceLog.Error($"SyncEngine.Pull → OpenBatch FAILED ({opened.Error}) detail='{opened.Detail}'.", null, "sync");
+            return Result<SyncResult>.Fail(opened.Error, opened.Detail);
+        }
 
         var outcome = opened.Value!;
+        TraceLog.Info($"SyncEngine.Pull ← open-batch kind={outcome.Kind}, watermark={outcome.Watermark}, batchId={outcome.Batch?.BatchId ?? "(none)"}, pageCount={outcome.Batch?.PageCount.ToString() ?? "-"}.", "sync");
         switch (outcome.Kind)
         {
             case OpenBatchKind.Current:
                 return Result<SyncResult>.Ok(SyncResult.UpToDate(outcome.Watermark, _clock.UtcNow));
             case OpenBatchKind.Resync:
+                TraceLog.Warn($"SyncEngine.Pull → server requires RESYNC ({outcome.Reason ?? "UNKNOWN"}).", "sync");
                 return Result<SyncResult>.Ok(SyncResult.ResyncRequired(outcome.Reason ?? "UNKNOWN", _clock.UtcNow));
             default:
                 return await DownloadAndApplyAsync(scope, outcome.Batch!, ct).ConfigureAwait(false);
@@ -90,6 +112,7 @@ public sealed class HttpStateSyncEngine : IStateSyncEngine
         if (batch.PageCount < 1 || batch.PageCount > _options.MaxBatchPages)
             return Result<SyncResult>.Fail(ErrorCodes.SyncProtocolViolation, $"Batch advertises {batch.PageCount} pages (allowed 1..{_options.MaxBatchPages}).");
 
+        TraceLog.Info($"SyncEngine.DownloadAndApply — batch={batch.BatchId}, pages={batch.PageCount} …", "sync");
         if (_stagedBatchId != batch.BatchId) ClearStaged();
 
         var begun = await _store.BeginAsync(scope, batch, ct).ConfigureAwait(false);
@@ -102,6 +125,7 @@ public sealed class HttpStateSyncEngine : IStateSyncEngine
             if (failure.Result is null)
             {
                 await AbortQuietlyAsync(session).ConfigureAwait(false);
+                TraceLog.Error($"SyncEngine.DownloadAndApply — page streaming FAILED ({failure.Error}) detail='{failure.Detail}'.", null, "sync");
                 return Result<SyncResult>.Fail(failure.Error, failure.Detail);
             }
 
@@ -110,10 +134,12 @@ public sealed class HttpStateSyncEngine : IStateSyncEngine
             if (committed.IsFailure)
             {
                 await AbortQuietlyAsync(session).ConfigureAwait(false);
+                TraceLog.Error($"SyncEngine.DownloadAndApply — COMMIT FAILED ({committed.Error}) detail='{committed.Detail}' → local checkpoint NOT advanced.", null, "sync");
                 return Result<SyncResult>.Fail(committed.Error, committed.Detail);
             }
 
             ClearStaged();
+            TraceLog.Info($"SyncEngine.DownloadAndApply ← Applied {records} record(s); new watermark={committed.Value.Watermark}.", "sync");
             return Result<SyncResult>.Ok(SyncResult.Applied(committed.Value.Watermark, 1, records, _clock.UtcNow));
         }
     }

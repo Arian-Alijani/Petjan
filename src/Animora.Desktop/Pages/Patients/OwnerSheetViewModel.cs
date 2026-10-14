@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Sales;
 using Animora.Contracts.Vaccination;
+using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Pages.Sales;
 using Animora.Desktop.Pages.Sales.Shared;
 using Animora.Desktop.Controls;
@@ -245,19 +246,31 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     /// </summary>
     public async Task LoadAsync(string ownerId)
     {
-        var detail = await _patients.GetOwnerAsync(ownerId);
-        if (detail is null)
+        await AppTrace.FlowAsync($"OwnerSheet.Load[{ownerId}]", async () =>
         {
-            return;
-        }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            AppTrace.Info($"opening owner sheet for ownerId={ownerId} (GetOwnerAsync)…", "patients");
+            var detail = await _patients.GetOwnerAsync(ownerId);
+            if (detail is null)
+            {
+                AppTrace.Warn($"owner sheet: GetOwnerAsync returned NULL for ownerId={ownerId} — nothing to display. " +
+                    "This means the local Owners table has no such row for the current tenant (deleted, wrong tenant, or never materialised by sync-apply).", "patients");
+                return;
+            }
 
-        Apply(detail);
-        await Task.WhenAll(LoadInvoicesAsync(detail.Id), LoadSmsAsync(detail.Id), LoadActivityAsync(detail.Id));
+            AppTrace.Info($"owner detail loaded in {sw.ElapsedMilliseconds} ms — name='{detail.FirstName} {detail.LastName}', pets={detail.Pets.Count}.", "patients");
+            Apply(detail);
+            AppTrace.Info("loading owner sheet sections in parallel: invoices + SMS + activity …", "patients");
+            await Task.WhenAll(LoadInvoicesAsync(detail.Id), LoadSmsAsync(detail.Id), LoadActivityAsync(detail.Id));
+            AppTrace.Info($"owner sheet fully loaded in {sw.ElapsedMilliseconds} ms — pets={Pets.Count}, invoices={Invoices.Count}, sms={SmsMessages.Count}, activity={Activity.Count}.", "patients");
+        }, "patients");
     }
 
     private async Task LoadActivityAsync(string ownerId)
     {
+        AppTrace.Info($"owner activity: GetOwnerActivityAsync(ownerId={ownerId}) …", "patients");
         var feed = await _patients.GetOwnerActivityAsync(ownerId);
+        AppTrace.Info($"owner activity ← entries={feed.Entries.Count}, visits={feed.VisitCount}, vaccines={feed.VaccineCount}, invoices={feed.InvoiceCount}, sms={feed.SmsCount}.", "patients");
         Activity.Clear();
         foreach (var entry in feed.Entries)
         {
@@ -275,7 +288,9 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
     private async Task LoadSmsAsync(string ownerId)
     {
+        AppTrace.Info($"owner SMS history: GetSmsHistoryForOwnerAsync(ownerId={ownerId}) …", "patients");
         var messages = await _vaccination.GetSmsHistoryForOwnerAsync(ownerId);
+        AppTrace.Info($"owner SMS history ← {messages.Count} messages.", "patients");
         SmsMessages.Clear();
         foreach (var message in messages)
         {
@@ -289,7 +304,9 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
     private async Task LoadInvoicesAsync(string ownerId)
     {
+        AppTrace.Info($"owner invoices: GetInvoicesForOwnerAsync(ownerId={ownerId}) …", "patients");
         var invoices = await _sales.GetInvoicesForOwnerAsync(ownerId);
+        AppTrace.Info($"owner invoices ← {invoices.Count} invoices.", "patients");
         Invoices.Clear();
         foreach (var invoice in invoices)
         {

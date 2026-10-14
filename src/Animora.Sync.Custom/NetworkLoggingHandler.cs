@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
+using Animora.Contracts.Diagnostics;
 
 namespace Animora.Sync.Custom;
 
@@ -35,9 +36,6 @@ public sealed class NetworkLoggingHandler : DelegatingHandler
 
     // Correlates the request line with its matching response line in an interleaved, multi-request log.
     private static int _sequence;
-
-    // One writer at a time so concurrent requests do not interleave mid-line on the console.
-    private static readonly object ConsoleLock = new();
 
     /// <summary>True when the launcher asked for the network trace (<c>ANIMORA_NET_LOG=1|true|yes|on</c>).</summary>
     public static bool IsEnabled
@@ -239,26 +237,14 @@ public sealed class NetworkLoggingHandler : DelegatingHandler
 
     private static void Write(ConsoleColor color, string message)
     {
-        lock (ConsoleLock)
+        // Route the request/response box through the shared trace sink so it is colour-coded on the console
+        // AND appended to the same log file as the rest of the app trace (one place to read the whole story).
+        var level = color switch
         {
-            ConsoleColor? previous = null;
-            try
-            {
-                previous = Console.ForegroundColor;
-                Console.ForegroundColor = color;
-            }
-            catch
-            {
-                // No console attached / redirected: color is a best-effort nicety, never fatal.
-            }
-
-            Console.Out.WriteLine(message);
-            Console.Out.Flush();
-
-            if (previous is { } prev)
-            {
-                try { Console.ForegroundColor = prev; } catch { /* ignore */ }
-            }
-        }
+            ConsoleColor.Red => TraceLog.Level.Error,
+            ConsoleColor.Yellow => TraceLog.Level.Warn,
+            _ => TraceLog.Level.Info,
+        };
+        TraceLog.Raw(message, level);
     }
 }
