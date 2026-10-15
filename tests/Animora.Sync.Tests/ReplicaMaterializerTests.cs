@@ -183,13 +183,27 @@ public sealed class ReplicaMaterializerTests
         using (var scope = fixture.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            var handoff = await db.Set<VisitBillingHandoff>().SingleAsync(h => h.VisitId == "V1");
+            // AsTracking is REQUIRED: the store sets QueryTrackingBehavior.NoTracking globally, so a plain read returns a
+            // detached entity and MarkInvoiced + SaveChanges would silently persist nothing (which is what made this
+            // test report a bogus "the pull downgraded it" failure). Production marks the handoff the same way —
+            // SalesPostingData.MarkHandoffInvoicedAsync reads with AsTracking for exactly this reason.
+            var handoff = await db.Set<VisitBillingHandoff>().AsTracking().SingleAsync(h => h.VisitId == "V1");
             Assert.Equal("H-SERVER-1", handoff.Id);
             Assert.Equal(HandoffStatus.Ready, handoff.Status);
             Assert.Equal("DOC-1", handoff.DoctorId);
             Assert.Contains("ServiceLines", handoff.LinesJson);
             handoff.MarkInvoiced("INV-1");
             await db.SaveChangesAsync();
+        }
+
+        // The local invoicing must be durable BEFORE the next pull, otherwise the assertion below cannot tell
+        // "the pull downgraded it" apart from "the write never landed".
+        using (var verify = fixture.CreateScope())
+        {
+            var persisted = await verify.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>()
+                .Set<VisitBillingHandoff>().SingleAsync(h => h.VisitId == "V1");
+            Assert.Equal(HandoffStatus.Invoiced, persisted.Status);
+            Assert.Equal("INV-1", persisted.InvoiceId);
         }
 
         // A later pull of the same (still Ready on the server) image must not resurrect the locally invoiced handoff.
