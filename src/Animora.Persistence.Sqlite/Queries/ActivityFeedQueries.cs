@@ -1,4 +1,5 @@
 using System.Globalization;
+using Animora.Application.Activity;
 using Animora.Application.UseCases.History;
 using Animora.Contracts.History;
 using Animora.Persistence.Sqlite.Context;
@@ -52,10 +53,16 @@ public sealed class ActivityFeedQueries(AnimoraLocalDbContext db) : IActivityFee
     public async Task<ActivityPage> PageAsync(string tenantId, HistoryFilter filter, CancellationToken ct)
     {
         var q = Filter(tenantId, filter);
+        // D13: the money totals are ACCRUAL — the same model as the canonical daily finance projection
+        // (FinanceProjectionRebuilder: revenue = posted invoices, not collections). A registered payment is the
+        // COLLECTION of a sale already counted by its history.invoice.posted row, so counting it again doubled the
+        // income (post 100 + pay 100 reported 200; a 40 partial payment reported 140). Each row keeps its amount and
+        // sign for display; only the aggregate excludes the collection. A NEGATIVE payment (money paid back out of
+        // the drawer) is a real outflow and stays in the expense leg.
         var totals = await q.GroupBy(x => 1).Select(g => new
         {
             Count = g.Count(),
-            Income = g.Sum(x => x.AmountSign > 0 ? x.AmountMinor : 0),
+            Income = g.Sum(x => x.AmountSign > 0 && x.Title != ActivityEventKeys.PaymentRegistered ? x.AmountMinor : 0),
             Expense = g.Sum(x => x.AmountSign < 0 ? x.AmountMinor : 0),
         }).FirstOrDefaultAsync(ct);
         var size = Math.Clamp(filter.PageSize, 1, 200);
@@ -71,7 +78,8 @@ public sealed class ActivityFeedQueries(AnimoraLocalDbContext db) : IActivityFee
                 .Select(g => new
                 {
                     Day = g.Key,
-                    Net = g.Sum(x => x.AmountSign > 0 ? x.AmountMinor : 0) - g.Sum(x => x.AmountSign < 0 ? x.AmountMinor : 0),
+                    Net = g.Sum(x => x.AmountSign > 0 && x.Title != ActivityEventKeys.PaymentRegistered ? x.AmountMinor : 0)
+                        - g.Sum(x => x.AmountSign < 0 ? x.AmountMinor : 0),
                 }).ToListAsync(ct)).ToDictionary(x => x.Day, x => x.Net);
         return new ActivityPage(rows, totals?.Count ?? 0, totals?.Income ?? 0, totals?.Expense ?? 0, dayNets);
     }

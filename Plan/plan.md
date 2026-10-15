@@ -221,7 +221,7 @@ Do NOT un-exclude the aggregates from the generic feed (they are intentionally c
 
 **Tests:** post 100 + pay 100 → income = 100; partial pay 40 → 100.
 
-**Build:** `Animora.Application`, `Animora.Persistence.Sqlite`, touched tests. **Status:** ☐ not started
+**Build:** `Animora.Application`, `Animora.Persistence.Sqlite`, touched tests. **Status:** ☑ done — chose the **accrual** model (the plan's test expectation), because it is the app's canonical one: `FinanceProjectionRebuilder` already derives daily revenue from **posted invoices** (not collections) and models refunds separately, and the Sales KPI (`SalesQueries.GetKpisAsync`) sums posted invoice grand totals. So the income aggregate now excludes the `history.payment.registered` row (a COLLECTION of an already-counted sale) while the expense leg is untouched (a negative payment — money paid back out of the drawer — is still an outflow). Per-row amount/sign are **unchanged**, so every row keeps its display amount, sign and colour; only the aggregate (and the per-day net) changed. 4 new tests in `tests/Animora.Persistence.Tests/ActivityFeedIncomeTests.cs` (incl. "rows keep their display amount and sign"). NOTE: `ActivityFeedMapper`'s per-event amount/sign pinning tests in `tests/Animora.Application.Tests/ActivityFeedTests.cs` are unaffected — the mapper is untouched.
 
 ---
 
