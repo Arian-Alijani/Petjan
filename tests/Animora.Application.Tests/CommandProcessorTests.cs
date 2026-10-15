@@ -64,6 +64,27 @@ public sealed class CommandProcessorTests
         Assert.Equal(0, journal.Rows.Single(r => r.OperationId == dependent.OperationId).Attempts);
     }
 
+    [Theory]
+    [InlineData(SettlementState.Rejected)]
+    [InlineData(SettlementState.Conflict)]
+    public async Task RefusedDependency_RejectsDependentWithoutUploading(SettlementState prerequisiteState)
+    {
+        var (processor, journal, transport) = Build();
+        var prerequisite = Envelope(1);
+        journal.Seed(prerequisite, prerequisiteState);
+        var dependent = Envelope(2, dependsOn: prerequisite.OperationId);
+        journal.Seed(dependent);
+        journal.NextClaim.Add(journal.Rows.Single(r => r.OperationId == dependent.OperationId));
+
+        var pass = await processor.RunPassAsync();
+
+        Assert.True(pass.IsSuccess);
+        Assert.Empty(transport.Submitted);
+        var settlement = Assert.Single(journal.AppliedSettlements);
+        Assert.Equal(ErrorCodes.DependencyRejected.Code, settlement.ErrorCode);
+        Assert.Equal(SettlementState.Rejected, journal.Rows.Single(r => r.OperationId == dependent.OperationId).Status);
+    }
+
     [Fact]
     public async Task NullTransport_LeavesEveryCommandPendingSettlement()
     {

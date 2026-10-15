@@ -25,7 +25,8 @@ public sealed record CommandProcessorPass(
 /// </summary>
 public sealed class LocalCommandProcessor(
     ICommandJournal journal,
-    ICommandTransport transport)
+    ICommandTransport transport,
+    IClock? clock = null)
 {
     private static int _activePasses;
 
@@ -64,7 +65,18 @@ public sealed class LocalCommandProcessor(
         {
             ct.ThrowIfCancellationRequested();
 
-            if (await HasUnsettledDependencyAsync(command, ct).ConfigureAwait(false))
+            var dependency = await DependencyStateAsync(command, ct).ConfigureAwait(false);
+            if (dependency == DependencyState.Refused)
+            {
+                // D06: a refused prerequisite can never be satisfied, so the dependent becomes terminal too —
+                // the same DEPENDENCY_REJECTED answer the server gives — instead of being deferred forever.
+                var refused = await journal.ApplySettlementAsync(DependencyRejected(command), ct).ConfigureAwait(false);
+                if (refused.IsFailure) return Result<CommandProcessorPass>.Fail(refused.Error, refused.Detail);
+                settled++;
+                continue;
+            }
+
+            if (dependency == DependencyState.Unsettled)
             {
                 var release = await ReleaseAsync(command, ErrorCodes.DependencyUnsettled, ct).ConfigureAwait(false);
                 if (release.IsFailure) return Result<CommandProcessorPass>.Fail(release.Error, release.Detail);
@@ -100,16 +112,35 @@ public sealed class LocalCommandProcessor(
     }
 
     /// <summary>
-    /// A dependency is "unsettled" unless it is <c>Settled</c> — an unknown, pending, rejected, conflicted or
-    /// reversed prerequisite all defer (A-RULE 021: dependency ordering is resolved server-side only).
+    /// A dependency is satisfied only when it is <c>Settled</c>. A <c>Rejected</c>, <c>Conflict</c> or
+    /// <c>Reversed</c> prerequisite is final (it mirrors the server's own DEPENDENCY_REJECTED rule), so the
+    /// dependent is refused; an unknown, pending or needs-attention prerequisite defers (A-RULE 021).
     /// </summary>
-    private async Task<bool> HasUnsettledDependencyAsync(PendingCommandRecord command, CancellationToken ct)
+    private async Task<DependencyState> DependencyStateAsync(PendingCommandRecord command, CancellationToken ct)
     {
-        if (command.DependsOnOperationId is not { Length: > 0 } dependency) return false;
+        if (command.DependsOnOperationId is not { Length: > 0 } dependency) return DependencyState.None;
         var prerequisite = await journal.FindByOperationIdAsync(dependency, ct).ConfigureAwait(false);
-        return prerequisite.IsFailure || prerequisite.Value is null
-            || prerequisite.Value.Status != SettlementState.Settled;
+        if (prerequisite.IsFailure || prerequisite.Value is null) return DependencyState.Unsettled;
+        return prerequisite.Value.Status switch
+        {
+            SettlementState.Settled => DependencyState.None,
+            SettlementState.Rejected or SettlementState.Conflict or SettlementState.Reversed => DependencyState.Refused,
+            _ => DependencyState.Unsettled,
+        };
     }
+
+    private SettlementResult DependencyRejected(PendingCommandRecord command) => new(
+        command.OperationId,
+        SettlementOutcome.Rejected,
+        ErrorCodes.DependencyRejected.Code,
+        "DependsOn=" + command.DependsOnOperationId,
+        ServerEntityId: null,
+        ServerVersion: null,
+        SettledAtUtc: clock?.UtcNow ?? DateTimeOffset.UtcNow,
+        FinancialEffect.NotApplied,
+        ResponsibleRole: null);
+
+    private enum DependencyState { None, Unsettled, Refused }
 
     private Task<Result> ReleaseAsync(PendingCommandRecord command, ErrorCode error, CancellationToken ct)
     {

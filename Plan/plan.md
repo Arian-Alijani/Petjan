@@ -135,7 +135,7 @@ Fix the four-part "local looks done but server rejected" story together. (Done b
 
 **Build:** `Animora.Application`, `Animora.Client.Services`, `Animora.Domain`, `Animora.Persistence.Sqlite`, `Animora.Desktop` (topbar), touched tests. May be 2–4 pushes; each sub-fix is shippable.
 
-**Status:** ◐ in progress — ☑ **D09 done** (`SyncState.NeedsAttention` + `ISyncStatusService.TerminalFailureCount`; `LocalSyncStatusService.MapState` returns it when only terminal-failed work remains; topbar shows it red, never "all up to date"). ☐ D05 (aggregate reconciliation on Rejected/Conflict + `Invoice.MarkSettlement` wiring) · ☐ D06 (`DependsOnOperationId` population + terminal-reject of dependents in `LocalCommandProcessor`) · ☐ D07 (mark permissive negative-stock posts provisional) — resume here.
+**Status:** ◐ in progress — ☑ **D09 done** (`SyncState.NeedsAttention` + `ISyncStatusService.TerminalFailureCount`; `LocalSyncStatusService.MapState` returns it when only terminal-failed work remains; topbar shows it red, never "all up to date"). ☐ D05 (aggregate reconciliation on Rejected/Conflict + `Invoice.MarkSettlement` wiring) · ☑ **D06 done** (`CommandJournalBehavior` auto-declares `DependsOnOperationId` = newest unsettled invoice post on the aggregate, else the aggregate's unsettled creating operation; `LocalCommandProcessor` settles a dependent of a Rejected/Conflict/Reversed prerequisite as `DEPENDENCY_REJECTED` without uploading) · ☐ D07 (mark permissive negative-stock posts provisional) — resume here.
 
 ---
 
