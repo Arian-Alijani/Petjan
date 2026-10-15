@@ -30,7 +30,9 @@ public sealed class LocalStoreOptions
 
     /// <summary>
     /// Allows a sale movement to take the derived on-hand quantity below zero. Enabled by default so
-    /// offline posting is not blocked by a stale or incomplete stock snapshot.
+    /// offline posting is not blocked by a stale or incomplete stock snapshot. The authoritative server
+    /// never allows it, so such a post is flagged provisional with <c>STOCK_WOULD_GO_NEGATIVE</c> on the
+    /// invoice (D07) until settlement accepts or rejects it.
     /// </summary>
     public bool AllowNegativeStockOnSale { get; set; } = true;
 

@@ -63,6 +63,7 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         // lines for one variant share the same running balance; snapshot changes only on SaveChanges.
         var balances = new Dictionary<(string Product, string Variant), long>();
         var costs = new Dictionary<(string Product, string Variant), Money>();
+        var oversold = false;
         foreach (var line in invoice.Lines)
         {
             if (line.ProductId is null || line.VariantId is null) continue;
@@ -75,6 +76,7 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
             var remaining = checked(available - (long)scaled);
             if (!posting.AllowNegativeStock && remaining < 0)
                 return Result<Unit>.Fail(ErrorCodes.StockWouldGoNegative);
+            oversold |= remaining < 0;
             balances[key] = remaining;
             if (!costs.ContainsKey(key))
                 costs[key] = await posting.GetLatestReceiptCostAsync(key.ProductId, key.VariantId, ct);
@@ -87,6 +89,14 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         if (numbered.IsFailure) return Result<Unit>.Fail(numbered.Error, numbered.Detail);
         var posted = invoice.Post(clock);
         if (posted.IsFailure) return Result<Unit>.Fail(posted.Error, posted.Detail);
+        // D07: a permissive (offline) store may post below zero, but the authoritative server never does —
+        // flag the post as provisional with the code the server will most likely answer, so the invoice
+        // and the sync status never present an oversold sale as final before settlement decides.
+        if (oversold)
+        {
+            var flagged = invoice.MarkSettlement(SettlementStatus.LocallyPosted, ErrorCodes.StockWouldGoNegative.Code);
+            if (flagged.IsFailure) return Result<Unit>.Fail(flagged.Error, flagged.Detail);
+        }
 
         var movementOrdinal = 0;
         foreach (var line in invoice.Lines)

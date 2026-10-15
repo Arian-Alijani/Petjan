@@ -157,6 +157,22 @@ public sealed class PostInvoiceCommandTests
         Assert.Equal(0, numbers.Allocations);
         Assert.Empty(movements.Added);
     }
+
+    [Fact]
+    public async Task PermissiveOversell_PostsButIsFlaggedProvisional()
+    {
+        var invoice = SalesTestData.Draft();
+        var handler = new PostInvoiceCommandHandler(new SalesInvoiceRepository(invoice), new SalesNumberAllocator(),
+            new StockMovementRepositoryFake(), new SalesPostingFake { OnHand = 0 }, SalesTestData.Clock,
+            new BoardingRepositoryFake());
+
+        var result = await handler.HandleAsync(new PostInvoiceCommand(invoice.Id), SalesTestData.Context, default);
+
+        Assert.True(result.IsSuccess, result.Detail);
+        Assert.Equal(InvoiceState.Posted, invoice.State);
+        Assert.Equal(SettlementStatus.LocallyPosted, invoice.Settlement);
+        Assert.Equal(ErrorCodes.StockWouldGoNegative.Code, invoice.SettlementErrorCode);
+    }
 }
 
 internal static class SalesTestData

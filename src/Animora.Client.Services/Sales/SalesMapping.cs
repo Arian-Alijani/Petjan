@@ -342,8 +342,9 @@ internal static class SalesMapping
     private static string SettlementSuffix(DomainSettlementStatus status, string? error, string? role) =>
         status switch
         {
-            DomainSettlementStatus.LocallyPosted => " · ارسال محلی",
-            DomainSettlementStatus.PendingSettlement => " · در انتظار سرور",
+            // A provisional post may carry a warning (D07: oversold under the permissive offline policy).
+            DomainSettlementStatus.LocallyPosted => " · ارسال محلی" + Detail(error, null),
+            DomainSettlementStatus.PendingSettlement => " · در انتظار سرور" + Detail(error, null),
             DomainSettlementStatus.Settled => " · تسویه سرور",
             DomainSettlementStatus.Reversed => " · معکوس شده",
             DomainSettlementStatus.Rejected => " · رد سرور" + Detail(error, role),
