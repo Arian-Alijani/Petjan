@@ -7,6 +7,7 @@ namespace Animora.Application.UseCases.Visits;
 public static class VisitsRegistration
 {
     public static ApplicationRegistrationBuilder AddVisitsUseCases(this ApplicationRegistrationBuilder builder) => builder
+        .AddCommand<RefreshVisitDoctorDirectoryCommand, Unit, RefreshVisitDoctorDirectoryCommandHandler>()
         .AddQuery<TriageDoctorRailQuery, IReadOnlyList<DoctorRailReadModel>, TriageDoctorRailQueryHandler>()
         .AddQuery<BookedForDoctorQuery, IReadOnlyList<BookedAppointmentReadModel>, BookedForDoctorQueryHandler>()
         .AddQuery<TriagePatientsQuery, IReadOnlyList<TriagePatientReadModel>, TriagePatientsQueryHandler>()

@@ -86,6 +86,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<IBoardingQueries, BoardingQueries>();
         services.TryAddScoped<IBoardingBillingHandoffWriter, BoardingBillingHandoffWriter>();
         services.TryAddScoped<ITriageQueries, TriageQueries>();
+        services.TryAddScoped<IVisitDoctorDirectoryWriter, VisitDoctorDirectoryWriter>();
         services.TryAddScoped<IRxCatalogQueries, RxCatalogQueries>();
         services.TryAddScoped<IVaccinationQueries, VaccinationQueries>();
         services.TryAddScoped<ITreatmentPlanQueries, TreatmentPlanQueries>();
