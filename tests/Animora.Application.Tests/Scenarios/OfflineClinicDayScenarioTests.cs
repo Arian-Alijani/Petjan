@@ -172,7 +172,7 @@ public sealed class OfflineClinicDayScenarioTests
             Assert.Equal(160, entries.SelectMany(e => e.Lines).Where(l => l.AccountCode == AccountCodes.Cogs)
                 .Sum(l => l.SignedMinor));
             var feed = await db.Set<ActivityEvent>().OrderBy(e => e.OccurredUtc).ThenBy(e => e.Id).ToListAsync();
-            Assert.Equal(expectedFeed, feed.Select(e => e.Title));
+            AssertFeed(expectedFeed, feed);
             var visit = await db.Set<Visit>().SingleAsync(v => v.Id == visitId);
             Assert.Equal(2, visit.ServiceLines.Count);
             Assert.Equal(12m, visit.Vitals!.WeightKg);
@@ -210,9 +210,9 @@ public sealed class OfflineClinicDayScenarioTests
                 l.AccountCode == AccountCodes.BoardingRevenue).Sum(l => -l.SignedMinor));
             var feed = await db.Set<ActivityEvent>().OrderBy(e => e.OccurredUtc).ThenBy(e => e.Id).ToListAsync();
             // The real checkout event follows invoice issuance: an unbilled stay cannot leave.
-            Assert.Equal(expectedFeed.Concat(new[] { ActivityEventKeys.StayActivated, ActivityEventKeys.InvoicePosted,
-                ActivityEventKeys.StayCheckedOut, ActivityEventKeys.StockMovementRecorded, ActivityEventKeys.PaymentRegistered }),
-                feed.Select(e => e.Title));
+            AssertFeed(expectedFeed.Concat(new[] { ActivityEventKeys.StayActivated, ActivityEventKeys.InvoicePosted,
+                ActivityEventKeys.StayCheckedOut, ActivityEventKeys.StockMovementRecorded, ActivityEventKeys.PaymentRegistered }).ToArray(),
+                feed);
             var stay = await db.Set<BoardingStay>().SingleAsync(s => s.Id == stayId);
             Assert.Equal(StayState.CheckedOut, stay.State);
             Assert.Equal(boardingInvoiceId, stay.InvoiceId);
@@ -223,5 +223,23 @@ public sealed class OfflineClinicDayScenarioTests
         }
         using (var db = fixture.CreateContext(fixture.TenantId)) await AssertBoarding(db);
         using (var reopened = fixture.CreateContext(fixture.TenantId)) await AssertBoarding(reopened);
+    }
+
+    /// <summary>
+    /// Rows raised in the same clinic instant (e.g. an invoice post, its stock movements and the checkout it releases) share
+    /// <see cref="ActivityEvent.OccurredUtc"/>; their id tie-break comes from a process-wide generator that parallel tests also
+    /// advance, so the order INSIDE one instant is unspecified. The feed must match <paramref name="expected"/> instant by instant:
+    /// exact order across instants, same multiset of titles within one.
+    /// </summary>
+    private static void AssertFeed(IReadOnlyList<string> expected, IReadOnlyList<ActivityEvent> feed)
+    {
+        Assert.Equal(expected.Count, feed.Count);
+        var at = 0;
+        foreach (var instant in feed.GroupBy(e => e.OccurredUtc))
+        {
+            var titles = instant.Select(e => e.Title).Order(StringComparer.Ordinal).ToArray();
+            Assert.Equal(expected.Skip(at).Take(titles.Length).Order(StringComparer.Ordinal), titles);
+            at += titles.Length;
+        }
     }
 }
