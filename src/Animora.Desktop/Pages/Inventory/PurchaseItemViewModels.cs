@@ -1,6 +1,7 @@
 using Animora.Contracts.Inventory;
 using Animora.Contracts.Purchasing;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Pages.Inventory;
@@ -33,8 +34,13 @@ public sealed class PurchaseProductOption(Product product, ProductVariant varian
 
     public string Title => Product.Variants.Count > 1 ? $"{Product.Name} · {Variant.Label}" : Product.Name;
 
+    public bool IsOutOfStock => Variant.IsOutOfStock;
+
+    public Avalonia.Media.IBrush TitleForeground => IsOutOfStock
+        ? BrushCache.Solid("#667085") : BrushCache.Solid("#101828");
+
     public string Sub =>
-        $"{Product.Code} · موجودی {PersianNumberFormatter.ToPersianDigits(Variant.Stock)}"
+        $"{Product.Code} · " + (IsOutOfStock ? "موجودی ندارد" : $"موجودی {PersianNumberFormatter.ToPersianDigits((Variant.EffectiveOnHandScaled / 1000m).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))}")
         + (Variant.Cost > 0 ? $" · آخرین خرید {InventoryPresentation.Money(Variant.Cost)} تومان" : string.Empty);
 }
 

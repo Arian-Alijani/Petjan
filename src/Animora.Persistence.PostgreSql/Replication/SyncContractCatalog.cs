@@ -1,6 +1,6 @@
 namespace Animora.Persistence.PostgreSql.Replication;
 
-/// <summary>Closed replication surface in dependency order; money/security are never replicated.</summary>
+/// <summary>Closed read-only replication surface; financial writes remain exclusively command-settled.</summary>
 public static class SyncContractCatalog
 {
     public static IReadOnlyList<SyncEntityDescriptor> ProjectionOrder { get; } = Array.AsReadOnly<SyncEntityDescriptor>(
@@ -11,6 +11,8 @@ public static class SyncContractCatalog
         new("UnitOfMeasure", typeof(Animora.Domain.Inventory.UnitOfMeasure), "UnitsOfMeasure", []),
         new("ProductCategory", typeof(Animora.Domain.Inventory.ProductCategory), "ProductCategories", []),
         new("Product", typeof(Animora.Domain.Inventory.Product), "Products", [new("ProductVariants", "OwnerId", false)]),
+        // A server-authored ledger image, not a stock write contract. Stable operation-derived IDs deduplicate origin-device entries.
+        new("StockLedgerEntry", typeof(Animora.Domain.Inventory.StockMovement), "StockMovements", []),
         new("Supplier", typeof(Animora.Domain.Purchasing.Supplier), "Suppliers", []),
         new("Insurer", typeof(Animora.Domain.Sales.Insurer), "Insurers", []),
         new("LedgerAccount", typeof(Animora.Domain.Finance.LedgerAccount), "LedgerAccounts", []),

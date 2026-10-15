@@ -16,7 +16,7 @@ public sealed record EncounterEditReadModel(EncounterDraftReadModel Draft, PetVi
 public sealed record EncounterSummaryReadModel(string EncounterId, string PatientName, string PatientKind,
     string DoctorId, string DoctorShortName, long Subtotal, long Tax, long Total, DateTimeOffset CompletedUtc);
 
-public sealed record RxCatalogItemReadModel(string Kind, string Id, string Title, long Price);
+public sealed record RxCatalogItemReadModel(string Kind, string Id, string Title, long Price, long? OnHandScaled = null);
 
 [RequiresPermission(PermissionCodes.VisitsRead)]
 public sealed record EncounterDraftQuery(string VisitId) : IQuery<EncounterEditReadModel>;

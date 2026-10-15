@@ -162,7 +162,11 @@ public sealed record CashierCatalogItem(
     string Id,
     CashierLineKind Kind,
     string Title,
-    long Price);
+    long Price,
+    long? OnHandScaled = null)
+{
+    public bool IsOutOfStock => Kind == CashierLineKind.Item && OnHandScaled is <= 0;
+}
 
 /// <summary>
 /// The full detail of one invoice, mirroring what <c>renderDetail</c> renders

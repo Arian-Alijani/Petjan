@@ -187,9 +187,18 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             var receipts = await FinancePaymentProjection.Query(db).Where(p => p.InvoiceId == invoiceId)
                 .OrderBy(p => p.ReceivedUtc).ThenBy(p => p.Id)
                 .Select(p => new InvoicePaymentReadModel(p.Id, p.Method, p.AmountMinor, p.ReceivedUtc, p.Note)).ToListAsync(ct);
-            // This endpoint carries summaries, not invoice lines/tax/discount detail. Do not fabricate those.
-            return new InvoiceDetailReadModel(summary, null, null, 0, 0, 0, 0, 0, peer.PaidTotalMinor,
-                DiscountKind.Percent, 0, [], receipts, [], SettlementStatus.Settled, null, null, IsReadOnly: true);
+            var detail = peer.DetailJson is null ? null : System.Text.Json.JsonSerializer
+                .Deserialize<Animora.Contracts.Wire.Sync.FinanceInvoiceDetail>(peer.DetailJson);
+            return new InvoiceDetailReadModel(summary, detail?.GuestName, detail?.InsurerId,
+                detail?.InsurancePercent ?? 0, detail?.SubtotalMinor ?? 0, detail?.DiscountMinor ?? 0,
+                detail?.TaxMinor ?? 0, detail?.InsuranceMinor ?? 0, peer.PaidTotalMinor,
+                (DiscountKind)(detail?.DiscountKind ?? 0), detail?.DiscountValue ?? 0,
+                detail?.Lines.Select(l => new InvoiceLineReadModel(l.LineId, (InvoiceLineKind)l.Kind,
+                    l.ProductId, l.VariantId, l.CatalogItemId, l.Title, l.Quantity, l.UnitPriceMinor,
+                    l.DiscountPercent, l.TaxPercent)).ToArray() ?? [], receipts,
+                detail?.Adjustments.Select(a => new InvoiceAdjustmentReadModel(a.Id, (AdjustmentKind)a.Kind,
+                    a.AmountMinor, a.Reason, a.CreatedUtc)).ToArray() ?? [],
+                SettlementStatus.Settled, null, null, IsReadOnly: true);
         }
         var scalar = await invoice.Select(i => new { i.GuestName, i.InsurerId, i.InsurancePercent,
             Subtotal = i.Subtotal.Minor, Discount = i.DiscountTotal.Minor, Tax = i.TaxTotal.Minor,
@@ -268,7 +277,11 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             // service out of the bounded window; every active product/variant is otherwise listed by name.
             orderby p.Kind == ProductKind.Service descending, p.Name, v.VariantId
             select new SalesCatalogItemReadModel(v.VariantId, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
-                c == null ? "سایر" : c.DisplayName, v.SalePrice.Minor)).Take(1000).ToListAsync(ct);
+                c == null ? "سایر" : c.DisplayName, v.SalePrice.Minor,
+                p.TrackStock && p.Kind != ProductKind.Service
+                    ? (db.Set<StockOnHandSnapshot>().Where(s => s.ProductId == p.Id && s.VariantId == v.VariantId)
+                        .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) : (long?)null))
+            .Take(1000).ToListAsync(ct);
         // ...plus ONE product-level fallback row for every active product without an active variant (typically
         // services created from the rate editor, or items whose variants were all deactivated). Without it
         // those products silently vanished from the drawer. The row is keyed by the product id, which
@@ -279,7 +292,8 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             from c in categories.DefaultIfEmpty()
             orderby p.Kind == ProductKind.Service descending, p.Name, p.Id
             select new SalesCatalogItemReadModel(p.Id, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
-                c == null ? "سایر" : c.DisplayName, p.DefaultSalePrice.Minor)).Take(500).ToListAsync(ct);
+                c == null ? "سایر" : c.DisplayName, p.DefaultSalePrice.Minor,
+                p.TrackStock && p.Kind != ProductKind.Service ? 0L : (long?)null)).Take(500).ToListAsync(ct);
         var products = variantRows.Concat(variantless).ToList();
         var boarding = await db.Set<BoardingServiceDef>().AsNoTracking().Where(s => s.IsActive)
             .OrderBy(s => s.Title).Take(200)

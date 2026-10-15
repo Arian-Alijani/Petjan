@@ -146,6 +146,9 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
                 i.PostedUtc,
                 i.SettledUtc,
                 i.UpdatedAt,
+                i.GuestName, i.InsurerId, i.InsurancePercent, i.DiscountKind, i.DiscountValue,
+                SubtotalMinor = i.Subtotal.Minor, DiscountMinor = i.DiscountTotal.Minor,
+                TaxMinor = i.TaxTotal.Minor, InsuranceMinor = i.InsuranceCoverage.Minor,
                 VoidedUtc = voidTimes.Where(v => v.InvoiceId == i.Id)
                     .Select(v => v.OccurredUtc).FirstOrDefault(),
                 GrandTotalMinor = i.GrandTotal.Minor,
@@ -153,10 +156,25 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
                 DueTotalMinor = i.DueTotal.Minor,
             }).ToListAsync(ct).ConfigureAwait(false);
 
+        // Separate bounded child queries avoid a lines × adjustments Cartesian product.
+        var lines = await db.Set<Invoice>().AsNoTracking().Where(i => ids.Contains(i.Id))
+            .SelectMany(i => i.Lines.Select(l => new { InvoiceId = i.Id,
+                Line = new FinanceInvoiceLine(l.LineId, (int)l.Kind, l.ProductId, l.VariantId,
+                    l.CatalogItemId, l.Title, l.Quantity.Value, l.UnitPrice.Minor, l.DiscountPercent, l.TaxPercent) }))
+            .ToListAsync(ct).ConfigureAwait(false);
+        var adjustments = await db.Set<Invoice>().AsNoTracking().Where(i => ids.Contains(i.Id))
+            .SelectMany(i => i.Adjustments.Select(a => new { InvoiceId = i.Id,
+                Adjustment = new FinanceInvoiceAdjustment(a.AdjustmentId, (int)a.Kind, a.Amount.Minor, a.Reason, a.CreatedUtc) }))
+            .ToListAsync(ct).ConfigureAwait(false);
+        var lineLookup = lines.ToLookup(l => l.InvoiceId, l => l.Line);
+        var adjustmentLookup = adjustments.ToLookup(a => a.InvoiceId, a => a.Adjustment);
         return rows.Select(r => new FinanceInvoiceRow(
             r.Id, r.InvoiceNumber, r.Kind, r.State, r.OwnerId, r.PartyName, r.PetName,
             r.IssuedUtc, r.PostedUtc, r.GrandTotalMinor, r.PaidTotalMinor, r.DueTotalMinor,
-            EffectiveTicks(r.UpdatedAt > r.IssuedUtc ? r.UpdatedAt : r.IssuedUtc, r.PostedUtc, r.SettledUtc), r.VoidedUtc)).ToList();
+            EffectiveTicks(r.UpdatedAt > r.IssuedUtc ? r.UpdatedAt : r.IssuedUtc, r.PostedUtc, r.SettledUtc), r.VoidedUtc,
+            new FinanceInvoiceDetail(r.GuestName, r.InsurerId, r.InsurancePercent, r.SubtotalMinor,
+                r.DiscountMinor, r.TaxMinor, r.InsuranceMinor, (int)r.DiscountKind, r.DiscountValue,
+                lineLookup[r.Id].ToArray(), adjustmentLookup[r.Id].ToArray()))).ToList();
     }
 
     /// <summary>Newest of the lifecycle timestamps — the in-memory twin of the phase-1 SQL <c>effective</c> expression.</summary>

@@ -66,7 +66,8 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
         UseLoadStatus(ReloadPageAsync);
         // Invoices are issued by the sales page; a completed encounter queues a new one.
-        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Visits);
+        RefreshOnDataChange(changes, () => _ = ReloadPageAsync(), DataDomain.Sales, DataDomain.Visits,
+            DataDomain.Inventory, DataDomain.Purchasing);
     }
 
     public RangeObservableCollection<CashierStatViewModel> Stats { get; } = [];
@@ -243,9 +244,17 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         IsBusy = false;
     }
 
-    private async Task ReloadCatalogOptionsAsync() =>
-        CatalogOptions.ReplaceAll(
-            (await _service.GetCatalogItemsAsync()).Select(item => new CashierCatalogOptionViewModel(item)));
+    private int _catalogGeneration;
+
+    private async Task ReloadCatalogOptionsAsync()
+    {
+        var generation = ++_catalogGeneration;
+        var items = await _service.GetCatalogItemsAsync();
+        if (generation != _catalogGeneration) return;
+        var selectedId = SelectedCatalogOption?.Id;
+        CatalogOptions.ReplaceAll(items.Select(item => new CashierCatalogOptionViewModel(item)));
+        SelectedCatalogOption = CatalogOptions.FirstOrDefault(item => item.Id == selectedId);
+    }
 
     private Task ReloadAsync() => ReloadStatsAsync();
 

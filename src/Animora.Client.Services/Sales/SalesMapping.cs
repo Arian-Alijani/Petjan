@@ -249,7 +249,7 @@ internal static class SalesMapping
 
     internal static CatalogItem ToContract(this SalesCatalogItemReadModel row) =>
         new(row.Id, row.Kind == "Service" ? "svc" : "item", row.Title, row.Category, Slug(row.Category),
-            row.PriceMinor, row.Kind == "Service" ? "IconClipboard" : "IconBox");
+            row.PriceMinor, row.Kind == "Service" ? "IconClipboard" : "IconBox", row.OnHandScaled);
 
     internal static InsurerRef ToContract(this InsurerReadModel row) =>
         new(row.Id, row.Name, (int)Math.Round(row.CoveragePercent));

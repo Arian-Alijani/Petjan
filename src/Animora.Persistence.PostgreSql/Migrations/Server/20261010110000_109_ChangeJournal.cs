@@ -28,7 +28,7 @@ public partial class _109_ChangeJournal : Migration
         migrationBuilder.Sql(JournalSqlTemplates.CaptureFunction);
         migrationBuilder.Sql(JournalSqlTemplates.AssignFunction);
         migrationBuilder.Sql(JournalSqlTemplates.DeferredTrigger);
-        foreach (var descriptor in SyncContractCatalog.ProjectionOrder)
+        foreach (var descriptor in SyncContractCatalog.ProjectionOrder.Where(d => d.Name != "StockLedgerEntry"))
             JournalTriggers.Apply(migrationBuilder, descriptor);
     }
 

@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:sales="using:Animora.Desktop.Pages.Sales"
              x:Class="Animora.Desktop.Pages.Sales.CatalogModalView"
@@ -74,6 +74,10 @@
         <Style Selector="Button.cat-row.hl">
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
             <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+        </Style>
+        <Style Selector="Button.cat-row.out, Button.cat-row.out:pointerover, Button.cat-chip.out, Button.cat-chip.out:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
         </Style>
     </UserControl.Styles>
 
@@ -196,7 +200,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="sales:CatalogRecentChipViewModel">
-                                <Button Classes="cat-chip" Margin="0,0,6,6"
+                                <Button Classes="cat-chip" Classes.out="{Binding IsOutOfStock}" Margin="0,0,6,6"
                                         Command="{Binding $parent[UserControl].((sales:CatalogModalViewModel)DataContext).AddCommand}"
                                         CommandParameter="{Binding Id}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
@@ -208,7 +212,10 @@
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
                                         <TextBlock Text="{Binding Title}" FontSize="11.5" FontWeight="Bold"
-                                                   Foreground="{StaticResource InkBrush}"
+                                                   Foreground="{Binding TextForeground}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="موجودی ندارد" IsVisible="{Binding IsOutOfStock}"
+                                                   Foreground="{StaticResource MutedBrush}" FontSize="10.5"
                                                    VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
@@ -221,7 +228,7 @@
                 <ItemsControl ItemsSource="{Binding Rows}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="sales:CatalogRowViewModel">
-                            <Button Classes="cat-row" Classes.hl="{Binding IsHighlighted}"
+                            <Button Classes="cat-row" Classes.hl="{Binding IsHighlighted}" Classes.out="{Binding IsOutOfStock}"
                                     Command="{Binding $parent[UserControl].((sales:CatalogModalViewModel)DataContext).AddCommand}"
                                     CommandParameter="{Binding Id}">
                                 <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="12">
@@ -235,13 +242,13 @@
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding PreText}" FontSize="13.5"
-                                                       FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                                       FontWeight="Bold" Foreground="{Binding TextForeground}"
                                                        TextTrimming="CharacterEllipsis" />
                                             <TextBlock Text="{Binding MatchText}" FontSize="13.5"
-                                                       FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}"
+                                                       FontWeight="ExtraBold" Foreground="{Binding TextForeground}"
                                                        Background="#73ffcd58" IsVisible="{Binding HasMatch}" />
                                             <TextBlock Text="{Binding PostText}" FontSize="13.5"
-                                                       FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                                       FontWeight="Bold" Foreground="{Binding TextForeground}"
                                                        TextTrimming="CharacterEllipsis" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
@@ -251,6 +258,9 @@
                                                            FontWeight="Bold"
                                                            Foreground="{Binding IcoForeground}" />
                                             </Border>
+                                            <TextBlock Text="موجودی ندارد" IsVisible="{Binding IsOutOfStock}" FontSize="11"
+                                                       FontWeight="Bold" Foreground="{StaticResource MutedBrush}"
+                                                       VerticalAlignment="Center" />
                                             <TextBlock Text="{Binding GroupLabel}" FontSize="11"
                                                        Foreground="{StaticResource MutedBrush}"
                                                        VerticalAlignment="Center" />
@@ -260,13 +270,13 @@
                                                 VerticalAlignment="Center"
                                                 IsVisible="{Binding $parent[UserControl].((sales:CatalogModalViewModel)DataContext).ShowPrice}">
                                         <TextBlock Text="{Binding PriceText}" FontSize="13" FontWeight="ExtraBold"
-                                                   Foreground="{StaticResource InkBrush}" />
+                                                   Foreground="{Binding TextForeground}" />
                                         <TextBlock Text="ت" FontSize="10" FontWeight="SemiBold"
                                                    Foreground="{StaticResource MutedBrush}"
                                                    VerticalAlignment="Bottom" Margin="0,0,0,1" />
                                     </StackPanel>
                                     <Border Grid.Column="3" Width="30" Height="30" CornerRadius="8"
-                                            Background="{StaticResource Brand600Brush}"
+                                            Background="{Binding AddBackground}"
                                             VerticalAlignment="Center">
                                         <Path Classes="icon" Width="14" Height="14" Stroke="White"
                                               StrokeThickness="2.5" Data="{StaticResource IconPlus}"

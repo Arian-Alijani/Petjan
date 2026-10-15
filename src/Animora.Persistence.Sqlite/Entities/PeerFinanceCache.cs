@@ -60,6 +60,9 @@ public sealed class PeerInvoice
     /// <summary>The server's effective last-change tick; a stale re-delivery never overwrites a newer row.</summary>
     public long EffectiveTicks { get; private set; }
 
+    /// <summary>Full immutable detail, JSON encoded; null for legacy summary-only servers.</summary>
+    public string? DetailJson { get; private set; }
+
     /// <summary>Creates a cache row from one wire row.</summary>
     public static PeerInvoice From(string tenantId, Animora.Contracts.Wire.Sync.FinanceInvoiceRow row)
     {
@@ -74,6 +77,7 @@ public sealed class PeerInvoice
     public void Overwrite(Animora.Contracts.Wire.Sync.FinanceInvoiceRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
+        if (row.Detail is not null) DetailJson = System.Text.Json.JsonSerializer.Serialize(row.Detail);
         Number = row.Number;
         Kind = (InvoiceKind)row.Kind;
         State = (InvoiceState)row.State;

@@ -67,7 +67,10 @@ public sealed record VaccineCatalogEntry(
     string Protects,
     int BoosterMonths,
     int Stock,
-    int MinStock);
+    int MinStock)
+{
+    public bool IsOutOfStock => Stock <= 0;
+}
 
 /// <summary>
 /// An SMS message template, mirroring a row of the reference's

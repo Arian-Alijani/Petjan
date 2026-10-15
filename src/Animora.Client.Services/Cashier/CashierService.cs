@@ -81,7 +81,7 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
         return result.IsSuccess && result.Value is not null
             ? result.Value.Items.Select(i => new CashierCatalogItem(i.Id,
                 i.Kind.Equals("Service", StringComparison.OrdinalIgnoreCase) ? CashierLineKind.Service : CashierLineKind.Item,
-                i.Title, i.PriceMinor)).ToArray() : [];
+                i.Title, i.PriceMinor, i.OnHandScaled)).ToArray() : [];
     }
 
     public async Task<CashierActionResult> PayAsync(string invoiceId, CashierPayRequest request)

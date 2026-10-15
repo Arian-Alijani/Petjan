@@ -295,7 +295,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
                 GroupLabel: c.Kind == RxCatalogKind.Service ? "خدمت" : "دارو و کالا",
                 GroupKey: c.Kind == RxCatalogKind.Service ? "svc" : "item",
                 Price: c.Price,
-                IconKey: c.Kind == RxCatalogKind.Service ? "IconClipboard" : "IconBox"))
+                IconKey: c.Kind == RxCatalogKind.Service ? "IconClipboard" : "IconBox",
+                OnHandScaled: c.OnHandScaled))
             .ToList();
 
         var serviceCount = items.Count(i => i.Kind == "svc");

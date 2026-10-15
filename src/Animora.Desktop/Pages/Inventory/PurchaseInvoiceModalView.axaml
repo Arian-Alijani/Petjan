@@ -48,6 +48,9 @@
         <Style Selector="Button.opt:pointerover">
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
         </Style>
+        <Style Selector="Button.opt.out, Button.opt.out:pointerover">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*,Auto">
@@ -134,12 +137,12 @@
                         <ItemsControl ItemsSource="{Binding Matches}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="inv:PurchaseProductOption">
-                                    <Button Classes="opt"
+                                    <Button Classes="opt" Classes.out="{Binding IsOutOfStock}"
                                             Command="{Binding #Root.((inv:PurchaseInvoiceModalViewModel)DataContext).AddExistingCommand}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="Bold"
-                                                       Foreground="{StaticResource InkBrush}" />
+                                                       Foreground="{Binding TitleForeground}" />
                                             <TextBlock Text="{Binding Sub}" FontSize="11"
                                                        Foreground="{StaticResource MutedBrush}" />
                                         </StackPanel>
