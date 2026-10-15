@@ -246,6 +246,12 @@ Do NOT un-exclude the aggregates from the generic feed (they are intentionally c
 **Build:** `Animora.Persistence.Sqlite`, `Animora.Sync.Custom`, `Animora.Application`, touched tests. **Status:** ☑ done — `HttpCommandTransport` now refuses to rebind a queued command whose **originating user** differs from the active session user (same tenant). The originating author was already persisted (`PendingCommand.UserId` → `CommandEnvelope.UserId`), so no new column was needed; `SessionCurrentUserProvider.NewContext` already records it. The guard is `CanSubmitAs`: rebind is allowed only when (a) the envelope's author IS the session user (a normal retry), or (b) the envelope is still **pre-binding** — carrying the local installation's placeholder tenant `Tenant.LocalDefaultId` (exactly what rebinding exists to upgrade). Otherwise `SubmitAsync` returns `Result.Fail(ErrorCodes.IdentityMismatch)` **without any HTTP request**, which `LocalCommandProcessor` releases as a failure → retries → terminal `NeedsAttention` (so D09's topbar surfaces it, never a silent loss). `SubmitBatchAsync` refuses a **mixed** batch as a whole (positional response; nothing is sent) — the batch path has no production caller today, only DI + tests. New `ErrorCodes.IdentityMismatch` (`IDENTITY_MISMATCH`, Forbidden) + a Persian operator message in `Desktop/Localization/ErrorMessages.cs`. New `tests/Animora.Sync.Tests/CommandAuthorGuardTests.cs` (5 tests, **green**): foreign author held and never sent, own command still submitted, pre-binding envelope still rebound to the session (asserted on the wire body), mixed batch refused, and no-session → unchanged. Documented limitation (per the plan): the original author must sign in again for their held work to go out; there is no re-authenticate-and-resume flow.
 
 
+## TASK D13 — General-history income counts a sale once *(High)*
+
+**Status:** ☑ done — implementation already present in both total and day-net queries: accrual sale income excludes positive PaymentRegistered collections, preserving every row's display amount/sign and real outflows. Existing full/partial payment regression cases retained; day-net and page-independent aggregate regressions added. Execute only targeted ActivityFeedIncomeTests on GitHub Actions. → `scripts/git/push.sh` (task 9).
+
+---
+
 ## TASK D16 — Sales service must not swallow local failures *(Medium)*
 
 **Defect:** several `SalesQueryService` methods discard the command `Result` and return unchanged/empty data as if it succeeded.
