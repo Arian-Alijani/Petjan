@@ -32,18 +32,34 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
     /// <inheritdoc />
     public async Task<Result<SyncCheckpoint>> ReadCheckpointAsync(SyncScope scope, CancellationToken ct = default)
     {
-        using var di = scopes.CreateScope();
-        var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        var tenant = di.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
-        var cp = await ReadAsync(db, tenant, scope.Name, ct).ConfigureAwait(false);
-        TraceLog.Info($"ApplyStore.ReadCheckpoint — scope='{scope.Name}', tenant={tenant} → epoch={cp.Epoch}, watermark={cp.Watermark}, generation={cp.Generation}.", "sync.apply");
-        return Result<SyncCheckpoint>.Ok(new SyncCheckpoint(cp.Epoch, cp.Watermark));
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            using var di = scopes.CreateScope();
+            var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var tenant = di.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
+            if (await db.Set<ReplicaStaging>().AnyAsync(x => x.TenantId == tenant
+                && x.BatchId == ReplicaMaterializer.PendingProjectionBatch, ct).ConfigureAwait(false))
+            {
+                var zone = di.ServiceProvider.GetService<IClinicTimeZoneProvider>() is { } zones
+                    ? await zones.GetClinicTimeZoneAsync(ct).ConfigureAwait(false) : TimeZoneInfo.Utc;
+                // Idle passes also replay after a prerequisite settles; no fresh server batch is required.
+                await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+                await ReplicaMaterializer.ApplyAsync(db, tenant, ReplicaMaterializer.PendingProjectionBatch, zone, ct).ConfigureAwait(false);
+                await tx.CommitAsync(ct).ConfigureAwait(false);
+            }
+            var cp = await ReadAsync(db, tenant, scope.Name, ct).ConfigureAwait(false);
+            return Result<SyncCheckpoint>.Ok(new SyncCheckpoint(cp.Epoch, cp.Watermark));
+        }
+        finally { _gate.Release(); }
     }
 
     /// <inheritdoc />
     public async Task<Result<ISyncApplySession>> BeginAsync(SyncScope scope, BatchReady batch, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        if (batch.BatchId == ReplicaMaterializer.PendingProjectionBatch)
+            return Result<ISyncApplySession>.Fail(ErrorCodes.SyncProtocolViolation, "Reserved projection namespace.");
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         IServiceScope? di = null;
         try
@@ -53,7 +69,7 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
             var tenant = di.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
             TraceLog.Info($"ApplyStore.Begin — scope='{scope.Name}', tenant={tenant}, batch={batch.BatchId}, epoch={batch.Epoch}, fromExclusive={batch.FromSequenceExclusive}, watermark={batch.Watermark}, pageCount={batch.PageCount}, generation={batch.Generation}.", "sync.apply");
             // Scratch rows of a crashed/aborted earlier session are meaningless: staging never feeds anything but its own commit.
-            await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM repl_staging WHERE TenantId = {tenant}", ct).ConfigureAwait(false);
+            await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM repl_staging WHERE TenantId = {tenant} AND BatchId <> {ReplicaMaterializer.PendingProjectionBatch}", ct).ConfigureAwait(false);
             return Result<ISyncApplySession>.Ok(new Session(this, di, db, tenant, scope, batch));
         }
         catch

@@ -284,6 +284,11 @@ internal static class ReplicaMaterializer
         ]),
     ];
 
+    // Durable retry images reuse the already-migrated staging schema under an internal namespace.
+    // Unlike disposable batch staging, these rows survive startup cleanup, cursor advancement and process restart.
+    internal const string PendingProjectionBatch = "__animora_pending_typed_projection__";
+    private const int ReplayLimit = 200;
+
     private static readonly string[] Entities = Maps.Select(m => m.Entity).ToArray();
 
     /// <summary>The wire entity names this materializer projects (exposed for tests/diagnostics).</summary>
@@ -295,12 +300,23 @@ internal static class ReplicaMaterializer
     {
         var pending = await LoadPendingAsync(db, tenant, ct).ConfigureAwait(false);
         TraceLog.Info($"ReplicaMaterializer.Apply — tenant={tenant}, batch={batchId}, entities=[{string.Join(", ", Entities)}], unsettledPendingKeys={pending.Count}.", "sync.apply");
-        var rows = await db.Set<ReplicaStaging>().AsNoTracking()
+        var staged = db.Set<ReplicaStaging>().AsNoTracking()
             .Where(x => x.TenantId == tenant && x.BatchId == batchId && Entities.Contains(x.Entity))
-            .OrderBy(x => x.PageOrdinal)
+            .OrderBy(x => x.PageOrdinal).ThenBy(x => x.Entity).ThenBy(x => x.EntityId);
+        var rows = await (batchId == PendingProjectionBatch ? staged.Take(ReplayLimit) : staged)
             .ToListAsync(ct).ConfigureAwait(false); // materialised: the connection is reused for the writes below
 
-        TraceLog.Info($"ReplicaMaterializer.Apply — {rows.Count} staged row(s) match the projected entity set.", "sync.apply");
+        if (batchId != PendingProjectionBatch)
+        {
+            var retry = await db.Set<ReplicaStaging>().AsNoTracking()
+                .Where(x => x.TenantId == tenant && x.BatchId == PendingProjectionBatch && Entities.Contains(x.Entity))
+                .OrderBy(x => x.PageOrdinal).ThenBy(x => x.Entity).ThenBy(x => x.EntityId).Take(ReplayLimit)
+                .ToListAsync(ct).ConfigureAwait(false);
+            // A fresh wire image supersedes an older retry image, including a correcting tombstone.
+            rows = retry.Concat(rows).GroupBy(x => Key(x.Entity, x.EntityId)).Select(g => g.Last()).ToList();
+        }
+        else rows = rows.OrderBy(x => x.PageOrdinal).ThenBy(x => x.Entity).ThenBy(x => x.EntityId).Take(ReplayLimit).ToList();
+        TraceLog.Info($"ReplicaMaterializer.Apply — {rows.Count} staged/retry row(s) match the projected entity set.", "sync.apply");
         var written = 0;
         var booked = new List<ActivityEventDraft>();
         var byEntity = Maps.ToDictionary(m => m.Entity, StringComparer.Ordinal);
@@ -310,6 +326,7 @@ internal static class ReplicaMaterializer
             if (pending.Contains(Key(row.Entity, row.EntityId)))
             {
                 TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: a local UNSETTLED command (LocallyPosted/PendingSettlement) overlays it, so the local intent wins and the server row is NOT written to the typed table (it is still in repl_base).", "sync.apply");
+                await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
             }
             var map = byEntity[row.Entity];
@@ -321,12 +338,14 @@ internal static class ReplicaMaterializer
                     .ConfigureAwait(false);
                 TraceLog.Info($"ReplicaMaterializer.Apply — TOMBSTONE {row.Entity}/{row.EntityId} (wire delete) → {tombstoned} row(s) soft-deleted.", "sync.apply");
                 written += tombstoned;
+                await ClearDeferredAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
             }
 
             if (!TryReadValues(map, row.Payload, out var values))
             {
                 TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: payload is missing a REQUIRED field (poisoned row; skipped so it cannot stall sync). rawPayload={Truncate(row.Payload)}", "sync.apply");
+                await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
             }
             var args = new List<object>(map.Columns.Length + 6) { row.EntityId, tenant };
@@ -336,6 +355,9 @@ internal static class ReplicaMaterializer
             args.Add(Nullable(row.Version));
             args.Add(row.Deleted ? 1 : 0);
             int affected;
+            // A child failure must roll back its root and sibling rewrites too, not leave a half-projected row.
+            var tx = db.Database.CurrentTransaction ?? throw new InvalidOperationException("Typed projection requires the apply transaction.");
+            await tx.CreateSavepointAsync("typed_projection", ct).ConfigureAwait(false);
             try
             {
                 affected = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
@@ -343,14 +365,19 @@ internal static class ReplicaMaterializer
                     await ReplaceChildrenAsync(db, map, row.EntityId, row.Payload, ct).ConfigureAwait(false);
                 if (affected > 0 && !row.Deleted && Handoffs.TryGetValue(map.Entity, out var handoffs))
                     await UpsertHandoffsAsync(db, handoffs, tenant, row.EntityId, row.Payload, ct).ConfigureAwait(false);
+                await tx.ReleaseSavepointAsync("typed_projection", ct).ConfigureAwait(false);
             }
             catch (SqliteException ex) when (ex.SqliteErrorCode == SqliteConstraintErrorCode)
             {
                 // A business-key clash (e.g. the same SKU / room code already exists locally under a different Id) or a NOT NULL violation.
                 // SQLite rolls back only the failing statement, so the batch transaction stays valid: skip the row instead of stalling sync.
-                TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: local constraint violation ({ex.Message}); the row is still in repl_base.", "sync.apply");
+                await tx.RollbackToSavepointAsync("typed_projection", ct).ConfigureAwait(false);
+                await tx.ReleaseSavepointAsync("typed_projection", ct).ConfigureAwait(false);
+                TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: local constraint violation; durable projection retry retained.", "sync.apply");
+                await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
             }
+            await ClearDeferredAsync(db, tenant, row, ct).ConfigureAwait(false);
             written += affected;
             TraceLog.Info($"ReplicaMaterializer.Apply — UPSERT {row.Entity}/{row.EntityId} → {affected} row(s) written to '{map.Table}' (deleted={row.Deleted}).", "sync.apply");
             if (affected > 0 && !row.Deleted && row.Entity == "Appointment" && TryBuildBookedDraft(tenant, row, values) is { } draft)
@@ -378,6 +405,22 @@ internal static class ReplicaMaterializer
         TraceLog.Info($"ReplicaMaterializer.Apply DONE — {written} typed business row(s) written for batch={batchId}.", "sync.apply");
         return written;
     }
+
+    private static Task<int> ClearDeferredAsync(AnimoraLocalDbContext db, string tenant, ReplicaStaging row, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"""
+            DELETE FROM repl_staging WHERE TenantId = {tenant} AND BatchId = {PendingProjectionBatch}
+                AND Entity = {row.Entity} AND EntityId = {row.EntityId}
+            """, ct);
+
+    private static Task<int> DeferAsync(AnimoraLocalDbContext db, string tenant, ReplicaStaging row, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO repl_staging (TenantId, BatchId, Entity, EntityId, PageOrdinal, Version, Payload, Deleted, UpdatedAtUtc)
+            VALUES ({tenant}, {PendingProjectionBatch}, {row.Entity}, {row.EntityId}, 1, {row.Version}, {row.Payload},
+                {(row.Deleted ? 1 : 0)}, {row.UpdatedAtUtc == null ? (long?)null : row.UpdatedAtUtc.Value.UtcTicks})
+            ON CONFLICT (TenantId, BatchId, Entity, EntityId) DO UPDATE SET
+                PageOrdinal = min(repl_staging.PageOrdinal + 1, 2147483647), Version = excluded.Version,
+                Payload = excluded.Payload, Deleted = excluded.Deleted, UpdatedAtUtc = excluded.UpdatedAtUtc
+            """, ct);
 
     private static string Truncate(string? s) => s is null ? "(null)" : s.Length <= 200 ? s : s[..200] + "…";
 
@@ -414,6 +457,8 @@ internal static class ReplicaMaterializer
     private static bool TryReadValues(EntityMap map, string payload, out Dictionary<string, object?> values)
     {
         values = new Dictionary<string, object?>(StringComparer.Ordinal);
+        try
+        {
         using var doc = JsonDocument.Parse(payload);
         if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
         foreach (var col in map.Columns)
@@ -424,6 +469,11 @@ internal static class ReplicaMaterializer
         }
 
         return true;
+        }
+        catch (JsonException) { return false; }
+        catch (FormatException) { return false; }
+        catch (InvalidOperationException) { return false; }
+        catch (OverflowException) { return false; }
     }
 
     /// <summary>Converts one wire value (looked up by <see cref="Col.Json"/> path) to the SQLite parameter for <paramref name="col"/>.</summary>
