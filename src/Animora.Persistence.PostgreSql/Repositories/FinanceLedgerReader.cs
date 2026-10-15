@@ -1,11 +1,36 @@
 using Animora.Application.Ports;
 using Animora.Contracts.Wire.Sync;
+using Animora.Contracts.Wire.Commands;
+using Animora.Persistence.PostgreSql.Commands;
 using Animora.Domain.Patients;
 using Animora.Domain.Sales;
 using Animora.Persistence.PostgreSql.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.PostgreSql.Repositories;
+
+/// <summary>Recorded cancellation time, independent of the invoice's current transport timestamp.</summary>
+internal sealed class FinanceVoidProjection
+{
+    public string InvoiceId { get; init; } = "";
+    public DateTimeOffset? OccurredUtc { get; init; }
+
+    internal static IQueryable<FinanceVoidProjection> Query(AnimoraServerDbContext db) =>
+        db.Set<Invoice>().AsNoTracking().Where(i => i.State == InvoiceState.Void)
+            .Select(i => new FinanceVoidProjection
+            {
+                InvoiceId = i.Id,
+                // Retained receipts survive payload compaction. A zero-value or draft cancellation has no
+                // credit note, so its accepted void receipt is essential. Posted voids may report the
+                // generated adjustment id as slot zero instead of the invoice id.
+                OccurredUtc = db.CommandIntake.Where(c => c.CommandType == CommandTypes.SalesInvoiceVoid
+                        && c.Status == IntakeStatus.Settled && c.Outcome == (short)SettlementOutcome.Accepted
+                        && (c.ServerEntityId == i.Id || i.Adjustments.Any(a => a.AdjustmentId == c.ServerEntityId)))
+                    .Select(c => c.SettledUtc).Min()
+                    ?? i.Adjustments.Where(a => a.Kind == AdjustmentKind.CreditNote)
+                        .Select(a => (DateTimeOffset?)a.CreatedUtc).Max(),
+            });
+}
 
 /// <summary>
 /// D04 — the server side of the authoritative financial read path (<c>GET /finance/ledger</c>). Projects the
@@ -100,6 +125,7 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
     private async Task<List<FinanceInvoiceRow>> LoadInvoiceRowsAsync(List<string> ids, CancellationToken ct)
     {
         if (ids.Count == 0) return [];
+        var voidTimes = FinanceVoidProjection.Query(db);
         var rows = await (
             from i in db.Set<Invoice>().AsNoTracking()
             where ids.Contains(i.Id) && i.State != InvoiceState.Draft
@@ -120,8 +146,8 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
                 i.PostedUtc,
                 i.SettledUtc,
                 i.UpdatedAt,
-                VoidedUtc = i.State == InvoiceState.Void ? i.Adjustments.Where(a => a.Kind == AdjustmentKind.CreditNote)
-                    .Select(a => (DateTimeOffset?)a.CreatedUtc).Max() : null,
+                VoidedUtc = voidTimes.Where(v => v.InvoiceId == i.Id)
+                    .Select(v => v.OccurredUtc).FirstOrDefault(),
                 GrandTotalMinor = i.GrandTotal.Minor,
                 PaidTotalMinor = i.PaidTotal.Minor,
                 DueTotalMinor = i.DueTotal.Minor,

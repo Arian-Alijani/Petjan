@@ -228,14 +228,13 @@ public sealed class SalesQueries(AnimoraServerDbContext db) : ISalesQueries
                            OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName,
                            State = InvoiceState.Posted,
                        };
-        var voids = from i in db.Set<Invoice>().AsNoTracking()
-                    where i.State == InvoiceState.Void
-                    from a in i.Adjustments
-                    where a.Kind == AdjustmentKind.CreditNote
+        var voids = from v in FinanceVoidProjection.Query(db)
+                    where v.OccurredUtc != null
+                    join i in db.Set<Invoice>().AsNoTracking() on v.InvoiceId equals i.Id
                     join owner in db.Set<Owner>() on i.OwnerId equals owner.Id into owners
                     from owner in owners.DefaultIfEmpty()
-                    select new { Id = a.AdjustmentId, InvoiceId = i.Id, Number = i.InvoiceNumber,
-                        OccurredUtc = a.CreatedUtc, Kind = "Void", AmountMinor = 0L,
+                    select new { Id = "void:" + i.Id, InvoiceId = i.Id, Number = i.InvoiceNumber,
+                        OccurredUtc = v.OccurredUtc!.Value, Kind = "Void", AmountMinor = 0L,
                         OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName, State = InvoiceState.Void };
         var rows = payments.Concat(invoices).Concat(voids);
         if (fromUtc is { } from) rows = rows.Where(r => r.OccurredUtc >= from);
