@@ -247,6 +247,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         catch (InvalidOperationException ex)
         {
             // D16: a failed read is no longer disguised as "not found" — report it as a load failure instead.
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"invoice viewer load FAILED — {ex.Message}", "sales");
             _toast.Show("بارگذاری فاکتور ناموفق بود؛ دوباره تلاش کنید", Tone.Warn);
             _dialogs.Close();
             return;

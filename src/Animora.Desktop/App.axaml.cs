@@ -246,6 +246,7 @@ public partial class App : global::Avalonia.Application
             Diagnostics.AppTrace.Milestone($"local store ready={ready}", Program.StartupTimer.Elapsed);
             Services.GetRequiredService<MaintenanceScheduler>().Start();
             Services.GetRequiredService<SyncSchedulerHostedService>().Start(); // dormant unless a server is configured
+            Services.GetRequiredService<SyncChangeBridge>().Start(); // D14: a completed pass refreshes the open page
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
         }
         catch (Exception ex)
@@ -353,6 +354,10 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<IDataChangeNotifier, DataChangeNotifier>();
+
+        // D14: a background sync pass writes straight into the local store, so the open page must be told — this
+        // bridge re-announces a completed pass on the same DataChangeNotifier channel the local write path uses.
+        services.AddSingleton<SyncChangeBridge>();
 
         // B04c: the capability gate is ONE app-wide singleton — the concrete service (warmed by
         // AuthenticationService via DI) and the ICapabilityGate the shell ViewModels consume are the same
