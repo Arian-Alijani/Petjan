@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Sales;
 using Animora.Contracts.Vaccination;
@@ -149,6 +150,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly ISalesQueryService _sales;
     private readonly IChequePrompt _chequePrompt;
+    private readonly ICapabilityGate _capabilities;
     private readonly IVaccinationService _vaccination;
 
     private OwnerDetail? _owner;
@@ -175,12 +177,14 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         ISalesQueryService sales,
         IVaccinationService vaccination,
         IPrintService print,
-        IChequePrompt chequePrompt)
+        IChequePrompt chequePrompt,
+        ICapabilityGate capabilities)
     {
         _chequePrompt = chequePrompt;
         _print = print;
         _sales = sales;
         _vaccination = vaccination;
+        _capabilities = capabilities;
         _patients = patients;
         _changes = changes;
         _presenter = presenter;
@@ -482,7 +486,8 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                     {
                         _ = LoadInvoicesAsync(ownerId);
                     }
-                }),
+                },
+                _capabilities),
             1040,
             720);
     }

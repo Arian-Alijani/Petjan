@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
@@ -24,7 +25,8 @@ public sealed class HistoryRecordOpener(
     IPrintService print,
     IChequePrompt chequePrompt,
     IRecordSheetPresenter sheets,
-    INavigationService navigation) : IHistoryRecordOpener
+    INavigationService navigation,
+    ICapabilityGate capabilities) : IHistoryRecordOpener
 {
     public Task OpenAsync(string entityType, string entityId, string? invoiceId = null, Action? onChanged = null)
     {
@@ -87,7 +89,7 @@ public sealed class HistoryRecordOpener(
             return Task.CompletedTask;
         }
 
-        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, chequePrompt, invoiceId, onChanged), 1040, 720);
+        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, chequePrompt, invoiceId, onChanged, capabilities), 1040, 720);
         return Task.CompletedTask;
     }
 }

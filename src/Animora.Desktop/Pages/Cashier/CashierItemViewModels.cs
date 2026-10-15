@@ -324,7 +324,7 @@ public sealed class CashierDiscountOptionViewModel
 /// </summary>
 public sealed class CashierDetailViewModel
 {
-    public CashierDetailViewModel(CashierInvoiceDetail detail)
+    public CashierDetailViewModel(CashierInvoiceDetail detail, bool canPost)
     {
         Detail = detail;
         Id = detail.Id;
@@ -358,7 +358,9 @@ public sealed class CashierDetailViewModel
 
         ShowVoid = detail.IsEditable;
         ShowRefund = detail.State is CashierInvoiceState.Partial or CashierInvoiceState.Settled;
-        CanPay = detail.IsEditable && detail.Paid < detail.Total;
+        // D08: paying requires sales.post; without it the button is disabled rather than leading into a guaranteed
+        // PERMISSION_DENIED (the backend gate stays authoritative).
+        CanPay = detail.IsEditable && detail.Paid < detail.Total && canPost;
         MaxRefund = detail.Paid;
     }
 

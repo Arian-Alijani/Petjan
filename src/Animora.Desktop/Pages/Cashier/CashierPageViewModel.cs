@@ -4,10 +4,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Cashier;
 using Animora.Contracts.Diagnostics;
+using Animora.Contracts.Identity;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
+using Animora.Domain.Identity;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -33,6 +35,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly IPrintService _print;
     private readonly IDialogService _dialogs;
+    private readonly ICapabilityGate _capabilities;
 
     private readonly List<CashierInvoice> _invoices = [];
 
@@ -46,7 +49,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     private CashierTab _tab = CashierTab.Open;
 
     public CashierPageViewModel(ICashierService service, IStoreReadinessGate readiness, IToastService toast,
-        IDataChangeNotifier changes, IPrintService print, IDialogService dialogs)
+        IDataChangeNotifier changes, IPrintService print, IDialogService dialogs, ICapabilityGate capabilities)
     {
         _print = print;
         _dialogs = dialogs;
@@ -54,6 +57,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         _changes = changes;
         _readiness = readiness;
         _toast = toast;
+        _capabilities = capabilities;
 
         Title = "صندوق و مالی";
         Eyebrow = "مدیریت کلینیک";
@@ -413,7 +417,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     private void ShowDetail(CashierInvoiceDetail detail)
     {
-        Detail = new CashierDetailViewModel(detail);
+        Detail = new CashierDetailViewModel(detail, _capabilities.Can(PermissionCodes.SalesPost));
         HasDetail = true;
 
         DiscountValueText = CashierPresentation.Fa(detail.DiscountValue);

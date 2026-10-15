@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
+using Animora.Domain.Identity;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -25,6 +27,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
     private readonly IChequePrompt _chequePrompt;
+    private readonly ICapabilityGate? _capabilities;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
@@ -42,7 +45,8 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         IPrintService print,
         IChequePrompt chequePrompt,
         string invoiceId,
-        Action? onChanged = null)
+        Action? onChanged = null,
+        ICapabilityGate? capabilities = null)
     {
         _service = service;
         _toast = toast;
@@ -51,6 +55,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         _chequePrompt = chequePrompt;
         _invoiceId = invoiceId;
         _onChanged = onChanged;
+        _capabilities = capabilities;
 
         // Card is the clinic's most common tender → first chip and the default selection.
         Methods.Add(new PaymentMethodOptionViewModel(PaymentMethod.Card, true));
@@ -285,8 +290,15 @@ public sealed partial class PaymentModalViewModel : ObservableObject
 
     private long SumParts => Parts.Sum(p => p.Amount);
 
-    /// <summary>Pay is blocked for an over-filled / empty split so a part is never silently capped.</summary>
-    private bool CanPay() => !IsMixed || (SumParts > 0 && SumParts <= _due);
+    /// <summary>
+    /// Pay is blocked for an over-filled / empty split so a part is never silently capped, and (D08) without
+    /// <c>sales.post</c> at all — the backend gate would refuse every attempt, so the button must be disabled
+    /// rather than let the operator hit a repeated <c>PERMISSION_DENIED</c>. A null gate (unit composition)
+    /// leaves the pre-existing split rule alone; the backend gate remains authoritative either way.
+    /// </summary>
+    private bool CanPay() =>
+        (_capabilities is null || _capabilities.Can(PermissionCodes.SalesPost))
+        && (!IsMixed || (SumParts > 0 && SumParts <= _due));
 
     [RelayCommand]
     private void AddPart()

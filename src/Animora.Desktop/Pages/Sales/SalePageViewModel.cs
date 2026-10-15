@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
+using Animora.Domain.Identity;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -32,6 +34,14 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
+    private readonly ICapabilityGate _capabilities;
+
+    /// <summary>
+    /// D08: taking a payment / posting an invoice requires <c>sales.post</c>. Without it the CTA is not offered at
+    /// all, instead of letting the operator click into a guaranteed <c>PERMISSION_DENIED</c> (the backend gate is
+    /// unchanged and stays authoritative). Re-read per render, so a sign-in/sign-out is reflected.
+    /// </summary>
+    public bool CanPostPayments => _capabilities.Can(PermissionCodes.SalesPost);
     private readonly List<ReadyEncounterRef> _readyEncounters = [];
     private readonly List<InvoiceSummary> _invoices = [];
 
@@ -70,7 +80,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
         IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print,
-        IHistoryRecordOpener historyOpener, IServiceRateService serviceRates, IChequePrompt chequePrompt)
+        IHistoryRecordOpener historyOpener, IServiceRateService serviceRates, IChequePrompt chequePrompt,
+        ICapabilityGate capabilities)
     {
         _chequePrompt = chequePrompt;
         _service = service;
@@ -79,6 +90,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         _readiness = readiness;
         _toast = toast;
         _dialogs = dialogs;
+        _capabilities = capabilities;
 
         Title = "فروش و صندوق";
         Eyebrow = "مرکز فرمان";
@@ -550,7 +562,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
 
         _dialogs.ShowModal(
-            new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, SelectedInvoice.Id, RefreshAfterMutation),
+            new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, SelectedInvoice.Id, RefreshAfterMutation, _capabilities),
             520);
     }
 
@@ -950,7 +962,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
     public void ShowInvoice(InvoiceDetail detail)
     {
-        SelectedInvoice = new SaleInvoiceViewModel(detail);
+        SelectedInvoice = new SaleInvoiceViewModel(detail, CanPostPayments);
         HasSelectedInvoice = true;
 
         var canEdit = SelectedInvoice.CanEdit;

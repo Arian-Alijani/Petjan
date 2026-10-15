@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
 using Animora.Desktop.Pages.Sales.Shared;
+using Animora.Domain.Identity;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -30,6 +32,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
+    private readonly ICapabilityGate? _capabilities;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
@@ -42,7 +45,8 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         IPrintService print,
         IChequePrompt chequePrompt,
         string invoiceId,
-        Action? onChanged = null)
+        Action? onChanged = null,
+        ICapabilityGate? capabilities = null)
     {
         _chequePrompt = chequePrompt;
         _service = service;
@@ -51,6 +55,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         _print = print;
         _invoiceId = invoiceId;
         _onChanged = onChanged;
+        _capabilities = capabilities;
 
         _ = ModalLoadGuard.RunAsync(_toast, _dialogs, "بارگذاری فاکتور ناموفق بود؛ دوباره تلاش کنید", LoadAsync);
     }
@@ -314,7 +319,9 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         CanEdit = editable;
         ShowVoid = editable;
         ShowRefund = detail.State is InvoiceState.Partial or InvoiceState.Settled;
-        CanPay = editable && detail.Lines.Count > 0 && detail.Paid < detail.Total;
+        // D08: paying requires sales.post; without it the CTA is hidden rather than leading into a guaranteed refusal.
+        CanPay = editable && detail.Lines.Count > 0 && detail.Paid < detail.Total
+            && (_capabilities is null || _capabilities.Can(PermissionCodes.SalesPost));
         IsDeleted = detail.State == InvoiceState.Deleted;
 
         var canReturn = detail.State is InvoiceState.Partial or InvoiceState.Settled && detail.Paid > 0;
@@ -503,7 +510,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void TakePayment()
     {
         _dialogs.Close();
-        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, _invoiceId, OnChanged), 520);
+        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, _invoiceId, OnChanged, _capabilities), 520);
     }
 
     [RelayCommand]

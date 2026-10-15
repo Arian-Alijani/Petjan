@@ -13,7 +13,10 @@ namespace Animora.Desktop.Pages.Sales;
 /// </summary>
 public sealed class SaleInvoiceViewModel
 {
-    public SaleInvoiceViewModel(InvoiceDetail detail)
+    /// <param name="canPost">The current user's <c>sales.post</c> capability (D08). Without it the pay CTA must not
+    /// be offered at all: the backend gate would refuse every attempt, so showing it is a dead affordance that
+    /// produces a repeated <c>PERMISSION_DENIED</c> instead of an explanation.</param>
+    public SaleInvoiceViewModel(InvoiceDetail detail, bool canPost)
     {
         Detail = detail;
         Id = detail.Id;
@@ -61,7 +64,7 @@ public sealed class SaleInvoiceViewModel
         HasDiscount = detail.HasDiscount;
         HasDue = detail.Due > 0;
         ShowPaidInfo = detail.Paid > 0 || detail.State == InvoiceState.Partial;
-        ShowPayCta = !detail.IsLocked && detail.Lines.Count > 0;
+        ShowPayCta = !detail.IsLocked && detail.Lines.Count > 0 && canPost;
         ShowRefund = detail.State is InvoiceState.Partial or InvoiceState.Settled;
 
         BaseText = SalePresentation.Money(detail.Base);
