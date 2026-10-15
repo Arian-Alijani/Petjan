@@ -200,6 +200,8 @@ public sealed partial class TopbarViewModel : ObservableObject
             SyncState.Synced when pendingBefore > 0 =>
                 $"{Localization.PersianNumberFormatter.ToPersianDigits(pendingBefore)} تغییر ارسال و همگام‌سازی شد",
             SyncState.Synced => "همه‌چیز به‌روز است",
+            SyncState.NeedsAttention =>
+                $"{Localization.PersianNumberFormatter.ToPersianDigits(_sync.TerminalFailureCount)} تغییر توسط سرور رد شد و نیاز به بررسی دارد",
             SyncState.Pending =>
                 $"{Localization.PersianNumberFormatter.ToPersianDigits(_sync.PendingChangeCount)} تغییر در انتظار ارسال باقی ماند",
             SyncState.Offline => "آفلاین: اتصال به سرور برقرار نشد؛ تغییرات پس از اتصال ارسال می‌شود",
@@ -273,6 +275,8 @@ public sealed partial class TopbarViewModel : ObservableObject
                 $"{Localization.PersianNumberFormatter.ToPersianDigits(pending)} تغییر ارسال‌نشده",
             SyncState.Pending => "در انتظار همگام‌سازی",
             SyncState.Error => "خطا در همگام‌سازی",
+            SyncState.NeedsAttention =>
+                $"{Localization.PersianNumberFormatter.ToPersianDigits(_sync.TerminalFailureCount)} تغییر نیازمند بررسی",
             SyncState.Offline => "آفلاین",
             _ => "همگام‌سازی",
         };
@@ -280,7 +284,7 @@ public sealed partial class TopbarViewModel : ObservableObject
         {
             SyncState.Synced => Controls.BrushCache.Solid("#027a48"),
             SyncState.Pending => Controls.BrushCache.Solid("#b54708"),
-            SyncState.Error or SyncState.Offline => Controls.BrushCache.Solid("#d92d20"),
+            SyncState.Error or SyncState.Offline or SyncState.NeedsAttention => Controls.BrushCache.Solid("#d92d20"),
             SyncState.Syncing => Controls.BrushCache.Solid("#1570cd"),
             _ => Controls.BrushCache.Solid("#98a2b3"),
         };
@@ -297,7 +301,7 @@ public sealed partial class TopbarViewModel : ObservableObject
         (SyncBoxBackground, SyncBoxBorder) = state switch
         {
             SyncState.Pending => (Controls.BrushCache.Solid("#fffaeb"), Controls.BrushCache.Solid("#fec84b")),
-            SyncState.Error or SyncState.Offline => (Controls.BrushCache.Solid("#fef3f2"), Controls.BrushCache.Solid("#fda29b")),
+            SyncState.Error or SyncState.Offline or SyncState.NeedsAttention => (Controls.BrushCache.Solid("#fef3f2"), Controls.BrushCache.Solid("#fda29b")),
             _ => (Controls.BrushCache.Solid("#f2f4f7"), Controls.BrushCache.Solid("#e4e7ec")),
         };
     }

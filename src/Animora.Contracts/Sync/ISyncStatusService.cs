@@ -24,6 +24,12 @@ public enum SyncState
 
     /// <summary>No connectivity — nothing can be sent right now (red dot).</summary>
     Offline,
+
+    /// <summary>
+    /// Nothing retriable is left, but the server refused some work (Rejected / Conflict / NeedsAttention): the device is NOT
+    /// "all up to date" and an operator must review it (D09). Appended last so persisted/ordinal values keep their meaning.
+    /// </summary>
+    NeedsAttention,
 }
 
 /// <summary>
@@ -58,6 +64,12 @@ public interface ISyncStatusService
     /// outbound work to do — especially useful after the app has been offline for a while.
     /// </summary>
     int PendingChangeCount { get; }
+
+    /// <summary>
+    /// Commands the server terminally refused (Rejected / Conflict / NeedsAttention) — never re-sent by a pass, so they are
+    /// excluded from <see cref="PendingChangeCount"/> but must still be surfaced (D09).
+    /// </summary>
+    int TerminalFailureCount => 0;
 
     /// <summary>Raised after <see cref="State"/> (and/or <see cref="LastSyncedAt"/>) changes.</summary>
     event EventHandler? StateChanged;

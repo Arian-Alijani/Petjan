@@ -24,12 +24,13 @@ public sealed class LocalSyncStatusService(
     : ISyncStatusService, IDisposable
 {
     private readonly SemaphoreSlim _pass = new(1, 1);
-    private sealed record Snapshot(SyncState State, DateTimeOffset? LastSyncedAt, int PendingChangeCount = 0);
+    private sealed record Snapshot(SyncState State, DateTimeOffset? LastSyncedAt, int PendingChangeCount = 0, int TerminalFailureCount = 0);
     private bool PullConfigured => orchestrator is not null && engine is { IsConfigured: true };
     private Snapshot _snapshot = new(transport is NullCommandTransport && engine is not { IsConfigured: true } ? SyncState.Offline : SyncState.Idle, null);
     public SyncState State => Volatile.Read(ref _snapshot).State;
     public DateTimeOffset? LastSyncedAt => Volatile.Read(ref _snapshot).LastSyncedAt;
     public int PendingChangeCount => Volatile.Read(ref _snapshot).PendingChangeCount;
+    public int TerminalFailureCount => Volatile.Read(ref _snapshot).TerminalFailureCount;
     public event EventHandler? StateChanged;
 
     /// <summary>Load durable status after sign-in, without running a processor pass or blocking first frame.</summary>
@@ -87,7 +88,8 @@ public sealed class LocalSyncStatusService(
             // counting them here is what made the button show a count SyncNow could never clear. Fall back to the
             // previous count if the summary read failed.
             var pendingCount = summary.IsSuccess ? RetriableCount(summary.Value!) : previous.PendingChangeCount;
-            Publish(new(MapState(summary, pull), last, pendingCount));
+            var terminal = summary.IsSuccess ? TerminalCount(summary.Value!) : previous.TerminalFailureCount;
+            Publish(new(MapState(summary, pull), last, pendingCount, terminal));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -109,6 +111,10 @@ public sealed class LocalSyncStatusService(
     private static int RetriableCount(PendingCommandSummary summary) =>
         Math.Max(0, summary.Total - summary.Rejected - summary.Conflict - summary.NeedsAttention);
 
+    /// <summary>Terminal server refusals the pass never re-claims (D09) — surfaced separately, never hidden behind "Synced".</summary>
+    private static int TerminalCount(PendingCommandSummary summary) =>
+        Math.Max(0, summary.Rejected + summary.Conflict + summary.NeedsAttention);
+
     private SyncState MapState(Result<PendingCommandSummary> summary, Result<SyncOutcome>? pull)
     {
         if (summary.IsFailure) return SyncState.Error;
@@ -118,6 +124,8 @@ public sealed class LocalSyncStatusService(
         // never resend must not pin the state to Pending forever — that was the root cause of the "sync does
         // nothing / count never drops" report.
         if (RetriableCount(summary.Value!) > 0) return SyncState.Pending;
+        // D09: no retriable backlog but terminal refusals remain → the device is not "all up to date".
+        if (TerminalCount(summary.Value!) > 0) return SyncState.NeedsAttention;
         // A pass that deferred its pull (server unreachable) is not "synced".
         return pull is { Value: SyncOutcome.Deferred } ? SyncState.Offline : SyncState.Synced;
     }
