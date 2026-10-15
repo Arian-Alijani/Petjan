@@ -692,17 +692,27 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private async Task RefreshAfterMutationAsync()
     {
         var currentId = SelectedInvoice?.Id;
-        await ReloadListsAsync();
-        RenderSidebar();
-        await RefreshKpisAsync();
-
-        if (currentId is not null)
+        try
         {
-            var detail = await _service.GetInvoiceAsync(currentId);
-            if (detail is not null)
+            await ReloadListsAsync();
+            RenderSidebar();
+            await RefreshKpisAsync();
+
+            if (currentId is not null)
             {
-                ShowInvoice(detail);
+                var detail = await _service.GetInvoiceAsync(currentId);
+                if (detail is not null)
+                {
+                    ShowInvoice(detail);
+                }
             }
+        }
+        catch (InvalidOperationException ex)
+        {
+            // D16: the list reads now surface a store/session failure instead of quietly emptying the sidebar.
+            // This refresh is fire-and-forget, so it must not let that escape: report it and keep the current view.
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"refresh after mutation failed — {ex.Message}", "sales");
+            _toast.Show("به‌روزرسانی فهرست پس از ثبت انجام نشد؛ دوباره تلاش کنید", Tone.Warn);
         }
     }
 

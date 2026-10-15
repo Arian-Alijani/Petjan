@@ -305,7 +305,20 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private async Task LoadInvoicesAsync(string ownerId)
     {
         AppTrace.Info($"owner invoices: GetInvoicesForOwnerAsync(ownerId={ownerId}) …", "patients");
-        var invoices = await _sales.GetInvoicesForOwnerAsync(ownerId);
+        IReadOnlyList<InvoiceSummary> invoices;
+        try
+        {
+            invoices = await _sales.GetInvoicesForOwnerAsync(ownerId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // D16: the read now reports a store/session failure instead of returning an empty list, so this
+            // secondary section must say why rather than silently showing "no invoices". The other sections of the
+            // sheet still load; the invoice count is simply left unknown.
+            AppTrace.Warn($"owner invoices FAILED — {ex.Message}", "patients");
+            return;
+        }
+
         AppTrace.Info($"owner invoices ← {invoices.Count} invoices.", "patients");
         Invoices.Clear();
         foreach (var invoice in invoices)

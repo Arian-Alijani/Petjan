@@ -234,7 +234,19 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
 
     private async Task LoadAsync()
     {
-        var detail = await _service.GetInvoiceAsync(_invoiceId);
+        InvoiceDetail? detail;
+        try
+        {
+            detail = await _service.GetInvoiceAsync(_invoiceId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // D16: a failed read is no longer disguised as "not found" — report it as a load failure instead.
+            _toast.Show("بارگذاری فاکتور ناموفق بود؛ دوباره تلاش کنید", Tone.Warn);
+            _dialogs.Close();
+            return;
+        }
+
         if (detail is null)
         {
             _toast.Show("فاکتور موردنظر یافت نشد", Tone.Warn);

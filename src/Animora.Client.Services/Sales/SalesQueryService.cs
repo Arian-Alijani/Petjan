@@ -34,6 +34,10 @@ namespace Animora.Client.Services.Sales;
 /// voided directly. State-committed invoices return <c>null</c>.</description></item>
 /// <item><description><b>Draft-only delete.</b> <see cref="DeleteInvoiceAsync"/> is allowed only for a
 /// <c>Draft</c> (<c>DeleteDraftInvoiceCommand</c>); a posted invoice maps to <c>null</c>.</description></item>
+/// <item><description><b>Failures are never disguised as success (D16).</b> Every mutation propagates a failed
+/// <c>Result</c> as a typed <see cref="ServiceException"/> (as <see cref="EditLineAsync"/> always did), and every
+/// read throws on failure rather than returning an empty page — an empty result means "no rows", never "the store
+/// or the session is unavailable".</description></item>
 /// </list>
 /// </remarks>
 public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQueryService
@@ -48,10 +52,10 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider, zones) = Resolve(scope);
         var context = provider.BuildQueryContext();
-        if (context.IsFailure) return [];
+        if (context.IsFailure) throw new ServiceException(context.Error);
 
         var result = await dispatcher.QueryAsync(new ReadyForBillingQuery(), context.Value!);
-        if (result.IsFailure) return [];
+        if (result.IsFailure) throw new ServiceException(result.Error);
 
         var zone = zones.GetClinicTimeZone();
         var rows = result.Value!;
@@ -64,9 +68,9 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     {
         // Unpaged Contracts member → page 1 at the hard max (documented; CONVENTIONS §10 item 2).
         var result = await QueryAsync(new InvoiceListQuery(null, 1, MaxPageSize));
-        if (result.IsFailure || result.Value is null) return [];
+        ThrowOnFailedRead(result);
 
-        var rows = result.Value.Items;
+        var rows = result.Value?.Items ?? [];
         var list = new List<InvoiceSummary>(rows.Count);
         for (var i = 0; i < rows.Count; i++) list.Add(rows[i].ToContract());
         return list;
@@ -76,10 +80,10 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     {
         if (string.IsNullOrWhiteSpace(ownerId)) return [];
         var result = await QueryAsync(new OwnerInvoicesQuery(ownerId));
-        if (result.IsFailure || result.Value is null) return [];
+        ThrowOnFailedRead(result);
 
         var (_, zone) = Calendar();
-        var rows = result.Value;
+        var rows = result.Value ?? [];
         var list = new List<InvoiceSummary>(rows.Count);
         for (var i = 0; i < rows.Count; i++) list.Add(rows[i].ToContract(zone));
         return list;
@@ -88,7 +92,10 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<InvoiceDetail?> GetInvoiceAsync(string invoiceId)
     {
         var result = await QueryAsync(new InvoiceDetailQuery(invoiceId));
-        if (result.IsFailure || result.Value is null) return null;
+        ThrowOnFailedRead(result);
+        // A successful query with no row means the id is unknown — that is a real answer, not a failure.
+        if (result.Value is null) return null;
+
         var (_, zone) = Calendar();
         return result.Value.ToContract(zone);
     }
@@ -96,8 +103,9 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<IReadOnlyList<InsurerRef>> GetInsurersAsync()
     {
         var result = await QueryAsync(new InsurersQuery());
-        if (result.IsFailure || result.Value is null) return [];
-        var rows = result.Value;
+        ThrowOnFailedRead(result);
+
+        var rows = result.Value ?? [];
         var list = new List<InsurerRef>(rows.Count);
         for (var i = 0; i < rows.Count; i++) list.Add(rows[i].ToContract());
         return list;
@@ -112,6 +120,7 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         // Only the settled-today figure is a query of its own; the open receivables and the ready count come
         // from the lists the page has already loaded, so a refresh issues each underlying query once (X28).
         var kpi = await QueryAsync(new SaleKpiQuery(from, to));
+        ThrowOnFailedRead(kpi);
 
         long openDue = 0;
         var openCount = 0;
@@ -125,22 +134,24 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
             }
         }
 
-        var revenue = kpi.IsSuccess && kpi.Value is not null ? kpi.Value.RevenueMinor : 0L;
+        var revenue = kpi.Value?.RevenueMinor ?? 0L;
         return new SaleKpiSnapshot(revenue, openDue, openCount, Math.Max(0, readyVisitCount));
     }
 
     public async Task<CatalogSnapshot> GetCatalogAsync()
     {
         var result = await QueryAsync(new SalesCatalogQuery());
-        return result.IsSuccess && result.Value is not null
-            ? result.Value.ToContract() : new CatalogSnapshot([], [], []);
+        ThrowOnFailedRead(result);
+        // A successful query with no snapshot is not a failure — the picker simply has nothing to offer.
+        return result.Value?.ToContract() ?? new CatalogSnapshot([], [], []);
     }
 
     public async Task<IReadOnlyList<OwnerRef>> GetOwnersAsync(string query)
     {
         var result = await QueryAsync(new OwnerLookupQuery(query));
-        if (result.IsFailure || result.Value is null) return [];
-        var rows = result.Value;
+        ThrowOnFailedRead(result);
+
+        var rows = result.Value ?? [];
         var list = new List<OwnerRef>(rows.Count);
         for (var i = 0; i < rows.Count; i++) list.Add(rows[i].ToContract());
         return list;
@@ -156,9 +167,9 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
 
         var result = await QueryAsync(new SalesHistoryQuery(from, to, filter.Search, kind,
             filter.Sort.ToString(), filter.Page, filter.PageSize));
-        if (result.IsFailure || result.Value is null) return new CashierHistoryPage([], 0, 0, 0);
+        ThrowOnFailedRead(result);
 
-        var page = result.Value;
+        var page = result.Value!;
         var rows = page.Page.Items;
         var items = new CashierHistoryEntry[rows.Count];
         for (var i = 0; i < rows.Count; i++) items[i] = rows[i].ToContract(zone);
@@ -170,15 +181,16 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<InvoiceDetail> CreateFromEncounterAsync(string encounterId)
     {
         // The queue unions visit and boarding handoffs; the handoff id goes to both commands, and the branch
-        // that does not own that id returns NOT_FOUND, so exactly one create succeeds.
+        // that does not own that id returns NOT_FOUND, so exactly one create succeeds. ONLY NotFound may fall
+        // through to the other branch: any other failure (validation, permission, store) is the real answer for
+        // this encounter and must be surfaced as-is instead of being replaced by a generic "not found".
         var visit = await SendAsync(new CreateInvoiceFromVisitCommand(encounterId));
-        var id = visit.IsSuccess ? visit.Value : null;
-        if (string.IsNullOrEmpty(id))
-        {
-            var stay = await SendAsync(new CreateInvoiceFromStayCommand(encounterId));
-            id = stay.IsSuccess ? stay.Value : null;
-        }
-        return await RequireDetailAsync(id ?? throw new InvalidOperationException("INVOICE_NOT_FOUND"));
+        if (visit.IsSuccess) return await RequireDetailAsync(visit.Value!);
+        if (visit.Error != ErrorCodes.InvoiceNotFound) throw new ServiceException(visit.Error);
+
+        var stay = await SendAsync(new CreateInvoiceFromStayCommand(encounterId));
+        if (stay.IsSuccess) return await RequireDetailAsync(stay.Value!);
+        throw new ServiceException(stay.Error);
     }
 
     private const string GuestSaleName = "مشتری مهمان";
@@ -194,15 +206,17 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<InvoiceDetail> AddLineAsync(string invoiceId, CatalogItem item, int quantity)
     {
         ArgumentNullException.ThrowIfNull(item);
-        _ = await SendAsync(new AddInvoiceLineCommand(invoiceId, item.Id, Math.Max(1, quantity)));
+        var sent = await SendAsync(new AddInvoiceLineCommand(invoiceId, item.Id, Math.Max(1, quantity)));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await RequireDetailAsync(invoiceId);
     }
 
     public async Task<InvoiceDetail> AddCustomLineAsync(string invoiceId, CustomLineRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
-        _ = await SendAsync(new AddCustomInvoiceLineCommand(invoiceId, request.Title,
+        var sent = await SendAsync(new AddCustomInvoiceLineCommand(invoiceId, request.Title,
             Math.Max(0, request.UnitPrice), Math.Max(1, request.Quantity)));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await RequireDetailAsync(invoiceId);
     }
 
@@ -228,14 +242,16 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     {
         ArgumentNullException.ThrowIfNull(request);
         var kind = request.Kind == DiscountKind.Amount ? DomainDiscountKind.Amount : DomainDiscountKind.Percent;
-        _ = await SendAsync(new SetInvoiceDiscountCommand(invoiceId, kind, Math.Max(0, request.Value)));
+        var sent = await SendAsync(new SetInvoiceDiscountCommand(invoiceId, kind, Math.Max(0, request.Value)));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await ReadDetailAsync(invoiceId);
     }
 
     public async Task<InvoiceDetail?> SetInsuranceAsync(string invoiceId, string? insurerId)
     {
-        _ = await SendAsync(new SetInvoiceInsuranceCommand(invoiceId,
+        var sent = await SendAsync(new SetInvoiceInsuranceCommand(invoiceId,
             string.IsNullOrWhiteSpace(insurerId) ? null : insurerId));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await ReadDetailAsync(invoiceId);
     }
 
@@ -245,11 +261,13 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         if (pick.IsGuest)
         {
             // Switching back to a walk-in (a wrong owner was picked) detaches the owner record.
-            _ = await SendAsync(new AssignInvoiceOwnerCommand(invoiceId, null, null, GuestSaleName));
+            var sent = await SendAsync(new AssignInvoiceOwnerCommand(invoiceId, null, null, GuestSaleName));
+            if (sent.IsFailure) throw new ServiceException(sent.Error);
         }
         else if (!string.IsNullOrWhiteSpace(pick.OwnerId))
         {
-            _ = await SendAsync(new AssignInvoiceOwnerCommand(invoiceId, pick.OwnerId, null));
+            var sent = await SendAsync(new AssignInvoiceOwnerCommand(invoiceId, pick.OwnerId, null));
+            if (sent.IsFailure) throw new ServiceException(sent.Error);
         }
         return await RequireDetailAsync(invoiceId);
     }
@@ -260,7 +278,8 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         if (current is null) return null;
         // Only a draft may be deleted; a posted invoice is immutable → null per the seam contract.
         if (current.Summary.State != DomainInvoiceState.Draft) return null;
-        _ = await SendAsync(new DeleteDraftInvoiceCommand(invoiceId));
+        var sent = await SendAsync(new DeleteDraftInvoiceCommand(invoiceId));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return null; // The row is tombstoned; the viewer refreshes the sidebar list.
     }
 
@@ -287,7 +306,8 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         if (current is null) return null;
         if (current.Summary.State is DomainInvoiceState.Void or DomainInvoiceState.Refunded) return null;
 
-        _ = await SendAsync(new VoidInvoiceCommand(invoiceId, DefaultReason));
+        var sent = await SendAsync(new VoidInvoiceCommand(invoiceId, DefaultReason));
+        if (sent.IsFailure) throw new ServiceException(sent.Error);
         return await ReadDetailAsync(invoiceId);
     }
 
@@ -327,6 +347,19 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     }
 
     // ── Dispatch helpers ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// D16: a failed READ is not an empty result. Swallowing the failure and returning an empty list (or
+    /// <see langword="null"/>) made a broken store or an expired session look exactly like "no invoices" / "no
+    /// insurers", and no caller could tell the two apart. The seam throws the typed <see cref="ServiceException"/>
+    /// instead — the contract the sibling <c>PatientsService</c> (C01) already keeps, and the one the X40 callers
+    /// already assume: they catch it, keep their last known state and say why (e.g. the cashier's ready-count, the
+    /// sale-history grid). A successful query with no rows is still an ordinary empty result.
+    /// </summary>
+    private static void ThrowOnFailedRead<T>(Result<T> result)
+    {
+        if (result.IsFailure) throw new ServiceException(result.Error);
+    }
 
     private async Task<Result<T>> QueryAsync<T>(IQuery<T> query)
     {
