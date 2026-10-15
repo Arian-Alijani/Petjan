@@ -18,6 +18,7 @@ public static class SalesCashierPersistenceServiceCollectionExtensions
         services.TryAddScoped<ISalesDraftData, SalesDraftData>();
         services.TryAddScoped<ISalesPostingData, SalesPostingData>();
         services.TryAddScoped<ISalesQueries, SalesQueries>();
+        services.TryAddScoped<IFinanceLedgerReader, FinanceLedgerReader>();
         services.TryAddScoped<IServiceRateQueries, ServiceRateQueries>();
         services.TryAddScoped<IInvoiceNumberAllocator, InvoiceNumberAllocator>();
         services.TryAddScoped<ILocalSequenceAllocator, LocalSequenceAllocator>();

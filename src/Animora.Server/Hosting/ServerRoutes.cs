@@ -10,6 +10,9 @@ internal static class ServerRoutes
 {
     public const string Commands = "/api/commands";
     public const string Sync = "/sync";
+
+    /// <summary>D04 authoritative financial read path (invoices/payments since a cursor); separate from command intake and the state feed.</summary>
+    public const string Finance = "/finance";
     public const string Auth = "/auth";
     public const string Operator = "/operator";
     public const string Provisioning = "/provisioning";

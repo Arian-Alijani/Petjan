@@ -247,6 +247,8 @@ app.MapStaffEndpoints();
 // S06 command conversation: independent settlements and server-allocated id maps.
 app.MapCommandEndpoints();
 app.MapSyncEndpoints();
+// D04 authoritative financial read path (invoices/payments since a cursor); separate from command intake + state feed.
+app.MapFinanceEndpoints();
 app.MapHub<SyncHintHub>(ServerRoutes.Sync + "/hub").RequireAuthorization(CoarsePolicies.TenantMember, CoarsePolicies.DeviceActive)
     .RequireRateLimiting(RateLimitPolicies.Sync);
 

@@ -181,7 +181,7 @@ Do NOT un-exclude the aggregates from the generic feed (they are intentionally c
 
 **Build:** `Animora.Server`, `Animora.Persistence.PostgreSql`, `Animora.Client.Services`, `Animora.Persistence.Sqlite`, `Animora.Contracts`/`Contracts.Wire` if a DTO is added, touched tests.
 
-**Status:** ☐ not started
+**Status:** ☑ **D04a done** (server read endpoint). New wire DTO `FinanceReadPage`/`FinanceInvoiceRow`/`FinancePaymentRow` (`Contracts.Wire/Sync/FinanceReadPage.cs`); server-only port `IFinanceLedgerReader` (`Application/Ports`) implemented by `FinanceLedgerReader` (`Persistence.PostgreSql/Repositories`), returning a tenant's non-Draft invoices (by GREATEST(Issued,Posted,Settled)) + payments ≥ a UTC-tick cursor, bounded (≤500), with `NextCursorTicks`/`HasMore`. `GET /finance/ledger?since=&take=` (`FinanceEndpoints`, route `ServerRoutes.Finance`) gated by `TenantMember`+`DeviceActive`+`sales.read`, tenant-bound filter + correlation-logged 500 (never a silent empty page). Separate from command intake and the feed; nothing crosses back into the command pipeline. ☐ D04b/D04c/D12 pending.
 
 ---
 
