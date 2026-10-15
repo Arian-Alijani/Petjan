@@ -1,4 +1,5 @@
 using Animora.Application.Abstractions;
+using Animora.Application.Activity;
 using Animora.Application.Ports;
 using Animora.Application.Text;
 using Animora.Application.UseCases.Sales.ReadModels;
@@ -323,15 +324,22 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
                            OwnerName = i.OwnerName, State = i.State,
                        };
         var invoices = from i in displayInvoices
-                       where i.State != InvoiceState.Draft
+                       where i.PostedUtc != null
                        select new
                        {
                            Id = i.Id, InvoiceId = i.Id, Number = i.Number,
                            OccurredUtc = i.PostedUtc ?? i.IssuedUtc,
-                           Kind = i.State == InvoiceState.Void ? "Void" : "Accepted",
-                           AmountMinor = 0L, OwnerName = i.OwnerName, State = i.State,
+                           Kind = "Accepted",
+                           AmountMinor = 0L, OwnerName = i.OwnerName, State = InvoiceState.Posted,
                        };
-        var rows = payments.Concat(invoices);
+        // An acceptance never changes kind/time when the invoice is later voided. The cancellation is a separate
+        // persisted event, emitted from local InvoiceVoidedEvent or the server's recorded credit-note time.
+        var voids = from e in db.Set<ActivityEvent>().AsNoTracking()
+                    where e.TenantId == db.CurrentTenantId && e.EntityType == "Invoice" && e.Title == ActivityEventKeys.InvoiceVoided
+                    join i in displayInvoices on e.EntityId equals i.Id
+                    select new { Id = e.Id, InvoiceId = i.Id, Number = i.Number, OccurredUtc = e.OccurredUtc,
+                        Kind = "Void", AmountMinor = 0L, OwnerName = i.OwnerName, State = InvoiceState.Void };
+        var rows = payments.Concat(invoices).Concat(voids);
         if (fromUtc is { } from) rows = rows.Where(r => r.OccurredUtc >= from);
         if (toUtc is { } to) rows = rows.Where(r => r.OccurredUtc < to);
         if (!string.IsNullOrWhiteSpace(search))

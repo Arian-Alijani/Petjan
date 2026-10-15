@@ -29,6 +29,10 @@ public static class SyncedActivityFeed
         var tenant = db.CurrentTenantId;
         if (draft.TenantId != tenant) return false;
 
+        // A page can repeat a stable id before SaveChanges; persisted-only checks miss that duplicate.
+        if (db.ChangeTracker.Entries<ActivityEvent>().Any(e => e.State == EntityState.Added
+            && e.Entity.TenantId == tenant && e.Entity.EntityType == draft.EntityType
+            && e.Entity.EntityId == draft.EntityId && e.Entity.Title == draft.TitleKey)) return false;
         var exists = await db.Set<ActivityEvent>().AsNoTracking().AnyAsync(x =>
             x.TenantId == tenant && x.EntityType == draft.EntityType && x.EntityId == draft.EntityId && x.Title == draft.TitleKey, ct)
             .ConfigureAwait(false);

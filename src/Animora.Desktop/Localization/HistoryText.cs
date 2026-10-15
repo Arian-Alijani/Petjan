@@ -17,6 +17,7 @@ public static class HistoryText
         ["history.stay.checkedout"] = "ترخیص از پانسیون انجام شد",
         ["history.goods.received"] = "کالا دریافت شد",
         ["history.stock.adjusted"] = "موجودی انبار تغییر کرد",
+        ["history.invoice.voided"] = "فاکتور باطل شد",
         ["history.invoice.posted"] = "فاکتور ثبت شد",
         ["history.payment.registered"] = "پرداخت ثبت شد",
         ["history.invoice.refunded"] = "برگشت فاکتور ثبت شد",

@@ -355,6 +355,15 @@ internal static class ReplicaMaterializer
             TraceLog.Info($"ReplicaMaterializer.Apply — UPSERT {row.Entity}/{row.EntityId} → {affected} row(s) written to '{map.Table}' (deleted={row.Deleted}).", "sync.apply");
             if (affected > 0 && !row.Deleted && row.Entity == "Appointment" && TryBuildBookedDraft(tenant, row, values) is { } draft)
                 booked.Add(draft);
+            if (affected > 0 && !row.Deleted && row.Entity == "Visit"
+                && values["CompletedUtc"] is long completed && values["State"] is long state
+                && state == (long)Animora.Domain.Clinical.VisitState.Completed)
+            {
+                var at = new DateTimeOffset(completed, TimeSpan.Zero);
+                var evt = new VisitCompletedEvent(IdGenerator.NewId(at), tenant, at, row.EntityId,
+                    Str(values, "PetId")!, Str(values, "OwnerId")!, Str(values, "DoctorUserId")!);
+                if (ActivityFeedMapper.Map(evt) is { } completedDraft) booked.Add(completedDraft);
+            }
         }
 
         if (booked.Count > 0)

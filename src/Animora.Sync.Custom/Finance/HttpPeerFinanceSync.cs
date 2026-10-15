@@ -1,4 +1,9 @@
+using System.Text.Json;
 using Animora.Application.Ports;
+using Animora.Application.Activity;
+using Animora.Contracts.History;
+using Animora.Domain.Primitives;
+using Animora.Persistence.Sqlite.Activity;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Results;
@@ -68,6 +73,9 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
         var db = di.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
         var tenant = di.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
         var written = 0;
+        var zone = di.ServiceProvider.GetService<IClinicTimeZoneProvider>() is { } zones
+            ? await zones.GetClinicTimeZoneAsync(ct).ConfigureAwait(false) : TimeZoneInfo.Utc;
+        await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
 
         var invoiceIds = page.Invoices.Select(i => i.Id).Distinct(StringComparer.Ordinal).ToList();
         var existingInvoices = await db.Set<PeerInvoice>().AsTracking()
@@ -89,6 +97,12 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
                 existingInvoices[row.Id] = created;
             }
 
+            if (row.PostedUtc is { } posted)
+                await AppendAsync(ActivityEventKeys.InvoicePosted, "Invoice", row.Id, posted,
+                    row.GrandTotalMinor, 1, HistoryEventStatus.Unpaid, new { row.OwnerId, Number = row.Number });
+            if (row.VoidedUtc is { } voided)
+                await AppendAsync(ActivityEventKeys.InvoiceVoided, "Invoice", row.Id, voided,
+                    0, 0, HistoryEventStatus.Cancelled, new { Number = row.Number });
             written++;
         }
 
@@ -107,6 +121,10 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
                 existingPayments[row.Id] = created;
             }
 
+            await AppendAsync(ActivityEventKeys.PaymentRegistered, "Payment", row.Id, row.ReceivedUtc,
+                Math.Abs(row.AmountMinor), Math.Sign(row.AmountMinor),
+                row.AmountMinor < 0 ? HistoryEventStatus.Done : HistoryEventStatus.Paid,
+                new { row.InvoiceId, row.Method });
             written++;
         }
 
@@ -115,6 +133,14 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
         else cursor.Advance(page.NextCursorTicks);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
         return written;
+
+        Task<bool> AppendAsync(string title, string entity, string id, DateTimeOffset at,
+            long amount, int sign, HistoryEventStatus status, object args) =>
+            // This wire endpoint has no actor field. Unknown is honest; never stamp the fetching user.
+            SyncedActivityFeed.AppendAsync(db, new ActivityEventDraft(IdGenerator.NewId(at), tenant, at,
+                HistoryEventKind.Sale, title, JsonSerializer.Serialize(args), entity, id, amount, sign, status),
+                zone, "finance", ct);
     }
 }

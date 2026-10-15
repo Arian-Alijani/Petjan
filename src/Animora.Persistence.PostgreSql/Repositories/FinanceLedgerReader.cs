@@ -32,9 +32,9 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
             where i.State != InvoiceState.Draft
             let posted = i.PostedUtc ?? i.IssuedUtc
             let settled = i.SettledUtc ?? i.IssuedUtc
-            let effective = posted > settled
-                ? (posted > i.IssuedUtc ? posted : i.IssuedUtc)
-                : (settled > i.IssuedUtc ? settled : i.IssuedUtc)
+            let lifecycle = posted > settled ? posted : settled
+            // UpdatedAt is transport bookkeeping, used only for delivery, never as a business event timestamp.
+            let effective = i.UpdatedAt > lifecycle ? i.UpdatedAt : lifecycle
             where effective >= since
             orderby effective, i.Id
             select new { i.Id, Effective = effective })
@@ -119,6 +119,9 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
                 i.IssuedUtc,
                 i.PostedUtc,
                 i.SettledUtc,
+                i.UpdatedAt,
+                VoidedUtc = i.State == InvoiceState.Void ? i.Adjustments.Where(a => a.Kind == AdjustmentKind.CreditNote)
+                    .Select(a => (DateTimeOffset?)a.CreatedUtc).Max() : null,
                 GrandTotalMinor = i.GrandTotal.Minor,
                 PaidTotalMinor = i.PaidTotal.Minor,
                 DueTotalMinor = i.DueTotal.Minor,
@@ -127,7 +130,7 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
         return rows.Select(r => new FinanceInvoiceRow(
             r.Id, r.InvoiceNumber, r.Kind, r.State, r.OwnerId, r.PartyName, r.PetName,
             r.IssuedUtc, r.PostedUtc, r.GrandTotalMinor, r.PaidTotalMinor, r.DueTotalMinor,
-            EffectiveTicks(r.IssuedUtc, r.PostedUtc, r.SettledUtc))).ToList();
+            EffectiveTicks(r.UpdatedAt > r.IssuedUtc ? r.UpdatedAt : r.IssuedUtc, r.PostedUtc, r.SettledUtc), r.VoidedUtc)).ToList();
     }
 
     /// <summary>Newest of the lifecycle timestamps — the in-memory twin of the phase-1 SQL <c>effective</c> expression.</summary>
