@@ -141,6 +141,27 @@ public sealed class SyncFeedClient
         return Result<SyncPage?>.Ok(page with { PageHash = hash });
     }
 
+    /// <summary>
+    /// D04 — GET /finance/ledger?since={ticks}&amp;take={n}: the server-authoritative financial read state (invoices/payments) that
+    /// changed at or after a UTC-tick cursor. A separate read-only channel from the state feed and the command intake.
+    /// </summary>
+    public async Task<Result<FinanceReadPage>> GetFinanceLedgerAsync(long sinceTicks, int take, CancellationToken ct = default)
+    {
+        var path = $"finance/ledger?since={Math.Max(0, sinceTicks).ToString(CultureInfo.InvariantCulture)}&take={Math.Max(1, take).ToString(CultureInfo.InvariantCulture)}";
+        using var request = NewRequest(HttpMethod.Get, path);
+        var exchange = await SendAsync(request, ct).ConfigureAwait(false);
+        if (exchange.Failure is { } fail) return Result<FinanceReadPage>.Fail(fail.Error, fail.Detail);
+        using var response = exchange.Response!;
+        var mapped = MapStatus(response);
+        if (mapped is { } err) return Result<FinanceReadPage>.Fail(err.Error, err.Detail);
+        var body = await ReadJsonAsync<FinanceReadPage>(response, ct).ConfigureAwait(false);
+        if (body.IsFailure) return Result<FinanceReadPage>.Fail(body.Error, body.Detail);
+        var page = body.Value!;
+        return page.Invoices is null || page.Payments is null
+            ? Result<FinanceReadPage>.Fail(ErrorCodes.SyncProtocolViolation, "Finance ledger page is missing its collections.")
+            : Result<FinanceReadPage>.Ok(page);
+    }
+
     private HttpRequestMessage NewRequest(HttpMethod method, string relativePath)
     {
         var request = new HttpRequestMessage(method, relativePath);

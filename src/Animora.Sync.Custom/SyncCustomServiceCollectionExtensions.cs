@@ -1,6 +1,8 @@
 using Animora.Application.Commands;
+using Animora.Application.Ports;
 using Animora.Application.Sync;
 using Animora.Sync.Abstractions;
+using Animora.Sync.Custom.Finance;
 using Animora.Sync.Custom.Replica;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -58,6 +60,10 @@ public static class SyncCustomServiceCollectionExtensions
             services.Replace(ServiceDescriptor.Singleton<ISyncResyncHandler, ShadowResyncHandler>());
             services.TryAddSingleton<ConflictResolver>();
             services.AddSingleton<IStateSyncEngine, HttpStateSyncEngine>();
+
+            // D04b: the authoritative financial read path (peer invoices/payments). Only exists when a server is configured, so the
+            // offline/unconfigured composition has no consumer and the orchestrator skips the step entirely.
+            services.TryAddSingleton<IPeerFinanceSync, HttpPeerFinanceSync>();
 
             // G06: the ONE named HttpClient carries the bearer + single-flight refresh handler. Offline default session store (no session)
             // keeps the handler resolvable before AddAnimoraOnlineIdentity (Client.Services) replaces it with the OS-protected store.

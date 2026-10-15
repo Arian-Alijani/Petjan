@@ -26,9 +26,8 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
         // when it is posted or settled/voided later, not only when it is first issued. The client upserts by
         // id, so re-delivery is idempotent. Draft invoices (never posted, no money) are excluded — they are
         // the owning device's private work until posted; a peer only needs posted/void financial state.
-        // `effective` is built with COALESCE-friendly null-coalescing so EF Core emits a single translatable
-        // scalar (GREATEST over IssuedUtc, PostedUtc, SettledUtc) rather than a client-evaluated expression.
-        var invoiceRows = await (
+        // Phase 1 selects ONLY (id, effective tick) so the window filter/order is one simple translatable query.
+        var window = await (
             from i in db.Set<Invoice>().AsNoTracking()
             where i.State != InvoiceState.Draft
             let posted = i.PostedUtc ?? i.IssuedUtc
@@ -37,34 +36,9 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
                 ? (posted > i.IssuedUtc ? posted : i.IssuedUtc)
                 : (settled > i.IssuedUtc ? settled : i.IssuedUtc)
             where effective >= since
-            join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
-            from owner in owners.DefaultIfEmpty()
-            join pet in db.Set<Pet>().AsNoTracking() on i.PetId equals pet.Id into pets
-            from pet in pets.DefaultIfEmpty()
             orderby effective, i.Id
-            // `.UtcTicks` is not DB-translatable, so `effective` is selected as a DateTimeOffset here and the tick
-            // is computed in memory (below). Everything else is a plain translatable column/scalar.
-            select new
-            {
-                i.Id,
-                i.InvoiceNumber,
-                Kind = (int)i.Kind,
-                State = (int)i.State,
-                i.OwnerId,
-                PartyName = owner == null ? (i.GuestName ?? "") : owner.FullName,
-                PetName = pet == null ? "" : pet.Name,
-                i.IssuedUtc,
-                i.PostedUtc,
-                GrandTotalMinor = i.GrandTotal.Minor,
-                PaidTotalMinor = i.PaidTotal.Minor,
-                DueTotalMinor = i.DueTotal.Minor,
-                Effective = effective,
-            })
+            select new { i.Id, Effective = effective })
             .Take(take + 1).ToListAsync(ct).ConfigureAwait(false);
-        var invoices = invoiceRows.Select(r => new FinanceInvoiceRow(
-            r.Id, r.InvoiceNumber, r.Kind, r.State, r.OwnerId, r.PartyName, r.PetName,
-            r.IssuedUtc, r.PostedUtc, r.GrandTotalMinor, r.PaidTotalMinor, r.DueTotalMinor,
-            r.Effective.UtcTicks)).ToList();
 
         var paymentRows = await (
             from p in db.Set<Payment>().AsNoTracking()
@@ -79,18 +53,89 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
             .Take(take + 1).ToListAsync(ct).ConfigureAwait(false);
 
         // One extra row per collection signals "there is more past this window"; trim it back off before returning.
-        var invoicesMore = invoices.Count > take;
+        var invoicesMore = window.Count > take;
         var paymentsMore = paymentRows.Count > take;
-        if (invoicesMore) invoices.RemoveAt(invoices.Count - 1);
+        if (invoicesMore) window.RemoveAt(window.Count - 1);
         if (paymentsMore) paymentRows.RemoveAt(paymentRows.Count - 1);
 
-        // The next cursor is the max effective tick we actually returned (ascending order ⇒ the last row), so a
-        // follow-up poll resumes exactly after it (advance to the newest tick seen, or keep the request cursor
-        // when nothing changed so an idle peer never rewinds).
+        // A payment changes its invoice's paid/due totals but not necessarily any lifecycle timestamp (a partial
+        // payment leaves Posted/Settled untouched), so every invoice that received a payment in this window is
+        // shipped alongside it — otherwise a peer would show the receipt against a stale balance.
+        var inWindow = window.Select(w => w.Id).ToHashSet(StringComparer.Ordinal);
+        var ids = window.Select(w => w.Id).ToList();
+        ids.AddRange(paymentRows.Select(p => p.InvoiceId).Distinct(StringComparer.Ordinal).Where(id => !inWindow.Contains(id)));
+        var invoices = await LoadInvoiceRowsAsync(ids, ct).ConfigureAwait(false);
+
+        // Window rows keep their DB order (effective, id); the payment-driven extras follow, ordered by tick.
+        var order = window.Select((w, index) => (w.Id, index)).ToDictionary(x => x.Id, x => x.index, StringComparer.Ordinal);
+        invoices = invoices
+            .OrderBy(r => order.TryGetValue(r.Id, out var index) ? index : int.MaxValue)
+            .ThenBy(r => r.EffectiveTicks).ThenBy(r => r.Id, StringComparer.Ordinal)
+            .ToList();
+
+        // The next cursor must never jump past an unreturned row. When a collection was truncated, the cursor is
+        // capped at the LAST row actually returned from the truncated collection(s) (the other collection simply
+        // re-delivers rows above the cap on the next poll — upserts are idempotent). Only when nothing was
+        // truncated is it safe to advance to the newest tick seen. An idle poll never rewinds the cursor.
         long next = sinceTicks;
-        if (invoices.Count > 0) next = Math.Max(next, invoices[^1].EffectiveTicks);
-        if (paymentRows.Count > 0) next = Math.Max(next, paymentRows[^1].ReceivedUtc.UtcTicks);
+        long? ceiling = null;
+        if (invoicesMore && window.Count > 0) ceiling = window[^1].Effective.UtcTicks;
+        if (paymentsMore && paymentRows.Count > 0)
+        {
+            var paymentCap = paymentRows[^1].ReceivedUtc.UtcTicks;
+            ceiling = ceiling is { } c ? Math.Min(c, paymentCap) : paymentCap;
+        }
+
+        if (ceiling is { } cap) next = Math.Max(next, cap);
+        else
+        {
+            if (window.Count > 0) next = Math.Max(next, window[^1].Effective.UtcTicks);
+            if (paymentRows.Count > 0) next = Math.Max(next, paymentRows[^1].ReceivedUtc.UtcTicks);
+        }
 
         return new FinanceReadPage(invoices, paymentRows, next, invoicesMore || paymentsMore);
+    }
+
+    /// <summary>Phase 2: the display-shaped rows for a set of invoice ids (owner/pet names joined in).</summary>
+    private async Task<List<FinanceInvoiceRow>> LoadInvoiceRowsAsync(List<string> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0) return [];
+        var rows = await (
+            from i in db.Set<Invoice>().AsNoTracking()
+            where ids.Contains(i.Id) && i.State != InvoiceState.Draft
+            join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
+            from owner in owners.DefaultIfEmpty()
+            join pet in db.Set<Pet>().AsNoTracking() on i.PetId equals pet.Id into pets
+            from pet in pets.DefaultIfEmpty()
+            select new
+            {
+                i.Id,
+                i.InvoiceNumber,
+                Kind = (int)i.Kind,
+                State = (int)i.State,
+                i.OwnerId,
+                PartyName = owner == null ? (i.GuestName ?? "") : owner.FullName,
+                PetName = pet == null ? "" : pet.Name,
+                i.IssuedUtc,
+                i.PostedUtc,
+                i.SettledUtc,
+                GrandTotalMinor = i.GrandTotal.Minor,
+                PaidTotalMinor = i.PaidTotal.Minor,
+                DueTotalMinor = i.DueTotal.Minor,
+            }).ToListAsync(ct).ConfigureAwait(false);
+
+        return rows.Select(r => new FinanceInvoiceRow(
+            r.Id, r.InvoiceNumber, r.Kind, r.State, r.OwnerId, r.PartyName, r.PetName,
+            r.IssuedUtc, r.PostedUtc, r.GrandTotalMinor, r.PaidTotalMinor, r.DueTotalMinor,
+            EffectiveTicks(r.IssuedUtc, r.PostedUtc, r.SettledUtc))).ToList();
+    }
+
+    /// <summary>Newest of the lifecycle timestamps — the in-memory twin of the phase-1 SQL <c>effective</c> expression.</summary>
+    private static long EffectiveTicks(DateTimeOffset issued, DateTimeOffset? posted, DateTimeOffset? settled)
+    {
+        var latest = issued;
+        if (posted is { } p && p > latest) latest = p;
+        if (settled is { } s && s > latest) latest = s;
+        return latest.UtcTicks;
     }
 }

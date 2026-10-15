@@ -4315,6 +4315,115 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("OwnerFinancialSnapshots", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.PeerFinanceCursor", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CursorTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("PeerFinanceCursors", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.PeerInvoice", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("DueTotalMinor")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("EffectiveTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("GrandTotalMinor")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("IssuedUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("PaidTotalMinor")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PartyName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PetName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("PostedUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "IssuedUtc")
+                        .HasDatabaseName("IX_PeerInvoices_TenantId_IssuedUtc");
+
+                    b.ToTable("PeerInvoices", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.PeerPayment", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("AmountMinor")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("InvoiceId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ReceivedUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId")
+                        .HasDatabaseName("IX_PeerPayments_InvoiceId");
+
+                    b.ToTable("PeerPayments", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.PendingCommand", b =>
                 {
                     b.Property<string>("Id")

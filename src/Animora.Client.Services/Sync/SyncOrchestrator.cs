@@ -95,7 +95,37 @@ public sealed class SyncOrchestrator(
         }
 
         if (fault is { } failed) return failed;
+
+        // D04b: after a healthy state pull, refresh the read-only peer finance cache. Only when a consumer is registered (a configured
+        // server) — otherwise this is a no-op and offline behaviour is untouched. It is a display feed, so its failure never turns a
+        // healthy state pull into a failed pass; it is logged and simply retried from the same cursor on the next pass.
+        if (worst is SyncOutcome.Applied or SyncOutcome.UpToDate)
+            await PullPeerFinanceAsync(ct).ConfigureAwait(false);
         return Result<SyncOutcome>.Ok(worst);
+    }
+
+    private async Task PullPeerFinanceAsync(CancellationToken ct)
+    {
+        try
+        {
+            if (!await HasSessionAsync(ct).ConfigureAwait(false)) return;
+            using var di = scopes.CreateScope();
+            if (di.ServiceProvider.GetService<IPeerFinanceSync>() is not { } finance) return;
+            var state = di.ServiceProvider.GetService<LocalInstallationState>();
+            if (state is not null) await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var pulled = await finance.PullAsync(ct).ConfigureAwait(false);
+                if (pulled.IsFailure)
+                    TraceLog.Warn($"SyncOrchestrator.PullPeerFinance → {pulled.Error} ('{pulled.Detail}'); the cache keeps its last cursor.", "sync");
+            }
+            finally { state?.TransitionGate.Release(); }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            TraceLog.Error("SyncOrchestrator.PullPeerFinance faulted; the state pull result is unaffected.", ex, "sync");
+        }
     }
 
     private async Task<bool> HasSessionAsync(CancellationToken ct)
