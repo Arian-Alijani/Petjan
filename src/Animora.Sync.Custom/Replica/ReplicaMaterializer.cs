@@ -367,13 +367,19 @@ internal static class ReplicaMaterializer
                     await UpsertHandoffsAsync(db, handoffs, tenant, row.EntityId, row.Payload, ct).ConfigureAwait(false);
                 await tx.ReleaseSavepointAsync("typed_projection", ct).ConfigureAwait(false);
             }
-            catch (SqliteException ex) when (ex.SqliteErrorCode == SqliteConstraintErrorCode)
+            catch (Exception ex) when (ex is SqliteException { SqliteErrorCode: SqliteConstraintErrorCode }
+                or InvalidDataException or JsonException or FormatException or OverflowException)
             {
                 // A business-key clash (e.g. the same SKU / room code already exists locally under a different Id) or a NOT NULL violation.
                 // SQLite rolls back only the failing statement, so the batch transaction stays valid: skip the row instead of stalling sync.
                 await tx.RollbackToSavepointAsync("typed_projection", ct).ConfigureAwait(false);
                 await tx.ReleaseSavepointAsync("typed_projection", ct).ConfigureAwait(false);
                 TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: local constraint violation; durable projection retry retained.", "sync.apply");
+                await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
+                continue;
+            }
+            if (affected == 0)
+            {
                 await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
             }
@@ -416,7 +422,7 @@ internal static class ReplicaMaterializer
         db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO repl_staging (TenantId, BatchId, Entity, EntityId, PageOrdinal, Version, Payload, Deleted, UpdatedAtUtc)
             VALUES ({tenant}, {PendingProjectionBatch}, {row.Entity}, {row.EntityId}, 1, {row.Version}, {row.Payload},
-                {(row.Deleted ? 1 : 0)}, {row.UpdatedAtUtc == null ? (long?)null : row.UpdatedAtUtc.Value.UtcTicks})
+                {(row.Deleted ? 1 : 0)}, {(row.UpdatedAtUtc == null ? (long?)null : row.UpdatedAtUtc.Value.UtcTicks)})
             ON CONFLICT (TenantId, BatchId, Entity, EntityId) DO UPDATE SET
                 PageOrdinal = min(repl_staging.PageOrdinal + 1, 2147483647), Version = excluded.Version,
                 Payload = excluded.Payload, Deleted = excluded.Deleted, UpdatedAtUtc = excluded.UpdatedAtUtc
@@ -459,16 +465,16 @@ internal static class ReplicaMaterializer
         values = new Dictionary<string, object?>(StringComparer.Ordinal);
         try
         {
-        using var doc = JsonDocument.Parse(payload);
-        if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
-        foreach (var col in map.Columns)
-        {
-            var value = ReadColumn(col, doc.RootElement, values);
-            if (col.Required && (value is null || value is string { Length: 0 })) return false;
-            values[col.Name] = value;
-        }
+            using var doc = JsonDocument.Parse(payload);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return false;
+            foreach (var col in map.Columns)
+            {
+                var value = ReadColumn(col, doc.RootElement, values);
+                if (col.Required && (value is null || value is string { Length: 0 })) return false;
+                values[col.Name] = value;
+            }
 
-        return true;
+            return true;
         }
         catch (JsonException) { return false; }
         catch (FormatException) { return false; }
@@ -622,7 +628,8 @@ internal static class ReplicaMaterializer
                     args.Add(Nullable(value));
                 }
 
-                if (valid) await db.Database.ExecuteSqlRawAsync(child.InsertSql, args, ct).ConfigureAwait(false);
+                if (!valid) throw new InvalidDataException("Required typed child field is missing.");
+                await db.Database.ExecuteSqlRawAsync(child.InsertSql, args, ct).ConfigureAwait(false);
             }
         }
     }
@@ -642,7 +649,8 @@ internal static class ReplicaMaterializer
             var id = Text(Lookup(h, "id"));
             var ownerId = Text(Lookup(h, "ownerId"));
             var petId = Text(Lookup(h, "petId"));
-            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(ownerId) || string.IsNullOrEmpty(petId)) continue;
+            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(ownerId) || string.IsNullOrEmpty(petId))
+                throw new InvalidDataException("Required billing handoff field is missing.");
             var completed = ReadTicks(Lookup(h, "completedUtc")) ?? 0L;
             // The server column is jsonb, so the image carries the document itself (camelCased by the projector); re-key it to the
             // PascalCase shape the local snapshot is serialized with. A string form (legacy text column) is stored verbatim.
