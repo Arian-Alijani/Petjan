@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Navigation;
+using Animora.Desktop.Controls;
 using Animora.Desktop.Services;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -25,6 +26,14 @@ public sealed partial class SidebarViewModel : ObservableObject
 {
     private readonly INavigationService _navigation;
     private readonly ICapabilityGate _gate;
+    private readonly IToastService _toast;
+
+    /// <summary>
+    /// The nav keys that were visible after the previous rebuild. Diffing against it lets a live grant surface a
+    /// toast for a section the manager just opened — the mirror image of the revocation warning the navigation
+    /// service already shows. Seeded from the first build so the initial post-login layout is never announced.
+    /// </summary>
+    private HashSet<string> _permittedKeys;
 
     [ObservableProperty]
     private NavEntryViewModel? _activeEntry;
@@ -38,13 +47,17 @@ public sealed partial class SidebarViewModel : ObservableObject
     public SidebarViewModel(
         INavigationService navigation,
         ICurrentUserContext currentUser,
-        ICapabilityGate gate)
+        ICapabilityGate gate,
+        IToastService toast)
     {
         _navigation = navigation;
         CurrentUser = currentUser;
         _gate = gate;
+        _toast = toast;
 
         _groups = BuildGroups();
+        // The first layout is the baseline, not an "opened" event — record it without announcing anything.
+        _permittedKeys = CurrentPermittedKeys();
 
         _gate.CapabilitiesChanged += OnCapabilitiesChanged;
         // The highlight is derived from the navigation state - the one place every entry point passes through.
@@ -108,10 +121,11 @@ public sealed partial class SidebarViewModel : ObservableObject
         }
     }
 
-    /// <summary>Rebuilds the visible groups and drops an active entry that lost permission.</summary>
+    /// <summary>Rebuilds the visible groups, announces newly-opened sections, and drops an active entry that lost permission.</summary>
     private void ApplyCapabilitiesChanged()
     {
         Groups = BuildGroups();
+        AnnounceNewlyOpened();
         if (ActiveEntry is not { } active || IsPermitted(active.Item))
         {
             return;
@@ -135,6 +149,30 @@ public sealed partial class SidebarViewModel : ObservableObject
                 group.Key,
                 group.Select(item => new NavEntryViewModel(item)).ToArray()))
             .ToArray();
+
+    /// <summary>The keys of every nav item currently permitted, in sidebar order.</summary>
+    private HashSet<string> CurrentPermittedKeys() =>
+        NavigationMenu.Items.Where(IsPermitted).Select(item => item.Key).ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// After a rebuild, toasts the sections that just became visible (a manager opened access the client did not
+    /// have a moment ago), then updates the baseline. Only additions are announced; a removal that affects the
+    /// open page is already reported by the navigation service.
+    /// </summary>
+    private void AnnounceNewlyOpened()
+    {
+        var current = CurrentPermittedKeys();
+        var opened = NavigationMenu.Items
+            .Where(item => current.Contains(item.Key) && !_permittedKeys.Contains(item.Key))
+            .Select(item => item.Label)
+            .ToArray();
+        _permittedKeys = current;
+        if (opened.Length == 0) return;
+        var sections = string.Join("، ", opened);
+        _toast.Show(opened.Length == 1
+            ? $"دسترسی بخش «{sections}» برای شما باز شد."
+            : $"دسترسی بخش‌های جدید باز شد: {sections}", Tone.Ok);
+    }
 
     private bool IsPermitted(NavItem item) => IsPermitted(item.Key);
 
