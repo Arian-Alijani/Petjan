@@ -214,4 +214,23 @@ public sealed class ReplicaMaterializerTests
         Assert.Equal("INV-1", after.InvoiceId);
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task CompletedVisitHistory_UsesCompletionTimeAndDoctor_AndIsIdempotent(int state)
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        var visit = $$"""{"petId":"P1","ownerId":"O1","doctorUserId":"DOC-1","state":{{state}},"startedUtc":"2026-10-12T09:00:00+00:00","completedUtc":"2026-10-12T09:30:00+00:00"}""";
+        Assert.True((await ApplyAsync(store, Batch("v1", 1, 0, 10), Page("v1", 0, 1, Json("Visit", "V1", "v1", visit)))).IsSuccess);
+        Assert.True((await ApplyAsync(store, Batch("v2", 1, 10, 20), Page("v2", 0, 1, Json("Visit", "V1", "v2", visit)))).IsSuccess);
+        using var scope = fixture.CreateScope();
+        var row = Assert.Single(await scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>()
+            .Set<ActivityEvent>().Where(e => e.EntityId == "V1").ToListAsync());
+        Assert.Equal("history.visit.completed", row.Title);
+        Assert.Equal("DOC-1", row.ActorUserId);
+        Assert.Equal(new DateTimeOffset(2026, 10, 12, 9, 30, 0, TimeSpan.Zero), row.OccurredUtc);
+    }
+
 }

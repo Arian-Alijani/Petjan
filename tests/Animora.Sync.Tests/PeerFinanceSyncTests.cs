@@ -78,7 +78,7 @@ public sealed class PeerFinanceSyncTests
         using var fixture = await NewFixtureAsync();
         var pages = new Queue<FinanceReadPage>(
         [
-            new([Inv("I1", 200, due: 0, state: (int)InvoiceState.Settled)], [], 200, false),
+            new([Inv("I1", 200, due: 0, state: (int)InvoiceState.Paid)], [], 200, false),
             new([Inv("I1", 100, due: 900)], [], 200, false), // stale re-delivery
         ]);
         var sync = Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(pages.Dequeue())));
@@ -87,7 +87,7 @@ public sealed class PeerFinanceSyncTests
         await sync.PullAsync();
 
         var state = await ReadAsync(fixture);
-        Assert.Equal(InvoiceState.Settled, state.Invoices.Single().State);
+        Assert.Equal(InvoiceState.Paid, state.Invoices.Single().State);
         Assert.Equal(0, state.Invoices.Single().DueTotalMinor);
         Assert.Equal(200, state.Invoices.Single().EffectiveTicks);
     }
@@ -195,6 +195,34 @@ public sealed class PeerFinanceSyncTests
         Assert.Equal("INV-I1", rows.Single(i => i.Id == "I1").Number);
         Assert.Equal("LOCAL-I2", rows.Single(i => i.Id == "I2").Number);
         Assert.Equal(SettlementStatus.Rejected, rows.Single(i => i.Id == "I2").SettlementStatus);
+    }
+
+    [Fact]
+    public async Task PeerVoid_KeepsTheOriginalAcceptance_AndAppendsASeparateRecordedCancellation()
+    {
+        using var fixture = await NewFixtureAsync();
+        var voided = T0.AddHours(2);
+        var pages = new Queue<FinanceReadPage>([
+            new([Inv("I1", T0.UtcTicks, due: 1000)], [], T0.UtcTicks, false),
+            new([Inv("I1", voided.UtcTicks, state: (int)InvoiceState.Void) with { VoidedUtc = voided }], [], voided.UtcTicks, false),
+            new([Inv("I1", voided.UtcTicks, state: (int)InvoiceState.Void) with { VoidedUtc = voided }], [], voided.UtcTicks, false),
+        ]);
+        var sync = Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(pages.Dequeue())));
+        await sync.PullAsync();
+        await sync.PullAsync();
+        await sync.PullAsync();
+        using var scope = fixture.CreateScope();
+        var history = await scope.ServiceProvider.GetRequiredService<ISalesQueries>()
+            .GetHistoryAsync(null, null, null, null, "Oldest", 1, 10, default);
+        Assert.Equal(2, history.Page.Items.Count);
+        var accepted = Assert.Single(history.Page.Items, i => i.Kind == "Accepted");
+        Assert.Equal(T0, accepted.OccurredUtc);
+        Assert.Equal(InvoiceState.Posted, accepted.InvoiceState);
+        Assert.Equal(voided, Assert.Single(history.Page.Items, i => i.Kind == "Void").OccurredUtc);
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.Equal(2, await db.Set<ActivityEvent>().CountAsync(e => e.EntityId == "I1"));
+        Assert.All(await db.Set<ActivityEvent>().ToListAsync(), e => Assert.Equal("", e.ActorUserId));
+        Assert.Equal(0, history.InflowMinor);
     }
 
 }

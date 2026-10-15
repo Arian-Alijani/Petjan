@@ -357,7 +357,7 @@ internal static class ReplicaMaterializer
                 booked.Add(draft);
             if (affected > 0 && !row.Deleted && row.Entity == "Visit"
                 && values["CompletedUtc"] is long completed && values["State"] is long state
-                && state == (long)Animora.Domain.Clinical.VisitState.Completed)
+                && state is (long)Animora.Domain.Clinical.VisitState.Completed or (long)Animora.Domain.Clinical.VisitState.ReadyForInvoice or (long)Animora.Domain.Clinical.VisitState.Invoiced)
             {
                 var at = new DateTimeOffset(completed, TimeSpan.Zero);
                 var evt = new VisitCompletedEvent(IdGenerator.NewId(at), tenant, at, row.EntityId,
