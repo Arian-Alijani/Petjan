@@ -2,6 +2,7 @@ using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Text;
 using Animora.Application.UseCases.Sales.ReadModels;
+using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Boarding;
 using Animora.Domain.Inventory;
 using Animora.Domain.Patients;
@@ -11,6 +12,7 @@ using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using SettlementState = Animora.Domain.Primitives.SettlementState;
 
 namespace Animora.Persistence.Sqlite.Queries;
 
@@ -120,27 +122,51 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             .OrderBy(p => p.ReceivedUtc).ThenBy(p => p.Id)
             .Select(p => new InvoicePaymentReadModel(p.Id, p.Method, p.Amount.Minor,
                 p.ReceivedUtc, p.Note)).ToListAsync(ct);
-        // The post journal entry is the authoritative source for rejected/stuck settlement details.
-        var journal = await db.Set<PendingCommand>().AsNoTracking()
-            .Where(c => c.AggregateId == invoiceId || (scalar.OperationId != null && c.OperationId == scalar.OperationId))
-            .OrderByDescending(c => c.LocalSequence)
-            .Select(c => new { c.Status, c.LastErrorCode, c.ResponsibleRole })
-            .FirstOrDefaultAsync(ct);
-        var settlement = journal is null ? summary.SettlementStatus : journal.Status switch
+        // The settlement verdict belongs to the commands that create or commit this invoice's money/stock; a line
+        // edit, a discount or an owner assignment never carries it, and treating them as candidates let a later
+        // accepted housekeeping command report "settled" for an invoice whose post had been refused.
+        // D15: the single newest command is not enough either. A terminal refusal (Rejected/Conflict/NeedsAttention)
+        // is superseded only by a LATER Settled command of the SAME command type — i.e. the same operation was
+        // retried and accepted. Among the surviving refusals the EARLIEST wins, so the operator sees the root cause
+        // (e.g. STOCK_WOULD_GO_NEGATIVE) instead of a downstream symptom (INVOICE_INVALID_TRANSITION) or a later
+        // pending command that merely masks it.
+        var settlementCommandTypes = new[]
         {
-            Animora.Domain.Primitives.SettlementState.Settled => SettlementStatus.Settled,
-            Animora.Domain.Primitives.SettlementState.Rejected => SettlementStatus.Rejected,
-            Animora.Domain.Primitives.SettlementState.Conflict => SettlementStatus.Conflict,
-            Animora.Domain.Primitives.SettlementState.Reversed => SettlementStatus.Reversed,
-            Animora.Domain.Primitives.SettlementState.NeedsAttention => SettlementStatus.NeedsAttention,
-            Animora.Domain.Primitives.SettlementState.LocallyPosted => SettlementStatus.LocallyPosted,
+            CommandTypes.SalesInvoiceCreate, CommandTypes.SalesInvoicePost, CommandTypes.SalesInvoiceVoid,
+            CommandTypes.SalesInvoiceRefund, CommandTypes.SalesPaymentRegister, CommandTypes.SalesInvoiceLineReturn,
+            CommandTypes.SalesAdjustmentAdd, CommandTypes.SalesInvoiceDelete,
+        };
+        var journal = await db.Set<PendingCommand>().AsNoTracking()
+            .Where(c => (c.AggregateId == invoiceId || (scalar.OperationId != null && c.OperationId == scalar.OperationId))
+                && settlementCommandTypes.Contains(c.CommandType))
+            .OrderBy(c => c.LocalSequence)
+            .Take(100)
+            .Select(c => new { c.CommandType, c.Status, c.LastErrorCode, c.ResponsibleRole, c.LocalSequence })
+            .ToListAsync(ct);
+        var verdict = journal.FirstOrDefault(r => IsTerminalRefusal(r.Status)
+                && !journal.Any(later => later.LocalSequence > r.LocalSequence
+                    && later.Status == SettlementState.Settled
+                    && string.Equals(later.CommandType, r.CommandType, StringComparison.Ordinal)))
+            ?? journal.LastOrDefault();
+        var settlement = verdict is null ? summary.SettlementStatus : verdict.Status switch
+        {
+            SettlementState.Settled => SettlementStatus.Settled,
+            SettlementState.Rejected => SettlementStatus.Rejected,
+            SettlementState.Conflict => SettlementStatus.Conflict,
+            SettlementState.Reversed => SettlementStatus.Reversed,
+            SettlementState.NeedsAttention => SettlementStatus.NeedsAttention,
+            SettlementState.LocallyPosted => SettlementStatus.LocallyPosted,
             _ => summary.SettlementStatus == SettlementStatus.Draft ? SettlementStatus.Draft : SettlementStatus.PendingSettlement,
         };
         return new InvoiceDetailReadModel(summary, scalar.GuestName, scalar.InsurerId,
             scalar.InsurancePercent, scalar.Subtotal, scalar.Discount, scalar.Tax, scalar.Coverage,
             scalar.Paid, scalar.DiscountKind, scalar.DiscountValue, lines, payments, adjustments,
-            settlement, journal?.LastErrorCode ?? scalar.SettlementErrorCode, journal?.ResponsibleRole);
+            settlement, verdict?.LastErrorCode ?? scalar.SettlementErrorCode, verdict?.ResponsibleRole);
     }
+
+    /// <summary>A settlement that can never become accepted on its own — the states a verdict must surface.</summary>
+    private static bool IsTerminalRefusal(SettlementState status) =>
+        status is SettlementState.Rejected or SettlementState.Conflict or SettlementState.NeedsAttention;
 
     public async Task<SalesCatalogReadModel> GetCatalogAsync(CancellationToken ct)
     {
