@@ -17,7 +17,8 @@ public sealed class ShadowResyncHandlerTests
         {
             var path = request.RequestUri!.AbsolutePath;
             if (path == "/sync/manifest") return FeedFixtures.JsonResponse(new SyncManifest(2, epoch, 1, ["Pet"], 262144));
-            if (path == "/sync/batches") return FeedFixtures.JsonResponse(new OpenBatchResponse("BatchReady", Batch: batch));
+            // The resync handler rebuilds from the dedicated full-snapshot route, never the retention-enforced /sync/batches route.
+            if (path == "/sync/snapshots") return FeedFixtures.JsonResponse(new OpenBatchResponse("BatchReady", Batch: batch));
             return FeedFixtures.PageResponse(gz[int.Parse(path[(path.LastIndexOf('/') + 1)..])]);
         });
     }

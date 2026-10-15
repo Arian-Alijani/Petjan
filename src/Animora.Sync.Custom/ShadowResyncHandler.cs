@@ -5,10 +5,16 @@ using Animora.Sync.Abstractions;
 namespace Animora.Sync.Custom;
 
 /// <summary>
-/// G04 full-resync handler: downloads a complete snapshot (<c>OpenBatchAsync(epoch, fromSequence: 0)</c> — there is no separate snapshot call)
-/// into the apply store's isolated shadow area while the live base, checkpoint and pending command overlay stay readable and untouched,
-/// validates it (ordering, page count, per-page and batch content hash), and only then lets the store publish it as a NEW base generation and
-/// switch the checkpoint in one transaction. Any failure aborts the session, so live state is never cleared before its replacement succeeds.
+/// G04 full-resync handler: downloads a complete snapshot (<c>OpenSnapshotAsync()</c> → <c>POST /sync/snapshots</c>, the dedicated
+/// retention-independent full-snapshot route) into the apply store's isolated shadow area while the live base, checkpoint and pending
+/// command overlay stay readable and untouched, validates it (ordering, page count, per-page and batch content hash), and only then lets
+/// the store publish it as a NEW base generation and switch the checkpoint in one transaction. Any failure aborts the session, so live
+/// state is never cleared before its replacement succeeds.
+/// <para>
+/// It must NOT reuse the incremental <c>OpenBatchAsync(epoch, fromSequence: 0)</c> path: that hits the retention-enforcing
+/// <c>/sync/batches</c> route, which answers <c>ResyncRequired(BEYOND_RETENTION)</c> whenever sequence 0 has already been pruned —
+/// exactly the case that triggers a resync — leaving the handler unable to rebuild and spinning the pull loop forever.
+/// </para>
 /// </summary>
 public sealed class ShadowResyncHandler(SyncFeedClient feed, ISyncApplyStore store, ServerEndpointOptions options) : ISyncResyncHandler
 {
@@ -32,11 +38,10 @@ public sealed class ShadowResyncHandler(SyncFeedClient feed, ISyncApplyStore sto
 
     private async Task<Result> RebuildAsync(SyncScope scope, CancellationToken ct)
     {
-        // The server's current epoch is authoritative: a resync is usually triggered precisely because the local epoch is stale.
-        var manifest = await feed.GetManifestAsync(ct).ConfigureAwait(false);
-        if (manifest.IsFailure) return Result.Fail(manifest.Error, manifest.Detail);
-
-        var opened = await feed.OpenBatchAsync(manifest.Value!.Epoch, 0, ct).ConfigureAwait(false);
+        // Full snapshots are served by the dedicated /sync/snapshots route, which ignores retention and always freezes the
+        // current epoch. (The server's current epoch is authoritative — a resync is usually triggered precisely because the
+        // local epoch is stale — so the snapshot route resolves the epoch itself; there is no epoch/fromSequence to pass.)
+        var opened = await feed.OpenSnapshotAsync(ct).ConfigureAwait(false);
         if (opened.IsFailure) return Result.Fail(opened.Error, opened.Detail);
 
         var outcome = opened.Value!;
