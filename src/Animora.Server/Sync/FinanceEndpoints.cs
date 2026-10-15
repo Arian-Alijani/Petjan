@@ -3,6 +3,7 @@ using Animora.Application.Ports;
 using Animora.Contracts.Wire.Errors;
 using Animora.Domain.Identity;
 using Animora.Server.Hosting;
+using Animora.Server.Authorization;
 
 namespace Animora.Server.Sync;
 
