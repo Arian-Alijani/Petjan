@@ -80,7 +80,51 @@ public sealed class CommandJournal(
         if (allowed.IsFailure) return allowed;
 
         row.ApplySettlement(target, result, clock.UtcNow);
+        await ReconcileInvoiceAsync(row, target, result, ct).ConfigureAwait(false);
         return await SaveAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// D05: settlement must reach the business aggregate, not only the journal. For an invoice-scoped command
+    /// the local invoice's settlement verdict is updated in the same save: a refusal flags it
+    /// <c>Rejected</c>/<c>Conflict</c> with the server's code (non-destructive — posted money/stock is never
+    /// undone locally, ARCH §8.5 reversal-only; the operator acts on the flag); an acceptance marks it
+    /// <c>Settled</c> once no other command on the invoice is still unsettled, and never clears an earlier,
+    /// unresolved refusal. The server's invoice number cannot be rehydrated here — the settlement contract
+    /// does not carry it — so the local number stays provisional until a server-authored read replaces it.
+    /// </summary>
+    private async Task ReconcileInvoiceAsync(PendingCommand row, SettlementState target, SettlementResult result,
+        CancellationToken ct)
+    {
+        if (!string.Equals(row.AggregateType, "Invoice", StringComparison.Ordinal)) return;
+        // Invoice creations have no aggregate id yet; their invoice id IS the operation id.
+        var invoiceId = row.AggregateId ?? row.OperationId;
+        var invoice = await db.Set<Animora.Domain.Sales.Invoice>().AsTracking()
+            .FirstOrDefaultAsync(i => i.Id == invoiceId, ct).ConfigureAwait(false);
+        if (invoice is null) return;
+
+        switch (target)
+        {
+            case SettlementState.Rejected:
+                invoice.MarkSettlement(Animora.Domain.Sales.SettlementStatus.Rejected, result.ErrorCode);
+                break;
+            case SettlementState.Conflict:
+                invoice.MarkSettlement(Animora.Domain.Sales.SettlementStatus.Conflict, result.ErrorCode);
+                break;
+            case SettlementState.Settled:
+                if (invoice.State == Animora.Domain.Sales.InvoiceState.Draft
+                    || invoice.Settlement is Animora.Domain.Sales.SettlementStatus.Rejected
+                        or Animora.Domain.Sales.SettlementStatus.Conflict) return;
+                var others = UnsettledStates();
+                var pending = await db.Set<PendingCommand>().AsNoTracking()
+                    .AnyAsync(c => c.OperationId != row.OperationId && others.Contains(c.Status)
+                                   && (c.AggregateId == invoiceId || c.OperationId == invoiceId), ct)
+                    .ConfigureAwait(false);
+                invoice.MarkSettlement(pending
+                    ? Animora.Domain.Sales.SettlementStatus.PendingSettlement
+                    : Animora.Domain.Sales.SettlementStatus.Settled);
+                break;
+        }
     }
 
     public async Task<Result<IReadOnlyList<PendingCommandRecord>>> ClaimBatchAsync(int max, TimeSpan lease,

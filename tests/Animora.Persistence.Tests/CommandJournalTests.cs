@@ -6,6 +6,8 @@ using Animora.Application.Commands;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
+using Animora.Domain.Sales;
+using Animora.Domain.ValueObjects;
 using Animora.Persistence.Sqlite.Commands;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
@@ -224,6 +226,44 @@ public sealed class CommandJournalTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorCodes.SettlementInvalidTransition, result.Error);
+    }
+
+    [Fact]
+    public async Task RejectedSettlement_FlagsTheLocalInvoice()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        var invoice = Invoice.Create(fixture.TenantId, "INV-1", InvoiceKind.DirectSale, DateTimeOffset.UnixEpoch,
+            "U1", ownerId: "OWN1", id: "INV-1").Value!;
+        invoice.AddLine(new InvoiceLine("L1", InvoiceLineKind.Service, null, null, null, "Exam",
+            new Quantity(1m, "PCS"), Money.Irt(12_500), 0m, 0m, InvoiceLineSource.Manual, null));
+        Assert.True(invoice.Post(fixture.Clock).IsSuccess);
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            db.Add(invoice);
+            await db.SaveChangesAsync();
+        }
+        var envelope = Envelope();
+        await SeedAsync(fixture, envelopes: [envelope]);
+
+        using (var scope = fixture.CreateScope())
+        {
+            var journal = scope.ServiceProvider.GetRequiredService<ICommandJournal>();
+            var applied = await journal.ApplySettlementAsync(new SettlementResult(envelope.OperationId,
+                SettlementOutcome.Rejected, ErrorCodes.StockWouldGoNegative.Code, null, null, null,
+                DateTimeOffset.UnixEpoch, FinancialEffect.NotApplied, null));
+            Assert.True(applied.IsSuccess, applied.Detail);
+        }
+
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var loaded = await db.Set<Invoice>().AsNoTracking().SingleAsync();
+            Assert.Equal(SettlementStatus.Rejected, loaded.Settlement);
+            Assert.Equal(ErrorCodes.StockWouldGoNegative.Code, loaded.SettlementErrorCode);
+            Assert.Equal(InvoiceState.Posted, loaded.State); // non-destructive: posted state is kept
+        }
     }
 
     private static StoreMaintenanceLog Note(string detail) =>
