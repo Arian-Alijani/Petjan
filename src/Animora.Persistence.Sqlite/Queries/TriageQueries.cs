@@ -5,6 +5,8 @@ using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
 using Animora.Domain.Scheduling;
+using Animora.Domain.Results;
+using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,6 +21,7 @@ public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
         var doctors = from membership in db.Set<StaffMembership>().AsNoTracking()
                       where membership.Role == StaffRole.Doctor && membership.Status == MembershipStatus.Active
                       join user in db.Set<User>().AsNoTracking() on membership.UserId equals user.Id
+                      where membership.EndedUtc == null && user.Status != UserStatus.Disabled
                       orderby user.DisplayName, user.Id
                       select new DoctorRailReadModel(user.Id, user.DisplayName, string.Empty,
                           // The rail metric must equal the number of rows the booked list can actually show
@@ -79,5 +82,74 @@ public sealed class TriageQueries(AnimoraLocalDbContext db) : ITriageQueries
                      select new TriagePatientReadModel(pet.Id, pet.Name, pet.Species.ToString(),
                          owner.Id, owner.FullName, owner.PhonePrimary);
         return await recent.Take(50).ToListAsync(ct);
+    }
+}
+
+/// <summary>Credential-free server directory refresh, enlisted in the dispatcher command transaction.</summary>
+public sealed class VisitDoctorDirectoryWriter(AnimoraLocalDbContext db, IClock clock) : IVisitDoctorDirectoryWriter
+{
+    public async Task<Result> RefreshAsync(IReadOnlyList<VisitDoctorDirectoryEntry> doctors,
+        string actorUserId, CancellationToken ct)
+    {
+        // Validate the WHOLE roster before changing anything; an incomplete/malformed response must not
+        // remove every doctor. The command pipeline owns the transaction, including legacy-name retirement.
+        if (doctors is null || doctors.Any(d => d is null || string.IsNullOrWhiteSpace(d.UserId)
+                || d.UserId.Length > 128 || string.IsNullOrWhiteSpace(d.Username) || d.Username.Length > 128
+                || string.IsNullOrWhiteSpace(d.Name) || d.Name.Length > 200 || d.UserId == actorUserId)
+            || doctors.Select(d => d.UserId).Distinct(StringComparer.Ordinal).Count() != doctors.Count
+            || doctors.Select(d => d.Username.Trim().ToLowerInvariant()).Distinct(StringComparer.Ordinal).Count() != doctors.Count)
+            return Result.Fail(ErrorCodes.ValidationFailed);
+
+        // Two bounded clinic-roster reads, not a query per doctor; tenant filters remain enabled.
+        var users = await db.Set<User>().AsTracking().ToListAsync(ct);
+        var memberships = await db.Set<StaffMembership>().AsTracking().ToListAsync(ct);
+        var byId = users.ToDictionary(u => u.Id, StringComparer.Ordinal);
+        var byName = users.ToDictionary(u => u.UserName, StringComparer.Ordinal);
+        var doctorIds = doctors.Select(d => d.UserId).ToHashSet(StringComparer.Ordinal);
+        foreach (var membership in memberships.Where(m => m.Role == StaffRole.Doctor
+                     && m.Status == MembershipStatus.Active && !doctorIds.Contains(m.UserId)))
+            membership.Suspend(); // Keep historical visits and credentials; never delete an identity.
+
+        foreach (var doctor in doctors)
+        {
+            if (!byId.TryGetValue(doctor.UserId, out var user))
+            {
+                var username = doctor.Username.Trim().ToLowerInvariant();
+                if (byName.TryGetValue(username, out var legacy))
+                {
+                    if (legacy.Id == actorUserId || doctorIds.Contains(legacy.Id))
+                        return Result.Fail(ErrorCodes.ConcurrencyConflict);
+                    // Match online-login mirroring: server ids must win over legacy random local ids.
+                    foreach (var membership in memberships.Where(m => m.UserId == legacy.Id))
+                        membership.End(clock);
+                    legacy.Supersede();
+                    await db.SaveChangesAsync(ct); // Free the unique username before inserting its replacement.
+                    byName.Remove(username);
+                }
+                user = User.CreateWithId(doctor.UserId, db.CurrentTenantId, doctor.Username, doctor.Name, clock);
+                // No password hash: listing a doctor must NEVER make an account able to sign in locally.
+                db.Set<User>().Add(user);
+                byId.Add(user.Id, user);
+                byName.Add(user.UserName, user);
+            }
+            user.UpdateDisplayName(doctor.Name);
+            var member = memberships.FirstOrDefault(m => m.UserId == doctor.UserId && m.Role == StaffRole.Doctor);
+            if (member is null)
+            {
+                member = StaffMembership.Create(db.CurrentTenantId, user.Id, StaffRole.Doctor, clock);
+                db.Set<StaffMembership>().Add(member);
+                memberships.Add(member);
+            }
+            if (doctor.IsActive)
+            {
+                member.Reinstate();
+                if (user.Status == UserStatus.Disabled) user.Enable();
+            }
+            else
+            {
+                member.Suspend();
+            }
+        }
+        return Result.Ok();
     }
 }

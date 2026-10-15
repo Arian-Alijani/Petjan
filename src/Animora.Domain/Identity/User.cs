@@ -190,6 +190,13 @@ public sealed class User : AggregateRoot
         ClearFailures();
     }
 
+    /// <summary>Refreshes the display label from the authoritative directory without changing credentials.</summary>
+    public void UpdateDisplayName(string displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        DisplayName = displayName.Trim();
+    }
+
     /// <summary>Issues a new security stamp, invalidating every outstanding capability snapshot.</summary>
     public void RotateSecurityStamp() => SecurityStamp = IdGenerator.NewId();
 

@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Animora.Application.Time;
+using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Finance;
 using Animora.Domain.Inventory;
 using Animora.Domain.Sales;
@@ -10,10 +12,12 @@ namespace Animora.Persistence.Sqlite.Finance;
 
 /// <summary>
 /// Recomputes the three rebuildable finance facts from the authoritative tables — the append-only
-/// invoices/payments/movements (and posted expenses) that are the real record. The facts are a
-/// "cache with a proof": the live path (<see cref="FinanceProjectionStore"/>, driven by the outbox
-/// worker) keeps them warm, and this rebuild can always reproduce them exactly. Never touches the
-/// live query path (A-RULE 034) — it writes facts, it does not read them.
+/// invoices/payments/movements (and posted expenses) that are the real record, PLUS the read-only
+/// <see cref="PeerInvoice"/>/<see cref="PeerPayment"/> cache of transactions other devices settled
+/// (D04b). The facts are a "cache with a proof": the live path (<see cref="FinanceProjectionStore"/>,
+/// driven by the outbox worker) keeps the locally-created rows warm, the peer-finance pull triggers a
+/// rebuild for cross-device rows, and this method can always reproduce the whole set exactly. Never
+/// touches the live query path (A-RULE 034) — it writes facts, it does not read them.
 /// </summary>
 /// <remarks>
 /// The rebuild runs entirely on the caller's <see cref="AnimoraLocalDbContext"/> and, when called
@@ -21,6 +25,13 @@ namespace Animora.Persistence.Sqlite.Finance;
 /// Day bucketing uses the clinic time zone here (never in SQL — CONVENTIONS §5). Amounts are stored
 /// in minor units (R-B24 — never a decimal); COGS is the weighted-average extended cost of a
 /// <see cref="MovementKind.Sale"/> movement.
+/// <para>
+/// <b>Peer dedup.</b> A peer invoice/payment whose id matches a local row is the SAME transaction
+/// (invoice id == operation id), so only peer rows with no local twin are folded in — this device's
+/// own invoices are counted once, from the authoritative local table. Peer products carry no local
+/// <see cref="MovementKind.Sale"/> movement, so their COGS contribution is zero (honest: the stock
+/// ledger belongs to the originating device); gross revenue and quantity still count in full.
+/// </para>
 /// </remarks>
 public static class FinanceProjectionRebuilder
 {
@@ -120,6 +131,12 @@ public static class FinanceProjectionRebuilder
         for (var i = 0; i < refunds.Count; i++)
             For(daily, LocalDay(refunds[i].ReceivedUtc, zone)).Refund += Math.Abs(refunds[i].Amount);
 
+        // 6) Peer finance (D04b): fold in transactions other devices settled, which reach this device
+        //    only through the read-only GET /finance/ledger cache — never the command pipeline or the
+        //    generic state feed. Without this, the «آمار»/داشبورد facts would reflect only this device's
+        //    own invoices while the Sales list (which already unions the peer cache) shows everyone's.
+        await FoldPeerFinanceAsync(db, zone, tenantId, daily, product, owner, ct);
+
         // ── materialize ──────────────────────────────────────────────────────
         var written = 0;
         var dailySet = db.Set<DailyFinanceFact>();
@@ -151,6 +168,79 @@ public static class FinanceProjectionRebuilder
         }
 
         return written;
+    }
+
+    /// <summary>
+    /// Folds the read-only peer-finance cache into the same accumulators the local tables filled. Peer rows that
+    /// coincide with a local invoice (same id ⇒ same transaction) are skipped so this device's own invoices are
+    /// never double-counted. Only posted, non-void peer invoices contribute revenue, mirroring the local filter.
+    /// </summary>
+    private static async Task FoldPeerFinanceAsync(
+        AnimoraLocalDbContext db, TimeZoneInfo zone, string tenantId,
+        Dictionary<int, Daily> daily,
+        Dictionary<(int Day, string ProductId, string VariantId), ProductAcc> product,
+        Dictionary<string, OwnerAcc> owner,
+        CancellationToken ct)
+    {
+        // Ids of invoices this device already owns authoritatively: never fold the peer twin of a local invoice.
+        var localInvoiceIds = (await db.Set<Invoice>().AsNoTracking()
+                .Select(i => i.Id).ToListAsync(ct))
+            .ToHashSet(StringComparer.Ordinal);
+
+        var peerInvoices = await db.Set<PeerInvoice>().AsNoTracking()
+            .Where(i => i.TenantId == tenantId && i.PostedUtc != null
+                && i.State != InvoiceState.Draft && i.State != InvoiceState.Void)
+            .Select(i => new { i.Id, i.OwnerId, i.State, i.PostedUtc, i.GrandTotalMinor, i.DetailJson })
+            .ToListAsync(ct);
+
+        foreach (var inv in peerInvoices)
+        {
+            if (localInvoiceIds.Contains(inv.Id)) continue; // same transaction, already counted locally.
+
+            FinanceInvoiceDetail? detail = null;
+            if (inv.DetailJson is { Length: > 0 } json)
+            {
+                try { detail = JsonSerializer.Deserialize<FinanceInvoiceDetail>(json); }
+                catch (JsonException) { detail = null; } // legacy/summary-only row: count totals, skip line split.
+            }
+
+            var day = LocalDay(inv.PostedUtc!.Value, zone);
+            var row = For(daily, day);
+            // Detail (when present) carries the economic split; otherwise the grand total is the only honest revenue figure.
+            row.Revenue += detail?.SubtotalMinor ?? inv.GrandTotalMinor;
+            row.Discount += detail?.DiscountMinor ?? 0;
+            row.Insurance += detail?.InsuranceMinor ?? 0;
+            row.Invoices += 1;
+            if (inv.State == InvoiceState.Paid) row.PaidInvoices += 1;
+
+            if (inv.OwnerId is { Length: > 0 } ownerId)
+            {
+                var acc = For(owner, ownerId);
+                acc.Spend += inv.GrandTotalMinor;
+                acc.Invoices += 1;
+                if (acc.LastInvoiceUtc is null || inv.PostedUtc > acc.LastInvoiceUtc) acc.LastInvoiceUtc = inv.PostedUtc;
+            }
+
+            if (detail?.Lines is { Count: > 0 } lines)
+                foreach (var line in lines)
+                {
+                    if (line.Kind != (int)InvoiceLineKind.Product || string.IsNullOrEmpty(line.ProductId)) continue;
+                    var acc = For(product, (day, line.ProductId!, line.VariantId ?? string.Empty));
+                    acc.Quantity += line.Quantity;
+                    // LineGross = Quantity × UnitPrice, before discount/tax (matches the local path's l.LineGross.Minor).
+                    acc.Revenue += checked((long)decimal.Round(line.Quantity * line.UnitPriceMinor, 0, MidpointRounding.AwayFromZero));
+                    // COGS stays 0: the Sale stock movement lives on the originating device, not here.
+                }
+        }
+
+        // Peer refunds: money handed back on another device, grouped by the day it left.
+        var peerRefunds = await db.Set<PeerPayment>().AsNoTracking()
+            .Where(p => p.TenantId == tenantId && p.AmountMinor < 0
+                && !db.Set<Payment>().Any(l => l.Id == p.Id))
+            .Select(p => new { p.ReceivedUtc, p.AmountMinor })
+            .ToListAsync(ct);
+        for (var i = 0; i < peerRefunds.Count; i++)
+            For(daily, LocalDay(peerRefunds[i].ReceivedUtc, zone)).Refund += Math.Abs(peerRefunds[i].AmountMinor);
     }
 
     /// <summary>The clinic-local day (<c>yyyyMMdd</c>) an instant falls on.</summary>

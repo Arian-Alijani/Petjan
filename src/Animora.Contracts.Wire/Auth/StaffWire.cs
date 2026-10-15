@@ -65,6 +65,13 @@ public sealed record StaffAccountWire(
     IReadOnlyList<string> Permissions,
     string ChangeToken);
 
+/// <summary>
+/// Current caller's server-authoritative access, including online-only permissions. Never an offline grant.
+/// Contains no roster/credentials; clients refresh this small read while keeping their existing session.
+/// </summary>
+public sealed record CurrentAccessWire(string TenantId, string UserId, string DeviceId, string Role,
+    IReadOnlyList<string> Permissions, string Revision);
+
 /// <summary>A selectable role plus the permission codes it grants by default.</summary>
 /// <param name="RoleId">Staff role name.</param>
 /// <param name="DefaultPermissions">Permission codes the role's stored definition grants.</param>

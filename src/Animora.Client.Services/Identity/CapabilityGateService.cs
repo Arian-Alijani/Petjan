@@ -39,6 +39,42 @@ public sealed class CapabilityGateService : ICapabilityGate
     private readonly CapabilityResultCache _cache = new(MaxCacheEntries);
 
     private volatile CapabilitySnapshotView? _view;
+    private volatile OnlineAccessView? _onlineAccess;
+    private readonly object _publicationLock = new();
+    private long _generation;
+    internal long Generation => Interlocked.Read(ref _generation);
+
+    // Online-only permissions never enter an offline snapshot. A short, monotonic lease is renewed only by
+    // an authenticated server response; wall-clock rollback cannot keep it alive after connectivity is lost.
+    private sealed record OnlineAccessView(string UserId, IReadOnlySet<string> Codes, long UntilTick);
+
+    internal void SetOnlineAccess(string userId, IEnumerable<string> codes, long generation)
+    {
+        bool changed;
+        lock (_publicationLock)
+        {
+            if (generation != _generation || _view?.UserId != userId) return;
+            var granted = new HashSet<string>(codes, StringComparer.Ordinal);
+            var previous = _onlineAccess;
+            changed = previous is null || previous.UntilTick <= Environment.TickCount64
+                || previous.UserId != userId || !granted.SetEquals(previous.Codes);
+            _onlineAccess = new OnlineAccessView(userId, granted, Environment.TickCount64 + 15000);
+        }
+        if (changed) RaiseChanged();
+    }
+
+    internal void ClearOnlineAccess()
+    {
+        bool changed;
+        lock (_publicationLock)
+        {
+            changed = _onlineAccess is not null;
+            _onlineAccess = null;
+        }
+        if (changed) RaiseChanged();
+    }
+
+    internal bool HasCurrentView(string userId) => _view is { Tampered: false } view && view.UserId == userId;
 
     public CapabilityGateService(IServiceScopeFactory scopes, IClock clock, IMonotonicClock monotonic)
     {
@@ -72,6 +108,10 @@ public sealed class CapabilityGateService : ICapabilityGate
         var view = _view;
         if (view is null) return CapabilityState.Denied;
         if (view.Tampered) return CapabilityState.Denied; // a tampered snapshot grants nothing.
+        if (view.SessionExpiresAtUtc is { } expired && _clock.UtcNow >= expired) return CapabilityState.Denied;
+        var online = _onlineAccess;
+        if (online is not null && online.UserId == view.UserId && Environment.TickCount64 < online.UntilTick)
+            return online.Codes.Contains(permissionCode) ? CapabilityState.Allowed : CapabilityState.Denied;
 
         var key = new CapabilityCacheKey(view.TenantId, view.UserId, view.DeviceId, permissionCode, view.SnapshotId);
         if (!_cache.TryGet(key, out var cached)) return CapabilityState.Denied; // unknown / not precomputed.
@@ -94,6 +134,7 @@ public sealed class CapabilityGateService : ICapabilityGate
     /// </summary>
     internal async Task RefreshAsync(CancellationToken ct = default)
     {
+        var generation = Generation;
         try
         {
             await using var scope = _scopes.CreateAsyncScope();
@@ -110,7 +151,7 @@ public sealed class CapabilityGateService : ICapabilityGate
             if (restored.IsFailure || restored.Value is not { } session
                 || session.UserId is not { Length: > 0 } userId || session.IsLocked)
             {
-                Publish(null); // no active session ⇒ deny everything.
+                Publish(null, generation); // no active session ⇒ deny everything.
                 return;
             }
 
@@ -120,21 +161,21 @@ public sealed class CapabilityGateService : ICapabilityGate
             var securityStamp = user?.SecurityStamp ?? string.Empty;
             if (string.IsNullOrEmpty(securityStamp))
             {
-                Publish(null); // cannot prove binding ⇒ deny.
+                Publish(null, generation); // cannot prove binding ⇒ deny.
                 return;
             }
 
             var loaded = await store.GetAsync(tenantId, userId, deviceId, ct).ConfigureAwait(false);
             if (loaded.IsFailure)
             {
-                Publish(null);
+                Publish(null, generation);
                 return;
             }
 
             var snapshot = loaded.Value;
             if (snapshot is null)
             {
-                Publish(null); // missing snapshot ⇒ deny.
+                Publish(null, generation); // missing snapshot ⇒ deny.
                 return;
             }
 
@@ -166,41 +207,53 @@ public sealed class CapabilityGateService : ICapabilityGate
 
             if (tampered)
             {
-                Publish(CapabilitySnapshotView.ForTampered(snapshot));
+                Publish(CapabilitySnapshotView.ForTampered(snapshot), generation);
                 return;
             }
 
             var view = CapabilitySnapshotView.Allowed(snapshot, session.ExpiresAtUtc, highWater, results);
-            Publish(view);
+            Publish(view, generation);
         }
         catch (OperationCanceledException)
         {
-            Publish(null);
+            Publish(null, generation);
         }
         catch (Exception)
         {
             // Never let a warm-up failure escape into the auth path; the gate simply stays denied.
-            Publish(null);
+            Publish(null, generation);
         }
     }
 
     /// <summary>Invalidates all authority (sign-out). The gate denies every code until a successful refresh.</summary>
-    internal void Clear() => Publish(null);
+    internal void Clear()
+    {
+        lock (_publicationLock)
+        {
+            Interlocked.Increment(ref _generation);
+            _onlineAccess = null;
+            _cache.Clear();
+            _view = null;
+        }
+        RaiseChanged();
+    }
 
     /// <summary>Publishes a new immutable view atomically and raises <see cref="CapabilitiesChanged"/>.</summary>
-    private void Publish(CapabilitySnapshotView? view)
+    private void Publish(CapabilitySnapshotView? view, long generation)
     {
-        _cache.Clear();
-        if (view is { } published && !published.Tampered)
+        lock (_publicationLock)
         {
-            foreach (var pair in published.Results)
+            // A refresh that started before sign-out must never restore authority afterwards.
+            if (generation != _generation) return;
+            _cache.Clear();
+            if (view is { } published && !published.Tampered)
             {
-                _cache.Put(new CapabilityCacheKey(view.TenantId, view.UserId, view.DeviceId, pair.Key, view.SnapshotId),
-                    pair.Value);
+                foreach (var pair in published.Results)
+                    _cache.Put(new CapabilityCacheKey(view.TenantId, view.UserId, view.DeviceId, pair.Key, view.SnapshotId), pair.Value);
             }
+            if (view is null || view.UserId != _view?.UserId || view.Tampered) _onlineAccess = null;
+            _view = view;
         }
-
-        _view = view;
         RaiseChanged();
     }
 

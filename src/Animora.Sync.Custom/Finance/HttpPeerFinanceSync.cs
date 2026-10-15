@@ -9,6 +9,7 @@ using Animora.Contracts.Wire.Sync;
 using Animora.Domain.Results;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
+using Animora.Persistence.Sqlite.Maintenance;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -52,8 +53,31 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
             if (!page.HasMore || page.NextCursorTicks <= cursor) break;
         }
 
+        // When new peer rows landed, re-fold the finance facts so the «آمار»/داشبورد read models reflect the
+        // cross-device transactions too (the rebuilder dedups the peer twin of any local invoice). Done only on
+        // change, and off the apply transaction; a rebuild failure is logged and never fails the display pull.
+        if (applied > 0) await RebuildFinanceFactsAsync(ct).ConfigureAwait(false);
+
         TraceLog.Info($"PeerFinanceSync.Pull — applied {applied} peer finance row(s).", "sync.finance");
         return Result<int>.Ok(applied);
+    }
+
+    /// <summary>Recomputes the finance fact tables (now peer-aware) after a peer page changed the cache.</summary>
+    private async Task RebuildFinanceFactsAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var di = scopes.CreateScope();
+            var maintenance = di.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>();
+            var rebuilt = await maintenance.RebuildFinanceProjectionsAsync(ct).ConfigureAwait(false);
+            if (rebuilt.IsFailure)
+                TraceLog.Warn($"PeerFinanceSync.Pull — finance fact rebuild returned {rebuilt.Error} ('{rebuilt.Detail}'); facts refresh on the next pass.", "sync.finance");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            TraceLog.Error("PeerFinanceSync.Pull — finance fact rebuild faulted; peer rows are cached, stats refresh next pass.", ex, "sync.finance");
+        }
     }
 
     private async Task<long> ReadCursorAsync(CancellationToken ct)
@@ -133,6 +157,13 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
         else cursor.Advance(page.NextCursorTicks);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        // Peer finance is display-only and bypasses the business-table generation triggers. Invalidate the
+        // dashboard atomically with the ledger page, including updates that append no new activity event.
+        if (written > 0)
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO DashboardGenerations (TenantId, Value) VALUES ({tenant}, 1)
+                ON CONFLICT (TenantId) DO UPDATE SET Value = Value + 1
+                """, ct).ConfigureAwait(false);
         await tx.CommitAsync(ct).ConfigureAwait(false);
         return written;
 

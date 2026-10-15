@@ -182,7 +182,7 @@ internal sealed class StaffProvisioningService(
 
         if (request.PermissionCodes is null
             || request.PermissionCodes.Count > PermissionCodes.All.Count
-            || request.PermissionCodes.Any(code => !PermissionCodes.Exists(code)))
+            || request.PermissionCodes.Any(code => string.IsNullOrWhiteSpace(code) || !PermissionCodes.Exists(code)))
         {
             return Result.Fail(ErrorCodes.PermissionUnknown);
         }
@@ -210,6 +210,9 @@ internal sealed class StaffProvisioningService(
             return Result.Fail(ErrorCodes.ConcurrencyConflict);
         }
 
+        var before = new SortedSet<string>(role.PermissionCodes, StringComparer.Ordinal);
+        before.UnionWith(member.ExtraPermissionCodes);
+        before.ExceptWith(member.DeniedPermissionCodes);
         var granted = new HashSet<string>(request.PermissionCodes, StringComparer.Ordinal);
         foreach (string code in PermissionCodes.All)
         {
@@ -224,11 +227,40 @@ internal sealed class StaffProvisioningService(
             }
         }
 
-        // Invalidate every outstanding token/capability snapshot so the new access applies on the next sign-in.
-        user.RotateSecurityStamp();
-        Result accessSaved = await AuditAsync(actor, StaffPermissionsAction, correlationId, user.Id, ct).ConfigureAwait(false);
+        // Permissions are resolved from stored membership on every request. Do NOT rotate the authentication
+        // stamp: that revokes refresh tokens too and forces an otherwise valid, active user to sign in again.
+        // Clients refresh their signed capability mirror while the same authenticated session stays active.
+        Result accessSaved = await AuditAsync(actor, StaffPermissionsAction, correlationId, user.Id, ct,
+            SecurityAuditDetail.Create(
+                ("target", user.Id), ("membership", member.Id),
+                ("before", JsonSerializer.Serialize(before)),
+                ("after", JsonSerializer.Serialize(granted.Order(StringComparer.Ordinal))),
+                ("granted", JsonSerializer.Serialize(granted.Except(before).Order(StringComparer.Ordinal))),
+                ("removed", JsonSerializer.Serialize(before.Except(granted).Order(StringComparer.Ordinal)))))
+            .ConfigureAwait(false);
         if (accessSaved.IsSuccess) decisions.InvalidateUser(user.Id);
         return accessSaved;
+    }
+
+    /// <summary>Reads only the caller's current stored access. No roster or management permission is required.</summary>
+    public async Task<Result<CurrentAccessWire>> CurrentAccessAsync(ResolvedMembership actor, CancellationToken ct)
+    {
+        var member = await repository.FindActiveMembershipAsync(actor.UserId, ct).ConfigureAwait(false);
+        var user = await repository.FindUserByIdAsync(actor.UserId, ct).ConfigureAwait(false);
+        if (member is null || member.TenantId != actor.TenantId || user is null
+            || user.TenantId != actor.TenantId || user.Status == UserStatus.Disabled)
+            return Result<CurrentAccessWire>.Fail(ErrorCodes.MembershipNotActive);
+        var role = await roles.FindByRoleAsync(actor.TenantId, member.Role, ct).ConfigureAwait(false);
+        if (role is null) return Result<CurrentAccessWire>.Fail(ErrorCodes.PermissionDenied);
+        var effective = new SortedSet<string>(role.PermissionCodes, StringComparer.Ordinal);
+        effective.UnionWith(member.ExtraPermissionCodes);
+        effective.ExceptWith(member.DeniedPermissionCodes);
+        effective.RemoveWhere(code => !PermissionCodes.Exists(code));
+        // Includes stored role grants too, so edits to a role invalidate the client even without member overrides.
+        var revision = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            ChangeToken(user, member) + JsonSerializer.Serialize(effective))));
+        return Result<CurrentAccessWire>.Ok(new(actor.TenantId, actor.UserId, actor.DeviceId,
+            member.Role.ToString(), effective.ToArray(), revision));
     }
 
     /// <summary>Reads the tenant roster, role catalogue and the caller's management capabilities.</summary>
@@ -306,7 +338,8 @@ internal sealed class StaffProvisioningService(
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(facts)));
     }
 
-    private Task<Result> AuditAsync(ResolvedMembership actor, string action, string correlationId, string targetUserId, CancellationToken ct)
+    private Task<Result> AuditAsync(ResolvedMembership actor, string action, string correlationId, string targetUserId,
+        CancellationToken ct, string? detail = null)
     {
         SecurityAuditEntry entry = SecurityAuditEntry.Create(
             IdGenerator.NewId(clock.UtcNow),
@@ -318,7 +351,7 @@ internal sealed class StaffProvisioningService(
             correlationId.Length <= 64 ? correlationId : correlationId[..64],
             actor.UserId,
             actor.DeviceId,
-            SecurityAuditDetail.Create(("target", targetUserId)));
+            detail ?? SecurityAuditDetail.Create(("target", targetUserId)));
 
         // Commits every change staged on the unit of work (user / membership / stamp) together with the audit row.
         return audit.WriteAsync(entry, ct);

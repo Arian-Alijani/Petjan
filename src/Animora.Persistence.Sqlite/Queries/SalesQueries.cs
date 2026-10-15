@@ -77,6 +77,11 @@ internal sealed class FinanceInvoiceProjection
     public long DueMinor { get; init; }
     public SettlementStatus Settlement { get; init; }
     public bool ServerOnly { get; init; }
+    public bool FromPeer { get; init; }
+    public long SubtotalMinor { get; init; }
+    public long DiscountMinor { get; init; }
+    public DateTimeOffset? SettledUtc { get; init; }
+    public string? DetailJson { get; init; }
 
     internal static IQueryable<FinanceInvoiceProjection> Query(AnimoraLocalDbContext db)
     {
@@ -94,7 +99,9 @@ internal sealed class FinanceInvoiceProjection
                 State = i.State, OwnerId = i.OwnerId, OwnerName = o == null ? i.GuestName ?? "" : o.FullName,
                 PetName = p == null ? "" : p.Name, Phone = o == null ? "" : o.PhonePrimary,
                 IssuedUtc = i.IssuedUtc, PostedUtc = i.PostedUtc, TotalMinor = i.GrandTotal.Minor,
-                PaidMinor = i.PaidTotal.Minor, DueMinor = i.DueTotal.Minor, Settlement = i.Settlement, ServerOnly = false };
+                PaidMinor = i.PaidTotal.Minor, DueMinor = i.DueTotal.Minor, Settlement = i.Settlement, ServerOnly = false,
+                FromPeer = false, SubtotalMinor = i.Subtotal.Minor, DiscountMinor = i.DiscountTotal.Minor,
+                SettledUtc = i.SettledUtc, DetailJson = null };
         var peer = from i in db.Set<PeerInvoice>().AsNoTracking()
             where i.TenantId == db.CurrentTenantId && !protectedIds.Contains(i.Id)
             join o in db.Set<Owner>() on i.OwnerId equals o.Id into owners
@@ -103,7 +110,13 @@ internal sealed class FinanceInvoiceProjection
                 State = i.State, OwnerId = i.OwnerId, OwnerName = i.PartyName, PetName = i.PetName,
                 Phone = o == null ? "" : o.PhonePrimary, IssuedUtc = i.IssuedUtc, PostedUtc = i.PostedUtc,
                 TotalMinor = i.GrandTotalMinor, PaidMinor = i.PaidTotalMinor, DueMinor = i.DueTotalMinor,
-                Settlement = SettlementStatus.Settled, ServerOnly = !db.Set<Invoice>().Any(l => l.Id == i.Id) };
+                Settlement = SettlementStatus.Settled, ServerOnly = !db.Set<Invoice>().Any(l => l.Id == i.Id),
+                FromPeer = true, SubtotalMinor = i.GrandTotalMinor, DiscountMinor = 0, DetailJson = i.DetailJson,
+                SettledUtc = i.State == InvoiceState.Paid
+                    ? db.Set<PeerPayment>().Where(p => p.TenantId == db.CurrentTenantId && p.InvoiceId == i.Id
+                        && p.AmountMinor > 0 && p.Method != PaymentMethod.Credit)
+                        .OrderByDescending(p => p.ReceivedUtc).Select(p => (DateTimeOffset?)p.ReceivedUtc).FirstOrDefault()
+                    : null };
         return local.Concat(peer);
     }
 
@@ -404,4 +417,123 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
         return await q.OrderBy(o => o.FullName).ThenBy(o => o.Id).Take(100)
             .Select(o => new OwnerLookupReadModel(o.Id, o.FullName, o.PhonePrimary)).ToListAsync(ct);
     }
+}
+
+/// <summary>
+/// Analytics over the same local/server selection as sales. Never copies peer money into command-owned tables,
+/// never replays domain events, and never counts both images of an invoice. Costs/expenses remain local facts.
+/// </summary>
+internal static class FinanceAnalytics
+{
+    internal sealed class Day
+    {
+        public long Revenue, Discount, Refund, Cogs, Expense;
+        public int Invoices, Paid;
+    }
+
+    internal sealed record Line(string? ProductId, string? VariantId, string Title, string Source,
+        decimal Quantity, long Gross, long Net);
+
+    internal static IQueryable<FinanceInvoiceProjection> Invoices(AnimoraLocalDbContext db) =>
+        FinanceInvoiceProjection.Query(db).Where(i => i.PostedUtc != null
+            && i.State != InvoiceState.Draft && i.State != InvoiceState.Void);
+
+    internal static (DateTimeOffset From, DateTimeOffset To) Bounds(int fromDay, int toDay, TimeZoneInfo zone) =>
+        (new DateTimeOffset(Animora.Application.Time.ClinicCalendar.ToUtcTicks(Parse(fromDay), 0, zone), TimeSpan.Zero),
+         new DateTimeOffset(Animora.Application.Time.ClinicCalendar.ToUtcTicks(Parse(toDay).AddDays(1), 0, zone), TimeSpan.Zero));
+
+    internal static async Task<Dictionary<int, Day>> DaysAsync(AnimoraLocalDbContext db,
+        int fromDay, int toDay, TimeZoneInfo zone, CancellationToken ct)
+    {
+        var (from, to) = Bounds(fromDay, toDay, zone);
+        var days = new Dictionary<int, Day>();
+        Day For(DateTimeOffset at)
+        {
+            var date = Animora.Application.Time.ClinicCalendar.LocalDay(at.UtcTicks, zone);
+            var key = date.Year * 10000 + date.Month * 100 + date.Day;
+            if (!days.TryGetValue(key, out var day)) days[key] = day = new Day();
+            return day;
+        }
+        var costs = await db.Set<DailyFinanceFact>().AsNoTracking()
+            .Where(f => f.TenantId == db.CurrentTenantId && f.LocalDay >= fromDay && f.LocalDay <= toDay)
+            .Select(f => new { f.LocalDay, f.CogsMinor, f.ExpenseMinor }).ToListAsync(ct);
+        foreach (var cost in costs)
+            days[cost.LocalDay] = new Day { Cogs = cost.CogsMinor, Expense = cost.ExpenseMinor };
+
+        var invoices = await Invoices(db).Where(i => (i.PostedUtc >= from && i.PostedUtc < to)
+            || (i.State == InvoiceState.Paid && i.SettledUtc >= from && i.SettledUtc < to)).ToListAsync(ct);
+        foreach (var invoice in invoices)
+        {
+            if (invoice.PostedUtc is { } posted && posted >= from && posted < to)
+            {
+                var day = For(posted);
+                var detail = Detail(invoice);
+                day.Revenue += detail?.SubtotalMinor ?? invoice.SubtotalMinor;
+                day.Discount += detail?.DiscountMinor ?? invoice.DiscountMinor;
+                day.Invoices++;
+            }
+            if (invoice.State == InvoiceState.Paid && invoice.SettledUtc is { } settled && settled >= from && settled < to)
+                For(settled).Paid++;
+        }
+        var refunds = await FinancePaymentProjection.Query(db)
+            .Where(p => p.AmountMinor < 0 && p.ReceivedUtc >= from && p.ReceivedUtc < to)
+            .Select(p => new { p.ReceivedUtc, p.AmountMinor }).ToListAsync(ct);
+        foreach (var refund in refunds) For(refund.ReceivedUtc).Refund += Math.Abs(refund.AmountMinor);
+        return days;
+    }
+
+    internal static async Task<IReadOnlyList<Line>> LinesAsync(AnimoraLocalDbContext db,
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var invoices = Invoices(db).Where(i => i.PostedUtc >= from && i.PostedUtc < to);
+        var localIds = invoices.Where(i => !i.FromPeer).Select(i => i.Id);
+        var local = await db.Set<Invoice>().AsNoTracking().Where(i => localIds.Contains(i.Id))
+            .SelectMany(i => i.Lines, (i, l) => new { i.Kind, l.ProductId, l.VariantId, l.Title,
+                LineKind = l.Kind, l.Source, l.Quantity.Value, Unit = l.UnitPrice.Minor, l.DiscountPercent })
+            .ToListAsync(ct);
+        var lines = new List<Line>();
+        foreach (var l in local)
+            lines.Add(ToLine(l.ProductId, l.VariantId, l.Title, l.LineKind,
+                l.Source == InvoiceLineSource.Stay, l.Value, l.Unit, l.DiscountPercent, l.Kind));
+        var peers = await invoices.Where(i => i.FromPeer).ToListAsync(ct);
+        foreach (var invoice in peers)
+        {
+            var detail = Detail(invoice);
+            // A legacy summary cannot supply product quantities or charged-line classification. Keep the known
+            // total in 'other' rather than inventing catalogue lines or silently dropping its revenue.
+            if (detail is null || detail.Lines.Count == 0)
+            {
+                lines.Add(new Line(null, null, "", "other", 0, invoice.TotalMinor, invoice.TotalMinor));
+                continue;
+            }
+            foreach (var l in detail.Lines)
+                lines.Add(ToLine(l.ProductId, l.VariantId, l.Title, (InvoiceLineKind)l.Kind,
+                    false, l.Quantity, l.UnitPriceMinor, l.DiscountPercent, invoice.Kind));
+        }
+        return lines;
+    }
+
+    private static Line ToLine(string? product, string? variant, string title, InvoiceLineKind kind,
+        bool stay, decimal quantity, long unit, decimal discount, InvoiceKind invoiceKind)
+    {
+        var sign = invoiceKind == InvoiceKind.SalesReturn ? -1 : 1;
+        var gross = quantity * unit;
+        var net = (long)decimal.Round(gross - gross * discount / 100m, 0, MidpointRounding.AwayFromZero);
+        var source = kind switch
+        {
+            InvoiceLineKind.Product => "product", InvoiceLineKind.Boarding => "boarding",
+            InvoiceLineKind.Service when stay => "boarding", InvoiceLineKind.Service => "visit", _ => "other",
+        };
+        return new Line(product, variant, title, source, sign * quantity,
+            sign * (long)decimal.Round(gross, 0, MidpointRounding.AwayFromZero), sign * net);
+    }
+
+    private static Animora.Contracts.Wire.Sync.FinanceInvoiceDetail? Detail(FinanceInvoiceProjection invoice)
+    {
+        if (!invoice.FromPeer || invoice.DetailJson is null) return null;
+        try { return System.Text.Json.JsonSerializer.Deserialize<Animora.Contracts.Wire.Sync.FinanceInvoiceDetail>(invoice.DetailJson); }
+        catch (System.Text.Json.JsonException) { return null; } // Older cache payload: summary remains usable.
+    }
+
+    private static DateOnly Parse(int day) => new(day / 10000, day / 100 % 100, day % 100);
 }

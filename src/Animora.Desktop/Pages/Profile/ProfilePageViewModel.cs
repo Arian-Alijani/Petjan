@@ -1,4 +1,5 @@
 using System;
+using Avalonia.Threading;
 using System.Threading;
 using Animora.Contracts.Identity;
 using System.Collections.Generic;
@@ -22,6 +23,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
     private readonly IAuthenticationService _authentication;
+    private readonly ICapabilityGate? _capabilities;
 
     public event EventHandler? SignedOut;
 
@@ -46,12 +48,15 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         finally { IsSigningOut = false; }
     }
 
-    public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast, IAuthenticationService authentication)
+    public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast,
+        IAuthenticationService authentication, ICapabilityGate? capabilities = null)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
         _authentication = authentication;
+        _capabilities = capabilities;
+        if (_capabilities is not null) _capabilities.CapabilitiesChanged += OnCapabilitiesChanged;
 
         Title = "تنظیمات";
         Eyebrow = "حساب کاربری";
@@ -64,6 +69,35 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         }
 
         UseLoadStatus(ReloadPageAsync);
+    }
+
+    private void OnCapabilitiesChanged(object? sender, EventArgs e)
+    {
+        void Apply()
+        {
+            if (_capabilities is null) return;
+            CanManageUsers = _capabilities.Can("users.manage");
+            CanManageAccess = _capabilities.Can("roles.manage");
+            CanManageDevices = _capabilities.Can("devices.manage");
+            if (!CanManageDevices)
+            {
+                Devices.Clear();
+                OnPropertyChanged(nameof(HasDevices));
+                OnPropertyChanged(nameof(DevicesSummary));
+            }
+            if (!CanManageUsers && !CanManageAccess)
+            {
+                Staff.Clear();
+                RoleCards.Clear();
+                SelectedStaff = null;
+                _directory = null;
+                OnPropertyChanged(nameof(StaffSummary));
+                OnPropertyChanged(nameof(SeatUsageSummary));
+            }
+            NotifyAccessState();
+        }
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────
@@ -307,8 +341,9 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         ? $"{ProfilePresentation.Fa(pending.ToString())} دستگاه در انتظار تأیید شماست."
         : "همهٔ دستگاه‌های ثبت‌شده تأیید شده‌اند.";
 
-    public bool CanEditSelected => CanManageAccess && SelectedStaff is { IsProtected: false, IsActive: true } && !IsStaffBusy;
-    public bool CanChangeSelectedStatus => CanManageUsers && SelectedStaff is { IsProtected: false } && !IsStaffBusy;
+    private bool _staffNeedsRefresh;
+    public bool CanEditSelected => CanManageAccess && SelectedStaff is { IsProtected: false, IsActive: true } && !IsStaffBusy && !_staffNeedsRefresh;
+    public bool CanChangeSelectedStatus => CanManageUsers && SelectedStaff is { IsProtected: false } && !IsStaffBusy && !_staffNeedsRefresh;
     public string StaffSummary => $"{ProfilePresentation.Fa(Staff.Count.ToString())} کاربر · {ProfilePresentation.Fa(Staff.Count(m => m.IsActive).ToString())} فعال · {ProfilePresentation.Fa(Staff.Count(m => !m.IsActive).ToString())} غیرفعال";
 
     /// <summary>Clinic seat cap from the licence grant (<c>null</c> = unknown / unlimited); set by <see cref="RefreshAccountStatusAsync"/>.</summary>
@@ -549,6 +584,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     {
         var directory = await _service.GetStaffAsync();
         _directory = directory;
+        _staffNeedsRefresh = false;
         CanManageUsers = directory.CanManageUsers;
         CanManageAccess = directory.CanManageAccess;
         CanManageDevices = directory.CanManageDevices;
@@ -709,16 +745,23 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     private async Task ChangeStaffAsync(System.Func<Task> change, string success)
     {
+        if (IsStaffBusy) return;
         IsStaffBusy = true;
+        NewMemberError = string.Empty;
+        var selectedId = SelectedStaff?.Id;
         try
         {
             await change();
             _toast.Show(success, Tone.Ok);
-            try { await ReloadStaffAsync(); AccessMessage = success; }
-            catch (System.Exception) { AccessMessage = "ثبت انجام شد؛ دریافت فهرست جدید ناموفق بود. بازخوانی کنید."; }
+            // The old concurrency token is consumed by a successful mutation. Never submit it again if
+            // reloading fails: keep the edited values visible but require an explicit, successful refresh.
+            _staffNeedsRefresh = true;
+            try { await ReloadStaffAsync(selectedId); AccessMessage = success; }
+            catch (System.Exception) { AccessMessage = "ثبت انجام شد؛ دریافت فهرست جدید ناموفق بود. پیش از ویرایش بعدی بازخوانی کنید."; }
         }
         catch (System.Exception ex)
         {
+            if (ex.Message == "CONCURRENCY_CONFLICT") _staffNeedsRefresh = true;
             AccessMessage = ex.Message switch
             {
                 "CONCURRENCY_CONFLICT" => "اطلاعات این کاربر تغییر کرده است؛ بازخوانی کنید و دوباره ذخیره کنید.",

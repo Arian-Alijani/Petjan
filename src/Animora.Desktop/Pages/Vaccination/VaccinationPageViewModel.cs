@@ -57,7 +57,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
 
         UseLoadStatus(ReloadPageAsync);
         // Patients (owners/pets) feed the due list.
-        RefreshOnDataChange(changes, () => { _ = ReloadPageAsync(); Calendar.Invalidate(); Upcoming.Invalidate(); }, DataDomain.Patients, DataDomain.Vaccination);
+        RefreshOnDataChange(changes, () => { _ = ReloadPageAsync(); }, DataDomain.Patients, DataDomain.Vaccination);
     }
 
     /// <summary>calendar | upcoming | stock | history | settings — «تقویم» is the landing tab.</summary>
@@ -141,15 +141,20 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsHistorySection));
         OnPropertyChanged(nameof(IsSettingsSection));
 
-        if (value == "history")
+        EnsureActiveSectionLoaded();
+    }
+
+    private void EnsureActiveSectionLoaded()
+    {
+        if (IsHistorySection)
         {
             History.EnsureLoaded();
         }
-        else if (value == "calendar")
+        else if (IsCalendarSection)
         {
             Calendar.EnsureLoaded();
         }
-        else if (value == "upcoming")
+        else if (IsUpcomingSection)
         {
             Upcoming.EnsureLoaded();
         }
@@ -169,6 +174,13 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     {
         IsBusy = true;
         await _readiness.WaitAsync();
+
+        // The default tab does not raise OnActiveSectionChanged. Refresh cached sections
+        // on entry/data changes, then load the visible section even on its first visit.
+        Calendar.Invalidate();
+        Upcoming.Invalidate();
+        History.Refresh();
+        EnsureActiveSectionLoaded();
 
         _catalog.Clear();
         _catalog.AddRange(await _service.GetCatalogAsync());
@@ -214,10 +226,8 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     /// <summary>A new plan feeds the calendar (and the dashboard/history counters) — refresh and jump to the calendar tab.</summary>
     private void OnPlanCreated()
     {
-        NotifyVaccinationChanged();
-        Calendar.Invalidate();
-        Upcoming.Invalidate();
         ActiveSection = "calendar";
+        NotifyVaccinationChanged();
     }
 
     [RelayCommand]
@@ -227,7 +237,6 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
     private void OnCatalogVaccineAdded()
     {
         NotifyVaccinationChanged();
-        _ = ReloadPageAsync();
     }
 
     private void OpenPetPlansFromCalendar(CalendarEventViewModel item) =>
@@ -240,12 +249,7 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
         _dialogs.ShowModal(new TreatmentOccurrenceDetailViewModel(
             _service, _dialogs, _toast, item.Occurrence, OnPlansEdited));
 
-    private void OnPlansEdited()
-    {
-        NotifyVaccinationChanged();
-        Calendar.Invalidate();
-        Upcoming.Invalidate();
-    }
+    private void OnPlansEdited() => NotifyVaccinationChanged();
 
     [RelayCommand]
     private void UseTemplate(SmsTemplateRowViewModel? row)

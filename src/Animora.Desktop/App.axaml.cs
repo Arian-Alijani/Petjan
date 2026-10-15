@@ -246,6 +246,7 @@ public partial class App : global::Avalonia.Application
             Diagnostics.AppTrace.Milestone($"local store ready={ready}", Program.StartupTimer.Elapsed);
             Services.GetRequiredService<MaintenanceScheduler>().Start();
             Services.GetRequiredService<SyncSchedulerHostedService>().Start(); // dormant unless a server is configured
+            Services.GetService<LiveAccessRefreshService>()?.Start(); // active-session access changes, independent of state-sync/backoff
             Services.GetRequiredService<SyncChangeBridge>().Start(); // D14: a completed pass refreshes the open page
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
         }

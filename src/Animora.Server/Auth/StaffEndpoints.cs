@@ -20,12 +20,18 @@ internal static class StaffEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        RouteGroupBuilder group = app.MapGroup(ServerRoutes.Auth).RequireRateLimiting(RateLimitPolicies.Auth);
+        // These are authenticated operations, not password attempts. Keep editing/polling out of the
+        // IP-wide 10/min login bucket so one active clinic cannot lock out its own staff or saves.
+        RouteGroupBuilder group = app.MapGroup(ServerRoutes.Auth).RequireRateLimiting(RateLimitPolicies.Commands);
 
-        group.MapGet("/staff", ListAsync).RequireAuthorization(PermissionCodes.UsersManage);
+        // ListAsync independently checks users.manage OR roles.manage. Requiring users.manage here
+        // prevented delegated access administrators from loading/reloading the editor after a successful save.
+        group.MapGet("/staff", ListAsync).RequireAuthorization(CoarsePolicies.TenantMember);
         group.MapPost("/staff", CreateAsync).RequireAuthorization(PermissionCodes.UsersManage);
         group.MapPost("/staff/{id}/active", SetActiveAsync).RequireAuthorization(PermissionCodes.UsersManage);
         group.MapPost("/staff/access", SaveAccessAsync).RequireAuthorization(PermissionCodes.RolesManage);
+        app.MapGet(ServerRoutes.Auth + "/access", CurrentAccessAsync)
+            .RequireAuthorization(CoarsePolicies.DeviceActive).RequireRateLimiting(RateLimitPolicies.Sync);
 
         return app;
     }
@@ -70,6 +76,16 @@ internal static class StaffEndpoints
         CorrelationHeader.Echo(http, CorrelationHeader.Resolve(http));
         http.Response.Headers.CacheControl = "no-store";
         return Results.NoContent();
+    }
+
+    private static async Task<IResult> CurrentAccessAsync(HttpContext http, IRequestAuthorizationState state, StaffProvisioningService service)
+    {
+        if (state.Membership is not { } actor) return Fail(http, ErrorCodes.SessionExpired);
+        var result = await service.CurrentAccessAsync(actor, http.RequestAborted).ConfigureAwait(false);
+        if (result.IsFailure) return Fail(http, result.Error);
+        http.Response.Headers.CacheControl = "no-store";
+        CorrelationHeader.Echo(http, CorrelationHeader.Resolve(http));
+        return Results.Json(result.Value!);
     }
 
     private static async Task<IResult> ListAsync(HttpContext http, IRequestAuthorizationState state, StaffProvisioningService service)

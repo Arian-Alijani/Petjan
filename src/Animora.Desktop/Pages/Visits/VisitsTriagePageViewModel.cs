@@ -99,6 +99,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     public ObservableCollection<VisitPatientRef> PatientMatches { get; } = [];
 
     private IReadOnlyList<BookedAppointmentRef> _allBooked = [];
+    private int _doctorBookingsVersion;
 
     public string DoctorCountText => PersianNumberFormatter.ToPersianDigits(Doctors.Count);
     public string TodayText => PersianNumberFormatter.ToPersianDigits(
@@ -210,13 +211,11 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
 
             // Preserve the current selection across a reload so a background
             // refresh does not reset the doctor the user is working with.
-            if (selectedId is not null)
-            {
-                SelectedDoctor = restored;
-            }
+            SelectedDoctor = restored;
 
             MergeVisitTypes(visitTypes);
             NotifyState();
+            await ReloadSelectedDoctorBookingsAsync();
         }
         finally
         {
@@ -224,7 +223,15 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         }
     }
 
-    partial void OnSelectedDoctorChanged(DoctorTileViewModel? value) => NotifyState();
+    partial void OnSelectedDoctorChanged(DoctorTileViewModel? value)
+    {
+        // Never leave the previous doctor's actionable tickets under the new selection.
+        ++_doctorBookingsVersion;
+        _allBooked = [];
+        BuildChips();
+        BuildBookedRows();
+        NotifyState();
+    }
 
     partial void OnModeChanged(VisitEntryMode value) => NotifyState();
 
@@ -275,7 +282,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     [RelayCommand]
     private Task SelectDoctorAsync(DoctorTileViewModel? tile) => RunGuardedAsync(async () =>
     {
-        if (tile is null || ReferenceEquals(tile, SelectedDoctor))
+        if (tile is null || !Doctors.Contains(tile))
         {
             return;
         }
@@ -288,11 +295,24 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         }
 
         SelectedDoctor = tile;
-        _allBooked = await _service.GetBookedForDoctorAsync(tile.Doctor.Id);
+        await ReloadSelectedDoctorBookingsAsync();
+    }, "بارگذاری نوبت‌های پزشک ناموفق بود؛ دوباره تلاش کنید");
+
+    private async Task ReloadSelectedDoctorBookingsAsync()
+    {
+        var version = ++_doctorBookingsVersion;
+        var doctorId = SelectedDoctor?.Doctor.Id;
+        if (doctorId is null) return;
+
+        var booked = await _service.GetBookedForDoctorAsync(doctorId);
+        // A directory refresh or a new selection may have overtaken this request.
+        if (version != _doctorBookingsVersion || SelectedDoctor?.Doctor.Id != doctorId) return;
+
+        _allBooked = booked;
         BuildChips();
         BuildBookedRows();
         NotifyState();
-    }, "بارگذاری نوبت‌های پزشک ناموفق بود؛ دوباره تلاش کنید");
+    }
 
     [RelayCommand]
     private void SetMode(string? mode)

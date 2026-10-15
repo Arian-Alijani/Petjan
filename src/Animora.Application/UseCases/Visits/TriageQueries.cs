@@ -47,3 +47,24 @@ public sealed class TriagePatientsQueryHandler(ITriageQueries queries)
         QueryContext context, CancellationToken ct) =>
         Result<IReadOnlyList<TriagePatientReadModel>>.Ok(await queries.GetRecentPatientsAsync(query.Search, ct));
 }
+
+// Local-only materialization: never journal this roster back to the server or create password verifiers.
+[RequiresPermission(PermissionCodes.UsersManage)]
+public sealed record RefreshVisitDoctorDirectoryCommand(string ServerTenantId, string ServerUserId,
+    IReadOnlyList<VisitDoctorDirectoryEntry> Doctors) : ICommand<Unit>;
+
+public sealed class RefreshVisitDoctorDirectoryCommandHandler(IVisitDoctorDirectoryWriter writer,
+    IStaffMembershipRepository memberships) : ICommandHandler<RefreshVisitDoctorDirectoryCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(RefreshVisitDoctorDirectoryCommand command,
+        CommandContext context, CancellationToken ct)
+    {
+        if (command.ServerTenantId != context.TenantId || command.ServerUserId != context.UserId)
+            return Result<Unit>.Fail(ErrorCodes.TenantMismatch);
+        var actor = await memberships.FindActiveAsync(context.TenantId, context.UserId, ct);
+        if (actor?.Role != StaffRole.Manager)
+            return Result<Unit>.Fail(ErrorCodes.PermissionDenied);
+        var result = await writer.RefreshAsync(command.Doctors, context.UserId, ct);
+        return result.IsFailure ? Result<Unit>.Fail(result.Error, result.Detail) : Result<Unit>.Ok(Unit.Value);
+    }
+}

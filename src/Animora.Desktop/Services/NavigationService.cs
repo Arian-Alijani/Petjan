@@ -1,4 +1,5 @@
 using System;
+using Avalonia.Threading;
 using Animora.Contracts.Identity;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Diagnostics;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Animora.Desktop.Services;
 
 /// <summary>Central page admission; denied pages are never resolved or configured.</summary>
-public sealed partial class NavigationService : ObservableObject, INavigationService
+public sealed partial class NavigationService : ObservableObject, INavigationService, IDisposable
 {
     private readonly IServiceProvider _services;
     private readonly ICapabilityGate _gate;
@@ -23,7 +24,28 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
         _services = services;
         _gate = gate;
         _toast = toast;
+        _gate.CapabilitiesChanged += OnCapabilitiesChanged;
     }
+
+    private void OnCapabilitiesChanged(object? sender, EventArgs e)
+    {
+        void Apply()
+        {
+            if (CurrentViewModel is not { } current) return;
+            var required = CurrentNavigationKey is { } key ? NavPermissions.For(key) : null;
+            if (required is not null && _gate.Can(required)) return;
+            // Removing a sidebar entry alone left its data and active refresh work visible indefinitely.
+            current.IsCurrentPage = false;
+            current.OnNavigatedFrom();
+            CurrentNavigationKey = null;
+            CurrentViewModel = null;
+            _toast.Show("دسترسی این بخش تغییر کرده است؛ بخش دیگری را انتخاب کنید.", Tone.Warn);
+        }
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
+    }
+
+    public void Dispose() => _gate.CapabilitiesChanged -= OnCapabilitiesChanged;
 
     public string? CurrentNavigationKey { get; private set; }
 
