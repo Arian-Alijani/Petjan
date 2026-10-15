@@ -39,10 +39,18 @@ public sealed class BoardingBillingHandoff
 
     public string? InvoiceId { get; private set; }
 
+    /// <summary>Seed/test convenience: a handoff with a fresh random id (production paths pass the operation-derived id).</summary>
     public static BoardingBillingHandoff Create(string tenantId, string stayId, string ownerId,
+        string petId, DateTimeOffset completedUtc, string linesJson,
+        BoardingHandoffKind kind = BoardingHandoffKind.Final) =>
+        Create(IdGenerator.NewId(completedUtc), tenantId, stayId, ownerId, petId, completedUtc, linesJson, kind);
+
+    /// <param name="id">Operation-derived handoff id, equal on the client and the server for the same operation (D03).</param>
+    public static BoardingBillingHandoff Create(string id, string tenantId, string stayId, string ownerId,
         string petId, DateTimeOffset completedUtc, string linesJson,
         BoardingHandoffKind kind = BoardingHandoffKind.Final)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(stayId);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
@@ -51,7 +59,7 @@ public sealed class BoardingBillingHandoff
         ArgumentOutOfRangeException.ThrowIfGreaterThan(linesJson.Length, LinesJsonMaxLength);
         return new BoardingBillingHandoff
         {
-            Id = IdGenerator.NewId(completedUtc), TenantId = tenantId, StayId = stayId,
+            Id = id, TenantId = tenantId, StayId = stayId,
             OwnerId = ownerId, PetId = petId, CompletedUtc = completedUtc,
             LinesJson = linesJson, Status = HandoffStatus.Ready, Kind = kind,
         };

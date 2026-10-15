@@ -8,10 +8,10 @@ namespace Animora.Persistence.Sqlite.Repositories;
 
 public sealed class BoardingBillingHandoffWriter(AnimoraLocalDbContext db) : IBoardingBillingHandoffWriter
 {
-    public void Add(string tenantId, string stayId, string ownerId, string petId,
+    public void Add(string id, string tenantId, string stayId, string ownerId, string petId,
         DateTimeOffset completedUtc, string linesJson,
         AppHandoffKind kind = AppHandoffKind.Final) =>
         db.Set<BoardingBillingHandoff>().Add(BoardingBillingHandoff.Create(
-            tenantId, stayId, ownerId, petId, completedUtc, linesJson,
+            id, tenantId, stayId, ownerId, petId, completedUtc, linesJson,
             kind == AppHandoffKind.Room ? EntityHandoffKind.Room : EntityHandoffKind.Final));
 }

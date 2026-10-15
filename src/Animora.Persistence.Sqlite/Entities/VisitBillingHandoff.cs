@@ -23,9 +23,16 @@ public sealed class VisitBillingHandoff
     public HandoffStatus Status { get; private set; }
     public string? InvoiceId { get; private set; }
 
+    /// <summary>Seed/test convenience: a handoff with a fresh random id (production paths pass the operation-derived id).</summary>
     public static VisitBillingHandoff Create(string tenantId, string visitId, string ownerId,
+        string petId, string doctorId, DateTimeOffset completedUtc, string linesJson) =>
+        Create(IdGenerator.NewId(completedUtc), tenantId, visitId, ownerId, petId, doctorId, completedUtc, linesJson);
+
+    /// <param name="id">Operation-derived handoff id, equal on the client and the server for the same completion (D03).</param>
+    public static VisitBillingHandoff Create(string id, string tenantId, string visitId, string ownerId,
         string petId, string doctorId, DateTimeOffset completedUtc, string linesJson)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(visitId);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
@@ -35,7 +42,7 @@ public sealed class VisitBillingHandoff
         ArgumentOutOfRangeException.ThrowIfGreaterThan(linesJson.Length, LinesJsonMaxLength);
         return new VisitBillingHandoff
         {
-            Id = IdGenerator.NewId(completedUtc), TenantId = tenantId, VisitId = visitId,
+            Id = id, TenantId = tenantId, VisitId = visitId,
             OwnerId = ownerId, PetId = petId, DoctorId = doctorId,
             CompletedUtc = completedUtc, LinesJson = linesJson, Status = HandoffStatus.Ready,
         };

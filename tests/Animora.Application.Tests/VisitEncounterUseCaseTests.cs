@@ -67,6 +67,31 @@ public sealed class VisitEncounterUseCaseTests
         Assert.Equal(visit.Id, Assert.Single(_history.Rows).SourceEntityId);
     }
 
+    [Fact]
+    public async Task HandoffId_IsDerivedFromTheCompletionOperation_SoEveryStoreMintsTheSameId()
+    {
+        // D03: the client and the server run this handler for the same operation; both must store the same handoff id.
+        var operationId = Domain.Primitives.IdGenerator.NewId(Clock.UtcNow);
+        var context = Context with { OperationId = operationId };
+        var ids = new List<string>();
+        for (var store = 0; store < 2; store++)
+        {
+            var visits = new FakeVisits();
+            var visit = Visit.Open(TenantId, "PET-1", "OWNER-1", "U-1", VisitReason.Checkup, Clock);
+            Assert.True(visit.Start().IsSuccess);
+            visit.SetAssessment("Healthy", "Follow up", null);
+            visits.Add(visit);
+            var handoff = new RecordingHandoff();
+            var handler = new CompleteVisitCommandHandler(visits, new RecordingHistory(), handoff, new FakeQueueRepository(),
+                new FakePets(), new EmptyTriage(), new FakeAppointmentRepository(), Clock);
+            Assert.True((await handler.HandleAsync(new CompleteVisitCommand(visit.Id), context, default)).IsSuccess);
+            ids.Add(Assert.Single(handoff.Ids));
+        }
+
+        Assert.Equal(ids[0], ids[1]);
+        Assert.Equal(Domain.Primitives.IdGenerator.ForOperation(operationId, 1, Clock.UtcNow), ids[0]);
+    }
+
     private sealed class RecordingHistory : IMedicalHistoryRepository
     {
         public List<MedicalHistoryEntry> Rows { get; } = [];
@@ -76,8 +101,13 @@ public sealed class VisitEncounterUseCaseTests
     private sealed class RecordingHandoff : IVisitBillingHandoffWriter
     {
         public List<string> VisitIds { get; } = [];
-        public void Add(string tenantId, string visitId, string ownerId, string petId, string doctorId,
-            DateTimeOffset completedUtc, string linesJson) => VisitIds.Add(visitId);
+        public List<string> Ids { get; } = [];
+        public void Add(string id, string tenantId, string visitId, string ownerId, string petId, string doctorId,
+            DateTimeOffset completedUtc, string linesJson)
+        {
+            Ids.Add(id);
+            VisitIds.Add(visitId);
+        }
     }
 
     private sealed class EmptyTriage : ITriageQueries

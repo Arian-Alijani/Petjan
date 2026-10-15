@@ -190,7 +190,7 @@ internal sealed class FixtureHistory : IMedicalHistoryRepository
 }
 internal sealed class FixtureHandoff : IVisitBillingHandoffWriter
 {
-    public void Add(string tenantId, string visitId, string ownerId, string petId, string doctorId, DateTimeOffset completedUtc, string linesJson) { }
+    public void Add(string id, string tenantId, string visitId, string ownerId, string petId, string doctorId, DateTimeOffset completedUtc, string linesJson) { }
 }
 internal sealed class FixtureVaccinations : IVaccinationRepository
 {

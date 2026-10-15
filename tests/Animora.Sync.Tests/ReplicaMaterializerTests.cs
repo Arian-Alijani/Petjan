@@ -172,4 +172,32 @@ public sealed class ReplicaMaterializerTests
         Assert.False(await read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>().Set<Product>().AnyAsync(x => x.Id == "PR-1"));
     }
 
+    [Fact]
+    public async Task PulledCompletedVisit_RebuildsTheReadyHandoff_UnderTheServerId_AndNeverDowngradesAnInvoicedOne()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        const string visit = """{"petId":"P1","ownerId":"O1","doctorUserId":"DOC-1","state":2,"reason":0,"startedUtc":"2026-10-12T09:00:00+00:00","completedUtc":"2026-10-12T09:30:00+00:00","diagnosis":"ok","billingHandoffs":[{"id":"H-SERVER-1","visitId":"V1","ownerId":"O1","petId":"P1","doctorId":"DOC-1","completedUtc":"2026-10-12T09:30:00+00:00","linesJson":{"serviceLines":[],"prescriptions":[]},"status":0,"invoiceId":null}]}""";
+        Assert.True((await ApplyAsync(store, Batch("v1", 1, 0, 10), Page("v1", 0, 1, Json("Visit", "V1", "v1", visit)))).IsSuccess);
+
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            var handoff = await db.Set<VisitBillingHandoff>().SingleAsync(h => h.VisitId == "V1");
+            Assert.Equal("H-SERVER-1", handoff.Id);
+            Assert.Equal(HandoffStatus.Ready, handoff.Status);
+            Assert.Equal("DOC-1", handoff.DoctorId);
+            Assert.Contains("ServiceLines", handoff.LinesJson);
+            handoff.MarkInvoiced("INV-1");
+            await db.SaveChangesAsync();
+        }
+
+        // A later pull of the same (still Ready on the server) image must not resurrect the locally invoiced handoff.
+        Assert.True((await ApplyAsync(store, Batch("v2", 1, 10, 20), Page("v2", 0, 1, Json("Visit", "V1", "v2", visit)))).IsSuccess);
+        using var read = fixture.CreateScope();
+        var after = await read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>().Set<VisitBillingHandoff>().SingleAsync(h => h.VisitId == "V1");
+        Assert.Equal(HandoffStatus.Invoiced, after.Status);
+        Assert.Equal("INV-1", after.InvoiceId);
+    }
+
 }

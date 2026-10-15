@@ -21,9 +21,13 @@ namespace Animora.Sync.Custom.Replica;
 /// inventory/purchasing/sales/finance catalogues (UnitOfMeasure, ProductCategory, Product + its variants, Supplier, Insurer, LedgerAccount,
 /// AccountingPeriod), clinical (WeightEntry, MedicalHistoryEntry, VaccinationRecord, VaccineCatalogItem, Visit, TreatmentPlan,
 /// TreatmentOccurrence), boarding (Room, BoardingServiceDef, BoardingStay) and identity (RoleDefinition, StaffMembership).
-/// <para>Deliberately NOT projected here: <c>Tenant</c> (the local installation row owns the tenant binding), <c>DocumentReference</c>
-/// (file payloads are not replicated) and the per-visit / per-stay <i>billing hand-off</i> child rows (<c>BillingHandoffs</c>; a derived,
-/// device-local cashier queue that is rebuilt from the visit/stay itself).</para>
+/// <para>Deliberately NOT projected here: <c>Tenant</c> (the local installation row owns the tenant binding) and <c>DocumentReference</c>
+/// (file payloads are not replicated).</para>
+/// <para><b>Billing hand-offs (D02).</b> A Visit / BoardingStay root carries its <c>BillingHandoffs</c> child images; they are upserted into
+/// the local <c>VisitBillingHandoffs</c> / <c>BoardingBillingHandoffs</c> tables by id (the id is operation-derived and therefore equal on
+/// every store — D03), so a peer's ready-to-bill queue shows a visit completed on another device. A local hand-off that has already
+/// advanced (Invoiced/Cancelled) is never downgraded back to Ready by a pulled copy; a legacy local Ready row for the same source under a
+/// different (random) id is replaced by the server's row so invoicing addresses the id the server knows.</para>
 /// <para>
 /// Runs inside the apply store's commit transaction, so base + checkpoint + business rows move together or not at all. Rules:
 /// <list type="bullet">
@@ -85,6 +89,33 @@ internal static class ReplicaMaterializer
         public string TombstoneSql { get; } =
             $"UPDATE \"{table}\" SET \"Deleted\" = 1, \"UpdatedAt\" = {{0}}, \"Version\" = {{1}} WHERE \"Id\" = {{2}} AND \"TenantId\" = {{3}}";
     }
+
+    /// <summary>A root's billing hand-off child table (D02): upserted by id, never downgraded from a locally advanced status.</summary>
+    private sealed class HandoffMap(string table, string sourceColumn, bool hasKind)
+    {
+        public string Table { get; } = table;
+        public string SourceColumn { get; } = sourceColumn;
+        public bool HasKind { get; } = hasKind;
+
+        /// <summary>Removes a legacy local Ready row for the same source (and kind) stored under a different id.</summary>
+        public string PurgeLegacySql { get; } =
+            $"DELETE FROM \"{table}\" WHERE \"TenantId\" = {{0}} AND \"{sourceColumn}\" = {{1}} AND \"Id\" <> {{2}} AND \"Status\" = 0"
+            + (hasKind ? " AND \"Kind\" = {3}" : "");
+
+        public string UpsertSql { get; } =
+            $"INSERT INTO \"{table}\" (\"Id\", \"TenantId\", \"{sourceColumn}\", \"OwnerId\", \"PetId\", \"DoctorId\", \"CompletedUtc\", \"LinesJson\", \"Status\", \"InvoiceId\""
+            + (hasKind ? ", \"Kind\"" : "") + ") VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}" + (hasKind ? ", {10}" : "") + ") "
+            + $"ON CONFLICT (\"Id\") DO UPDATE SET \"LinesJson\" = excluded.\"LinesJson\", "
+            + $"\"Status\" = CASE WHEN \"{table}\".\"Status\" = 0 THEN excluded.\"Status\" ELSE \"{table}\".\"Status\" END, "
+            + $"\"InvoiceId\" = coalesce(\"{table}\".\"InvoiceId\", excluded.\"InvoiceId\") "
+            + $"WHERE \"{table}\".\"TenantId\" = excluded.\"TenantId\"";
+    }
+
+    private static readonly IReadOnlyDictionary<string, HandoffMap> Handoffs = new Dictionary<string, HandoffMap>(StringComparer.Ordinal)
+    {
+        ["Visit"] = new("VisitBillingHandoffs", "VisitId", hasKind: false),
+        ["BoardingStay"] = new("BoardingBillingHandoffs", "StayId", hasKind: true),
+    };
 
     /// <summary>Currency assumed for a money value object the wire omitted (the product's single supported currency).</summary>
     private const string DefaultCurrency = "IRT";
@@ -310,6 +341,8 @@ internal static class ReplicaMaterializer
                 affected = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
                 if (affected > 0 && map.Children.Length > 0)
                     await ReplaceChildrenAsync(db, map, row.EntityId, row.Payload, ct).ConfigureAwait(false);
+                if (affected > 0 && !row.Deleted && Handoffs.TryGetValue(map.Entity, out var handoffs))
+                    await UpsertHandoffsAsync(db, handoffs, tenant, row.EntityId, row.Payload, ct).ConfigureAwait(false);
             }
             catch (SqliteException ex) when (ex.SqliteErrorCode == SqliteConstraintErrorCode)
             {
@@ -532,6 +565,48 @@ internal static class ReplicaMaterializer
 
                 if (valid) await db.Database.ExecuteSqlRawAsync(child.InsertSql, args, ct).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// Projects a root's <c>billingHandoffs</c> child images into the local hand-off table (D02). Rows absent from the wire are left alone
+    /// (a locally minted hand-off the server has not seen yet must survive); a child missing a required field is skipped.
+    /// </summary>
+    private static async Task UpsertHandoffsAsync(AnimoraLocalDbContext db, HandoffMap map, string tenant, string sourceId, string payload,
+        CancellationToken ct)
+    {
+        using var doc = JsonDocument.Parse(payload);
+        if (Lookup(doc.RootElement, "billingHandoffs") is not { ValueKind: JsonValueKind.Array } rows) return;
+        foreach (var h in rows.EnumerateArray())
+        {
+            if (h.ValueKind != JsonValueKind.Object) continue;
+            var id = Text(Lookup(h, "id"));
+            var ownerId = Text(Lookup(h, "ownerId"));
+            var petId = Text(Lookup(h, "petId"));
+            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(ownerId) || string.IsNullOrEmpty(petId)) continue;
+            var completed = ReadTicks(Lookup(h, "completedUtc")) ?? 0L;
+            // The server column is jsonb, so the image carries the document itself (camelCased by the projector); re-key it to the
+            // PascalCase shape the local snapshot is serialized with. A string form (legacy text column) is stored verbatim.
+            var linesEl = Lookup(h, "linesJson");
+            var lines = linesEl.ValueKind switch
+            {
+                JsonValueKind.String => linesEl.GetString() ?? "[]",
+                JsonValueKind.Object or JsonValueKind.Array => ToPascalJson(linesEl),
+                _ => "[]",
+            };
+            var status = ReadInt(Lookup(h, "status"));
+            var kind = ReadInt(Lookup(h, "kind"));
+            var invoiceId = Text(Lookup(h, "invoiceId"));
+            var doctorId = Text(Lookup(h, "doctorId")) ?? string.Empty;
+
+            var purge = new List<object> { tenant, sourceId, id };
+            if (map.HasKind) purge.Add(kind);
+            await db.Database.ExecuteSqlRawAsync(map.PurgeLegacySql, purge, ct).ConfigureAwait(false);
+
+            var args = new List<object> { id, tenant, sourceId, ownerId, petId, doctorId, completed, lines, status, Nullable(invoiceId) };
+            if (map.HasKind) args.Add(kind);
+            var written = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
+            TraceLog.Info($"ReplicaMaterializer.Apply — HANDOFF {map.Table}/{id} (source={sourceId}, status={status}) → {written} row(s).", "sync.apply");
         }
     }
 

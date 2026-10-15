@@ -76,7 +76,7 @@ public sealed class VisitEncounterUseCaseTests
     private sealed class RecordingHandoff : IVisitBillingHandoffWriter
     {
         public List<string> VisitIds { get; } = [];
-        public void Add(string tenantId, string visitId, string ownerId, string petId, string doctorId,
+        public void Add(string id, string tenantId, string visitId, string ownerId, string petId, string doctorId,
             DateTimeOffset completedUtc, string linesJson) => VisitIds.Add(visitId);
     }
 

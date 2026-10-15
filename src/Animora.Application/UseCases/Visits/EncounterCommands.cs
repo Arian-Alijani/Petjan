@@ -224,7 +224,8 @@ public sealed class CompleteVisitCommandHandler(IVisitRepository visits, IMedica
             visit.Diagnosis!, completedUtc, visit.DoctorUserId, clock, visit.TreatmentPlan, visit.Id, "Visit",
             id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow)));
         var snapshot = JsonSerializer.Serialize(new { ServiceLines = visit.ServiceLines, Prescriptions = visit.Prescriptions });
-        handoffs.Add(context.TenantId, visit.Id, visit.OwnerId, visit.PetId, visit.DoctorUserId, completedUtc, snapshot);
+        // D03: slot 1 (slot 0 is the history entry) — the server derives the same id for the same completion operation.
+        handoffs.Add(IdGenerator.ForOperation(context.OperationId, 1, completedUtc), context.TenantId, visit.Id, visit.OwnerId, visit.PetId, visit.DoctorUserId, completedUtc, snapshot);
         var entry = await queue.FindByVisitAsync(visit.Id, ct);
         if (entry?.State == QueueState.InVisit) entry.Close(clock);
         // A03: an appointment-backed encounter completes its appointment in the same unit of work.

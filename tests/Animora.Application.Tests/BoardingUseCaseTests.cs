@@ -102,7 +102,7 @@ internal sealed class BoardingRepositoryFake(params BoardingStay[] stays) : IBoa
 internal sealed class BoardingHandoffFake : IBoardingBillingHandoffWriter
 {
     public List<string> StayIds { get; } = [];
-    public void Add(string tenantId, string stayId, string ownerId, string petId,
+    public void Add(string id, string tenantId, string stayId, string ownerId, string petId,
         DateTimeOffset completedUtc, string linesJson,
         BoardingHandoffKind kind = BoardingHandoffKind.Final) => StayIds.Add(stayId);
 }

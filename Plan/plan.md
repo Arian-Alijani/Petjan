@@ -111,7 +111,7 @@ The diagnostic groups 18 defects. Fixing all 18 fully is a large multi-session e
 
 **Build:** `Animora.Domain`, `Animora.Application`, `Animora.Persistence.Sqlite`, `Animora.Persistence.PostgreSql`, `Animora.Sync.Custom`, touched tests.
 
-**Status:** ☐ not started
+**Status:** ☑ done — handoff writers take the id from the handler: `ForOperation(op, 1)` for visit completion / checkout, `ForOperation(op, 3)` for the prepaid-room handoff at admission (slots 0–2 already used). `ReplicaMaterializer` upserts `billingHandoffs` child images into the local handoff tables (status never downgraded from Invoiced/Cancelled; a legacy local Ready row under a random id is replaced by the server's id; jsonb lines re-keyed to PascalCase).
 
 ---
 

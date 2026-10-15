@@ -106,7 +106,9 @@ public sealed class CreateBoardingStayCommandHandler(IBoardingRepository reposit
                 Currency = roomCharge.Currency,
                 Items = Array.Empty<object>(),
             });
-            handoffs.Add(context.TenantId, stay.Id, ownerId, petId, clock.UtcNow, payload,
+            // D03: slots 0-2 are the stay / walk-in owner / walk-in pet; the room handoff takes slot 3.
+            handoffs.Add(IdGenerator.ForOperation(context.OperationId, 3, clock.UtcNow), context.TenantId, stay.Id,
+                ownerId, petId, clock.UtcNow, payload,
                 BoardingHandoffKind.Room);
         }
 
@@ -327,7 +329,8 @@ public sealed class CheckoutStayCommandHandler(IBoardingRepository repository, I
                     .Select(i => new { i.ItemId, i.Kind, i.CatalogItemId, i.Title,
                         Quantity = i.Quantity.Value, UnitPriceMinor = i.UnitPrice.Minor }),
             });
-            handoffs.Add(context.TenantId, stay.Id, stay.OwnerId, stay.PetId, now, prepaidPayload);
+            handoffs.Add(IdGenerator.ForOperation(context.OperationId, 1, now), context.TenantId, stay.Id,
+                stay.OwnerId, stay.PetId, now, prepaidPayload);
             return Result<Unit>.Ok(Unit.Value);
         }
 
@@ -345,7 +348,8 @@ public sealed class CheckoutStayCommandHandler(IBoardingRepository repository, I
                 .Select(i => new { i.ItemId, i.Kind, i.CatalogItemId, i.Title,
                     Quantity = i.Quantity.Value, UnitPriceMinor = i.UnitPrice.Minor }),
         });
-        handoffs.Add(context.TenantId, stay.Id, stay.OwnerId, stay.PetId, now, payload);
+        handoffs.Add(IdGenerator.ForOperation(context.OperationId, 1, now), context.TenantId, stay.Id,
+            stay.OwnerId, stay.PetId, now, payload);
         return Result<Unit>.Ok(Unit.Value);
     }
 }

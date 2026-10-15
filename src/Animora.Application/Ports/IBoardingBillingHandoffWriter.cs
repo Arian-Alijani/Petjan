@@ -15,10 +15,13 @@ public enum BoardingHandoffKind
     Room = 1,
 }
 
-/// <summary>Writes the immutable stay-to-billing payload within the command transaction.</summary>
+/// <summary>
+/// Writes the immutable stay-to-billing payload within the command transaction. <paramref name="id"/> is the
+/// operation-derived handoff id (identical on the client and the server for the same operation — D03).
+/// </summary>
 public interface IBoardingBillingHandoffWriter
 {
-    void Add(string tenantId, string stayId, string ownerId, string petId,
+    void Add(string id, string tenantId, string stayId, string ownerId, string petId,
         DateTimeOffset completedUtc, string linesJson,
         BoardingHandoffKind kind = BoardingHandoffKind.Final);
 }
