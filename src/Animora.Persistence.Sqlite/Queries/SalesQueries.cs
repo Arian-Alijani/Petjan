@@ -84,7 +84,7 @@ internal sealed class FinanceInvoiceProjection
             || db.Set<PendingCommand>().Any(c => c.AggregateId == i.Id && c.AggregateType == "Invoice"
                 && c.Status != SettlementState.Settled && c.Status != SettlementState.Reversed)).Select(i => i.Id);
         var local = from i in db.Set<Invoice>().AsNoTracking()
-            where protectedIds.Contains(i.Id) || !db.Set<PeerInvoice>().Any(p => p.Id == i.Id)
+            where protectedIds.Contains(i.Id) || !db.Set<PeerInvoice>().Any(p => p.TenantId == db.CurrentTenantId && p.Id == i.Id)
             join o in db.Set<Owner>() on i.OwnerId equals o.Id into owners
             from o in owners.DefaultIfEmpty()
             join p in db.Set<Pet>() on i.PetId equals p.Id into pets
@@ -95,7 +95,7 @@ internal sealed class FinanceInvoiceProjection
                 IssuedUtc = i.IssuedUtc, PostedUtc = i.PostedUtc, TotalMinor = i.GrandTotal.Minor,
                 PaidMinor = i.PaidTotal.Minor, DueMinor = i.DueTotal.Minor, Settlement = i.Settlement, ServerOnly = false };
         var peer = from i in db.Set<PeerInvoice>().AsNoTracking()
-            where !protectedIds.Contains(i.Id)
+            where i.TenantId == db.CurrentTenantId && !protectedIds.Contains(i.Id)
             join o in db.Set<Owner>() on i.OwnerId equals o.Id into owners
             from o in owners.DefaultIfEmpty()
             select new FinanceInvoiceProjection { Id = i.Id, Number = i.Number, Kind = i.Kind,
@@ -121,10 +121,10 @@ internal sealed class FinancePaymentProjection
     public string? Note { get; init; }
 
     internal static IQueryable<FinancePaymentProjection> Query(AnimoraLocalDbContext db) =>
-        db.Set<Payment>().AsNoTracking().Where(p => !db.Set<PeerPayment>().Any(s => s.Id == p.Id))
+        db.Set<Payment>().AsNoTracking().Where(p => !db.Set<PeerPayment>().Any(s => s.TenantId == db.CurrentTenantId && s.Id == p.Id))
             .Select(p => new FinancePaymentProjection { Id = p.Id, InvoiceId = p.InvoiceId, Method = p.Method,
                 AmountMinor = p.Amount.Minor, ReceivedUtc = p.ReceivedUtc, Note = p.Note })
-        .Concat(db.Set<PeerPayment>().AsNoTracking().Select(p => new FinancePaymentProjection {
+        .Concat(db.Set<PeerPayment>().AsNoTracking().Where(p => p.TenantId == db.CurrentTenantId).Select(p => new FinancePaymentProjection {
             Id = p.Id, InvoiceId = p.InvoiceId, Method = p.Method, AmountMinor = p.AmountMinor,
             ReceivedUtc = p.ReceivedUtc, Note = null }));
 }
@@ -182,13 +182,13 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
 
         if (!await invoice.AnyAsync(ct))
         {
-            var peer = await db.Set<PeerInvoice>().SingleAsync(i => i.Id == invoiceId, ct);
+            var peer = await db.Set<PeerInvoice>().SingleAsync(i => i.TenantId == db.CurrentTenantId && i.Id == invoiceId, ct);
             var receipts = await FinancePaymentProjection.Query(db).Where(p => p.InvoiceId == invoiceId)
                 .OrderBy(p => p.ReceivedUtc).ThenBy(p => p.Id)
                 .Select(p => new InvoicePaymentReadModel(p.Id, p.Method, p.AmountMinor, p.ReceivedUtc, p.Note)).ToListAsync(ct);
             // This endpoint carries summaries, not invoice lines/tax/discount detail. Do not fabricate those.
             return new InvoiceDetailReadModel(summary, null, null, 0, 0, 0, 0, 0, peer.PaidTotalMinor,
-                DiscountKind.None, 0, [], receipts, [], SettlementStatus.Settled, null, null, IsReadOnly: true);
+                DiscountKind.Percent, 0, [], receipts, [], SettlementStatus.Settled, null, null, IsReadOnly: true);
         }
         var scalar = await invoice.Select(i => new { i.GuestName, i.InsurerId, i.InsurancePercent,
             Subtotal = i.Subtotal.Minor, Discount = i.DiscountTotal.Minor, Tax = i.TaxTotal.Minor,
