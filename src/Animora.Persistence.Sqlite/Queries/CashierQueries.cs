@@ -38,79 +38,55 @@ public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStore
     public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(
         CashierInvoiceTab tab, string? search, int page, int pageSize, CancellationToken ct)
     {
-        var invoices = db.Set<Invoice>().AsNoTracking();
+        var invoices = FinanceInvoiceProjection.Query(db);
         invoices = tab switch
         {
-            CashierInvoiceTab.Open => invoices.OpenInvoices(),
+            CashierInvoiceTab.Open => invoices.Where(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
             CashierInvoiceTab.Settled => invoices.Where(i => i.State == InvoiceState.Paid),
             CashierInvoiceTab.Void => invoices.Where(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded),
             _ => invoices,
         };
         if (!string.IsNullOrWhiteSpace(search))
         {
-            // Search runs in SQL so the screen never has to hold the whole table to filter it (X29).
             var term = search.Trim();
             var like = "%" + term + "%";
-            var ownerIds = db.Set<Owner>().AsNoTracking()
-                .Where(o => EF.Functions.Like(o.SearchKey, "%" + PersianText.Normalize(term) + "%"))
-                .Select(o => o.Id);
-            var petIds = db.Set<Pet>().AsNoTracking().Where(p => EF.Functions.Like(p.Name, like)).Select(p => p.Id);
-            invoices = invoices.Where(i => EF.Functions.Like(i.Id, like) || EF.Functions.Like(i.InvoiceNumber, like)
+            var ownerIds = db.Set<Owner>().Where(o => EF.Functions.Like(o.SearchKey, "%" + PersianText.Normalize(term) + "%")).Select(o => o.Id);
+            invoices = invoices.Where(i => EF.Functions.Like(i.Id, like) || EF.Functions.Like(i.Number, like)
                 || (i.OwnerId != null && ownerIds.Contains(i.OwnerId))
-                || (i.PetId != null && petIds.Contains(i.PetId))
-                || (i.GuestName != null && EF.Functions.Like(i.GuestName, like)));
+                || EF.Functions.Like(i.PetName, like) || EF.Functions.Like(i.OwnerName, like));
         }
-
-        // Open states first (draft/posted, partial, paid, void, refunded), then newest first — the order the
-        // screen used to apply client-side after pulling every invoice.
-        var projected = from i in invoices
-            join o in db.Set<Owner>().AsNoTracking() on i.OwnerId equals o.Id into owners
-            from o in owners.DefaultIfEmpty()
-            join p in db.Set<Pet>().AsNoTracking() on i.PetId equals p.Id into pets
-            from p in pets.DefaultIfEmpty()
-            orderby (i.State == InvoiceState.Draft || i.State == InvoiceState.Posted ? 0
-                : i.State == InvoiceState.PartiallyPaid ? 1
-                : i.State == InvoiceState.Paid ? 2
-                : i.State == InvoiceState.Void ? 3 : 4), i.IssuedUtc descending, i.Id descending
-            select new InvoiceSummaryReadModel(i.Id, i.InvoiceNumber, i.Kind, i.State, i.OwnerId,
-                o == null ? i.GuestName ?? "" : o.FullName, p == null ? "" : p.Name,
-                o == null ? "" : o.PhonePrimary, i.IssuedUtc, i.GrandTotal.Minor, i.DueTotal.Minor, i.Settlement);
-        return projected.ToPagedAsync(page, pageSize, options.Value, ct);
+        var ordered = invoices.OrderBy(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted ? 0
+                : i.State == InvoiceState.PartiallyPaid ? 1 : i.State == InvoiceState.Paid ? 2 : i.State == InvoiceState.Void ? 3 : 4)
+            .ThenByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id);
+        return FinanceInvoiceProjection.Summaries(ordered).ToPagedAsync(page, pageSize, options.Value, ct);
     }
 
     public async Task<CashierStatsReadModel> GetStatsAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct)
     {
-        // One SQL statement, including the empty-store case (the UNION yields no row then).
-        var row = await db.Set<Invoice>().AsNoTracking().Select(i => 1)
-            .Concat(db.Set<Payment>().AsNoTracking().Select(p => 1))
-            .Concat(db.Set<CashSession>().AsNoTracking().Select(s => 1)).Distinct()
-            .Select(_ => new
-            {
-                Outstanding = db.Set<Invoice>().Where(i => i.State != InvoiceState.Void && i.State != InvoiceState.Refunded)
-                    .Sum(i => (long?)i.DueTotal.Minor) ?? 0,
-                Refunded = db.Set<Invoice>().Where(i => i.State == InvoiceState.Refunded)
-                    .Sum(i => (long?)i.PaidTotal.Minor) ?? 0,
-                Count = db.Set<Invoice>().Count(),
-                Collected = db.Set<Payment>().AsNoTracking().NonCreditSettlements(fromUtc, toUtc)
-                    .Sum(p => (long?)p.Amount.Minor) ?? 0,
-                Variance = db.Set<CashSession>().Where(s => s.ClosedUtc >= fromUtc && s.ClosedUtc < toUtc)
-                    .Sum(s => (long?)s.Variance.Minor) ?? 0,
-            }).FirstOrDefaultAsync(ct);
-        return row is null ? new CashierStatsReadModel(0, 0, 0, 0, 0) :
-            new CashierStatsReadModel(row.Collected, row.Outstanding, row.Refunded, row.Variance, row.Count);
+        var row = await FinanceInvoiceProjection.Query(db).GroupBy(i => 1).Select(g => new
+        {
+            Outstanding = g.Sum(i => i.State != InvoiceState.Void && i.State != InvoiceState.Refunded ? i.DueMinor : 0),
+            Refunded = g.Sum(i => i.State == InvoiceState.Refunded ? i.PaidMinor : 0), Count = g.Count(),
+        }).FirstOrDefaultAsync(ct);
+        var collected = await FinancePaymentProjection.Query(db).Where(p => p.ReceivedUtc >= fromUtc && p.ReceivedUtc < toUtc
+            && (p.Method == PaymentMethod.Cash || p.Method == PaymentMethod.Card || p.Method == PaymentMethod.Transfer
+                || p.Method == PaymentMethod.Cheque || p.Method == PaymentMethod.Wallet || p.Method == PaymentMethod.Insurance))
+            .SumAsync(p => (long?)p.AmountMinor, ct) ?? 0;
+        // Drawer variance remains device-local: the finance read endpoint does not claim a global drawer ledger.
+        var variance = await db.Set<CashSession>().Where(s => s.ClosedUtc >= fromUtc && s.ClosedUtc < toUtc)
+            .SumAsync(s => (long?)s.Variance.Minor, ct) ?? 0;
+        return new CashierStatsReadModel(collected, row?.Outstanding ?? 0, row?.Refunded ?? 0, variance, row?.Count ?? 0);
     }
 
     public async Task<CashierTabCountsReadModel> GetTabCountsAsync(CancellationToken ct)
     {
-        var row = await db.Set<Invoice>().AsNoTracking().GroupBy(i => 1).Select(g => new
+        var row = await FinanceInvoiceProjection.Query(db).GroupBy(i => 1).Select(g => new
         {
             Open = g.Count(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
             Settled = g.Count(i => i.State == InvoiceState.Paid),
-            Void = g.Count(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded),
-            All = g.Count(),
+            Void = g.Count(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded), All = g.Count(),
         }).FirstOrDefaultAsync(ct);
-        return row is null ? new CashierTabCountsReadModel(0, 0, 0, 0) :
-            new CashierTabCountsReadModel(row.Open, row.Settled, row.Void, row.All);
+        return new CashierTabCountsReadModel(row?.Open ?? 0, row?.Settled ?? 0, row?.Void ?? 0, row?.All ?? 0);
     }
 
     public Task<OpenCashSessionReadModel?> GetOpenSessionAsync(string userId, CancellationToken ct) =>

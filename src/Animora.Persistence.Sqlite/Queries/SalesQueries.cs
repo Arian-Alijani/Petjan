@@ -57,6 +57,78 @@ internal sealed class ReadyBillingProjection
     }
 }
 
+// Scalar projections keep UNION ALL below the final read-model constructors (EF's set-operation rule).
+// The cache is display-only: no authoritative row is ever inserted into a command-owned table.
+internal sealed class FinanceInvoiceProjection
+{
+    public string Id { get; init; } = "";
+    public string Number { get; init; } = "";
+    public InvoiceKind Kind { get; init; }
+    public InvoiceState State { get; init; }
+    public string? OwnerId { get; init; }
+    public string OwnerName { get; init; } = "";
+    public string PetName { get; init; } = "";
+    public string Phone { get; init; } = "";
+    public DateTimeOffset IssuedUtc { get; init; }
+    public DateTimeOffset? PostedUtc { get; init; }
+    public long TotalMinor { get; init; }
+    public long PaidMinor { get; init; }
+    public long DueMinor { get; init; }
+    public SettlementStatus Settlement { get; init; }
+    public bool ServerOnly { get; init; }
+
+    internal static IQueryable<FinanceInvoiceProjection> Query(AnimoraLocalDbContext db)
+    {
+        // A refusal/provisional mutation must stay visible even when the cache has an older accepted copy.
+        var protectedIds = db.Set<Invoice>().Where(i => i.Settlement != SettlementStatus.Settled
+            || db.Set<PendingCommand>().Any(c => c.AggregateId == i.Id && c.AggregateType == "Invoice"
+                && c.Status != SettlementState.Settled && c.Status != SettlementState.Reversed)).Select(i => i.Id);
+        var local = from i in db.Set<Invoice>().AsNoTracking()
+            where protectedIds.Contains(i.Id) || !db.Set<PeerInvoice>().Any(p => p.Id == i.Id)
+            join o in db.Set<Owner>() on i.OwnerId equals o.Id into owners
+            from o in owners.DefaultIfEmpty()
+            join p in db.Set<Pet>() on i.PetId equals p.Id into pets
+            from p in pets.DefaultIfEmpty()
+            select new FinanceInvoiceProjection { Id = i.Id, Number = i.InvoiceNumber, Kind = i.Kind,
+                State = i.State, OwnerId = i.OwnerId, OwnerName = o == null ? i.GuestName ?? "" : o.FullName,
+                PetName = p == null ? "" : p.Name, Phone = o == null ? "" : o.PhonePrimary,
+                IssuedUtc = i.IssuedUtc, PostedUtc = i.PostedUtc, TotalMinor = i.GrandTotal.Minor,
+                PaidMinor = i.PaidTotal.Minor, DueMinor = i.DueTotal.Minor, Settlement = i.Settlement, ServerOnly = false };
+        var peer = from i in db.Set<PeerInvoice>().AsNoTracking()
+            where !protectedIds.Contains(i.Id)
+            join o in db.Set<Owner>() on i.OwnerId equals o.Id into owners
+            from o in owners.DefaultIfEmpty()
+            select new FinanceInvoiceProjection { Id = i.Id, Number = i.Number, Kind = i.Kind,
+                State = i.State, OwnerId = i.OwnerId, OwnerName = i.PartyName, PetName = i.PetName,
+                Phone = o == null ? "" : o.PhonePrimary, IssuedUtc = i.IssuedUtc, PostedUtc = i.PostedUtc,
+                TotalMinor = i.GrandTotalMinor, PaidMinor = i.PaidTotalMinor, DueMinor = i.DueTotalMinor,
+                Settlement = SettlementStatus.Settled, ServerOnly = !db.Set<Invoice>().Any(l => l.Id == i.Id) };
+        return local.Concat(peer);
+    }
+
+    internal static IQueryable<InvoiceSummaryReadModel> Summaries(IQueryable<FinanceInvoiceProjection> q) =>
+        q.Select(i => new InvoiceSummaryReadModel(i.Id, i.Number, i.Kind, i.State, i.OwnerId, i.OwnerName,
+            i.PetName, i.Phone, i.IssuedUtc, i.TotalMinor, i.DueMinor, i.Settlement));
+}
+
+internal sealed class FinancePaymentProjection
+{
+    public string Id { get; init; } = "";
+    public string InvoiceId { get; init; } = "";
+    public PaymentMethod Method { get; init; }
+    public long AmountMinor { get; init; }
+    public DateTimeOffset ReceivedUtc { get; init; }
+    public string? Note { get; init; }
+
+    internal static IQueryable<FinancePaymentProjection> Query(AnimoraLocalDbContext db) =>
+        db.Set<Payment>().AsNoTracking().Where(p => !db.Set<PeerPayment>().Any(s => s.Id == p.Id))
+            .Select(p => new FinancePaymentProjection { Id = p.Id, InvoiceId = p.InvoiceId, Method = p.Method,
+                AmountMinor = p.Amount.Minor, ReceivedUtc = p.ReceivedUtc, Note = p.Note })
+        .Concat(db.Set<PeerPayment>().AsNoTracking().Select(p => new FinancePaymentProjection {
+            Id = p.Id, InvoiceId = p.InvoiceId, Method = p.Method, AmountMinor = p.AmountMinor,
+            ReceivedUtc = p.ReceivedUtc, Note = null }));
+}
+
 /// <summary>Bounded sales projections; global tenant filters apply to every domain set.</summary>
 public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOptions> options) : ISalesQueries
 {
@@ -82,32 +154,42 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
     public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(
         string? search, int page, int pageSize, CancellationToken ct)
     {
-        var q = db.Set<Invoice>().AsNoTracking();
+        var q = FinanceInvoiceProjection.Query(db);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
             var ownerIds = db.Set<Owner>().Where(o => EF.Functions.Like(o.SearchKey, "%" + PersianText.Normalize(term) + "%"))
                 .Select(o => o.Id);
-            q = q.Where(i => EF.Functions.Like(i.InvoiceNumber, "%" + term + "%") ||
-                (i.OwnerId != null && ownerIds.Contains(i.OwnerId)) ||
-                (i.GuestName != null && EF.Functions.Like(i.GuestName, "%" + term + "%")));
+            q = q.Where(i => EF.Functions.Like(i.Number, "%" + term + "%") ||
+                (i.OwnerId != null && ownerIds.Contains(i.OwnerId)) || EF.Functions.Like(i.OwnerName, "%" + term + "%"));
         }
-        return ProjectInvoices(q.OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id))
+        return FinanceInvoiceProjection.Summaries(q.OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id))
             .ToPagedAsync(page, pageSize, options.Value, ct);
     }
 
     public async Task<IReadOnlyList<InvoiceSummaryReadModel>> GetOwnerInvoicesAsync(
         string ownerId, int take, CancellationToken ct) =>
-        await ProjectInvoices(db.Set<Invoice>().AsNoTracking().Where(i => i.OwnerId == ownerId)
-                .OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id).Take(take))
+        await FinanceInvoiceProjection.Summaries(FinanceInvoiceProjection.Query(db).Where(i => i.OwnerId == ownerId)
+                .OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id).Take(Math.Clamp(take, 1, 200)))
             .ToListAsync(ct);
 
     public async Task<InvoiceDetailReadModel?> GetInvoiceAsync(string invoiceId, CancellationToken ct)
     {
         var invoice = db.Set<Invoice>().AsNoTracking().Where(i => i.Id == invoiceId);
-        var summary = await ProjectInvoices(invoice).FirstOrDefaultAsync(ct);
+        var summary = await FinanceInvoiceProjection.Summaries(FinanceInvoiceProjection.Query(db).Where(i => i.Id == invoiceId))
+            .FirstOrDefaultAsync(ct);
         if (summary is null) return null;
 
+        if (!await invoice.AnyAsync(ct))
+        {
+            var peer = await db.Set<PeerInvoice>().SingleAsync(i => i.Id == invoiceId, ct);
+            var receipts = await FinancePaymentProjection.Query(db).Where(p => p.InvoiceId == invoiceId)
+                .OrderBy(p => p.ReceivedUtc).ThenBy(p => p.Id)
+                .Select(p => new InvoicePaymentReadModel(p.Id, p.Method, p.AmountMinor, p.ReceivedUtc, p.Note)).ToListAsync(ct);
+            // This endpoint carries summaries, not invoice lines/tax/discount detail. Do not fabricate those.
+            return new InvoiceDetailReadModel(summary, null, null, 0, 0, 0, 0, 0, peer.PaidTotalMinor,
+                DiscountKind.None, 0, [], receipts, [], SettlementStatus.Settled, null, null, IsReadOnly: true);
+        }
         var scalar = await invoice.Select(i => new { i.GuestName, i.InsurerId, i.InsurancePercent,
             Subtotal = i.Subtotal.Minor, Discount = i.DiscountTotal.Minor, Tax = i.TaxTotal.Minor,
             Coverage = i.InsuranceCoverage.Minor, Paid = i.PaidTotal.Minor, i.DiscountKind,
@@ -118,9 +200,9 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
         var adjustments = await invoice.SelectMany(i => i.Adjustments)
             .Select(a => new InvoiceAdjustmentReadModel(a.AdjustmentId, a.Kind, a.Amount.Minor,
                 a.Reason, a.CreatedUtc)).ToListAsync(ct);
-        var payments = await db.Set<Payment>().AsNoTracking().Where(p => p.InvoiceId == invoiceId)
+        var payments = await FinancePaymentProjection.Query(db).Where(p => p.InvoiceId == invoiceId)
             .OrderBy(p => p.ReceivedUtc).ThenBy(p => p.Id)
-            .Select(p => new InvoicePaymentReadModel(p.Id, p.Method, p.Amount.Minor,
+            .Select(p => new InvoicePaymentReadModel(p.Id, p.Method, p.AmountMinor,
                 p.ReceivedUtc, p.Note)).ToListAsync(ct);
         // The settlement verdict belongs to the commands that create or commit this invoice's money/stock; a line
         // edit, a discount or an owner assignment never carries it, and treating them as candidates let a later
@@ -214,9 +296,9 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
 
     public async Task<SaleKpiReadModel> GetKpisAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct)
     {
-        var row = await db.Set<Invoice>().AsNoTracking()
+        var row = await FinanceInvoiceProjection.Query(db)
             .Where(i => i.PostedUtc >= fromUtc && i.PostedUtc < toUtc && i.State != InvoiceState.Void)
-            .GroupBy(i => 1).Select(g => new { Count = g.Count(), Revenue = g.Sum(i => i.GrandTotal.Minor) })
+            .GroupBy(i => 1).Select(g => new { Count = g.Count(), Revenue = g.Sum(i => i.TotalMinor) })
             .FirstOrDefaultAsync(ct);
         return row is null ? new SaleKpiReadModel(0, 0, 0) :
             new SaleKpiReadModel(row.Revenue, row.Count, row.Revenue / row.Count);
@@ -231,35 +313,23 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
         // a record constructor — or mismatched client-shaped expressions — in a Concat leg makes EF throw
         // "Unable to translate set operation after client projection has been applied" (EF Core 10), which
         // previously surfaced as an empty «تاریخچه صندوق» tab even though the invoice was posted.
-        var payments = from p in db.Set<Payment>().AsNoTracking()
-                       join i in db.Set<Invoice>().AsNoTracking() on p.InvoiceId equals i.Id
-                       join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
-                       from owner in owners.DefaultIfEmpty()
+        var displayInvoices = FinanceInvoiceProjection.Query(db);
+        var payments = from p in FinancePaymentProjection.Query(db)
+                       join i in displayInvoices on p.InvoiceId equals i.Id
                        select new
                        {
-                           Id = p.Id,
-                           InvoiceId = i.Id,
-                           Number = i.InvoiceNumber,
-                           OccurredUtc = p.ReceivedUtc,
-                           Kind = p.Amount.Minor < 0 ? "Refund" : "Payment",
-                           AmountMinor = p.Amount.Minor,
-                           OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName,
-                           State = i.State,
+                           Id = p.Id, InvoiceId = i.Id, Number = i.Number, OccurredUtc = p.ReceivedUtc,
+                           Kind = p.AmountMinor < 0 ? "Refund" : "Payment", AmountMinor = p.AmountMinor,
+                           OwnerName = i.OwnerName, State = i.State,
                        };
-        var invoices = from i in db.Set<Invoice>().AsNoTracking()
-                       join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
-                       from owner in owners.DefaultIfEmpty()
+        var invoices = from i in displayInvoices
                        where i.State != InvoiceState.Draft
                        select new
                        {
-                           Id = i.Id,
-                           InvoiceId = i.Id,
-                           Number = i.InvoiceNumber,
+                           Id = i.Id, InvoiceId = i.Id, Number = i.Number,
                            OccurredUtc = i.PostedUtc ?? i.IssuedUtc,
                            Kind = i.State == InvoiceState.Void ? "Void" : "Accepted",
-                           AmountMinor = 0L,
-                           OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName,
-                           State = i.State,
+                           AmountMinor = 0L, OwnerName = i.OwnerName, State = i.State,
                        };
         var rows = payments.Concat(invoices);
         if (fromUtc is { } from) rows = rows.Where(r => r.OccurredUtc >= from);

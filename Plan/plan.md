@@ -1,9 +1,13 @@
 # PLAN — Clinic Client↔Server Sync Defects (D01–D18)
 
-> **Source phase:** `docs/CLIENT_SERVER_CLINIC_SYNC_DIAGNOSTIC_2026-10-14.md` (static diagnostic, baseline `d2b1430b`).>   
-> That doc **diagnoses** 18 defects but **prescribes no fixes** ("deliberately does not prescribe fixes"). This plan is the **execution/fix** of that phase.>   
-> **Branch:** `genspark_ai_developer` · **Push rule (LOCKED):** after EVERY task below, run `scripts/git/push.sh "msg"`. Exit 3 ⇒ call `setup_github_environment` tool, re-run. Exit 2 ⇒ resolve preferring remote, re-run. **No push = failure.**>   
-> **dotnet:** not on PATH in a fresh sandbox. `export PATH="$HOME/.dotnet:$PATH"`; if still missing run `bash scripts/sandbox/install-prereqs.sh` once (~5 min). **NO full-solution build/test.** Build/test ONLY the projects you touched. No long full-test runs.>   
+> **Source phase:** `docs/CLIENT_SERVER_CLINIC_SYNC_DIAGNOSTIC_2026-10-14.md` (static diagnostic, baseline `d2b1430b`).
+>   
+> That doc **diagnoses** 18 defects but **prescribes no fixes** ("deliberately does not prescribe fixes"). This plan is the **execution/fix** of that phase.
+>   
+> **Branch:** `genspark_ai_developer` · **Push rule (LOCKED):** after EVERY task below, run `scripts/git/push.sh "msg"`. Exit 3 ⇒ call `setup_github_environment` tool, re-run. Exit 2 ⇒ resolve preferring remote, re-run. **No push = failure.**
+>   
+> **dotnet:** not on PATH in a fresh sandbox. `export PATH="$HOME/.dotnet:$PATH"`; if still missing run `bash scripts/sandbox/install-prereqs.sh` once (~5 min). **NO full-solution build/test.** Build/test ONLY the projects you touched. No long full-test runs.
+>   
 > **App:** offline-first vet-clinic desktop (Avalonia MVVM, C#/.NET 10). Client = local **SQLite** replica (`Animora.Persistence.Sqlite`); Server = **PostgreSQL** (`Animora.Persistence.PostgreSql` + `Animora.Server`). Two pipelines: **(A) command outbox PUSH** (`Animora.Sync.Custom/HttpCommandTransport`), **(B) state feed PULL** (`Animora.Sync.Custom/Replica/ReplicaMaterializer`). One clinic = one tenant = one local DB.
 
 ---
@@ -164,7 +168,8 @@ Fix the four-part "local looks done but server rejected" story together. (Done b
 
 **Root cause (VERIFIED above).**
 
-**Fix approach (decided — architecture addition; keep minimal & offline-safe):**  
+**Fix approach (decided — architecture addition; keep minimal & offline-safe):**
+  
 Do NOT un-exclude the aggregates from the generic feed (they are intentionally command-settled — un-excluding risks double-writing settled money). Add a **dedicated authoritative financial read path**:
 
 1. **Server read endpoint** returning a tenant's invoices/payments/cash-session summaries since a cursor (reuse existing PG queries — `Persistence.PostgreSql/Repositories/SalesQueries.cs` has `GetHistoryAsync`). Separate from command intake and the state feed.

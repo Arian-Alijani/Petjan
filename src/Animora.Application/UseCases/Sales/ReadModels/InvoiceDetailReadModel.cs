@@ -31,4 +31,4 @@ public sealed record InvoiceDetailReadModel(InvoiceSummaryReadModel Summary, str
     long TaxMinor, long InsuranceMinor, long PaidMinor, DiscountKind DiscountKind,
     decimal DiscountValue, IReadOnlyList<InvoiceLineReadModel> Lines,
     IReadOnlyList<InvoicePaymentReadModel> Payments, IReadOnlyList<InvoiceAdjustmentReadModel> Adjustments,
-    SettlementStatus SettlementStatus, string? LastSettlementErrorCode, string? ResponsibleRole);
+    SettlementStatus SettlementStatus, string? LastSettlementErrorCode, string? ResponsibleRole, bool IsReadOnly = false);
