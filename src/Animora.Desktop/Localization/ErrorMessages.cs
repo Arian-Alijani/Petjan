@@ -13,6 +13,8 @@ public static class ErrorMessages
 {
     private static readonly IReadOnlyDictionary<string, string> Map = new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        // Sync / command pipeline
+        ["IDENTITY_MISMATCH"] = "این عملیات را کاربر دیگری ثبت کرده است؛ برای ارسال، با همان حساب کاربری وارد شوید.",
         // Visits / reception
         ["TICKET_STATE_INVALID"] = "این نوبت دیگر قابل شروع نیست (لغو، عدم‌حضور یا تکمیل‌شده).",
         ["TICKET_NOT_FOUND"] = "نوبت موردنظر پیدا نشد؛ فهرست را بازخوانی کنید.",

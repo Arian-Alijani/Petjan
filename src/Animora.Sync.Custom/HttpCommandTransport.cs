@@ -7,6 +7,7 @@ using Animora.Application.Security;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Wire;
 using Animora.Contracts.Wire.Commands;
+using Animora.Domain.Identity;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 
@@ -29,6 +30,12 @@ namespace Animora.Sync.Custom;
 /// local↔wire boundary. <c>OperationId</c>, <c>CommandFingerprint</c> and <c>PayloadJson</c> are never touched, so idempotent retries stay
 /// byte-identical. With no session store wired or no active session the envelope is sent unchanged (offline / unit composition).
 /// </para>
+/// <para>
+/// <b>Author guard (D18).</b> Rebinding is refused when the queued command was authored by a DIFFERENT user than the
+/// active session (same tenant, one local database, e.g. A queues work, signs out, B signs in). Submitting it would
+/// make the server attribute and authorize A's work as B, so the command is held (<c>IDENTITY_MISMATCH</c>) until its
+/// original author signs in again — see <see cref="CanSubmitAs"/>.
+/// </para>
 /// </summary>
 public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerEndpointOptions options, IClock clock,
     ISessionStore? sessions = null)
@@ -48,7 +55,15 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
         ArgumentNullException.ThrowIfNull(envelope);
 
         TraceLog.Info($"CommandTransport.Submit → op={envelope.OperationId}, type={envelope.CommandType}, aggregate={envelope.AggregateType}/{envelope.AggregateId}, localSequence={envelope.LocalSequence}.", "sync.push");
-        envelope = await RebindIdentityAsync(envelope, ct).ConfigureAwait(false);
+        var session = await SessionAsync(ct).ConfigureAwait(false);
+        if (session is not null && !CanSubmitAs(envelope, session))
+        {
+            TraceLog.Warn($"CommandTransport.Submit ← op={envelope.OperationId} HELD: queued by user {envelope.UserId} but the active session is {session.UserId} (same tenant) — refusing to submit another user's work as the current actor.", "sync.push");
+            return Result<SettlementResult>.Fail(ErrorCodes.IdentityMismatch,
+                $"Operation {envelope.OperationId} was queued by a different user; it is held until that user signs in again.");
+        }
+
+        envelope = Rebind(envelope, session);
         using var request = NewRequest(CommandsPath, envelope);
         var exchange = await SendAsync(request, ct).ConfigureAwait(false);
         if (exchange.Response is null)
@@ -92,7 +107,18 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
         if (envelopes.Count > MaxBatchSize)
             return Result<IReadOnlyList<SettlementResult>>.Fail(ErrorCodes.BatchTooLarge, $"{envelopes.Count} > {MaxBatchSize}");
 
-        envelopes = await RebindIdentityAsync(envelopes, ct).ConfigureAwait(false);
+        // D18: a batch is refused as a whole when any member was queued by another user of this tenant — the
+        // response is positional, and submitting a foreign envelope under the current actor would be exactly the
+        // misattribution this guard exists to prevent. Nothing is sent; the eligible commands go out on a later pass.
+        var session = await SessionAsync(ct).ConfigureAwait(false);
+        if (session is not null && envelopes.Any(e => !CanSubmitAs(e, session)))
+        {
+            TraceLog.Warn($"CommandTransport.SubmitBatch ← {envelopes.Count} envelope(s) HELD: at least one was queued by a different user than the active session {session.UserId} (same tenant).", "sync.push");
+            return Result<IReadOnlyList<SettlementResult>>.Fail(ErrorCodes.IdentityMismatch,
+                "At least one queued command belongs to a different user; the batch is held until that user signs in again.");
+        }
+
+        envelopes = RebindAll(envelopes, session);
         using var request = NewRequest(BatchPath, envelopes);
         var exchange = await SendAsync(request, ct).ConfigureAwait(false);
         if (exchange.Response is null) return Result<IReadOnlyList<SettlementResult>>.Ok(DeferAll(envelopes, exchange.Detail));
@@ -141,24 +167,42 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
     };
 
     /// <summary>
-    /// Stamps the authoritative server identity (<c>TenantId</c>/<c>UserId</c>/<c>DeviceId</c>) from the stored online session onto the
-    /// envelope. Returns the envelope unchanged when no session store is wired, no session is stored, or the session identity is already
-    /// what the envelope carries. Never alters <c>OperationId</c>, <c>CommandFingerprint</c> or <c>PayloadJson</c> (idempotency-preserving).
+    /// The stored online session, or <see langword="null"/> when no session store is wired or nothing is stored —
+    /// in which case envelopes are sent unchanged (offline / unit composition).
     /// </summary>
-    private async Task<CommandEnvelope> RebindIdentityAsync(CommandEnvelope envelope, CancellationToken ct)
+    private async Task<ClientSession?> SessionAsync(CancellationToken ct)
     {
-        if (sessions is null) return envelope;
+        if (sessions is null) return null;
         var read = await sessions.ReadAsync(ct).ConfigureAwait(false);
-        if (read.IsFailure || read.Value is not { } session) return envelope;
-        return Rebind(envelope, session);
+        return read.IsFailure ? null : read.Value;
     }
 
-    private async Task<IReadOnlyList<CommandEnvelope>> RebindIdentityAsync(IReadOnlyList<CommandEnvelope> envelopes, CancellationToken ct)
-    {
-        if (sessions is null) return envelopes;
-        var read = await sessions.ReadAsync(ct).ConfigureAwait(false);
-        if (read.IsFailure || read.Value is not { } session) return envelopes;
+    /// <summary>
+    /// D18: a queued command may only be submitted when its ORIGINATING actor is the current session's user.
+    /// <para>
+    /// Rebinding stamps the session identity onto the envelope, and the server re-resolves the tenant from the bearer
+    /// membership and attributes the work to that session. Stamping it onto a command that another user queued on
+    /// the same device (A queues work, signs out, B signs in — same tenant, one local database) therefore sent A's
+    /// work as B, and the server authorized and recorded it as B. Only two things may be rebound:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>an envelope authored by the current session user (a normal retry);</description></item>
+    /// <item><description>a PRE-BINDING envelope — one still carrying the local installation's placeholder tenant
+    /// (<see cref="Tenant.LocalDefaultId"/>), which is precisely what rebinding exists to upgrade.</description></item>
+    /// </list>
+    /// <para>Anything else is held for its original author instead of being submitted under the wrong actor.</para>
+    /// </summary>
+    private static bool CanSubmitAs(CommandEnvelope envelope, ClientSession session) =>
+        IsPreBinding(envelope.TenantId)
+        || string.Equals(envelope.UserId, session.UserId, StringComparison.Ordinal);
 
+    /// <summary>True while the envelope still carries the local installation's placeholder identity.</summary>
+    private static bool IsPreBinding(string? tenantId) =>
+        string.IsNullOrEmpty(tenantId) || string.Equals(tenantId, Tenant.LocalDefaultId, StringComparison.Ordinal);
+
+    private static IReadOnlyList<CommandEnvelope> RebindAll(IReadOnlyList<CommandEnvelope> envelopes, ClientSession? session)
+    {
+        if (session is null) return envelopes;
         var rebound = new CommandEnvelope[envelopes.Count];
         for (var i = 0; i < envelopes.Count; i++) rebound[i] = Rebind(envelopes[i], session);
         return rebound;
@@ -167,9 +211,11 @@ public sealed class HttpCommandTransport(IHttpClientFactory httpFactory, ServerE
     /// <summary>
     /// Returns <paramref name="envelope"/> re-stamped with the session's server identity, or the original when the session identity is
     /// incomplete or already matches. <c>OperationId</c>/<c>CommandFingerprint</c>/<c>PayloadJson</c> are preserved by the <c>with</c> copy.
+    /// The caller has already established that the envelope may be submitted as this session (see <see cref="CanSubmitAs"/>).
     /// </summary>
-    private static CommandEnvelope Rebind(CommandEnvelope envelope, ClientSession session)
+    private static CommandEnvelope Rebind(CommandEnvelope envelope, ClientSession? session)
     {
+        if (session is null) return envelope;
         if (string.IsNullOrEmpty(session.TenantId) || string.IsNullOrEmpty(session.UserId) || string.IsNullOrEmpty(session.DeviceId))
             return envelope;
         if (string.Equals(envelope.TenantId, session.TenantId, StringComparison.Ordinal)

@@ -717,6 +717,14 @@ public static class ErrorCodes
     /// <summary>The server rejected the request as unauthenticated or unauthorised (HTTP 401/403).</summary>
     public static readonly ErrorCode Unauthorized = new("UNAUTHORIZED", ErrorCode.Forbidden);
 
+    /// <summary>
+    /// A queued command was authored by a different user of the same tenant. It must never be submitted under the
+    /// current session's identity — the server would attribute and authorize it as the wrong person — so it is held
+    /// until the original author signs in again (D18).
+    /// </summary>
+    public static readonly ErrorCode IdentityMismatch =
+        new("IDENTITY_MISMATCH", ErrorCode.Forbidden);
+
     #endregion
 
     #region Server command intake (Phase S06)
