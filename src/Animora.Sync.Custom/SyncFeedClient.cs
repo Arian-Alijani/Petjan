@@ -55,6 +55,27 @@ public sealed class SyncFeedClient
     {
         using var request = NewRequest(HttpMethod.Post, "sync/batches");
         request.Content = JsonContent.Create(new OpenBatchRequest(epoch, fromSequence), options: JsonOptions);
+        return await OpenAsync(request, epoch, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// POST /sync/snapshots — asks the server for a complete, retention-independent full snapshot of the current epoch.
+    /// Unlike <see cref="OpenBatchAsync"/> (which hits the retention-enforcing <c>/sync/batches</c> route and answers
+    /// <c>ResyncRequired(BEYOND_RETENTION)</c> once the requested sequence has been pruned), this is the dedicated
+    /// resync path and always materialises a fresh <c>BatchReady</c> full snapshot for the server's current epoch.
+    /// </summary>
+    public async Task<Result<OpenBatchOutcome>> OpenSnapshotAsync(CancellationToken ct = default)
+    {
+        using var request = NewRequest(HttpMethod.Post, "sync/snapshots");
+        // The server ignores any body here (it always freezes a full snapshot of the current epoch); send an empty
+        // JSON object so the request still carries a Content-Type and is well-formed for proxies/filters.
+        request.Content = JsonContent.Create(new { }, options: JsonOptions);
+        return await OpenAsync(request, epoch: 0, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Shared transport + response mapping for the two "open a batch/snapshot" POST routes.</summary>
+    private async Task<Result<OpenBatchOutcome>> OpenAsync(HttpRequestMessage request, long epoch, CancellationToken ct)
+    {
         var exchange = await SendAsync(request, ct).ConfigureAwait(false);
         if (exchange.Failure is { } fail) return Result<OpenBatchOutcome>.Fail(fail.Error, fail.Detail);
         using var response = exchange.Response!;

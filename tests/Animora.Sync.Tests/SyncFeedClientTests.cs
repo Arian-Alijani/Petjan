@@ -68,6 +68,26 @@ public sealed class SyncFeedClientTests
     }
 
     [Fact]
+    public async Task OpenSnapshot_PostsToSnapshotsRoute_AndMapsReady()
+    {
+        var ready = new BatchReady("snap", 7, 3, 0, 99, 2, "abc");
+        var handler = new FakeFeedHandler(request =>
+        {
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("/sync/snapshots", request.RequestUri!.AbsolutePath);
+            Assert.Equal("2", request.Headers.GetValues("X-Animora-Contract-Version").Single());
+            return FeedFixtures.JsonResponse(new OpenBatchResponse("BatchReady", Batch: ready));
+        });
+
+        var result = await FeedFixtures.Client(handler).OpenSnapshotAsync();
+
+        Assert.True(result.IsSuccess, result.Detail);
+        Assert.Equal(OpenBatchKind.Ready, result.Value!.Kind);
+        Assert.Equal(ready, result.Value.Batch);
+        Assert.Equal(["POST /sync/snapshots"], handler.Requests);
+    }
+
+    [Fact]
     public async Task Page_304_ReturnsNullOk()
     {
         var handler = new FakeFeedHandler(request =>
