@@ -119,6 +119,37 @@ public sealed class PatientInvariantTests
         Assert.Null(owner.BlockReason);
     }
 
+    /// <summary>
+    /// D10: a NON-BLANK but digitless phone ("---", "abc") normalizes to the empty string. Storing that created a
+    /// server row the replica consumer refuses (PhonePrimary is a REQUIRED sync field), so the whole Owner — and
+    /// every pet, visit and invoice under it — was dropped on every peer. The domain refuses such a value.
+    /// </summary>
+    [Theory]
+    [InlineData("---")]
+    [InlineData("abc")]
+    [InlineData("+")]
+    [InlineData("() -")]
+    public void Owner_RefusesADigitlessPhone(string raw)
+    {
+        Assert.Throws<ArgumentException>(() => Owner.Register("T1", "سارا", raw, new TestClock(Now)));
+        var owner = Owner.Register("T1", "سارا", "09121112233", new TestClock(Now));
+        Assert.Throws<ArgumentException>(() => owner.UpdateContactDetails("سارا", raw));
+    }
+
+    /// <summary>
+    /// D10: an ABSENT phone is a different thing — "not recorded", a real state for an imported record whose source
+    /// row has no contact number. It is stored as the empty string and is never mistaken for a digitless typo.
+    /// </summary>
+    [Fact]
+    public void Owner_AcceptsAnAbsentPhoneAsNotRecorded()
+    {
+        var owner = Owner.Register("T1", "سارا", null, new TestClock(Now));
+        Assert.Equal(string.Empty, owner.PhonePrimary);
+
+        owner.UpdateContactDetails("سارا", null);
+        Assert.Equal(string.Empty, owner.PhonePrimary);
+    }
+
     [Fact]
     public void MedicalHistoryEntry_IsAppendOnly()
     {

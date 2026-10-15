@@ -54,9 +54,10 @@ public sealed class ClinicBakPreviewData(
             {
                 if (string.IsNullOrWhiteSpace(row.FullName) || row.Pets.Count == 0)
                     return Result.Fail(ErrorCodes.ValidationFailed, "Invalid owner in Clinic preview.");
-                // The domain normalizes this explicit unknown label to an empty phone;
-                // never invent a routable telephone number for missing source contacts.
-                var phone = string.IsNullOrWhiteSpace(row.Phone) ? "ثبت نشده" : row.Phone;
+                // An absent source phone is passed through as "not recorded" (the domain stores the empty string);
+                // never invent a routable telephone number for a missing source contact, and never pass a digitless
+                // label as if it were one — that is the shape the domain now refuses.
+                var phone = string.IsNullOrWhiteSpace(row.Phone) ? null : row.Phone;
                 var ownerClock = new AtClock(Date(row.RegisteredDate) ?? clock.UtcNow);
                 var owner = Owner.Register(tenant.TenantId, row.FullName, phone, ownerClock);
                 owner.UpdateContactDetails(row.FullName, phone, row.SecondaryPhone,

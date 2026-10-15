@@ -41,8 +41,9 @@ public sealed class CreateWalkInCommandValidator : IValidator<CreateWalkInComman
         var failures = new List<ValidationFailure>();
         if (Rules.Required(c.PatientName, nameof(c.PatientName)) is { } pet) failures.Add(pet);
         if (Rules.Required(c.OwnerName, nameof(c.OwnerName)) is { } owner) failures.Add(owner);
-        // Phone drives de-duplication and is mandatory for a walk-in (WALKIN_PHONE_REQUIRED at handler).
-        if (Rules.Required(c.Phone, nameof(c.Phone)) is { } phone) failures.Add(phone);
+        // Phone drives de-duplication and is mandatory for a walk-in (WALKIN_PHONE_REQUIRED at handler). It must
+        // also survive normalization: a digitless value would create an owner the replica consumer refuses.
+        if (Rules.Phone(c.Phone, nameof(c.Phone)) is { } phone) failures.Add(phone);
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
     }
 }
@@ -57,7 +58,9 @@ public sealed class CreateWalkInCommandHandler(
 {
     public async Task<Result<string>> HandleAsync(CreateWalkInCommand c, CommandContext context, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(c.Phone))
+        // A digitless value ("---") is refused here too, not only by the validator: it normalizes to the empty string,
+        // and an owner created with an empty phone is a row the replica consumer drops on every peer (D10).
+        if (string.IsNullOrWhiteSpace(c.Phone) || Owner.NormalizePhone(c.Phone).Length == 0)
         {
             return Result<string>.Fail(ErrorCodes.WalkInPhoneRequired, "A walk-in requires a contact phone.");
         }

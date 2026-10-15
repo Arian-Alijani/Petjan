@@ -48,7 +48,8 @@ public sealed class CreateBoardingStayCommandValidator : IValidator<CreateBoardi
         {
             if (Rules.Required(c.WalkIn.PetName, nameof(c.WalkIn.PetName)) is { } name) failures.Add(name);
             if (Rules.Required(c.WalkIn.OwnerName, nameof(c.WalkIn.OwnerName)) is { } owner) failures.Add(owner);
-            if (Rules.Required(c.WalkIn.OwnerPhone, nameof(c.WalkIn.OwnerPhone)) is { } phone) failures.Add(phone);
+            // The owner is created here when the phone is unknown, so it must survive normalization (see Rules.Phone).
+            if (Rules.Phone(c.WalkIn.OwnerPhone, nameof(c.WalkIn.OwnerPhone)) is { } phone) failures.Add(phone);
         }
         if (Rules.Required(c.RoomId, nameof(c.RoomId)) is { } room) failures.Add(room);
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);

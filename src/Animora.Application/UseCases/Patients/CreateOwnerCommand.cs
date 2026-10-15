@@ -36,7 +36,7 @@ public sealed class CreateOwnerCommandValidator : IValidator<CreateOwnerCommand>
         var failures = new List<ValidationFailure>();
         if (Rules.Required(c.FullName, nameof(c.FullName)) is { } name) failures.Add(name);
         else if (Rules.MaxLength(c.FullName, 120, nameof(c.FullName)) is { } tooLong) failures.Add(tooLong);
-        if (Rules.Required(c.PhonePrimary, nameof(c.PhonePrimary)) is { } phone) failures.Add(phone);
+        if (Rules.Phone(c.PhonePrimary, nameof(c.PhonePrimary)) is { } phone) failures.Add(phone);
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
     }
 }

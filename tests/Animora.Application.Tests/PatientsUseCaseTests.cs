@@ -115,7 +115,7 @@ public sealed class PatientsUseCaseTests
     }
 
     [Fact]
-    public async Task CreateOwnerValidator_RequiresNameAndPrimaryPhone()
+    public async Task CreateOwnerValidator_RequiresNameAndAPhoneWithDigits()
     {
         var validator = new CreateOwnerCommandValidator();
         var invalid = new CreateOwnerCommand("", "", OwnerGender.Male, null, null, null,
@@ -124,7 +124,36 @@ public sealed class PatientsUseCaseTests
         var failures = await validator.ValidateAsync(invalid, default);
 
         Assert.Contains(failures, f => f.Field == nameof(CreateOwnerCommand.FullName) && f.Code == "REQUIRED");
-        Assert.Contains(failures, f => f.Field == nameof(CreateOwnerCommand.PhonePrimary) && f.Code == "REQUIRED");
+        Assert.Contains(failures, f => f.Field == nameof(CreateOwnerCommand.PhonePrimary) && f.Code == "PHONE_INVALID");
+    }
+
+    /// <summary>
+    /// D10: a non-blank but digitless phone used to pass validation, normalize to the empty string and be stored —
+    /// producing a server row the replica consumer refuses (PhonePrimary is REQUIRED), which dropped the whole owner
+    /// and every pet/visit under it on every peer. The operator now gets a validation failure instead.
+    /// </summary>
+    [Theory]
+    [InlineData("---")]
+    [InlineData("abc")]
+    [InlineData("+")]
+    public async Task CreateOwnerValidator_RefusesADigitlessPhone(string raw)
+    {
+        var validator = new CreateOwnerCommandValidator();
+        var command = new CreateOwnerCommand("سارا", raw, OwnerGender.Female, null, null, null,
+            null, null, null, null, null, null, null, null, false);
+
+        var failures = await validator.ValidateAsync(command, default);
+
+        Assert.Contains(failures, f => f.Field == nameof(CreateOwnerCommand.PhonePrimary) && f.Code == "PHONE_INVALID");
+    }
+
+    [Fact]
+    public async Task UpdateOwnerValidator_RefusesADigitlessPhone()
+    {
+        var failures = await new UpdateOwnerCommandValidator().ValidateAsync(
+            new UpdateOwnerCommand("OWN1", "سارا", "---", OwnerGender.Female, null, null, null), default);
+
+        Assert.Contains(failures, f => f.Field == nameof(UpdateOwnerCommand.PhonePrimary) && f.Code == "PHONE_INVALID");
     }
 
     [Fact]

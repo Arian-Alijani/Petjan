@@ -182,9 +182,10 @@ public sealed class CreateBookingPatientCommandValidator : IValidator<CreateBook
     public ValueTask<IReadOnlyList<ValidationFailure>> ValidateAsync(CreateBookingPatientCommand c, CancellationToken ct)
     {
         var failures = new List<ValidationFailure>();
-        foreach (var (value, field) in new[] { (c.Name, nameof(c.Name)), (c.OwnerName, nameof(c.OwnerName)),
-            (c.Phone, nameof(c.Phone)) })
+        foreach (var (value, field) in new[] { (c.Name, nameof(c.Name)), (c.OwnerName, nameof(c.OwnerName)) })
             if (Rules.Required(value, field) is { } failure) failures.Add(failure);
+        // The owner is created here when the phone is unknown, so it must survive normalization (see Rules.Phone).
+        if (Rules.Phone(c.Phone, nameof(c.Phone)) is { } phone) failures.Add(phone);
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
     }
 }

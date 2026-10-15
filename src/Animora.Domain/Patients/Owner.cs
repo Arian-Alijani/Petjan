@@ -72,18 +72,19 @@ public sealed class Owner : AggregateRoot
     public string SearchKey { get; set; } = string.Empty;
 
     /// <summary>Registers a new, unblocked owner. <paramref name="id"/> is the deterministic id derived from the creating command's
-    /// operation (<see cref="IdGenerator.ForOperation"/>) so client and server agree; <see langword="null"/> mints a fresh ULID.</summary>
+    /// operation (<see cref="IdGenerator.ForOperation"/>) so client and server agree; <see langword="null"/> mints a fresh ULID.
+    /// <paramref name="phonePrimary"/> may be absent for an imported record whose source has no contact number — see
+    /// <see cref="NormalizePrimaryPhone"/>.</summary>
     public static Owner Register(
         string tenantId,
         string fullName,
-        string phonePrimary,
+        string? phonePrimary,
         IClock clock,
         OwnerGender gender = OwnerGender.Unspecified,
         string? id = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(phonePrimary);
         ArgumentNullException.ThrowIfNull(clock);
 
         var now = clock.UtcNow;
@@ -92,7 +93,7 @@ public sealed class Owner : AggregateRoot
             Id = string.IsNullOrWhiteSpace(id) ? IdGenerator.NewId(now) : id,
             TenantId = tenantId,
             FullName = fullName.Trim(),
-            PhonePrimary = NormalizePhone(phonePrimary),
+            PhonePrimary = NormalizePrimaryPhone(phonePrimary),
             Gender = gender,
             RegisteredUtc = now,
         };
@@ -104,7 +105,7 @@ public sealed class Owner : AggregateRoot
     /// </summary>
     public void UpdateContactDetails(
         string fullName,
-        string phonePrimary,
+        string? phonePrimary,
         string? phoneSecondary = null,
         string? nationalId = null,
         string? email = null,
@@ -114,10 +115,9 @@ public sealed class Owner : AggregateRoot
         string? notes = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
-        ArgumentException.ThrowIfNullOrWhiteSpace(phonePrimary);
 
         FullName = fullName.Trim();
-        PhonePrimary = NormalizePhone(phonePrimary);
+        PhonePrimary = NormalizePrimaryPhone(phonePrimary);
         PhoneSecondary = string.IsNullOrWhiteSpace(phoneSecondary) ? null : NormalizePhone(phoneSecondary);
         NationalId = Clean(nationalId);
         Email = Clean(email);
@@ -176,6 +176,37 @@ public sealed class Owner : AggregateRoot
         }
 
         return new string(buffer, 0, length);
+    }
+
+    /// <summary>
+    /// Normalizes the primary phone and refuses a value that cannot be a phone number.
+    /// <para>
+    /// A NON-BLANK but digitless value (<c>"---"</c>, <c>"abc"</c>, <c>"+"</c>) normalizes to the empty string, and
+    /// silently storing that was the defect: the row reached the server, and the replica consumer — which requires
+    /// <c>PhonePrimary</c> — then dropped the whole Owner, and with it every pet, visit and invoice hanging off it, on
+    /// every peer. Such a value is a data-entry error, so it is refused here (and, for operator-facing commands,
+    /// already reported as a validation failure by <c>Rules.Phone</c>).
+    /// </para>
+    /// <para>
+    /// An ABSENT phone (<see langword="null"/>/blank) is different: "contact number not recorded" is a real state for
+    /// a legacy record whose source row has no phone, and it is stored as the empty string. Only a source import
+    /// produces it — every operator-facing command requires a usable number.
+    /// </para>
+    /// </summary>
+    private static string NormalizePrimaryPhone(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        var normalized = NormalizePhone(raw);
+        if (normalized.Length == 0)
+        {
+            throw new ArgumentException("A primary phone number must contain at least one digit.", nameof(PhonePrimary));
+        }
+
+        return normalized;
     }
 
     private static string? Clean(string? value) =>

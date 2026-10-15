@@ -166,7 +166,7 @@ public sealed class ReceptionQueueUseCaseTests
         var failures = await new CreateWalkInCommandValidator().ValidateAsync(command, default);
 
         Assert.Equal(ErrorCodes.WalkInPhoneRequired, result.Error);
-        Assert.Contains(failures, f => f.Field == nameof(CreateWalkInCommand.Phone) && f.Code == "REQUIRED");
+        Assert.Contains(failures, f => f.Field == nameof(CreateWalkInCommand.Phone) && f.Code == "PHONE_INVALID");
         Assert.Empty(_queue.Items);
     }
 

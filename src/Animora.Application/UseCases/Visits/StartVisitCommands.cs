@@ -142,9 +142,10 @@ public sealed class StartNewVisitCommandValidator : IValidator<StartNewVisitComm
     {
         var failures = new List<ValidationFailure>();
         foreach (var (value, field) in new[] { (c.DoctorId, nameof(c.DoctorId)),
-                     (c.PatientName, nameof(c.PatientName)), (c.OwnerName, nameof(c.OwnerName)),
-                     (c.OwnerPhone, nameof(c.OwnerPhone)) })
+                     (c.PatientName, nameof(c.PatientName)), (c.OwnerName, nameof(c.OwnerName)) })
             if (Rules.Required(value, field) is { } failure) failures.Add(failure);
+        // The owner phone is created here when unknown, so it must survive normalization (see Rules.Phone).
+        if (Rules.Phone(c.OwnerPhone, nameof(c.OwnerPhone)) is { } phone) failures.Add(phone);
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
     }
 }
@@ -159,7 +160,9 @@ public sealed class StartNewVisitCommandHandler(
         var doctor = await memberships.FindActiveAsync(context.TenantId, c.DoctorId, ct);
         if (doctor is null || doctor.Role != StaffRole.Doctor)
             return Result<EncounterDraftReadModel>.Fail(ErrorCodes.DoctorNotAvailable);
-        if (string.IsNullOrWhiteSpace(c.OwnerPhone))
+        // A digitless value normalizes to the empty string and would create an owner the replica consumer drops on
+        // every peer (D10), so it is refused here too, not only by the validator.
+        if (string.IsNullOrWhiteSpace(c.OwnerPhone) || Owner.NormalizePhone(c.OwnerPhone).Length == 0)
             return Result<EncounterDraftReadModel>.Fail(ErrorCodes.WalkInPhoneRequired);
         var owner = await owners.FindByPhoneAsync(Owner.NormalizePhone(c.OwnerPhone), ct);
         if (owner is null)

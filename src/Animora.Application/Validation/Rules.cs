@@ -1,3 +1,4 @@
+using Animora.Domain.Patients;
 using Animora.Domain.ValueObjects;
 
 namespace Animora.Application.Validation;
@@ -16,12 +17,24 @@ public static class Rules
     public const string UlidFormatCode = "ULID_FORMAT";
     public const string NotFutureUtcCode = "FUTURE_UTC";
     public const string ValidEnumCode = "ENUM_UNDEFINED";
+    public const string PhoneCode = "PHONE_INVALID";
 
     private const int UlidLength = 26;
 
     /// <summary>Fails when <paramref name="value"/> is null, empty or whitespace.</summary>
     public static ValidationFailure? Required(string? value, string field) =>
         string.IsNullOrWhiteSpace(value) ? new(field, RequiredCode) : null;
+
+    /// <summary>
+    /// Fails when a phone is blank OR normalizes to no digits at all (<c>"---"</c>, <c>"abc"</c>). What gets stored
+    /// is the NORMALIZED value, and an empty stored phone is a row the replica consumer refuses as a missing
+    /// REQUIRED field — it would drop the whole owner (and every pet, visit and invoice under it) on every peer, so
+    /// an operator-facing command must never produce one. Mirrors the <c>Owner.NormalizePrimaryPhone</c> domain
+    /// invariant so the operator sees a validation failure rather than an argument exception. A record whose contact
+    /// number is genuinely unknown comes from a source import (which passes no phone), never from this path.
+    /// </summary>
+    public static ValidationFailure? Phone(string? value, string field) =>
+        string.IsNullOrWhiteSpace(value) || Owner.NormalizePhone(value).Length == 0 ? new(field, PhoneCode) : null;
 
     /// <summary>Fails when <paramref name="value"/> is longer than <paramref name="max"/>; null passes.</summary>
     public static ValidationFailure? MaxLength(string? value, int max, string field) =>

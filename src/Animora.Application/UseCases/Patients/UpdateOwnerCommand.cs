@@ -31,7 +31,7 @@ public sealed class UpdateOwnerCommandValidator : IValidator<UpdateOwnerCommand>
         if (Rules.Required(c.OwnerId, nameof(c.OwnerId)) is { } id) failures.Add(id);
         if (Rules.Required(c.FullName, nameof(c.FullName)) is { } name) failures.Add(name);
         else if (Rules.MaxLength(c.FullName, 120, nameof(c.FullName)) is { } tooLong) failures.Add(tooLong);
-        if (Rules.Required(c.PhonePrimary, nameof(c.PhonePrimary)) is { } phone) failures.Add(phone);
+        if (Rules.Phone(c.PhonePrimary, nameof(c.PhonePrimary)) is { } phone) failures.Add(phone);
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
     }
 }
