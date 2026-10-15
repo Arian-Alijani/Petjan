@@ -46,6 +46,22 @@ public sealed class RecordProjectorTests
         var json = RecordProjector.Project("Product", doc.RootElement).GetRawText();
         Assert.DoesNotContain("TenantId", json); Assert.DoesNotContain("hidden", json); Assert.DoesNotContain("secret", json);
     }
+    /// <summary>
+    /// D17: a LIVE row that merely fails to project — an unparseable/missing Version or Deleted, or a throw from
+    /// <c>Project</c> — must be skipped for the batch, never emitted as a tombstone. A 'D' would make every
+    /// replica delete real business data that is still live on the server. The projector may build a 'D' in
+    /// exactly one place: the <c>reader.IsDBNull(1)</c> branch, where the LEFT JOIN found no live row at all.
+    /// </summary>
+    [Fact]
+    public void FaultyRow_IsSkipped_NeverTombstoned()
+    {
+        var source = File.ReadAllText(Path.Combine(RepoRoot.Find(), "src/Animora.Persistence.PostgreSql/Replication/RecordProjector.cs"));
+        Assert.Contains("if (reader.IsDBNull(1)) { yield return new(d.Name, id, 'D', null, null, true, null); continue; }", source);
+        Assert.Equal(1, source.Split("'D', null, null, true, null").Length - 1);
+        Assert.Contains("catch (Exception ex)", source);
+        Assert.Contains("projection fault", source);
+        Assert.Contains("unparseable Version/Deleted", source);
+    }
 }
 public sealed class PageWriterTests
 {

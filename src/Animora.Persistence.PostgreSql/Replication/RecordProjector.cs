@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Wire.Sync;
 using Animora.Persistence.PostgreSql.Context;
 using Animora.Persistence.PostgreSql.Concurrency;
@@ -52,37 +53,42 @@ public sealed class RecordProjector
                 var row = document.RootElement;
                 // Defence in depth: a row image that is missing or has an unparseable Version/Deleted (schema drift, a
                 // partially-written row, a NULL system column) must NOT throw and crash the whole batch build — that
-                // surfaced as a blanket 500 UNEXPECTED on /sync/batches. Such a row is emitted as a tombstone so the
-                // client converges (drops any stale copy) and the feed stays live.
+                // surfaced as a blanket 500 UNEXPECTED on /sync/batches. It must equally NOT be emitted as a
+                // tombstone: the row is still LIVE on the server, so a 'D' would make every replica delete real
+                // business data (a live owner/pet/invoice) and advance past it. Such a row is skipped for this batch
+                // instead — the feed stays live, and the row replicates as soon as the server emits a correctable
+                // version of it (a new journal sequence re-emits it). The ONLY genuine delete is the
+                // <c>reader.IsDBNull(1)</c> case above, where the LEFT JOIN found no live row at all.
                 //
-                // UpdatedAt is handled separately and deliberately NOT treated as a tombstone trigger: it is a
+                // UpdatedAt is handled separately and deliberately NOT treated as a skip/tombstone trigger: it is a
                 // transport-only cursor and is nullable on the wire. A live root that merely carries an edge-case
                 // timestamp the server wrote at default (PostgreSQL '-infinity', serialised as the JSON string
-                // "-infinity") must still replicate as a full UPSERT — tombstoning it would silently delete a real
+                // "-infinity") must still replicate as a full UPSERT — dropping it would silently lose a real
                 // owner/pet from every replica. See TenantStampingInterceptor for the write-side root-cause fix.
                 if (!TryGetVersion(row, out var version)
                     || !row.TryGetProperty("Deleted", out var deleted) || deleted.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
                 {
-                    yield return new(d.Name, id, 'D', null, null, true, null);
+                    TraceLog.Warn($"RecordProjector.Read — SKIP {d.Name}/{id}: row image is missing or carries an unparseable Version/Deleted; skipped (never tombstoned) so a live row is not deleted on replicas.", "sync.feed");
                     continue;
                 }
                 // Parse the cursor leniently: a null/absent/unparseable UpdatedAt becomes a null wire value (the
-                // client tolerates a null cursor) rather than a tombstone or a 500.
+                // client tolerates a null cursor) rather than a skip or a 500.
                 DateTimeOffset? updatedAt = TryGetUpdatedAt(row, out var parsed) ? parsed : null;
                 // Fault-isolate the per-row projection: a single row whose field shape is unexpectedly off
-                // (schema drift, a money/quantity column we failed to anticipate) must degrade to a tombstone —
-                // never bubble out and 500 the whole /sync/batches build. A yield cannot live inside a try/catch,
-                // so build the record under the guard here and yield it afterwards. The client converges by
-                // dropping any stale copy; the feed stays live.
+                // (schema drift, a money/quantity column we failed to anticipate) must neither bubble out (that
+                // 500s the whole /sync/batches build) nor degrade to a tombstone (that would delete a live row on
+                // every replica). It is skipped instead. A yield cannot live inside a try/catch, so build the
+                // record under the guard here and yield it afterwards.
                 SyncRecord record;
                 try
                 {
                     record = new(d.Name, id, 'U', version, updatedAt,
                         deleted.GetBoolean(), Project(d.Name, row));
                 }
-                catch
+                catch (Exception ex)
                 {
-                    record = new(d.Name, id, 'D', null, null, true, null);
+                    TraceLog.Warn($"RecordProjector.Read — SKIP {d.Name}/{id}: projection fault ({ex.GetType().Name}); skipped (never tombstoned) so a live row is not deleted on replicas.", "sync.feed");
+                    continue;
                 }
                 yield return record;
             }
