@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using Animora.Application.Activity;
 using Animora.Application.UseCases.History;
@@ -32,7 +31,7 @@ public sealed class ActivityFeedIncomeTests
 
         Assert.Equal(100, page.IncomeTotal);
         Assert.Equal(0, page.ExpenseTotal);
-        Assert.Equal(100, Assert.Single(page.DayNets).Value);
+        Assert.Equal(100, Assert.Single(page.DayNets!).Value);
     }
 
     [Fact]
@@ -97,7 +96,7 @@ public sealed class ActivityFeedIncomeTests
             Assert.Single(page.Items);
             Assert.Equal(100, page.IncomeTotal);
             Assert.Equal(20, page.ExpenseTotal);
-            Assert.Equal(80, Assert.Single(page.DayNets).Value);
+            Assert.Equal(80, Assert.Single(page.DayNets!).Value);
         }
     }
 

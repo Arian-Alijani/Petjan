@@ -300,10 +300,10 @@ internal static class ReplicaMaterializer
     {
         var pending = await LoadPendingAsync(db, tenant, ct).ConfigureAwait(false);
         TraceLog.Info($"ReplicaMaterializer.Apply — tenant={tenant}, batch={batchId}, entities=[{string.Join(", ", Entities)}], unsettledPendingKeys={pending.Count}.", "sync.apply");
-        var staged = db.Set<ReplicaStaging>().AsNoTracking()
+        var stagedQuery = db.Set<ReplicaStaging>().AsNoTracking()
             .Where(x => x.TenantId == tenant && x.BatchId == batchId && Entities.Contains(x.Entity))
             .OrderBy(x => x.PageOrdinal).ThenBy(x => x.Entity).ThenBy(x => x.EntityId);
-        var rows = await (batchId == PendingProjectionBatch ? staged.Take(ReplayLimit) : staged)
+        var rows = await (batchId == PendingProjectionBatch ? stagedQuery.Take(ReplayLimit) : stagedQuery)
             .ToListAsync(ct).ConfigureAwait(false); // materialised: the connection is reused for the writes below
 
         if (batchId != PendingProjectionBatch)

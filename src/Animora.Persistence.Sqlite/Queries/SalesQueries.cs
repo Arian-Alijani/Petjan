@@ -241,9 +241,12 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             SettlementState.LocallyPosted => SettlementStatus.LocallyPosted,
             _ => summary.SettlementStatus == SettlementStatus.Draft ? SettlementStatus.Draft : SettlementStatus.PendingSettlement,
         };
+        var authoritativePaid = summary.SettlementStatus == SettlementStatus.Settled
+            ? await db.Set<PeerInvoice>().Where(i => i.TenantId == db.CurrentTenantId && i.Id == invoiceId)
+                .Select(i => (long?)i.PaidTotalMinor).SingleOrDefaultAsync(ct) : null;
         return new InvoiceDetailReadModel(summary, scalar.GuestName, scalar.InsurerId,
             scalar.InsurancePercent, scalar.Subtotal, scalar.Discount, scalar.Tax, scalar.Coverage,
-            scalar.Paid, scalar.DiscountKind, scalar.DiscountValue, lines, payments, adjustments,
+            authoritativePaid ?? scalar.Paid, scalar.DiscountKind, scalar.DiscountValue, lines, payments, adjustments,
             settlement, verdict?.LastErrorCode ?? scalar.SettlementErrorCode, verdict?.ResponsibleRole);
     }
 
