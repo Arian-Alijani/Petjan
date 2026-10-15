@@ -14,12 +14,14 @@ namespace Animora.Client.Services.Identity;
 /// operation, never captured. Awaits intentionally do not use <c>ConfigureAwait(false)</c> (results return to a
 /// ViewModel — CONVENTIONS §4).
 /// </summary>
-public sealed class AuthenticationService(IServiceScopeFactory scopes, CapabilityGateService gate, IOnlineAuthClient? online = null)
+public sealed class AuthenticationService(IServiceScopeFactory scopes, CapabilityGateService gate, IOnlineAuthClient? online = null,
+    LiveAccessRefreshService? liveAccess = null)
     : IAuthenticationService
 {
     public async Task<AuthOutcome> SignInAsync(string username, string password, bool rememberDevice,
         CancellationToken ct = default)
     {
+        gate.Clear(); // fence any in-flight refresh belonging to the previous login
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
 
@@ -30,7 +32,7 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
             return new AuthOutcome(false, context.Error.Code, null);
         }
 
-        var result = await dispatcher.SendAsync(new SignInCommand(username, password, rememberDevice), context.Value!, ct);
+        var result = await dispatcher.SendAsync(new SignInCommand(username, password, rememberDevice, PreserveServerCapabilities: online is not null), context.Value!, ct);
         if (!result.IsSuccess)
         {
             gate.Clear(); // keep the gate read-only/denied when credentials are refused.
@@ -39,6 +41,7 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
 
         // The shell is constructed the instant this returns, so warm the capability gate first (B04c).
         await gate.RefreshAsync(ct);
+        if (liveAccess is not null) await liveAccess.RefreshAsync(ct);
         return new AuthOutcome(true, null, result.Value!.DisplayName);
     }
 
@@ -102,6 +105,7 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
 
         // First-run opens the Manager shell without a later sign-in, so warm the gate here too (B04c).
         await gate.RefreshAsync(ct);
+        if (liveAccess is not null) await liveAccess.RefreshAsync(ct);
         return new AuthOutcome(true, null, result.Value!.DisplayName);
     }
 

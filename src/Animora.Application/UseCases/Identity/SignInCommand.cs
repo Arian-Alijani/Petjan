@@ -12,7 +12,7 @@ namespace Animora.Application.UseCases.Identity;
 
 /// <summary>Local sign-in with lockout. Not journaled (a sign-in is not business intent).</summary>
 [Auditable(AuditCategory.Security, "identity.signin")]
-public sealed record SignInCommand(string Username, string Password, bool RememberDevice)
+public sealed record SignInCommand(string Username, string Password, bool RememberDevice, bool PreserveServerCapabilities = false)
     : ICommand<SignInResult>, ISelfTransactedCommand
 {
     public override string ToString() => $"{nameof(SignInCommand)} {{ Username = {Username}, Password = *** }}";
@@ -93,6 +93,9 @@ public sealed class SignInCommandHandler(
         // Success audit + user mutations + snapshot issuance commit (or roll back) together.
         var saved = await uow.ExecuteAsync(async token =>
         {
+            // Online-configured clients must retain the last server-verified authority on cold offline login.
+            // Reissuing from local role defaults here silently restored removed grants and reset offline expiry.
+            if (command.PreserveServerCapabilities) return Result<bool>.Ok(true);
             var issued = await capabilities.IssueAsync(user, membership, context.DeviceId, token).ConfigureAwait(false);
             return issued.IsFailure ? Result<bool>.Fail(issued.Error, issued.Detail) : Result<bool>.Ok(true);
         }, ct).ConfigureAwait(false);

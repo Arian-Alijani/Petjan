@@ -7,14 +7,19 @@ namespace Animora.Application.Security;
 /// </summary>
 public sealed class SessionContextCache
 {
-    private volatile SessionSnapshot? _current;
+    private SessionSnapshot? _current;
 
-    public SessionSnapshot? Current => _current;
+    public SessionSnapshot? Current => Volatile.Read(ref _current);
 
-    public void Set(SessionSnapshot? snapshot) => _current = snapshot;
+    public void Set(SessionSnapshot? snapshot) => Volatile.Write(ref _current, snapshot);
+
+    /// <summary>Updates a refresh result only if the exact session is still current (never resurrect sign-out).</summary>
+    public bool TryUpdate(SessionSnapshot expected, SessionSnapshot updated) =>
+        ReferenceEquals(Interlocked.CompareExchange(ref _current, updated, expected), expected);
 
     public void MarkLocked()
     {
-        if (_current is { UserId: not null } s) _current = s with { IsLocked = true };
+        while (Current is { UserId: not null } current)
+            if (TryUpdate(current, current with { IsLocked = true })) return;
     }
 }

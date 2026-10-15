@@ -122,13 +122,13 @@ public sealed class SetStaffActiveCommandHandler(IIdentityRepository users, ISta
 [Auditable(AuditCategory.Configuration, "identity.staff.permissions")]
 public sealed record SaveStaffAccessCommand(string MembershipId, IReadOnlyList<string> PermissionCodes, string? ExpectedChangeToken = null) : ICommand<Unit>;
 public sealed class SaveStaffAccessCommandHandler(IIdentityRepository users, IStaffMembershipRepository memberships,
-    IRoleDefinitionRepository roles, CapabilitySnapshotIssuer capabilities)
+    IRoleDefinitionRepository roles, CapabilitySnapshotIssuer capabilities, IAuditWriter audit, IClock clock)
     : ICommandHandler<SaveStaffAccessCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(SaveStaffAccessCommand command, CommandContext context, CancellationToken ct)
     {
         if (command.PermissionCodes is null || command.PermissionCodes.Count > PermissionCodes.All.Count
-            || command.PermissionCodes.Any(code => !PermissionCodes.Exists(code)))
+            || command.PermissionCodes.Any(code => string.IsNullOrWhiteSpace(code) || !PermissionCodes.Exists(code)))
             return Result<Unit>.Fail(ErrorCodes.PermissionUnknown);
         var member = await memberships.FindAsync(command.MembershipId, ct);
         if (member is null || member.TenantId != context.TenantId) return Result<Unit>.Fail(ErrorCodes.NotFound);
@@ -140,6 +140,9 @@ public sealed class SaveStaffAccessCommandHandler(IIdentityRepository users, ISt
             return Result<Unit>.Fail(ErrorCodes.PermissionDenied);
         if (command.ExpectedChangeToken is { } token && token != StaffChangeToken.For(user, member))
             return Result<Unit>.Fail(ErrorCodes.ConcurrencyConflict);
+        var before = new SortedSet<string>(role.PermissionCodes, StringComparer.Ordinal);
+        before.UnionWith(member.ExtraPermissionCodes);
+        before.ExceptWith(member.DeniedPermissionCodes);
         var granted = new HashSet<string>(command.PermissionCodes, StringComparer.Ordinal);
         foreach (var code in PermissionCodes.All)
         {
@@ -147,9 +150,20 @@ public sealed class SaveStaffAccessCommandHandler(IIdentityRepository users, ISt
             if (granted.Contains(code) && !role.Has(code)) member.GrantExtra(code);
             else if (!granted.Contains(code) && role.Has(code)) member.Deny(code);
         }
-        user.RotateSecurityStamp();
+        // Authorization changed, not credentials: keep the active local session valid. Stored RBAC denies
+        // removed grants immediately; replace the snapshot in the same transaction for the active device.
         var issued = await capabilities.IssueAsync(user, member, context.DeviceId, ct);
-        return issued.IsFailure ? Result<Unit>.Fail(issued.Error, issued.Detail) : Result<Unit>.Ok(Unit.Value);
+        if (issued.IsFailure) return Result<Unit>.Fail(issued.Error, issued.Detail);
+        audit.Enlist(new AuditRecord(context.TenantId, context.UserId, context.DeviceId, clock.UtcNow,
+            AuditCategory.Configuration, "identity.staff.permissions.changed", nameof(StaffMembership), member.Id,
+            context.OperationId, context.CorrelationId, AuditOutcome.Success, null, null, null, null,
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                TargetUserId = user.Id, Before = before.ToArray(), After = granted.Order(StringComparer.Ordinal).ToArray(),
+                Granted = granted.Except(before).Order(StringComparer.Ordinal).ToArray(),
+                Removed = before.Except(granted).Order(StringComparer.Ordinal).ToArray(),
+            })));
+        return Result<Unit>.Ok(Unit.Value);
     }
 }
 

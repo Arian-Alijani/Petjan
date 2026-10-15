@@ -4,6 +4,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Animora.Application.Security;
+using Animora.Application.Abstractions;
+using Animora.Application.Ports;
+using Animora.Domain.Identity;
 using Animora.Contracts.Wire.Auth;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
@@ -21,7 +24,7 @@ namespace Animora.Client.Services.Identity;
 public sealed class CapabilityMirrorWriter(OnlineApi api, ICapabilitySnapshotSigner signer, IServiceScopeFactory scopes, IClock clock)
 {
     /// <summary>Fetches, verifies and stores the snapshot of the signed-in user; returns the stored snapshot.</summary>
-    public async Task<Result<StoredCapabilitySnapshot>> MirrorAsync(string bearer, CancellationToken ct = default)
+    public async Task<Result<StoredCapabilitySnapshot>> MirrorAsync(string? bearer, CancellationToken ct = default)
     {
         var keys = await FetchAsync<PublicKeySet>(HttpMethod.Get, "auth/keys", null, null, ct).ConfigureAwait(false);
         if (keys.IsFailure) return Result<StoredCapabilitySnapshot>.Fail(keys.Error, keys.Detail);
@@ -35,6 +38,71 @@ public sealed class CapabilityMirrorWriter(OnlineApi api, ICapabilitySnapshotSig
         var store = di.ServiceProvider.GetRequiredService<ICapabilityStore>();
         var replaced = await store.ReplaceAsync(stored.Value!, ct).ConfigureAwait(false);
         return replaced.IsFailure ? Result<StoredCapabilitySnapshot>.Fail(replaced.Error, replaced.Detail) : stored;
+    }
+
+    /// <summary>
+    /// Mirrors verified server access into the active local membership and installation-bound snapshot atomically.
+    /// Local and server devices/stamps are different identities; copying the server row alone cannot refresh the
+    /// local gate, and issuing from local role defaults would silently restore server-denied permissions.
+    /// </summary>
+    internal async Task<Result> RefreshLocalAccessAsync(CurrentAccessWire access, ClientSession expected,
+        Func<bool> stillCurrent, CancellationToken ct)
+    {
+        var mirrored = await MirrorAsync(bearer: null, ct).ConfigureAwait(false);
+        if (mirrored.IsFailure) return mirrored.ToResult();
+        var snapshot = mirrored.Value!;
+        if (snapshot.TenantId != expected.TenantId || snapshot.UserId != expected.UserId || snapshot.DeviceId != expected.DeviceId)
+            return Result.Fail(ErrorCodes.CapabilityNotGranted, "server_snapshot_binding_mismatch");
+        var parsed = CapabilitySnapshotCodec.Parse(snapshot.PermissionsJson, snapshot.PerCapabilityExpiryJson);
+        if (parsed.IsFailure) return parsed.ToResult();
+        var offline = access.Permissions.Where(code => OfflineCapabilityPolicy.WindowForCode(code) > TimeSpan.Zero);
+        if (!new HashSet<string>(offline, StringComparer.Ordinal).SetEquals(parsed.Value!.Permissions))
+            return Result.Fail(ErrorCodes.ConcurrencyConflict, "access_changed_during_refresh");
+        if (!stillCurrent()) return Result.Fail(ErrorCodes.SessionExpired);
+
+        await using var scope = scopes.CreateAsyncScope();
+        var services = scope.ServiceProvider;
+        var installation = services.GetRequiredService<ILocalInstallationIdentity>();
+        var users = services.GetRequiredService<IIdentityRepository>();
+        var memberships = services.GetRequiredService<IStaffMembershipRepository>();
+        var roles = services.GetRequiredService<IRoleDefinitionRepository>();
+        if (installation.TenantId != expected.TenantId
+            || !Enum.TryParse<StaffRole>(access.Role, out var staffRole) || !Enum.IsDefined(staffRole))
+            return Result.Fail(ErrorCodes.TenantMismatch);
+        var user = await users.FindAsync(expected.UserId, ct).ConfigureAwait(false);
+        var active = await memberships.FindActiveAsync(expected.TenantId, expected.UserId, ct).ConfigureAwait(false);
+        var member = active is null ? null : await memberships.FindAsync(active.Id, ct).ConfigureAwait(false);
+        var role = await roles.FindByRoleAsync(expected.TenantId, staffRole, ct).ConfigureAwait(false);
+        if (user is null || user.TenantId != expected.TenantId || member is null || role is null || !stillCurrent())
+            return Result.Fail(ErrorCodes.SessionExpired);
+
+        // Rebind only AFTER verification, preserving every server-issued time bound, never extending a window.
+        var local = snapshot with { Id = IdGenerator.NewId(clock.UtcNow), DeviceId = installation.DeviceId,
+            SecurityStamp = user.SecurityStamp, SnapshotSignature = string.Empty };
+        var signed = signer.Sign(local);
+        if (signed.IsFailure) return signed.ToResult();
+        local = local with { SnapshotSignature = signed.Value! };
+        var granted = new HashSet<string>(access.Permissions, StringComparer.Ordinal);
+        var saved = await services.GetRequiredService<IUnitOfWork>().ExecuteAsync(async token =>
+        {
+            if (!stillCurrent()) return Result<bool>.Fail(ErrorCodes.SessionExpired);
+            member.ChangeRole(staffRole);
+            foreach (var code in PermissionCodes.All)
+            {
+                member.ClearOverride(code);
+                if (granted.Contains(code) && !role.Has(code)) member.GrantExtra(code);
+                else if (!granted.Contains(code) && role.Has(code)) member.Deny(code);
+            }
+            var replaced = await services.GetRequiredService<ICapabilityStore>().ReplaceAsync(local, token).ConfigureAwait(false);
+            return replaced.IsFailure ? Result<bool>.Fail(replaced.Error, replaced.Detail) : Result<bool>.Ok(true);
+        }, ct).ConfigureAwait(false);
+        if (saved.IsSuccess && stillCurrent())
+        {
+            var cache = services.GetRequiredService<SessionContextCache>();
+            if (cache.Current is { } current && current.UserId == expected.UserId)
+                cache.TryUpdate(current, current with { Role = staffRole });
+        }
+        return saved.ToResult();
     }
 
     /// <summary>Verifies <paramref name="response"/> against <paramref name="keys"/> and converts it to a locally signed snapshot.</summary>
@@ -60,8 +128,10 @@ public sealed class CapabilityMirrorWriter(OnlineApi api, ICapabilitySnapshotSig
             foreach (var p in root.GetProperty("capabilityExpiry").EnumerateObject())
                 expiry[p.Name] = DateTimeOffset.Parse(p.Value.GetString()!, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime();
 
-            // Same absolute-expiry rule as the local issuer: per-code windows govern; the absolute bound is the latest of them.
-            var absolute = expiry.Count == 0 ? snapshotExpiry.ToUniversalTime() : expiry.Values.Max();
+            // The server's absolute bound is authoritative even when some individual code windows are longer.
+            // Taking Max(per-code expiry) here extended a signed server snapshot beyond its actual lifetime.
+            var absolute = snapshotExpiry.ToUniversalTime();
+            if (expiry.Count > 0 && expiry.Values.Max() < absolute) absolute = expiry.Values.Max();
             var unsigned = new StoredCapabilitySnapshot(IdGenerator.NewId(clock.UtcNow), tenant, user, device,
                 CapabilitySnapshotCodec.WritePermissions(expiry.Keys), issued.ToUniversalTime(), CapabilitySnapshotCodec.WriteExpiry(expiry),
                 absolute, string.Empty, stamp, RevokedAtUtc: null);

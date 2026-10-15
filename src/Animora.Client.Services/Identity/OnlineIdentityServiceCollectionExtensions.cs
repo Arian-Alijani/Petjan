@@ -46,6 +46,7 @@ public static class OnlineIdentityServiceCollectionExtensions
         services.TryAddSingleton<OnlineAuthClient>();
         services.TryAddSingleton<IOnlineAuthClient>(sp => sp.GetRequiredService<OnlineAuthClient>());
         services.TryAddSingleton<ISessionRefresher>(sp => sp.GetRequiredService<OnlineAuthClient>());
+        services.TryAddSingleton<LiveAccessRefreshService>();
 
         // Entitlement plane: sealed-cache decisions only.
         services.AddSingleton<OnlineEntitlementGate>();
