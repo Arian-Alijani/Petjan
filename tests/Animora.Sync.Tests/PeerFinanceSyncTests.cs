@@ -225,4 +225,32 @@ public sealed class PeerFinanceSyncTests
         Assert.Equal(0, history.InflowMinor);
     }
 
+    [Fact]
+    public async Task Pull_FoldsPeerInvoicesIntoTheFinanceFacts_SoStatisticsAreNotEmptyOnAPeer()
+    {
+        // Regression: a device that only *receives* another device's invoice (via GET /finance/ledger) must still
+        // show it in the «آمار»/داشبورد facts, exactly as the Sales list already unions the peer cache. Before the fix
+        // the fact tables were built from local Invoices only, so the stats/dashboard were empty on the peer.
+        using var fixture = await NewFixtureAsync();
+        var handler = new FakeFeedHandler(_ => FeedFixtures.JsonResponse(
+            new FinanceReadPage([Inv("I1", T0.UtcTicks)], [], T0.UtcTicks, false)));
+
+        var applied = await Sync(fixture, handler).PullAsync();
+        Assert.Equal(1, applied.Value);
+
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+
+        // Daily finance fact now reflects the peer invoice (count + grand-total revenue, 1000 minor units from Inv()).
+        var daily = Assert.Single(await db.Set<DailyFinanceFact>().AsNoTracking().ToListAsync());
+        Assert.Equal(1, daily.InvoiceCount);
+        Assert.Equal(1000, daily.RevenueMinor);
+
+        // Owner financial snapshot (the «برترین مشتریان» source) now attributes the spend to the peer invoice's owner.
+        var owner = Assert.Single(await db.Set<OwnerFinancialSnapshot>().AsNoTracking().ToListAsync());
+        Assert.Equal("O1", owner.OwnerId);
+        Assert.Equal(1000, owner.TotalSpendMinor);
+        Assert.Equal(1, owner.InvoiceCount);
+    }
+
 }
