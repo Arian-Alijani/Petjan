@@ -31,6 +31,7 @@ public sealed class ActivityFeedIncomeTests
 
         Assert.Equal(100, page.IncomeTotal);
         Assert.Equal(0, page.ExpenseTotal);
+        Assert.Equal(100, Assert.Single(page.DayNets!).Value);
     }
 
     [Fact]
@@ -77,6 +78,26 @@ public sealed class ActivityFeedIncomeTests
 
         Assert.Equal(100, page.IncomeTotal);
         Assert.Equal(50, page.ExpenseTotal);
+    }
+
+    [Fact]
+    public async Task DayNet_AndIncome_AreIndependentOfTheVisiblePage()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        await SeedAsync(fixture, (ActivityEventKeys.InvoicePosted, 100, 1),
+            (ActivityEventKeys.PaymentRegistered, 40, 1), (ActivityEventKeys.ExpensePosted, 20, -1));
+        using var scope = fixture.CreateScope();
+        var queries = scope.ServiceProvider.GetRequiredService<IActivityFeedQueries>();
+        for (var pageNumber = 1; pageNumber <= 3; pageNumber++)
+        {
+            var page = await queries.PageAsync(fixture.TenantId,
+                new HistoryFilter("", "", [], "", HistorySort.Newest, pageNumber, 1), default);
+            Assert.Single(page.Items);
+            Assert.Equal(100, page.IncomeTotal);
+            Assert.Equal(20, page.ExpenseTotal);
+            Assert.Equal(80, Assert.Single(page.DayNets!).Value);
+        }
     }
 
     private static async Task<ActivityPage> PageAsync(LocalStoreTestFixture fixture)

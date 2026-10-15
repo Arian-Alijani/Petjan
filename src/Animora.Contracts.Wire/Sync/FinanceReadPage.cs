@@ -37,6 +37,7 @@ public sealed record FinanceReadPage(
 /// <param name="GrandTotalMinor">Grand total, minor units.</param>
 /// <param name="PaidTotalMinor">Amount collected so far, minor units.</param>
 /// <param name="DueTotalMinor">Outstanding balance, minor units.</param>
+/// <param name="VoidedUtc">Recorded cancellation time (credit-note event); null when historical evidence is unavailable.</param>
 /// <param name="EffectiveTicks">The invoice's effective last-change tick (max of issued/posted/settled); drives the cursor.</param>
 public sealed record FinanceInvoiceRow(
     string Id,
@@ -51,7 +52,8 @@ public sealed record FinanceInvoiceRow(
     long GrandTotalMinor,
     long PaidTotalMinor,
     long DueTotalMinor,
-    long EffectiveTicks);
+    long EffectiveTicks,
+    DateTimeOffset? VoidedUtc = null);
 
 /// <summary>D04 — one server-authored payment row for the peer finance cache (flat, display-shaped).</summary>
 /// <param name="Id">Stable payment id; the dedup/upsert key.</param>

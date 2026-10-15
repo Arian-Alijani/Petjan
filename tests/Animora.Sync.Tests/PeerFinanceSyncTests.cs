@@ -1,4 +1,6 @@
 using Animora.Contracts.Wire.Sync;
+using Animora.Application.Ports;
+using Animora.Domain.ValueObjects;
 using Animora.Domain.Sales;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
@@ -76,7 +78,7 @@ public sealed class PeerFinanceSyncTests
         using var fixture = await NewFixtureAsync();
         var pages = new Queue<FinanceReadPage>(
         [
-            new([Inv("I1", 200, due: 0, state: (int)InvoiceState.Settled)], [], 200, false),
+            new([Inv("I1", 200, due: 0, state: (int)InvoiceState.Paid)], [], 200, false),
             new([Inv("I1", 100, due: 900)], [], 200, false), // stale re-delivery
         ]);
         var sync = Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(pages.Dequeue())));
@@ -85,7 +87,7 @@ public sealed class PeerFinanceSyncTests
         await sync.PullAsync();
 
         var state = await ReadAsync(fixture);
-        Assert.Equal(InvoiceState.Settled, state.Invoices.Single().State);
+        Assert.Equal(InvoiceState.Paid, state.Invoices.Single().State);
         Assert.Equal(0, state.Invoices.Single().DueTotalMinor);
         Assert.Equal(200, state.Invoices.Single().EffectiveTicks);
     }
@@ -138,4 +140,89 @@ public sealed class PeerFinanceSyncTests
         Assert.Equal(0, await db.Set<Invoice>().IgnoreQueryFilters().CountAsync());
         Assert.Equal(0, await db.Set<Payment>().IgnoreQueryFilters().CountAsync());
     }
+    [Fact]
+    public async Task PeerReadModels_ShowServerInvoicesReceiptsCountsAndKpis_WithoutCreatingBusinessRows()
+    {
+        using var fixture = await NewFixtureAsync();
+        var sync = Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(
+            new FinanceReadPage([Inv("I1", 100, due: 400)], [Pay("P1", "I1", 600)], 100, false))));
+        await sync.PullAsync();
+        using var scope = fixture.CreateScope();
+        var sales = scope.ServiceProvider.GetRequiredService<ISalesQueries>();
+        var cashier = scope.ServiceProvider.GetRequiredService<ICashierQueries>();
+        var list = await sales.GetInvoicesAsync("INV-I1", 1, 10, default);
+        Assert.Equal("I1", Assert.Single(list.Items).Id);
+        Assert.Equal("I1", Assert.Single(await sales.GetOwnerInvoicesAsync("O1", 10, default)).Id);
+        var detail = await sales.GetInvoiceAsync("I1", default);
+        Assert.NotNull(detail);
+        Assert.True(detail.IsReadOnly);
+        Assert.Empty(detail.Lines);
+        Assert.Equal(600, Assert.Single(detail.Payments).AmountMinor);
+        Assert.Equal(1, (await cashier.GetTabCountsAsync(default)).All);
+        Assert.Single((await cashier.GetInvoicesAsync(CashierInvoiceTab.Open, null, 1, 10, default)).Items);
+        var stats = await cashier.GetStatsAsync(T0.AddDays(-1), T0.AddDays(1), default);
+        Assert.Equal(600, stats.CollectedMinor);
+        Assert.Equal(1000, (await sales.GetKpisAsync(T0.AddDays(-1), T0.AddDays(1), default)).RevenueMinor);
+        var history = await sales.GetHistoryAsync(null, null, null, null, "Newest", 1, 10, default);
+        Assert.Equal(2, history.Page.Items.Count);
+        Assert.Equal(600, history.InflowMinor);
+    }
+
+    [Fact]
+    public async Task SettledOrigin_DeduplicatesById_WhileARejectedOriginPreservesItsProvisionalState()
+    {
+        using var fixture = await NewFixtureAsync();
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            foreach (var id in new[] { "I1", "I2" })
+            {
+                var invoice = Invoice.Create(fixture.TenantId, "LOCAL-" + id, InvoiceKind.DirectSale, T0,
+                    "U1", ownerId: "O1", id: id).Value!;
+                invoice.AddLine(new InvoiceLine("L1", InvoiceLineKind.Service, null, null, null, "Exam",
+                    new Quantity(1m, "PCS"), Money.Irt(1000), 0m, 0m, InvoiceLineSource.Manual, null));
+                invoice.Post(fixture.Clock);
+                invoice.MarkSettlement(id == "I1" ? SettlementStatus.Settled : SettlementStatus.Rejected, "REFUSED");
+                db.Add(invoice);
+            }
+            await db.SaveChangesAsync();
+        }
+        await Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(
+            new FinanceReadPage([Inv("I1", 100), Inv("I2", 100)], [], 100, false)))).PullAsync();
+        using var read = fixture.CreateScope();
+        var rows = (await read.ServiceProvider.GetRequiredService<ISalesQueries>().GetInvoicesAsync(null, 1, 10, default)).Items;
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("INV-I1", rows.Single(i => i.Id == "I1").Number);
+        Assert.Equal("LOCAL-I2", rows.Single(i => i.Id == "I2").Number);
+        Assert.Equal(SettlementStatus.Rejected, rows.Single(i => i.Id == "I2").SettlementStatus);
+    }
+
+    [Fact]
+    public async Task PeerVoid_KeepsTheOriginalAcceptance_AndAppendsASeparateRecordedCancellation()
+    {
+        using var fixture = await NewFixtureAsync();
+        var voided = T0.AddHours(2);
+        var pages = new Queue<FinanceReadPage>([
+            new([Inv("I1", T0.UtcTicks, due: 1000)], [], T0.UtcTicks, false),
+            new([Inv("I1", voided.UtcTicks, state: (int)InvoiceState.Void) with { VoidedUtc = voided }], [], voided.UtcTicks, false),
+            new([Inv("I1", voided.UtcTicks, state: (int)InvoiceState.Void) with { VoidedUtc = voided }], [], voided.UtcTicks, false),
+        ]);
+        var sync = Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(pages.Dequeue())));
+        await sync.PullAsync();
+        await sync.PullAsync();
+        await sync.PullAsync();
+        using var scope = fixture.CreateScope();
+        var history = await scope.ServiceProvider.GetRequiredService<ISalesQueries>()
+            .GetHistoryAsync(null, null, null, null, "Oldest", 1, 10, default);
+        Assert.Equal(2, history.Page.Items.Count);
+        var accepted = Assert.Single(history.Page.Items, i => i.Kind == "Accepted");
+        Assert.Equal(T0, accepted.OccurredUtc);
+        Assert.Equal(InvoiceState.Posted, accepted.InvoiceState);
+        Assert.Equal(voided, Assert.Single(history.Page.Items, i => i.Kind == "Void").OccurredUtc);
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.Equal(2, await db.Set<ActivityEvent>().CountAsync(e => e.EntityId == "I1"));
+        Assert.All(await db.Set<ActivityEvent>().ToListAsync(), e => Assert.Equal("", e.ActorUserId));
+        Assert.Equal(0, history.InflowMinor);
+    }
+
 }

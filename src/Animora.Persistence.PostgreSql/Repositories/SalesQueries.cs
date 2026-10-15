@@ -216,19 +216,27 @@ public sealed class SalesQueries(AnimoraServerDbContext db) : ISalesQueries
         var invoices = from i in db.Set<Invoice>().AsNoTracking()
                        join owner in db.Set<Owner>().AsNoTracking() on i.OwnerId equals owner.Id into owners
                        from owner in owners.DefaultIfEmpty()
-                       where i.State != InvoiceState.Draft
+                       where i.PostedUtc != null
                        select new
                        {
                            Id = i.Id,
                            InvoiceId = i.Id,
                            Number = i.InvoiceNumber,
                            OccurredUtc = i.PostedUtc ?? i.IssuedUtc,
-                           Kind = i.State == InvoiceState.Void ? "Void" : "Accepted",
+                           Kind = "Accepted",
                            AmountMinor = 0L,
                            OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName,
-                           State = i.State,
+                           State = InvoiceState.Posted,
                        };
-        var rows = payments.Concat(invoices);
+        var voids = from v in FinanceVoidProjection.Query(db)
+                    where v.OccurredUtc != null
+                    join i in db.Set<Invoice>().AsNoTracking() on v.InvoiceId equals i.Id
+                    join owner in db.Set<Owner>() on i.OwnerId equals owner.Id into owners
+                    from owner in owners.DefaultIfEmpty()
+                    select new { Id = "void:" + i.Id, InvoiceId = i.Id, Number = i.InvoiceNumber,
+                        OccurredUtc = v.OccurredUtc!.Value, Kind = "Void", AmountMinor = 0L,
+                        OwnerName = owner == null ? i.GuestName ?? "" : owner.FullName, State = InvoiceState.Void };
+        var rows = payments.Concat(invoices).Concat(voids);
         if (fromUtc is { } from) rows = rows.Where(r => r.OccurredUtc >= from);
         if (toUtc is { } to) rows = rows.Where(r => r.OccurredUtc < to);
         if (!string.IsNullOrWhiteSpace(search))

@@ -78,7 +78,8 @@ internal static class ReplicaTestSupport
     {
         using var scope = fixture.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        return await db.Set<ReplicaStaging>().CountAsync();
+        // This helper asserts scratch cleanup. Durable D11 retry images are checked separately by materializer tests.
+        return await db.Set<ReplicaStaging>().CountAsync(x => x.BatchId != ReplicaMaterializer.PendingProjectionBatch);
     }
 
     /// <summary>Enqueues one pending command (the overlay) and returns its operation id.</summary>

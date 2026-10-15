@@ -319,13 +319,13 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         var editable = !detail.IsLocked;
         CanEdit = editable;
         ShowVoid = editable;
-        ShowRefund = detail.State is InvoiceState.Partial or InvoiceState.Settled;
+        ShowRefund = !detail.IsReadOnly && detail.State is InvoiceState.Partial or InvoiceState.Settled;
         // D08: paying requires sales.post; without it the CTA is hidden rather than leading into a guaranteed refusal.
         CanPay = editable && detail.Lines.Count > 0 && detail.Paid < detail.Total
             && (_capabilities is null || _capabilities.Can(PermissionCodes.SalesPost));
         IsDeleted = detail.State == InvoiceState.Deleted;
 
-        var canReturn = detail.State is InvoiceState.Partial or InvoiceState.Settled && detail.Paid > 0;
+        var canReturn = !detail.IsReadOnly && detail.State is InvoiceState.Partial or InvoiceState.Settled && detail.Paid > 0;
         ShowReturn = canReturn && detail.Lines.Count > 0;
         CanEditMeta = editable;
         ReceiptText = detail.ReceiptNo;

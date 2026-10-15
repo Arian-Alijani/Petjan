@@ -12,6 +12,7 @@ public static class ActivityEventKeys
     public const string StayCheckedOut = "history.stay.checkedout";
     public const string GoodsReceiptPosted = "history.goods.received";
     public const string StockMovementRecorded = "history.stock.adjusted";
+    public const string InvoiceVoided = "history.invoice.voided";
     public const string InvoicePosted = "history.invoice.posted";
     public const string PaymentRegistered = "history.payment.registered";
     public const string InvoiceRefunded = "history.invoice.refunded";

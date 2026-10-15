@@ -214,4 +214,89 @@ public sealed class ReplicaMaterializerTests
         Assert.Equal("INV-1", after.InvoiceId);
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task CompletedVisitHistory_UsesCompletionTimeAndDoctor_AndIsIdempotent(int state)
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        var visit = $$"""{"petId":"P1","ownerId":"O1","doctorUserId":"DOC-1","state":{{state}},"startedUtc":"2026-10-12T09:00:00+00:00","completedUtc":"2026-10-12T09:30:00+00:00"}""";
+        Assert.True((await ApplyAsync(store, Batch("v1", 1, 0, 10), Page("v1", 0, 1, Json("Visit", "V1", "v1", visit)))).IsSuccess);
+        Assert.True((await ApplyAsync(store, Batch("v2", 1, 10, 20), Page("v2", 0, 1, Json("Visit", "V1", "v2", visit)))).IsSuccess);
+        using var scope = fixture.CreateScope();
+        var row = Assert.Single(await scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>()
+            .Set<ActivityEvent>().Where(e => e.EntityId == "V1").ToListAsync());
+        Assert.Equal("history.visit.completed", row.Title);
+        Assert.Equal("DOC-1", row.ActorUserId);
+        Assert.Equal(new DateTimeOffset(2026, 10, 12, 9, 30, 0, TimeSpan.Zero), row.OccurredUtc);
+    }
+
+    [Fact]
+    public async Task DeferredOverlay_SurvivesNewStoreAndStartupCleanup_ThenReplaysOnIdleAfterSettlement()
+    {
+        using var fixture = await NewFixtureAsync();
+        using (var scope = fixture.CreateScope())
+        {
+            var journal = scope.ServiceProvider.GetRequiredService<Animora.Application.Commands.ICommandJournal>();
+            var uow = scope.ServiceProvider.GetRequiredService<Animora.Application.Abstractions.IUnitOfWork>();
+            var envelope = Animora.Contracts.Wire.Commands.CommandEnvelope.Create(Animora.Domain.Primitives.IdGenerator.NewId(),
+                fixture.TenantId, "U1", "D1", "patients.owner.update", "Owner", "O1", "{}", "fp", DateTimeOffset.UnixEpoch, 1);
+            Assert.True((await uow.ExecuteAsync(async ct => await journal.EnqueueAsync(envelope, ct))).IsSuccess);
+        }
+        Assert.True((await ApplyAsync(NewStore(fixture), Batch("b1", 1, 0, 10), Page("b1", 0, 1,
+            Json("Owner", "O1", "v1", OwnerJson)))).IsSuccess);
+        var restarted = NewStore(fixture);
+        // Begin deletes only abandoned batch staging, never the durable typed retry namespace.
+        await using (var aborted = (await restarted.BeginAsync(Animora.Sync.Abstractions.SyncScope.Default, Batch("abort", 1, 10, 20))).Value!)
+            await aborted.AbortAsync();
+        using (var scope = fixture.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            Assert.False(await db.Set<Owner>().AnyAsync());
+            Assert.Equal(1, await db.Set<Animora.Persistence.Sqlite.Replica.ReplicaStaging>()
+                .CountAsync(x => x.BatchId == ReplicaMaterializer.PendingProjectionBatch));
+            await db.Set<PendingCommand>().ExecuteUpdateAsync(u => u.SetProperty(x => x.Status,
+                Animora.Domain.Primitives.SettlementState.Settled));
+        }
+        Assert.True((await restarted.ReadCheckpointAsync(Animora.Sync.Abstractions.SyncScope.Default)).IsSuccess);
+        using var read = fixture.CreateScope();
+        var after = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.Equal("Ali Rezaei", (await after.Set<Owner>().SingleAsync()).FullName);
+        Assert.Equal(0, await after.Set<Animora.Persistence.Sqlite.Replica.ReplicaStaging>().CountAsync());
+        Assert.Equal((Epoch, 10L, 1L), await CheckpointAsync(fixture));
+    }
+
+    [Fact]
+    public async Task CorrectedImage_SupersedesADeferredBadVersion_AndClearsTheMarker()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        Assert.True((await ApplyAsync(store, Batch("bad", 1, 0, 10), Page("bad", 0, 1,
+            Json("Owner", "O1", "bad-v1", "{}")))).IsSuccess);
+        Assert.True((await ApplyAsync(store, Batch("fixed", 1, 10, 20), Page("fixed", 0, 1,
+            Json("Owner", "O1", "good-v2", OwnerJson)))).IsSuccess);
+        using var read = fixture.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.Equal("good-v2", (await db.Set<Owner>().SingleAsync()).Version);
+        Assert.Equal(0, await db.Set<Animora.Persistence.Sqlite.Replica.ReplicaStaging>().CountAsync());
+    }
+
+    [Fact]
+    public async Task ChildConstraintFailure_RollsBackRootAndChildren_WithoutBlockingGoodRows()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        const string broken = """{"sku":"DRUG-1","name":"Drug","categoryId":"CAT","unitCode":"PCS","variants":[{"variantId":"V1","sku":"S1","attributeName":"Dose","attributeValue":"1"},{"variantId":"V1","sku":"S1","attributeName":"Dose","attributeValue":"1"}]}""";
+        Assert.True((await ApplyAsync(store, Batch("bad", 1, 0, 10), Page("bad", 0, 1,
+            Json("Product", "PR-1", "v1", broken), Json("Owner", "O1", "v1", OwnerJson)))).IsSuccess);
+        using var read = fixture.CreateScope();
+        var db = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.False(await db.Set<Product>().AnyAsync());
+        Assert.True(await db.Set<Owner>().AnyAsync());
+        Assert.Equal(1, await db.Set<Animora.Persistence.Sqlite.Replica.ReplicaStaging>()
+            .CountAsync(x => x.BatchId == ReplicaMaterializer.PendingProjectionBatch));
+    }
+
 }
