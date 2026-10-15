@@ -19,7 +19,8 @@ namespace Animora.Application.UseCases.Identity;
 /// the session (separate scope/transaction owned by <see cref="ISessionService"/>). Dispatched with an anonymous context.
 /// </summary>
 [Auditable(AuditCategory.Configuration, "identity.firstrun")]
-public sealed record CompleteFirstRunSetupCommand(string ClinicName, string OwnerFullName, string Username, string Password)
+public sealed record CompleteFirstRunSetupCommand(
+    string ClinicName, string OwnerFullName, string Username, string Password, string? ServerUserId = null)
     : ICommand<SignInResult>, ISelfTransactedCommand
 {
     public override string ToString() =>
@@ -63,7 +64,10 @@ public sealed class CompleteFirstRunSetupCommandHandler(
         var tenant = await users.FindTenantAsync(tenantId, ct).ConfigureAwait(false);
         tenant?.Rename(command.ClinicName);
 
-        var owner = User.Create(tenantId, command.Username, command.OwnerFullName, clock);
+        // D01: an owner provisioned from a verified online sign-in keeps the server's user id.
+        var owner = string.IsNullOrWhiteSpace(command.ServerUserId)
+            ? User.Create(tenantId, command.Username, command.OwnerFullName, clock)
+            : User.CreateWithId(command.ServerUserId, tenantId, command.Username, command.OwnerFullName, clock);
         owner.SetPasswordHash(hasher.Hash(command.Password));
         owner.RegisterSuccessfulLogin(clock);
         users.Add(owner);

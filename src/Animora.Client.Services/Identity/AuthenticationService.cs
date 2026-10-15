@@ -91,7 +91,8 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
             request.ClinicName,
             request.OwnerFullName,
             request.Username,
-            request.Password);
+            request.Password,
+            request.ServerUserId);
         var result = await dispatcher.SendAsync(command, context.Value!, ct);
         if (!result.IsSuccess)
         {
@@ -123,7 +124,8 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
         var context = provider.BuildAnonymousCommandContext();
         if (context.IsFailure) return new AuthOutcome(false, context.Error.Code, null);
 
-        var command = new ProvisionLocalMirrorUserCommand(request.Username, request.Username, request.Password, role);
+        var command = new ProvisionLocalMirrorUserCommand(request.Username, request.Username, request.Password, role,
+            request.ServerUserId);
         var result = await dispatcher.SendAsync(command, context.Value!, ct);
         return result.IsSuccess
             ? new AuthOutcome(true, null, request.Username)

@@ -78,6 +78,25 @@ public sealed class ReceptionQueueQueryTests
     }
 
     [Fact]
+    public async Task DoctorRail_SurfacesTheServerUserId_OfAServerMirroredDoctor()
+    {
+        using var fixture = new LocalStoreTestFixture();
+        await fixture.MigrateAsync();
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        const string serverUserId = "01M4X2FVSERVERDOCTOR00000";
+        var doctor = User.CreateWithId(serverUserId, fixture.TenantId, "dr.sara", "Dr Sara", fixture.Clock);
+        db.Add(doctor);
+        db.Add(StaffMembership.Create(fixture.TenantId, doctor.Id, StaffRole.Doctor, fixture.Clock));
+        await db.SaveChangesAsync();
+
+        var day = new DateTimeOffset(fixture.Clock.UtcNow.UtcDateTime.Date, TimeSpan.Zero);
+        var rail = await new TriageQueries(db).GetDoctorRailAsync(day, day.AddDays(1), default);
+
+        Assert.Equal(serverUserId, Assert.Single(rail).Id);
+    }
+
+    [Fact]
     public async Task Queue_IsOneUnionAllSelect_FilteredByUtcRange_WithoutDateFunctions()
     {
         using var fixture = new LocalStoreTestFixture();

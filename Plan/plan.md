@@ -89,7 +89,7 @@ The diagnostic groups 18 defects. Fixing all 18 fully is a large multi-session e
 
 **Build:** only `Animora.Domain`, `Animora.Application`, `Animora.Client.Services`, `Animora.Persistence.Sqlite`, and the touched test project.
 
-**Status:** ☐ not started
+**Status:** ☑ done — `User.CreateWithId` + `ProvisionLocalMirrorUserCommand.ServerUserId` (legacy random-id row superseded: membership ended, login name moved aside); first-run owner also keeps the server id; login now re-aligns the mirror after every verified online sign-in (role drift fixed). Deferred: peer-directory completeness, historical-row id migration.
 
 ---
 

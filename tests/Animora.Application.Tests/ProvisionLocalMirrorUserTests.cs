@@ -84,4 +84,56 @@ public sealed class ProvisionLocalMirrorUserTests
         Assert.Empty(world.Users.Users);
         Assert.Empty(world.Memberships.Memberships);
     }
+    [Fact]
+    public async Task ServerUserId_BecomesTheLocalUserId_AndItsMembership()
+    {
+        var world = new IdentityWorld();
+        var result = await Handler(world).HandleAsync(
+            new ProvisionLocalMirrorUserCommand("dr.sara", "dr.sara", Password, StaffRole.Doctor, "01M4X2FVSERVERUSER0000000"),
+            world.Context(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var user = Assert.Single(world.Users.Users);
+        Assert.Equal("01M4X2FVSERVERUSER0000000", user.Id);
+        var membership = Assert.Single(world.Memberships.Memberships);
+        Assert.Equal(user.Id, membership.UserId);
+        Assert.Equal(StaffRole.Doctor, membership.Role);
+    }
+
+    [Fact]
+    public async Task LegacyRandomIdMirror_IsSuperseded_ByTheServerIdentifiedUser()
+    {
+        var world = new IdentityWorld();
+        Assert.True((await ProvisionAsync(world, "dr.sara", Password, StaffRole.Doctor)).IsSuccess);
+        var legacy = Assert.Single(world.Users.Users);
+
+        var result = await Handler(world).HandleAsync(
+            new ProvisionLocalMirrorUserCommand("dr.sara", "dr.sara", Password, StaffRole.Doctor, "SERVER-ID-1"),
+            world.Context(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(UserStatus.Disabled, legacy.Status);
+        Assert.NotEqual("dr.sara", legacy.UserName);
+        Assert.DoesNotContain(world.Memberships.Memberships, m => m.UserId == legacy.Id && m.IsActive);
+        var active = Assert.Single(world.Memberships.Memberships, m => m.IsActive);
+        Assert.Equal("SERVER-ID-1", active.UserId);
+
+        var signIn = await world.SignIn().HandleAsync(new SignInCommand("dr.sara", Password, false), world.Context(),
+            CancellationToken.None);
+        Assert.True(signIn.IsSuccess);
+        Assert.Equal("SERVER-ID-1", signIn.Value!.UserId);
+    }
+
+    [Fact]
+    public async Task ServerRoleChange_IsReconciled_OnTheServerIdentifiedUser()
+    {
+        var world = new IdentityWorld();
+        var first = new ProvisionLocalMirrorUserCommand("naser", "naser", Password, StaffRole.Cashier, "SERVER-ID-2");
+        Assert.True((await Handler(world).HandleAsync(first, world.Context(), CancellationToken.None)).IsSuccess);
+        Assert.True((await Handler(world).HandleAsync(first with { Role = StaffRole.Doctor }, world.Context(),
+            CancellationToken.None)).IsSuccess);
+
+        Assert.Single(world.Users.Users);
+        Assert.Equal(StaffRole.Doctor, Assert.Single(world.Memberships.Memberships).Role);
+    }
 }

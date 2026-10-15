@@ -262,27 +262,25 @@ public sealed partial class LoginViewModel : ObservableObject
             Animora.Desktop.Diagnostics.AppTrace.Info(
                 $"fresh install: provisioning local account for '{user}' from the verified online sign-in", "auth");
             return await _authentication.CompleteFirstRunAsync(
-                new FirstRunRequest(clinic.Length > 0 ? clinic : user, user, user, password), ct);
+                new FirstRunRequest(clinic.Length > 0 ? clinic : user, user, user, password,
+                    online is { IsOffline: false } ? online.UserId : null), ct);
         }
 
-        var outcome = await _authentication.SignInAsync(user, password, rememberDevice: false, ct);
-        if (outcome.Succeeded || outcome.ErrorCode != "CREDENTIALS_INVALID" || online is null || online.IsOffline)
+        if (online is null || online.IsOffline)
         {
-            return outcome;
+            return await _authentication.SignInAsync(user, password, rememberDevice: false, ct);
         }
 
-        // The server accepted these credentials but the local store does not know them (a user created on the server, or a
-        // password changed elsewhere): mirror the verified identity locally, then retry the local sign-in once. A wrong
-        // password never reaches this point — the server already rejected it.
-        Animora.Desktop.Diagnostics.AppTrace.Info(
-            $"local sign-in rejected '{user}' after a verified online login — provisioning the local mirror (role={online.Role})", "auth");
+        // The server just verified these credentials: (re)align the local mirror BEFORE the local sign-in so the local
+        // user id equals the server user id (D01 — a random local id makes every pushed DoctorId fail
+        // DOCTOR_NOT_AVAILABLE) and a server-side role change is reconciled even when the password is unchanged. The
+        // mirror is idempotent; a failure here must not block a local sign-in that would succeed on its own.
         var mirrored = await _authentication.EnsureLocalMirrorAsync(
             new ServerIdentityMirrorRequest(online.UserId, online.TenantId, user, password, online.Role), ct);
         if (!mirrored.Succeeded)
         {
             Animora.Desktop.Diagnostics.AppTrace.Warn(
-                $"local mirror provisioning FAILED for '{user}' (code={mirrored.ErrorCode ?? "unknown"})", "auth");
-            return mirrored;
+                $"local mirror alignment FAILED for '{user}' (code={mirrored.ErrorCode ?? "unknown"}, role={online.Role})", "auth");
         }
 
         return await _authentication.SignInAsync(user, password, rememberDevice: false, ct);

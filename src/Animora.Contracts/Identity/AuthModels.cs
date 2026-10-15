@@ -6,12 +6,16 @@ public sealed record AuthOutcome(
     string? ErrorCode,
     string? DisplayName);
 
-/// <summary>One-time owner setup input.</summary>
+/// <summary>
+/// One-time owner setup input. <see cref="ServerUserId"/> is the central server's id for this owner when the setup
+/// follows a verified online sign-in (D01) — the local owner then carries the same id as the server user.
+/// </summary>
 public sealed record FirstRunRequest(
     string ClinicName,
     string OwnerFullName,
     string Username,
-    string Password);
+    string Password,
+    string? ServerUserId = null);
 
 /// <summary>
 /// The identity the central server has just authenticated, handed to the local store so it can mirror the user

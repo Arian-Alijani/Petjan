@@ -82,17 +82,48 @@ public sealed class User : AggregateRoot
         ArgumentException.ThrowIfNullOrWhiteSpace(userName);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentNullException.ThrowIfNull(clock);
+        return Build(IdGenerator.NewId(clock.UtcNow), tenantId, userName, displayName, clock);
+    }
+
+    private static User Build(string id, string tenantId, string userName, string displayName, IClock clock)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        ArgumentNullException.ThrowIfNull(clock);
 
         var now = clock.UtcNow;
         return new User
         {
-            Id = IdGenerator.NewId(now),
+            Id = id,
             TenantId = tenantId,
             UserName = Normalize(userName),
             DisplayName = displayName.Trim(),
             SecurityStamp = IdGenerator.NewId(now),
             Status = UserStatus.Active,
         };
+    }
+
+    /// <summary>
+    /// Creates an active user whose id is fixed by an external authority — the central server's user id when the
+    /// local store mirrors a server-authenticated identity (D01). Keeping the ids equal lets every payload that
+    /// carries a user id (e.g. a visit's <c>DoctorId</c>) resolve against the server's memberships.
+    /// </summary>
+    public static User CreateWithId(string id, string tenantId, string userName, string displayName, IClock clock)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        return Build(id.Trim(), tenantId, userName, displayName, clock);
+    }
+
+    /// <summary>
+    /// Retires this local row because another row (the server-identified mirror) now owns its login name: the user
+    /// name is moved aside so the unique (tenant, username) slot frees up, and the account is disabled. Historical
+    /// rows that reference this id keep resolving to it.
+    /// </summary>
+    public void Supersede()
+    {
+        UserName = Normalize($"{UserName}#superseded-{Id}");
+        Disable();
     }
 
     /// <summary>
