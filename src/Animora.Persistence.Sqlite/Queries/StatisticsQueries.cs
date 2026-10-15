@@ -18,9 +18,8 @@ using Microsoft.Extensions.Options;
 namespace Animora.Persistence.Sqlite.Queries;
 
 /// <summary>
-/// «آمار» read projections. Finance totals come from the pre-aggregated <see cref="DailyFinanceFact"/> rows
-/// (index <c>IX_DailyFinanceFacts_TenantId_LocalDay</c>), products from <see cref="ProductSalesFact"/>, clients
-/// from <see cref="OwnerFinancialSnapshot"/>. Day windows are converted to UTC bounds once with
+/// «آمار» read projections. Invoice revenue, lines and clients use the shared deduplicated local/server ledger;
+/// costs and expenses use <see cref="DailyFinanceFact"/>. Day windows are converted to UTC bounds once with
 /// <see cref="ClinicCalendar"/> and bucketed in memory — never with SQLite date functions.
 /// </summary>
 public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneProvider zones,
@@ -28,8 +27,6 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
 {
     private const int MaxTake = 50;
     private static readonly PersianCalendar Jalali = new();
-    private static readonly InvoiceState[] RevenueStates =
-        [InvoiceState.Posted, InvoiceState.PartiallyPaid, InvoiceState.Paid, InvoiceState.Refunded];
 
     private string Tenant => db.CurrentTenantId;
 
@@ -45,11 +42,7 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
 
     public async Task<IReadOnlyList<StatisticsSeriesPoint>> GetRevenueSeriesAsync(FinanceDayRange range, string bucket, CancellationToken ct)
     {
-        var facts = await db.Set<DailyFinanceFact>().AsNoTracking()
-            .Where(f => f.TenantId == Tenant && f.LocalDay >= range.FromDay && f.LocalDay <= range.ToDay)
-            .Select(f => new { f.LocalDay, Revenue = f.RevenueMinor - f.DiscountMinor - f.RefundMinor,
-                f.ExpenseMinor, f.CogsMinor, f.InvoiceCount })
-            .ToListAsync(ct);
+        var facts = await FinanceAnalytics.DaysAsync(db, range.FromDay, range.ToDay, zones.GetClinicTimeZone(), ct);
         var visits = await VisitDaysAsync(range, ct);
         var buckets = Buckets(range, bucket);
         var revenue = new long[buckets.Count];
@@ -59,12 +52,12 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
         var visitCounts = new int[buckets.Count];
         foreach (var f in facts)
         {
-            var i = IndexOf(buckets, Parse(f.LocalDay));
+            var i = IndexOf(buckets, Parse(f.Key));
             if (i < 0) continue;
-            revenue[i] += f.Revenue;
-            expense[i] += f.ExpenseMinor;
-            cogs[i] += f.CogsMinor;
-            invoices[i] += f.InvoiceCount;
+            revenue[i] += f.Value.Revenue - f.Value.Discount - f.Value.Refund;
+            expense[i] += f.Value.Expense;
+            cogs[i] += f.Value.Cogs;
+            invoices[i] += f.Value.Invoices;
         }
         foreach (var day in visits)
         {
@@ -78,30 +71,15 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
     public async Task<IReadOnlyList<RevenueSourceReadModel>> GetRevenueBySourceAsync(FinanceDayRange range, CancellationToken ct)
     {
         var (from, to) = UtcBounds(range);
-        var lines = await db.Set<Invoice>().AsNoTracking()
-            .Where(i => i.TenantId == Tenant && RevenueStates.Contains(i.State)
-                && i.PostedUtc != null && i.PostedUtc >= from && i.PostedUtc < to)
-            .SelectMany(i => i.Lines, (i, l) => new { Return = i.Kind == InvoiceKind.SalesReturn, l.Kind, l.Source,
-                l.Quantity.Value, Unit = l.UnitPrice.Minor, l.DiscountPercent })
-            .ToListAsync(ct);
+        var lines = await FinanceAnalytics.LinesAsync(db, from, to, ct);
         var totals = new Dictionary<string, (long Amount, int Count)>(StringComparer.Ordinal)
         {
             ["visit"] = (0, 0), ["product"] = (0, 0), ["boarding"] = (0, 0), ["other"] = (0, 0),
         };
         foreach (var line in lines)
         {
-            var source = line.Kind switch
-            {
-                InvoiceLineKind.Product => "product",
-                InvoiceLineKind.Boarding => "boarding",
-                InvoiceLineKind.Service when line.Source == InvoiceLineSource.Stay => "boarding",
-                InvoiceLineKind.Service => "visit",
-                _ => "other",
-            };
-            var gross = line.Value * line.Unit;
-            var net = (long)decimal.Round(gross - gross * line.DiscountPercent / 100m, 0, MidpointRounding.AwayFromZero);
-            var (amount, count) = totals[source];
-            totals[source] = (amount + (line.Return ? -net : net), count + 1);
+            var (amount, count) = totals[line.Source];
+            totals[line.Source] = (amount + line.Net, count + 1);
         }
         return totals.Select(t => new RevenueSourceReadModel(t.Key, t.Value.Amount, t.Value.Count)).ToArray();
     }
@@ -139,33 +117,39 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
     public async Task<IReadOnlyList<TopProductReadModel>> GetTopProductsAsync(FinanceDayRange range, int take, CancellationToken ct)
     {
         take = Math.Clamp(take, 1, MaxTake);
-        var facts = db.Set<ProductSalesFact>().AsNoTracking()
-            .Where(f => f.TenantId == Tenant && f.LocalDay >= range.FromDay && f.LocalDay <= range.ToDay);
-        var top = await facts.GroupBy(f => f.ProductId)
-            .Select(g => new { ProductId = g.Key, Revenue = g.Sum(f => f.RevenueMinor), Cogs = g.Sum(f => f.CogsMinor) })
-            .Where(g => g.Revenue > 0)
-            .OrderByDescending(g => g.Revenue).ThenBy(g => g.ProductId).Take(take).ToListAsync(ct);
-        if (top.Count == 0) return [];
+        var (from, to) = UtcBounds(range);
+        var lines = await FinanceAnalytics.LinesAsync(db, from, to, ct);
+        var top = lines.Where(l => l.Source == "product" && l.ProductId != null)
+            .GroupBy(l => l.ProductId!, StringComparer.Ordinal)
+            .Select(g => new { ProductId = g.Key, Revenue = g.Sum(l => l.Gross),
+                Quantity = g.Sum(l => l.Quantity), Title = g.First().Title })
+            .Where(g => g.Revenue > 0).OrderByDescending(g => g.Revenue)
+            .ThenBy(g => g.ProductId, StringComparer.Ordinal).Take(take).ToArray();
+        if (top.Length == 0) return [];
         var ids = top.Select(t => t.ProductId).ToArray();
-        // Decimal quantities are stored as exact TEXT, which SQLite cannot SUM: add the bounded rows here.
-        var quantities = (await facts.Where(f => ids.Contains(f.ProductId))
-                .Select(f => new { f.ProductId, f.QuantitySold }).ToListAsync(ct))
-            .GroupBy(f => f.ProductId).ToDictionary(g => g.Key, g => g.Sum(f => f.QuantitySold), StringComparer.Ordinal);
+        var costs = await db.Set<ProductSalesFact>().AsNoTracking()
+            .Where(f => f.TenantId == Tenant && f.LocalDay >= range.FromDay && f.LocalDay <= range.ToDay
+                && ids.Contains(f.ProductId)).GroupBy(f => f.ProductId)
+            .Select(g => new { Id = g.Key, Cost = g.Sum(f => f.CogsMinor) }).ToDictionaryAsync(g => g.Id, g => g.Cost, ct);
         var names = await db.Set<Product>().AsNoTracking().Where(p => ids.Contains(p.Id))
             .Select(p => new { p.Id, p.Name }).ToDictionaryAsync(p => p.Id, p => p.Name, ct);
-        return top.Select(t => new TopProductReadModel(t.ProductId, names.GetValueOrDefault(t.ProductId) ?? t.ProductId,
-            quantities.GetValueOrDefault(t.ProductId), t.Revenue, t.Cogs)).ToArray();
+        return top.Select(t => new TopProductReadModel(t.ProductId, names.GetValueOrDefault(t.ProductId) ?? t.Title,
+            t.Quantity, t.Revenue, costs.GetValueOrDefault(t.ProductId))).ToArray();
     }
 
     public async Task<IReadOnlyList<TopClientReadModel>> GetTopClientsAsync(int take, CancellationToken ct)
     {
         take = Math.Clamp(take, 1, MaxTake);
-        return await (from s in db.Set<OwnerFinancialSnapshot>().AsNoTracking()
-            join o in db.Set<Owner>().AsNoTracking() on s.OwnerId equals o.Id
-            where s.TenantId == Tenant && s.TotalSpendMinor > 0
-            orderby s.TotalSpendMinor descending, s.OwnerId
-            select new TopClientReadModel(s.OwnerId, o.FullName, o.PhonePrimary, s.TotalSpendMinor,
-                s.InvoiceCount, s.LastInvoiceUtc)).Take(take).ToListAsync(ct);
+        var top = await FinanceAnalytics.Invoices(db).Where(i => i.OwnerId != null)
+            .GroupBy(i => i.OwnerId).Select(g => new { OwnerId = g.Key, Spend = g.Sum(i => i.TotalMinor),
+                Count = g.Count(), Last = g.Max(i => i.PostedUtc) })
+            .Where(g => g.Spend > 0).OrderByDescending(g => g.Spend).ThenBy(g => g.OwnerId).Take(take).ToListAsync(ct);
+        var ids = top.Select(t => t.OwnerId).ToArray();
+        var owners = await db.Set<Owner>().AsNoTracking().Where(o => ids.Contains(o.Id))
+            .Select(o => new { o.Id, o.FullName, o.PhonePrimary }).ToDictionaryAsync(o => o.Id, ct);
+        return top.Where(t => t.OwnerId != null && owners.ContainsKey(t.OwnerId)).Select(t =>
+            new TopClientReadModel(t.OwnerId!, owners[t.OwnerId!].FullName, owners[t.OwnerId!].PhonePrimary,
+                t.Spend, t.Count, t.Last)).ToArray();
     }
 
     public async Task<IReadOnlyList<SpeciesSliceReadModel>> GetSpeciesDistributionAsync(CancellationToken ct)
@@ -182,8 +166,7 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
         var owners = db.Set<Owner>().AsNoTracking();
         var total = await owners.CountAsync(ct);
         var registered = await owners.CountAsync(o => o.RegisteredUtc >= from && o.RegisteredUtc < to, ct);
-        var invoices = db.Set<Invoice>().AsNoTracking().Where(i => i.TenantId == Tenant && i.OwnerId != null
-            && RevenueStates.Contains(i.State) && i.PostedUtc != null);
+        var invoices = FinanceAnalytics.Invoices(db).Where(i => i.OwnerId != null);
         var active = invoices.Where(i => i.PostedUtc >= from && i.PostedUtc < to).Select(i => i.OwnerId).Distinct();
         var activeCount = await active.CountAsync(ct);
         var returning = await active.CountAsync(id => invoices.Any(p => p.OwnerId == id && p.PostedUtc < from), ct);
@@ -194,22 +177,13 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
 
     private async Task<FinanceTotalsReadModel> TotalsAsync(FinanceDayRange range, CancellationToken ct)
     {
-        var sums = await db.Set<DailyFinanceFact>().AsNoTracking()
-            .Where(f => f.TenantId == Tenant && f.LocalDay >= range.FromDay && f.LocalDay <= range.ToDay)
-            .GroupBy(f => 1).Select(g => new
-            {
-                Revenue = g.Sum(f => f.RevenueMinor), Discount = g.Sum(f => f.DiscountMinor),
-                Refund = g.Sum(f => f.RefundMinor), Cogs = g.Sum(f => f.CogsMinor),
-                Expense = g.Sum(f => f.ExpenseMinor), Invoices = g.Sum(f => f.InvoiceCount),
-                Paid = g.Sum(f => f.PaidInvoiceCount),
-            }).SingleOrDefaultAsync(ct);
+        var days = await FinanceAnalytics.DaysAsync(db, range.FromDay, range.ToDay, zones.GetClinicTimeZone(), ct);
         var (from, to) = UtcBounds(range);
         var visits = await db.Set<Visit>().AsNoTracking().CountAsync(v => v.TenantId == Tenant
             && v.State != VisitState.Cancelled && v.StartedUtc >= from && v.StartedUtc < to, ct);
-        return sums is null
-            ? FinanceTotalsReadModel.Empty with { VisitCount = visits }
-            : new FinanceTotalsReadModel(sums.Revenue, sums.Discount, sums.Refund, sums.Cogs, sums.Expense,
-                sums.Invoices, sums.Paid, visits);
+        return new FinanceTotalsReadModel(days.Values.Sum(d => d.Revenue), days.Values.Sum(d => d.Discount),
+            days.Values.Sum(d => d.Refund), days.Values.Sum(d => d.Cogs), days.Values.Sum(d => d.Expense),
+            days.Values.Sum(d => d.Invoices), days.Values.Sum(d => d.Paid), visits);
     }
 
     private async Task<Dictionary<string, (long Amount, int Count)>> CategoryTotalsAsync(FinanceDayRange range, CancellationToken ct)

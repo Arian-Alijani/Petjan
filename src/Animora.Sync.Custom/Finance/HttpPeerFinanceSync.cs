@@ -133,6 +133,13 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
         else cursor.Advance(page.NextCursorTicks);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        // Peer finance is display-only and bypasses the business-table generation triggers. Invalidate the
+        // dashboard atomically with the ledger page, including updates that append no new activity event.
+        if (written > 0)
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO DashboardGenerations (TenantId, Value) VALUES ({tenant}, 1)
+                ON CONFLICT (TenantId) DO UPDATE SET Value = Value + 1
+                """, ct).ConfigureAwait(false);
         await tx.CommitAsync(ct).ConfigureAwait(false);
         return written;
 

@@ -14,7 +14,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Animora.Persistence.Sqlite.Queries;
 
 /// <summary>Role-specific sequential reads on one context; bounded, including the version probe.</summary>
-public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueries
+public sealed class DashboardQueries(AnimoraLocalDbContext db, Animora.Application.Ports.IClinicTimeZoneProvider? zones = null) : IDashboardQueries
 {
     /// <summary>
     /// The tenant's source generation: a single primary-key lookup of the trigger-maintained
@@ -80,10 +80,10 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
         if (access.Finance)
         {
             var start = date.Year * 10000 + date.Month * 100 + date.Day;
-            var stored = await db.Set<DailyFinanceFact>().AsNoTracking()
-                .Where(x => x.TenantId == tenantId && x.LocalDay >= start && x.LocalDay <= today)
-                .Select(x => new DashboardDay(x.LocalDay, x.RevenueMinor)).ToListAsync(ct);
-            var byDay = stored.ToDictionary(x => x.LocalDay, x => x.RevenueMinor);
+            var zone = zones is null ? TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran")
+                : await zones.GetClinicTimeZoneAsync(ct);
+            var stored = await FinanceAnalytics.DaysAsync(db, start, today, zone, ct);
+            var byDay = stored.ToDictionary(x => x.Key, x => x.Value.Revenue);
             var series = new DashboardDay[14];
             for (var i = 0; i < series.Length; i++)
             {
@@ -149,17 +149,19 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
         }
         if (access.Collections)
         {
-            receipts = await db.Set<Payment>().AsNoTracking()
-                .Where(x => x.TenantId == tenantId).NonCreditSettlements(window.StartUtc, window.EndUtc)
+            receipts = await FinancePaymentProjection.Query(db)
+                .Where(x => x.Method != PaymentMethod.Credit
+                    && x.ReceivedUtc >= window.StartUtc && x.ReceivedUtc < window.EndUtc)
                 .GroupBy(x => 1).Select(g => new DashboardReceipts(
-                    g.Sum(x => x.Amount.Minor > 0 ? x.Amount.Minor : 0L),
-                    g.Sum(x => x.Amount.Minor < 0 ? -x.Amount.Minor : 0L), CurrencyScale.Irt))
+                    g.Sum(x => x.AmountMinor > 0 ? x.AmountMinor : 0L),
+                    g.Sum(x => x.AmountMinor < 0 ? -x.AmountMinor : 0L), CurrencyScale.Irt))
                 .SingleOrDefaultAsync(ct) ?? new DashboardReceipts(0, 0, CurrencyScale.Irt);
             totals = totals with { Payments = receipts.Net };
         }
 
         // Separate guarded statements: a forbidden source is not part of SQL at all.
-        var openInvoices = db.Set<Invoice>().AsNoTracking().Where(i => i.TenantId == tenantId).OpenInvoices();
+        var openInvoices = FinanceInvoiceProjection.Query(db).Where(i => i.State == InvoiceState.Draft
+            || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid);
         // One aggregate: open (Draft/Posted/PartiallyPaid, same as the cashier page) and the payable subset.
         // Payment queue = issued invoices that still need money; drafts are open but not yet payable.
         var invoiceCounts = access.Sales ? await openInvoices.GroupBy(i => 1).Select(g => new
@@ -177,9 +179,9 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db) : IDashboardQueri
                 join owner in db.Set<Owner>().AsNoTracking() on invoice.OwnerId equals owner.Id into owners
                 from owner in owners.DefaultIfEmpty()
                 orderby invoice.IssuedUtc descending, invoice.Id descending
-                select new DashboardOperationalRow("Invoice", invoice.InvoiceNumber,
-                    owner == null ? invoice.GuestName ?? "مشتری مهمان" : owner.FullName,
-                    invoice.IssuedUtc, invoice.State.ToString(), invoice.InvoiceNumber)).Take(8).ToListAsync(ct);
+                select new DashboardOperationalRow("Invoice", invoice.Number,
+                    owner == null ? invoice.OwnerName : owner.FullName,
+                    invoice.IssuedUtc, invoice.State.ToString(), invoice.Number)).Take(8).ToListAsync(ct);
             readyRows = await ReadyBillingProjection.Query(db, tenantId).OrderByDescending(h => h.CompletedUtc).ThenBy(h => h.Id)
                 .Take(8).Select(h => new DashboardOperationalRow(h.Source, h.PetName, h.OwnerName,
                     h.CompletedUtc, "Ready")).ToListAsync(ct);
