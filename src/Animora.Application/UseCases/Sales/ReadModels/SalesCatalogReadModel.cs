@@ -4,7 +4,7 @@ using Animora.Domain.Sales;
 namespace Animora.Application.UseCases.Sales.ReadModels;
 
 public sealed record SalesCatalogItemReadModel(string Id, string Title, string Kind, string Category,
-    long PriceMinor);
+    long PriceMinor, long? OnHandScaled = null);
 
 public sealed record SalesCatalogReadModel(IReadOnlyList<SalesCatalogItemReadModel> Items,
     IReadOnlyList<string> Categories, IReadOnlyList<string> RecentIds);

@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:cash="using:Animora.Desktop.Pages.Cashier"
              xmlns:controls="using:Animora.Desktop.Controls"
@@ -278,6 +278,12 @@
         </Style>
         <Style Selector="ListBox.records ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.stock-option.out">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Border.stock-option.out TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
         </Style>
     </UserControl.Styles>
 
@@ -635,7 +641,12 @@
                                               SelectedItem="{Binding SelectedCatalogOption, Mode=TwoWay}">
                                         <ComboBox.ItemTemplate>
                                             <DataTemplate x:DataType="cash:CashierCatalogOptionViewModel">
-                                                <TextBlock Text="{Binding Label}" />
+                                                <Border Classes="stock-option" Classes.out="{Binding IsOutOfStock}" Padding="6,4" CornerRadius="6">
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock Text="{Binding Label}" />
+                                                        <TextBlock Text="موجودی ندارد" IsVisible="{Binding IsOutOfStock}" FontSize="11" />
+                                                    </StackPanel>
+                                                </Border>
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>

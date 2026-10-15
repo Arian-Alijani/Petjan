@@ -4335,6 +4335,10 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(26)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("DetailJson")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("DueTotalMinor")
                         .HasColumnType("INTEGER");
 

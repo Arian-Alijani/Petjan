@@ -21,7 +21,8 @@ public sealed record RxCatalogItem(
     RxCatalogKind Kind,
     string Id,
     string Title,
-    long Price);
+    long Price,
+    long? OnHandScaled = null);
 
 /// <summary>
 /// One line in an encounter's billable list — the shape <c>rxLineHtml</c>

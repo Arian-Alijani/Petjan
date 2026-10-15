@@ -61,7 +61,14 @@ public sealed record ProductVariant(
     int ReorderPoint,
     long Cost,
     long Price,
-    string? Expiry);
+    string? Expiry,
+    long? OnHandScaled = null)
+{
+    /// <summary>Exact stock for availability checks; keep whole-unit Stock for existing editors.</summary>
+    public long EffectiveOnHandScaled => OnHandScaled ?? (long)Stock * 1000;
+
+    public bool IsOutOfStock => EffectiveOnHandScaled <= 0;
+}
 
 /// <summary>
 /// A product in the inventory catalog, mirroring the shape the reference's

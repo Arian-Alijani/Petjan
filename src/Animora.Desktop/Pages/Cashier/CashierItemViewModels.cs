@@ -276,12 +276,15 @@ public sealed class CashierCatalogOptionViewModel
     public CashierCatalogOptionViewModel(CashierCatalogItem item)
     {
         Id = item.Id;
+        IsOutOfStock = item.IsOutOfStock;
         Label = $"{CashierPresentation.LineKindLabel(item.Kind)} · {item.Title} · {CashierPresentation.Money(item.Price)}";
     }
 
     public string Id { get; }
 
     public string Label { get; }
+
+    public bool IsOutOfStock { get; }
 }
 
 /// <summary>One option of the insurance select (mirrors <c>C().INSURERS</c>).</summary>

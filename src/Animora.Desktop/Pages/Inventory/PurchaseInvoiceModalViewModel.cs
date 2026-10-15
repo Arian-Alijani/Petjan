@@ -28,6 +28,26 @@ public sealed partial class PurchaseInvoiceModalViewModel : ObservableObject
     private readonly Debouncer _supplierDebounce = new(TimeSpan.FromMilliseconds(220));
     private readonly Debouncer _productDebounce = new(TimeSpan.FromMilliseconds(220));
     private int _productGeneration;
+    private IDisposable? _stockSubscription;
+
+    public void ObserveStockChanges()
+    {
+        _stockSubscription?.Dispose();
+        _stockSubscription = _changes.Subscribe(domain =>
+        {
+            if (domain is DataDomain.Inventory or DataDomain.Purchasing or DataDomain.Sales)
+                _productDebounce.Debounce(() => _ = SearchProductsAsync(ProductSearch));
+        });
+    }
+
+    public void StopObservingStockChanges()
+    {
+        _stockSubscription?.Dispose();
+        _stockSubscription = null;
+        _productDebounce.Cancel();
+        _supplierDebounce.Cancel();
+        _productGeneration++;
+    }
 
     public PurchaseInvoiceModalViewModel(
         IPurchasingService purchasing,

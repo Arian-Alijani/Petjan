@@ -186,6 +186,16 @@ internal static class ReplicaMaterializer
                 new("ReorderLevelScaled", Kind.Int), new("ReorderLevelUnit", Kind.Text, Default: ""), new("Barcode", Kind.Text), new("IsActive", Kind.Bool),
             ]),
         ]),
+        // Read-only server ledger images replace the same deterministic local entry, never add its delta twice.
+        new("StockLedgerEntry", "StockMovements",
+        [
+            new("ProductId", Kind.Text, true), new("VariantId", Kind.Text, true), new("Kind", Kind.Int),
+            new("QuantityScaled", Kind.Int, true), new("QuantityUnit", Kind.Text, true),
+            new("UnitCostMinor", Kind.Int), new("UnitCostCurrency", Kind.Text, Default: DefaultCurrency),
+            new("LotNumber", Kind.Text), new("ExpiryUtc", Kind.Time), new("OccurredUtc", Kind.Time, true),
+            new("SourceEntityType", Kind.Text), new("SourceEntityId", Kind.Text), new("OperationId", Kind.Text),
+            new("RecordedByUserId", Kind.Text, true), new("Reason", Kind.Text), new("ReversesMovementId", Kind.Text),
+        ]),
         new("Supplier", "Suppliers",
         [
             new("Code", Kind.Text, true), new("Name", Kind.Text, true), new("ContactPerson", Kind.Text), new("Phone", Kind.Text), new("Email", Kind.Text),
@@ -319,6 +329,18 @@ internal static class ReplicaMaterializer
         TraceLog.Info($"ReplicaMaterializer.Apply — {rows.Count} staged/retry row(s) match the projected entity set.", "sync.apply");
         var written = 0;
         var booked = new List<ActivityEventDraft>();
+        var stockKeys = new HashSet<(string Product, string Variant)>();
+        var stockIds = rows.Where(r => r.Entity == "StockLedgerEntry").Select(r => r.EntityId).ToArray();
+        // Read before tombstoning: the normal soft-delete filter hides a row immediately after the update.
+        var previousStockKeys = await db.Set<Animora.Domain.Inventory.StockMovement>().AsNoTracking()
+            .Where(m => m.TenantId == tenant && stockIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.ProductId, m.VariantId, m.OperationId })
+            .ToDictionaryAsync(m => m.Id, ct).ConfigureAwait(false);
+        var pendingStockOperations = stockIds.Length == 0 ? new HashSet<string>(StringComparer.Ordinal)
+            : (await db.Set<PendingCommand>().AsNoTracking()
+                .Where(c => c.TenantId == tenant
+                    && (c.Status == SettlementState.LocallyPosted || c.Status == SettlementState.PendingSettlement))
+                .Select(c => c.OperationId).ToListAsync(ct).ConfigureAwait(false)).ToHashSet(StringComparer.Ordinal);
         var byEntity = Maps.ToDictionary(m => m.Entity, StringComparer.Ordinal);
 
         foreach (var row in rows)
@@ -332,11 +354,23 @@ internal static class ReplicaMaterializer
             var map = byEntity[row.Entity];
             var updated = (row.UpdatedAtUtc ?? DateTimeOffset.UtcNow).UtcTicks;
 
+            // Tombstones carry no payload, so use the existing movement's operation as well.
+            // A server delete must not remove an unsettled local overlay before its command settles.
+            if (row.Entity == "StockLedgerEntry"
+                && previousStockKeys.TryGetValue(row.EntityId, out var localStock)
+                && localStock.OperationId is { } localOperation && pendingStockOperations.Contains(localOperation))
+            {
+                await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
+                continue;
+            }
+
             if (row.Payload is null)
             {
                 var tombstoned = await db.Database.ExecuteSqlRawAsync(map.TombstoneSql, new object[] { updated, Nullable(row.Version), row.EntityId, tenant }, ct)
                     .ConfigureAwait(false);
                 TraceLog.Info($"ReplicaMaterializer.Apply — TOMBSTONE {row.Entity}/{row.EntityId} (wire delete) → {tombstoned} row(s) soft-deleted.", "sync.apply");
+                if (row.Entity == "StockLedgerEntry" && previousStockKeys.TryGetValue(row.EntityId, out var deletedStock))
+                    stockKeys.Add((deletedStock.ProductId, deletedStock.VariantId));
                 written += tombstoned;
                 await ClearDeferredAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
@@ -345,6 +379,14 @@ internal static class ReplicaMaterializer
             if (!TryReadValues(map, row.Payload, out var values))
             {
                 TraceLog.Warn($"ReplicaMaterializer.Apply — SKIP {row.Entity}/{row.EntityId}: payload is missing a REQUIRED field (poisoned row; skipped so it cannot stall sync). rawPayload={Truncate(row.Payload)}", "sync.apply");
+                await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
+                continue;
+            }
+            // Stock commands are journaled against Product/Invoice/GoodsReceipt, not StockLedgerEntry.
+            // Protect their provisional movement by OperationId until settlement, then replay this durable image.
+            if (row.Entity == "StockLedgerEntry" && Str(values, "OperationId") is { } operation
+                && pendingStockOperations.Contains(operation))
+            {
                 await DeferAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
             }
@@ -385,6 +427,12 @@ internal static class ReplicaMaterializer
             }
             await ClearDeferredAsync(db, tenant, row, ct).ConfigureAwait(false);
             written += affected;
+            if (row.Entity == "StockLedgerEntry")
+            {
+                stockKeys.Add((Str(values, "ProductId")!, Str(values, "VariantId")!));
+                if (previousStockKeys.TryGetValue(row.EntityId, out var previousStock))
+                    stockKeys.Add((previousStock.ProductId, previousStock.VariantId));
+            }
             TraceLog.Info($"ReplicaMaterializer.Apply — UPSERT {row.Entity}/{row.EntityId} → {affected} row(s) written to '{map.Table}' (deleted={row.Deleted}).", "sync.apply");
             if (affected > 0 && !row.Deleted && row.Entity == "Appointment" && TryBuildBookedDraft(tenant, row, values) is { } draft)
                 booked.Add(draft);
@@ -398,6 +446,20 @@ internal static class ReplicaMaterializer
                 if (ActivityFeedMapper.Map(evt) is { } completedDraft) booked.Add(completedDraft);
             }
         }
+
+        // Raw replica writes bypass SaveChanges/StockSnapshotUpdater. Rebuild only touched keys, in this
+        // same transaction, from the deduplicated ledger (including any still-provisional local movements).
+        foreach (var (product, variant) in stockKeys)
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO StockOnHandSnapshots (Id, TenantId, ProductId, VariantId, OnHandScaled, LastMovementUtc, LastMovementId)
+                SELECT {IdGenerator.NewId()}, {tenant}, {product}, {variant},
+                    coalesce(sum(QuantityScaled), 0), coalesce(max(OccurredUtc), 0),
+                    coalesce((SELECT Id FROM StockMovements WHERE TenantId = {tenant} AND ProductId = {product}
+                        AND VariantId = {variant} AND Deleted = 0 ORDER BY OccurredUtc DESC, Id DESC LIMIT 1), '')
+                FROM StockMovements WHERE TenantId = {tenant} AND ProductId = {product} AND VariantId = {variant} AND Deleted = 0
+                ON CONFLICT (TenantId, ProductId, VariantId) DO UPDATE SET OnHandScaled = excluded.OnHandScaled,
+                    LastMovementUtc = excluded.LastMovementUtc, LastMovementId = excluded.LastMovementId
+                """, ct).ConfigureAwait(false);
 
         if (booked.Count > 0)
         {

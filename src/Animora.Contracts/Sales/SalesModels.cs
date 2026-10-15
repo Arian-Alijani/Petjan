@@ -285,7 +285,12 @@ public sealed record CatalogItem(
     string GroupLabel,
     string GroupKey,
     long Price,
-    string IconKey);
+    string IconKey,
+    long? OnHandScaled = null)
+{
+    /// <summary>Null stock denotes a stock-free service or untracked product, never an unavailable item.</summary>
+    public bool IsOutOfStock => Kind == "item" && OnHandScaled is <= 0;
+}
 
 /// <summary>
 /// The catalog's category filter chips, mirroring <c>renderCatFilters</c>:

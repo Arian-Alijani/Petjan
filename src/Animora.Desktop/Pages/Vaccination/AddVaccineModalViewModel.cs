@@ -84,7 +84,35 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
         UpdateModeFlags();
     }
 
-    public IReadOnlyList<VaccineCatalogEntry> Catalog { get; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCatalog), nameof(ShowClinicCatalog))]
+    private IReadOnlyList<VaccineCatalogEntry> _catalog = [];
+
+    private int _stockRefreshGeneration;
+    private string? _pickedStockId;
+
+    public void CancelStockRefresh() => _stockRefreshGeneration++;
+
+    public async Task RefreshStockAsync()
+    {
+        var generation = ++_stockRefreshGeneration;
+        try
+        {
+            var catalog = await _service.GetCatalogAsync();
+            var selectedId = SelectedVaccine?.Id;
+            var stockId = HasStockInfo ? _pickedStockId : null;
+            var detail = stockId is null ? null : await _inventory.GetDetailAsync(stockId);
+            if (generation != _stockRefreshGeneration) return;
+            Catalog = catalog;
+            if (selectedId is not null)
+                SelectedVaccine = Catalog.FirstOrDefault(v => v.Id == selectedId);
+            if (stockId is not null && stockId == _pickedStockId && HasStockInfo)
+            {
+                UpdateStockInfo(detail?.Product);
+            }
+        }
+        catch (Exception) { _toast.Show("به‌روزرسانی موجودی ناموفق بود؛ دوباره تلاش کنید", Tone.Danger); }
+    }
 
     public bool HasCatalog => Catalog.Count > 0;
 
@@ -332,6 +360,9 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasStockInfo;
 
+    [ObservableProperty]
+    private bool _isStockUnavailable;
+
     private string _pickedStockName = string.Empty;
     private Dictionary<string, Product> _stockById = [];
 
@@ -352,6 +383,7 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
         if (HasStockInfo && !string.Equals(value.Trim(), _pickedStockName, StringComparison.Ordinal))
         {
             HasStockInfo = false;
+            IsStockUnavailable = false;
             StockInfoText = string.Empty;
         }
     }
@@ -408,7 +440,8 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
         var items = products
             .OrderBy(p => p.Name, StringComparer.CurrentCulture)
             .Select(p => new CatalogItem(
-                p.Id, "item", p.Name, categories.GetValueOrDefault(p.CategoryId, string.Empty), p.CategoryId, 0, icon))
+                p.Id, "item", p.Name, categories.GetValueOrDefault(p.CategoryId, string.Empty), p.CategoryId, 0, icon,
+                p.Variants.Sum(v => v.EffectiveOnHandScaled)))
             .ToList();
 
         var filters = new List<CatalogFilterRef> { new("all", "همه", items.Count) };
@@ -426,12 +459,20 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
             return;
         }
 
+        _pickedStockId = productId;
         _pickedStockName = product.Name.Trim();
         SelectedVaccine = null;
         ItemName = product.Name;
-        var onHand = product.Variants.Sum(v => v.Stock);
-        StockInfoText = $"موجودی انبار: {VaccinationPresentation.Fa(onHand)} (فقط اطلاع‌رسانی؛ از موجودی کم نمی‌شود)";
+        UpdateStockInfo(product);
         HasStockInfo = true;
+    }
+
+    private void UpdateStockInfo(Product? product)
+    {
+        var onHand = (product?.Variants.Sum(v => v.EffectiveOnHandScaled) ?? 0L) / 1000m;
+        IsStockUnavailable = onHand <= 0;
+        StockInfoText = IsStockUnavailable ? "موجودی ندارد (فقط اطلاع‌رسانی؛ از موجودی کم نمی‌شود)"
+            : $"موجودی انبار: {PersianNumberFormatter.ToPersianDigits(onHand.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))} (فقط اطلاع‌رسانی؛ از موجودی کم نمی‌شود)";
     }
 
     [RelayCommand]

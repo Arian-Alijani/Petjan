@@ -2,6 +2,7 @@ using Animora.Application.Ports;
 using Animora.Application.UseCases.Visits;
 using Animora.Domain.Inventory;
 using Animora.Persistence.Sqlite.Context;
+using Animora.Persistence.Sqlite.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Animora.Persistence.Sqlite.Queries;
@@ -32,14 +33,19 @@ public sealed class RxCatalogQueries(AnimoraLocalDbContext db) : IRxCatalogQueri
             where v.IsActive
             orderby p.Kind == ProductKind.Service descending, p.Name, v.VariantId
             select new RxCatalogItemReadModel(p.Kind == ProductKind.Service ? "Service" : "Item", v.VariantId,
-                p.Name, v.SalePrice.Minor)).Take(1000).ToListAsync(ct);
+                p.Name, v.SalePrice.Minor,
+                p.TrackStock && p.Kind != ProductKind.Service
+                    ? (db.Set<StockOnHandSnapshot>().Where(s => s.ProductId == p.Id && s.VariantId == v.VariantId)
+                        .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) : (long?)null))
+            .Take(1000).ToListAsync(ct);
         // Product-level fallback for active products without any active variant (e.g. services from the rate editor).
         var variantless = await db.Set<Product>().AsNoTracking()
             .Where(p => p.IsActive && !p.Variants.Any(v => v.IsActive))
             .OrderByDescending(p => p.Kind == ProductKind.Service)
             .ThenBy(p => p.Name).ThenBy(p => p.Id).Take(500)
             .Select(p => new RxCatalogItemReadModel(p.Kind == ProductKind.Service ? "Service" : "Item", p.Id,
-                p.Name, p.DefaultSalePrice.Minor)).ToListAsync(ct);
+                p.Name, p.DefaultSalePrice.Minor,
+                p.TrackStock && p.Kind != ProductKind.Service ? 0L : (long?)null)).ToListAsync(ct);
         // Services first so a large goods catalogue can never push them out of the bounded window.
         return variantRows.Concat(variantless)
             .OrderBy(r => r.Kind == "Service" ? 0 : 1)

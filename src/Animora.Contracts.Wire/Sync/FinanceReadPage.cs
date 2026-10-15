@@ -53,7 +53,8 @@ public sealed record FinanceInvoiceRow(
     long PaidTotalMinor,
     long DueTotalMinor,
     long EffectiveTicks,
-    DateTimeOffset? VoidedUtc = null);
+    DateTimeOffset? VoidedUtc = null,
+    FinanceInvoiceDetail? Detail = null);
 
 /// <summary>D04 — one server-authored payment row for the peer finance cache (flat, display-shaped).</summary>
 /// <param name="Id">Stable payment id; the dedup/upsert key.</param>
@@ -67,3 +68,18 @@ public sealed record FinancePaymentRow(
     int Method,
     long AmountMinor,
     DateTimeOffset ReceivedUtc);
+
+/// <summary>Immutable, server-authored invoice economics and charged lines; display-only on peers.</summary>
+public sealed record FinanceInvoiceDetail(
+    string? GuestName, string? InsurerId, decimal InsurancePercent,
+    long SubtotalMinor, long DiscountMinor, long TaxMinor, long InsuranceMinor,
+    int DiscountKind, decimal DiscountValue,
+    IReadOnlyList<FinanceInvoiceLine> Lines, IReadOnlyList<FinanceInvoiceAdjustment> Adjustments);
+
+/// <summary>Charged line values at the time of sale, not current catalogue prices.</summary>
+public sealed record FinanceInvoiceLine(string LineId, int Kind, string? ProductId, string? VariantId,
+    string? CatalogItemId, string Title, decimal Quantity, long UnitPriceMinor,
+    decimal DiscountPercent, decimal TaxPercent);
+
+/// <summary>Authoritative invoice adjustment.</summary>
+public sealed record FinanceInvoiceAdjustment(string Id, int Kind, long AmountMinor, string Reason, DateTimeOffset CreatedUtc);

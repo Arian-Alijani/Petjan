@@ -49,6 +49,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     private readonly CatalogPickerOptions? _picker;
 
     private string _filterKey;
+    private int _loadGeneration;
 
     /// <summary>
     /// Sales/Cashier constructor: the picker loads the sales catalog and adds a
@@ -133,9 +134,20 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
     public int HighlightIndex { get; private set; }
 
+    /// <summary>Refresh the open picker after local writes or a peer sync, without losing the search/filter.</summary>
+    public async Task RefreshStockAsync()
+    {
+        try { await LoadAsync(); }
+        catch (Exception) { _toast.Show("به‌روزرسانی موجودی ناموفق بود؛ دوباره تلاش کنید", Tone.Danger); }
+    }
+
+    public void CancelPendingRefresh() => _loadGeneration++;
+
     private async Task LoadAsync()
     {
+        var generation = ++_loadGeneration;
         var snapshot = await _loadCatalog();
+        if (generation != _loadGeneration) return;
         _all.Clear();
         _all.AddRange(snapshot.Items);
 
@@ -218,6 +230,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
         _visible.Clear();
         _visible.AddRange(list);
+        HighlightIndex = Math.Clamp(HighlightIndex, 0, Math.Max(0, _visible.Count - 1));
 
         var built = new List<CatalogRowViewModel>(_visible.Count);
         for (var i = 0; i < _visible.Count; i++)
@@ -411,8 +424,11 @@ public sealed class CatalogRecentChipViewModel
         Title = item.Title;
         IconKey = item.IconKey;
         IsItem = item.Kind == "item";
+        IsOutOfStock = item.IsOutOfStock;
         (IcoBackground, IcoForeground) = SalePresentation.LineTagBrushes(
             IsItem ? InvoiceLineKind.Item : InvoiceLineKind.Service, false);
+        if (IsOutOfStock)
+            (IcoBackground, IcoForeground) = (SalePresentation.PlaceholderAvatarBrush(), SalePresentation.PlaceholderAvatarForeground());
     }
 
     public string Id { get; }
@@ -422,6 +438,11 @@ public sealed class CatalogRecentChipViewModel
     public string IconKey { get; }
 
     public bool IsItem { get; }
+
+    public bool IsOutOfStock { get; }
+
+    public IBrush TextForeground => IsOutOfStock
+        ? BrushCache.Solid("#667085") : BrushCache.Solid("#101828");
 
     public IBrush IcoBackground { get; }
 
@@ -445,8 +466,9 @@ public sealed partial class CatalogRowViewModel : ObservableObject
         IsItem = item.Kind == "item";
         KindLabel = IsItem ? "کالا" : "خدمت";
         PriceText = SalePresentation.Money(item.Price);
-        IcoBackground = icoBackground;
-        IcoForeground = icoForeground;
+        IsOutOfStock = item.IsOutOfStock;
+        IcoBackground = IsOutOfStock ? SalePresentation.PlaceholderAvatarBrush() : icoBackground;
+        IcoForeground = IsOutOfStock ? SalePresentation.PlaceholderAvatarForeground() : icoForeground;
 
         // Highlight-on-search: split the title into before / match / after. The match is located with the
         // same folding the filter uses (Persian digits, Arabic yeh/kaf, case) on a length-preserving copy,
@@ -480,9 +502,17 @@ public sealed partial class CatalogRowViewModel : ObservableObject
 
     public bool IsItem { get; }
 
+    public bool IsOutOfStock { get; }
+
+    public IBrush TextForeground => IsOutOfStock
+        ? BrushCache.Solid("#667085") : BrushCache.Solid("#101828");
+
     public string KindLabel { get; }
 
     public string PriceText { get; }
+
+    public IBrush AddBackground => IsOutOfStock
+        ? SalePresentation.PlaceholderAvatarForeground() : BrushCache.Solid("#0e9384");
 
     public IBrush IcoBackground { get; }
 
