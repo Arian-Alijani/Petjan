@@ -29,6 +29,16 @@ public interface ILocalStoreMaintenance
     /// <summary>Moves the current store into quarantine (never deletes) and re-initializes an empty store.</summary>
     Task<Result<LocalStoreDiagnostics>> QuarantineAndRebuildAsync(CancellationToken ct);
 
+    /// <summary>
+    /// Full local reset for a from-scratch re-sync. Destructively clears EVERY business table of the current clinic as well as
+    /// the replica base/checkpoint/staging and the sync cursor, keeping only the installation identity and the global permission
+    /// catalog, then rebinds the installation to the SAME current tenant and re-seeds just the Tenant + RoleDefinitions. Unlike a
+    /// clinic switch this never stashes: it is an explicit, operator-confirmed wipe whose intent is to re-pull everything from the
+    /// server (a full snapshot). Fails <c>STORE_UNAVAILABLE</c> when no real clinic is bound yet (nothing to re-sync). The caller
+    /// is responsible for triggering the subsequent full-snapshot pull.
+    /// </summary>
+    Task<Result> ResetForResyncAsync(CancellationToken ct);
+
     /// <summary>VACUUM + WAL truncate; returns the number of pages freed.</summary>
     Task<Result<int>> VacuumAsync(CancellationToken ct);
 

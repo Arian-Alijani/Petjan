@@ -382,6 +382,40 @@ public sealed class LocalStoreMaintenance(
         }
     }
 
+    /// <inheritdoc />
+    public async Task<Result> ResetForResyncAsync(CancellationToken ct)
+    {
+        var state = services.GetRequiredService<LocalInstallationState>();
+        await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            string currentTenantId;
+            await using (var db = await contexts.CreateDbContextAsync(ct).ConfigureAwait(false))
+            {
+                var installation = await db.Set<LocalInstallation>().AsNoTracking().SingleOrDefaultAsync(ct).ConfigureAwait(false);
+                if (installation is null) return Result.Fail(ErrorCodes.StoreUnavailable, "installation_not_initialized");
+                currentTenantId = installation.TenantId;
+            }
+            // Nothing to re-pull before a clinic is bound (the default tenant has no server-side snapshot).
+            if (!IsRealTenant(currentTenantId))
+                return Result.Fail(ErrorCodes.StoreUnavailable, "reset_requires_bound_clinic");
+
+            // Same destructive wipe used by a clinic switch, but rebinding to the SAME tenant: it clears every business table plus
+            // the replica base/checkpoint/staging and the sync cursor (all are relational tables in the model), keeping only the
+            // installation identity + permission catalog, and re-seeds Tenant + RoleDefinitions. No stash: this is an explicit wipe.
+            var wiped = await WipeAndBindAsync(currentTenantId, state, ct).ConfigureAwait(false);
+            if (wiped.IsFailure) return wiped;
+
+            await LogAsync(StoreMaintenanceKind.Quarantine, $"reset-for-resync tenant {currentTenantId}", ct).ConfigureAwait(false);
+            return Result.Ok();
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result.Fail(Map(ex, ErrorCodes.StoreUnavailable), "reset_for_resync_failed");
+        }
+        finally { state.TransitionGate.Release(); }
+    }
+
     public async Task<Result<int>> VacuumAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

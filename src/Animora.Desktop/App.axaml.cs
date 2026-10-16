@@ -493,6 +493,9 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<LocalSyncStatusService>();
         services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
 
+        // Settings → "پاک‌سازی کامل و همگام‌سازی دوباره": wipe the whole local replica and re-pull a full server snapshot.
+        services.AddSingleton<ILocalDataResetService, LocalDataResetService>();
+
         // Login-screen server reachability indicator: a cheap GET /health/live probe so the user can
         // tell a server/internet outage apart from a wrong password.
         services.AddSingleton<IServerConnectivityService, ServerConnectivityService>();

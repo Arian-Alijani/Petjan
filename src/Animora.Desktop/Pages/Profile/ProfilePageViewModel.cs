@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Profile;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
@@ -24,11 +25,17 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     private readonly IToastService _toast;
     private readonly IAuthenticationService _authentication;
     private readonly ICapabilityGate? _capabilities;
+    private readonly IDialogService? _dialogs;
+    private readonly ILocalDataResetService? _localReset;
 
     public event EventHandler? SignedOut;
 
     [ObservableProperty]
     private bool _isSigningOut;
+
+    /// <summary>True while the "wipe local data + full re-sync" action is running — gates the danger-zone button and spinner.</summary>
+    [ObservableProperty]
+    private bool _isResettingLocalData;
 
     [RelayCommand]
     private async Task SignOutAsync(CancellationToken ct)
@@ -48,14 +55,71 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         finally { IsSigningOut = false; }
     }
 
+    /// <summary>
+    /// Danger zone: ask the user to confirm, then wipe EVERY piece of local data for this clinic and re-pull a complete fresh
+    /// snapshot from the server so the device ends up byte-for-byte consistent with server state. Shown in the security tab.
+    /// </summary>
+    [RelayCommand]
+    private void ResetLocalData()
+    {
+        if (IsResettingLocalData || _dialogs is null || _localReset is null) return;
+
+        _dialogs.ShowModal(new Pages.Sales.Shared.ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "پاک‌سازی کامل و همگام‌سازی دوباره",
+            "تمام داده‌های محلی این دستگاه ",
+            "بطور کامل پاک",
+            " و دوباره از سرور دریافت می‌شود.",
+            "همهٔ تغییرات هم‌گام‌نشدهٔ روی این دستگاه از بین می‌رود. پس از پاک‌سازی، همهٔ اطلاعات دوباره بطور کامل از سرور دریافت و همگام می‌شود.",
+            "بله، پاک‌سازی و همگام‌سازی",
+            "انصراف",
+            () => _ = ResetLocalDataConfirmedAsync()), 520);
+    }
+
+    private async Task ResetLocalDataConfirmedAsync()
+    {
+        if (_localReset is null) return;
+        IsResettingLocalData = true;
+        try
+        {
+            var result = await _localReset.ResetAndResyncAsync(CancellationToken.None);
+            switch (result.Outcome)
+            {
+                case LocalResetOutcome.ResyncedFromServer:
+                    _toast.Show("داده‌های محلی پاک شد و همه‌چیز دوباره از سرور همگام شد.", Tone.Ok);
+                    break;
+                case LocalResetOutcome.ClearedPendingServer:
+                    _toast.Show("داده‌های محلی پاک شد؛ همگام‌سازی کامل با سرور در اولین اتصال انجام می‌شود.", Tone.Warn);
+                    break;
+                case LocalResetOutcome.NotBound:
+                    _toast.Show("ابتدا باید به یک کلینیک متصل باشید.", Tone.Warn);
+                    break;
+                default:
+                    _toast.Show("پاک‌سازی انجام نشد؛ داده‌های محلی بدون تغییر ماند. دوباره تلاش کنید.", Tone.Danger);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Error("local data reset failed", ex, "sync");
+            _toast.Show("پاک‌سازی انجام نشد؛ دوباره تلاش کنید.", Tone.Danger);
+        }
+        finally { IsResettingLocalData = false; }
+    }
+
     public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast,
-        IAuthenticationService authentication, ICapabilityGate? capabilities = null)
+        IAuthenticationService authentication, ICapabilityGate? capabilities = null,
+        IDialogService? dialogs = null, ILocalDataResetService? localReset = null)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
         _authentication = authentication;
         _capabilities = capabilities;
+        _dialogs = dialogs;
+        _localReset = localReset;
         if (_capabilities is not null) _capabilities.CapabilitiesChanged += OnCapabilitiesChanged;
 
         Title = "تنظیمات";
