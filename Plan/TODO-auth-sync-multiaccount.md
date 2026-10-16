@@ -154,7 +154,13 @@ Keep the single‑tenant model; add a **per‑tenant stash** of the whole local 
 
 - [x] **T0. Plan created** — this file. (push)
 
-- [ ] **T1. Fix BUG A — StaffMembership sync constraint violation.**
+- [x] **T1. Fix BUG A — StaffMembership sync constraint violation. (DONE)**
+  - Implemented: `ReplicaMaterializer.cs` adds `StaffMembershipPurgeSql` and, inside the typed-projection
+    savepoint, deletes the local StaffMembership row with the same `(TenantId,UserId,Role)` under a
+    different id before the server row's upsert. Added regression test
+    `SyncedStaffMembership_SupersedesTheRandomIdLocalMirror_ForTheSameUserAndRole` in
+    `tests/Animora.Sync.Tests/ReplicaMaterializerTests.cs`. (dotnet not available in sandbox → CI validates.)
+  - Original notes below:
   - File: `src/Animora.Sync.Custom/Replica/ReplicaMaterializer.cs`.
   - In `ApplyAsync`, for `row.Entity == "StaffMembership"` and a non‑tombstone payload, BEFORE the
     `CreateSavepointAsync`/upsert, run a purge:

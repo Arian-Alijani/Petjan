@@ -299,4 +299,47 @@ public sealed class ReplicaMaterializerTests
             .CountAsync(x => x.BatchId == ReplicaMaterializer.PendingProjectionBatch));
     }
 
+    // Regression: the sign-in mirror creates a StaffMembership under a random local id, while sync pulls the server's
+    // membership for the same user under the server id. Both share (TenantId, UserId, Role) — the local UNIQUE business-key
+    // index — so the server INSERT used to trip SQLITE_CONSTRAINT and be skipped on every pull forever. The server row must
+    // now supersede the mirror row (single identity source), not be deferred.
+    [Fact]
+    public async Task SyncedStaffMembership_SupersedesTheRandomIdLocalMirror_ForTheSameUserAndRole()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+
+        // Seed the local mirror row: same user+role as the server will send, but a DIFFERENT (random) id.
+        using (var seed = fixture.CreateScope())
+        {
+            var db = seed.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            db.Set<Animora.Domain.Identity.StaffMembership>().Add(
+                Animora.Domain.Identity.StaffMembership.Create(fixture.TenantId, "USER-1",
+                    Animora.Domain.Identity.StaffRole.Doctor, new FixedClock(FeedFixtures.Now)));
+            await db.SaveChangesAsync();
+        }
+
+        const string serverMembership =
+            """{"userId":"USER-1","role":1,"status":0,"joinedUtc":"2026-10-01T08:00:00+00:00","workStartMinute":480,"workEndMinute":1200,"workDaysMask":63}""";
+        var result = await ApplyAsync(store, Batch("sm", 1, 0, 10), Page("sm", 0, 1,
+            Json("StaffMembership", "SRV-MEM-1", "v1", serverMembership)));
+        Assert.True(result.IsSuccess, result.Detail);
+
+        using var read = fixture.CreateScope();
+        var store2 = read.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        // Exactly one membership for the user, carrying the SERVER id — the random mirror row was retired.
+        var memberships = await store2.Set<Animora.Domain.Identity.StaffMembership>()
+            .Where(x => x.TenantId == fixture.TenantId && x.UserId == "USER-1").ToListAsync();
+        Assert.Single(memberships);
+        Assert.Equal("SRV-MEM-1", memberships[0].Id);
+        // No durable retry was kept: the row projected successfully instead of being skipped on a constraint violation.
+        Assert.Equal(0, await store2.Set<Animora.Persistence.Sqlite.Replica.ReplicaStaging>()
+            .CountAsync(x => x.BatchId == ReplicaMaterializer.PendingProjectionBatch && x.Entity == "StaffMembership"));
+    }
+
+    private sealed class FixedClock(DateTimeOffset now) : Animora.Domain.Time.IClock
+    {
+        public DateTimeOffset UtcNow { get; } = now;
+    }
+
 }

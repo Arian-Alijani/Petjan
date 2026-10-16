@@ -117,6 +117,17 @@ internal static class ReplicaMaterializer
         ["BoardingStay"] = new("BoardingBillingHandoffs", "StayId", hasKind: true),
     };
 
+    /// <summary>
+    /// Supersedes a local <c>StaffMembership</c> stored under a different (random) id for the same business key before the
+    /// server's row is inserted. The local mirror membership minted at sign-in (<c>ProvisionLocalMirrorUserCommand</c> →
+    /// <c>StaffMembership.Create</c>) carries a random local id, while the replicated server row carries the server id; both share
+    /// the same <c>(TenantId, UserId, Role)</c>, which the local UNIQUE index <c>IX_StaffMemberships_TenantId_UserId_Role</c>
+    /// forbids. Without this purge the server row's INSERT trips that index on every pull and is skipped forever
+    /// (SQLITE_CONSTRAINT). Deleting the mismatched-id row first lets the server row win and become the single identity source.
+    /// </summary>
+    private const string StaffMembershipPurgeSql =
+        "DELETE FROM \"StaffMemberships\" WHERE \"TenantId\" = {0} AND \"UserId\" = {1} AND \"Role\" = {2} AND \"Id\" <> {3}";
+
     /// <summary>Currency assumed for a money value object the wire omitted (the product's single supported currency).</summary>
     private const string DefaultCurrency = "IRT";
 
@@ -402,6 +413,11 @@ internal static class ReplicaMaterializer
             await tx.CreateSavepointAsync("typed_projection", ct).ConfigureAwait(false);
             try
             {
+                // The server's StaffMembership shares (TenantId, UserId, Role) with the random-id mirror row minted at sign-in;
+                // retire that mismatched-id row first so the server row's INSERT does not trip the UNIQUE business-key index.
+                if (row.Entity == "StaffMembership" && !row.Deleted && Str(values, "UserId") is { } staffUserId)
+                    await db.Database.ExecuteSqlRawAsync(StaffMembershipPurgeSql,
+                        new object[] { tenant, staffUserId, Nullable(values["Role"]), row.EntityId }, ct).ConfigureAwait(false);
                 affected = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
                 if (affected > 0 && map.Children.Length > 0)
                     await ReplaceChildrenAsync(db, map, row.EntityId, row.Payload, ct).ConfigureAwait(false);
