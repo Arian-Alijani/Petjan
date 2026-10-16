@@ -279,7 +279,7 @@ here** adding BOTH the `Radiology` and `LabResults` columns (reused by T5), each
 
 ---
 
-### [ ] T5 — Task 2: Lab results — backend (Domain + Application + persistence + sync)
+### [x] T5 — Task 2: Lab results — backend (Domain + Application + persistence + sync)
 **Goal:** Record lab results on a visit: date, description/notes box, and per-row {test type + value}.
 **Model (`Domain/Clinical/`):** `record LabResult(string Id, DateTimeOffset TakenUtc, string? Description,
 IReadOnlyList<LabResultItem> Items)`, `record LabResultItem(string TypeId, string TypeName, string Value, string? Unit)`.
@@ -297,9 +297,14 @@ handlers (mirror radiology). Register in `VisitsRegistration.cs`.
 **Verify:** `scripts/sandbox/build.sh full` 0/0.
 **Push:** `scripts/git/push.sh "feat(visits): lab-result domain+command+journal+query backend"`
 
+> **T5 (done in T2's commit, verified here):** `LabResult`/`LabResultItem` (domain), `Visit.AddLabResult/RemoveLabResult` (guarded by
+> `EnsureOpen`), `AddLabResultCommand`/`RemoveLabResultCommand` (+validators/handlers, `IJournaledCommand`, `[Auditable]`,
+> `VisitsWrite`), `CommandTypes.VisitsLabAdd/VisitsLabRemove` in `All`, `LabResults` JSON mapping (SQLite + PostgreSQL, matching the
+> `LabResults` column of migrations 036/117), server catalog + permission rows, and `EncounterEditReadModel.Labs`.
+
 ---
 
-### [ ] T6 — Task 2: Lab results — Contracts + Client.Services seam
+### [x] T6 — Task 2: Lab results — Contracts + Client.Services seam
 **Goal:** Expose lab results via `IVisitEncounterService` (mirror T3).
 **Do:** Contract records `LabEntry(Id, TakenAt, Description, IReadOnlyList<LabItem> Items)`,
 `LabItem(TypeId, TypeName, Value, Unit)`; interface methods `AddLabAsync`/`RemoveLabAsync`; implement in

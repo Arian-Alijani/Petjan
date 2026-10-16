@@ -55,6 +55,18 @@ public interface IVisitEncounterService
     /// <summary>Opens a previously stored attachment for reading; the caller disposes the stream.</summary>
     Task<Stream> OpenAttachmentAsync(string hash, CancellationToken cancellationToken = default);
 
+    /// <summary>Lists the laboratory result sheets recorded on the encounter, oldest first («آزمایشات»).</summary>
+    Task<IReadOnlyList<LabEntry>> GetLabsAsync(string encounterId);
+
+    /// <summary>
+    /// Records a laboratory result sheet on the encounter and returns its id. Journaled, so the entry reaches the
+    /// server and every other client on the next sync. The selectable test types come from <see cref="ILabTestSettingsService"/>.
+    /// </summary>
+    Task<string> AddLabAsync(string encounterId, LabEntry entry);
+
+    /// <summary>Removes a laboratory result sheet by id (journaled).</summary>
+    Task RemoveLabAsync(string encounterId, string labId);
+
     /// <summary>
     /// The selectable billable catalog behind the rx step's «افزودن خدمت…» /
     /// «افزودن کالا…» pickers (reference <c>C().SERVICES</c> + <c>C().ITEMS</c>).

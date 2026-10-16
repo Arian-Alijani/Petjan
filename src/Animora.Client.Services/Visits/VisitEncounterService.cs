@@ -71,6 +71,23 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
         await SendAsync(new RemoveRadiologyCommand(encounterId, radiologyId));
     }
 
+    public async Task<IReadOnlyList<LabEntry>> GetLabsAsync(string encounterId) =>
+        (await QueryAsync(new EncounterDraftQuery(encounterId))).Labs
+            .OrderBy(r => r.TakenUtc).Select(r => r.ToContract()).ToArray();
+
+    public async Task<string> AddLabAsync(string encounterId, LabEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        await FlushAsync();
+        return await SendAsync(entry.ToCommand(encounterId));
+    }
+
+    public async Task RemoveLabAsync(string encounterId, string labId)
+    {
+        await FlushAsync();
+        await SendAsync(new RemoveLabResultCommand(encounterId, labId));
+    }
+
     public async Task<RadiologyFile> StoreAttachmentAsync(Stream content, string fileName, string contentType,
         CancellationToken cancellationToken = default)
     {

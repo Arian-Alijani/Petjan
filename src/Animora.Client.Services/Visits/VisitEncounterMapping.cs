@@ -23,6 +23,15 @@ internal static class VisitEncounterMapping
             entry.Files.Select(f => new RadiologyAttachmentInput(f.Hash, f.Name, f.ContentType)).ToArray(),
             string.IsNullOrWhiteSpace(entry.Id) ? null : entry.Id);
 
+    public static LabEntry ToContract(this LabResult row) =>
+        new(row.Id, row.TakenUtc.LocalDateTime, row.Description,
+            row.Items.Select(i => new LabItem(i.TypeId, i.TypeName, i.Value, i.Unit)).ToArray());
+
+    public static AddLabResultCommand ToCommand(this LabEntry entry, string encounterId) =>
+        new(encounterId, entry.TakenAt.ToDateTimeOffset(), entry.Description,
+            entry.Items.Select(i => new LabResultItemInput(i.TypeId, i.TypeName, i.Value, i.Unit)).ToArray(),
+            string.IsNullOrWhiteSpace(entry.Id) ? null : entry.Id);
+
     /// <summary>A picked calendar date/time (local, or unspecified from a date picker) as the absolute instant the backend stores.</summary>
     public static DateTimeOffset ToDateTimeOffset(this DateTime value) =>
         new(value.Kind == DateTimeKind.Utc ? value : DateTime.SpecifyKind(value, DateTimeKind.Local));

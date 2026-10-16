@@ -119,3 +119,19 @@ public sealed record RadiologyEntry(
     string BodyPart,
     string? Result,
     IReadOnlyList<RadiologyFile> Files);
+
+/// <summary>
+/// One measured value of a lab result sheet: the configured test type (id + name as recorded, so history survives
+/// the type's later removal), the value the doctor typed and its unit.
+/// </summary>
+public sealed record LabItem(string TypeId, string TypeName, string Value, string? Unit);
+
+/// <summary>
+/// One laboratory result sheet recorded on the encounter («آزمایشات»): the date, a free-text description and the
+/// per-test values. <see cref="Id"/> is empty for an unsaved entry — the service mints the id.
+/// </summary>
+public sealed record LabEntry(
+    string Id,
+    DateTime TakenAt,
+    string? Description,
+    IReadOnlyList<LabItem> Items);
