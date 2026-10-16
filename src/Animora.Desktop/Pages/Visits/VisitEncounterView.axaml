@@ -576,6 +576,8 @@
                                     <Border Classes="wz-sep" />
                                     <visits:RxStepView />
                                     <Border Classes="wz-sep" />
+                                    <visits:ParaclinicStepView />
+                                    <Border Classes="wz-sep" />
                                     <visits:ReviewStepView />
                                 </StackPanel>
                             </Border>

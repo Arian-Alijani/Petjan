@@ -317,7 +317,7 @@ selectable types via `ILabTestSettingsService` (T4).
 
 ---
 
-### [ ] T7 — Task 1 & 2 UI: Radiology & Lab option buttons + their over-page form sheets
+### [x] T7 — Task 1 & 2 UI: Radiology & Lab option buttons + their over-page form sheets
 **Goal:** In the encounter form add two option entries «رادیولوژی» and «آزمایشات». Clicking each opens a
 sheet over the current page (0.8) with its form; filled data is saved through the seam and listed on the visit.
 **Do (on `VisitEncounterViewModel.cs` + `VisitEncounterView.axaml`):**
@@ -341,6 +341,14 @@ new `Pages/Visits/LabSheetViewModel.cs` + `LabSheetView.axaml(.cs)`,
 new `RadiologyEntryViewModel.cs` + `LabEntryViewModel.cs`. Register sheet VMs if DI-resolved (else `new`).
 **Verify:** `scripts/sandbox/build.sh full` 0/0 + `scripts/sandbox/run.sh` → SMOKE RUN OK (UI/DI touched).
 **Push:** `scripts/git/push.sh "feat(visits): radiology & lab option sheets wired end-to-end in encounter"`
+
+> **T7 implementation notes (done):** new `ParaclinicStepView` section (between rx and review) holds the two option buttons «رادیولوژی» /
+> «آزمایشات» + the recorded-entry lists; `VisitEncounterViewModel` hydrates `RadiologyEntries`/`LabEntries` in `LoadAsync`
+> (`GetRadiologyAsync`/`GetLabsAsync`), opens `RadiologySheetViewModel`/`LabSheetViewModel` through `_dialogs.ShowSheet` (guarded by
+> `visits.write`), saves through the seam, removes with a confirm dialog and notifies `DataDomain.Visits/History/Patients`.
+> File attach goes through the new `IDialogService.PickFilesAsync` (OS picker, 25 MB cap, 20 files) → `StoreAttachmentAsync`; chips open
+> through `IFileLauncher` (temp copy, passive image/PDF/DICOM types only). Sheet VMs are `new`-ed (not DI) and registered in `ViewFactory`.
+> Validation is **CI-only** (no local build): see the Actions run recorded in the T7 commit.
 
 ---
 

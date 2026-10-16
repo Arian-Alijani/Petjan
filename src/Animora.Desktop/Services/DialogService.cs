@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Animora.Desktop.Controls;
@@ -87,6 +89,36 @@ public sealed class DialogService : IDialogService
         await writer.WriteAsync(content);
         await writer.FlushAsync();
         return true;
+    }
+
+    public async Task<IReadOnlyList<PickedFile>> PickFilesAsync(
+        string title, IReadOnlyList<string> patterns, bool allowMultiple = true)
+    {
+        var host = (Control?)_sheetHost ?? (Control?)_modalHost ?? (Control?)_drawerHost;
+        if (host is null || TopLevel.GetTopLevel(host)?.StorageProvider is not { } storage)
+        {
+            return [];
+        }
+
+        var files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = allowMultiple,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("فایل‌های مجاز") { Patterns = patterns.ToList() },
+            ],
+        });
+
+        var picked = new List<PickedFile>(files.Count);
+        foreach (var file in files)
+        {
+            var properties = await file.GetBasicPropertiesAsync();
+            var size = properties.Size is { } bytes ? (long?)checked((long)bytes) : null;
+            picked.Add(new PickedFile(file.Name, size, () => file.OpenReadAsync()));
+        }
+
+        return picked;
     }
 
     public void Close()

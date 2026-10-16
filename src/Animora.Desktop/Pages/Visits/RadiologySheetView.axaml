@@ -1,0 +1,140 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Visits.RadiologySheetView"
+             x:DataType="visits:RadiologySheetViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+
+    <!-- «ثبت رادیولوژی» — sheet over the encounter (Plan T7): date, organ / body part, result, attached files. -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.rs-fld">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="TextBox.rs-inp">
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style Selector="Border.rs-chip">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="24,20,24,16">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Brand50Brush}">
+                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                          Data="{StaticResource IconImage}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="ثبت رادیولوژی" FontSize="18" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="تاریخ، عضو، نتیجه و تصاویر یا گزارش رادیولوژی را ثبت کنید."
+                               FontSize="12.5" Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                        Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                        VerticalAlignment="Top" Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="24,18,24,18" Spacing="16">
+                <Grid ColumnDefinitions="220,*" ColumnSpacing="14">
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Classes="rs-fld" Text="تاریخ رادیولوژی" />
+                        <controls:JalaliDatePicker DateValue="{Binding DateValue, Mode=TwoWay}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Classes="rs-fld" Text="عضو / ناحیهٔ تصویربرداری" />
+                        <TextBox Classes="rs-inp" Text="{Binding BodyPart}" MaxLength="100"
+                                 PlaceholderText="مثلاً: قفسهٔ سینه، ران چپ، شکم…" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel>
+                    <TextBlock Classes="rs-fld" Text="نتیجه" />
+                    <TextBox Classes="rs-inp" Text="{Binding Result}" AcceptsReturn="True" TextWrapping="Wrap"
+                             MinHeight="130" MaxLength="4000"
+                             PlaceholderText="تفسیر و یافته‌های رادیولوژی…" />
+                </StackPanel>
+
+                <StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock Grid.Column="0" Classes="rs-fld" Text="تصویر / فایل پیوست" Margin="0" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="outline" Command="{Binding AttachFilesCommand}"
+                                IsEnabled="{Binding IsIdle}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}"
+                                      Data="{StaticResource IconUpload}" VerticalAlignment="Center" />
+                                <TextBlock Text="افزودن فایل" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <TextBlock Text="{Binding FilesCaption}" FontSize="12" FontWeight="Bold"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8" />
+                    <ItemsControl ItemsSource="{Binding Files}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="visits:RadiologyFileViewModel">
+                                <Border Classes="rs-chip">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                              VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Name}" FontSize="12.5" FontWeight="Bold" MaxWidth="260"
+                                                   TextTrimming="CharacterEllipsis" Foreground="{StaticResource Ink2Brush}"
+                                                   VerticalAlignment="Center" />
+                                        <Button Classes="ghost" Padding="2" MinHeight="0" MinWidth="0" Width="22" Height="22"
+                                                Command="{Binding RemoveCommand}" ToolTip.Tip="حذف فایل">
+                                            <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource MutedBrush}"
+                                                  Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <TextBlock Text="{Binding Error}" IsVisible="{Binding Error.Length}" TextWrapping="Wrap"
+                           FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="24,14"
+                Background="{StaticResource PanelBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Command="{Binding SaveCommand}" IsEnabled="{Binding IsIdle}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White" Data="{StaticResource IconCheck}"
+                              VerticalAlignment="Center" />
+                        <TextBlock Text="ثبت رادیولوژی" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

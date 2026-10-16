@@ -1,0 +1,138 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             xmlns:contracts="using:Animora.Contracts.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.LabSheetView"
+             x:DataType="visits:LabSheetViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+
+    <!-- «ثبت آزمایش» — sheet over the encounter (Plan T7): date, description, {test type + value} rows. -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.ls-fld">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="TextBox.ls-inp">
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style Selector="Border.ls-row">
+            <Setter Property="Background" Value="#fbfefd" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <Border Grid.Row="0" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1" Padding="24,20,24,16">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12" Background="{StaticResource Brand50Brush}">
+                    <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                          Data="{StaticResource IconFlask}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="ثبت آزمایش" FontSize="18" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="تاریخ، توضیحات و مقدار هر آزمایش را ثبت کنید."
+                               FontSize="12.5" Foreground="{StaticResource MutedBrush}" />
+                </StackPanel>
+                <Button Grid.Column="2" Width="36" Height="36" Padding="0" CornerRadius="10"
+                        Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                        VerticalAlignment="Top" Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
+            </Grid>
+        </Border>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="24,18,24,18" Spacing="16">
+                <StackPanel HorizontalAlignment="Left" Width="220">
+                    <TextBlock Classes="ls-fld" Text="تاریخ آزمایش" />
+                    <controls:JalaliDatePicker DateValue="{Binding DateValue, Mode=TwoWay}" />
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Classes="ls-fld" Text="توضیحات" />
+                    <TextBox Classes="ls-inp" Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap"
+                             MinHeight="84" MaxLength="4000" PlaceholderText="نام آزمایشگاه، شرایط نمونه‌گیری، تفسیر…" />
+                </StackPanel>
+
+                <StackPanel>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock Grid.Column="0" Classes="ls-fld" Text="آزمایش‌ها و مقادیر" Margin="0" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Classes="outline" Command="{Binding AddRowCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Ink2Brush}"
+                                      Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                                <TextBlock Text="افزودن ردیف" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <Border IsVisible="{Binding HasNoTypes}" Classes="ls-row" Background="{StaticResource DangerBgBrush}">
+                        <TextBlock TextWrapping="Wrap" FontSize="12.5" FontWeight="Bold" Foreground="{StaticResource DangerBrush}"
+                                   Text="هنوز نوع آزمایشی تعریف نشده است. از بخش «تنظیمات» صفحهٔ ویزیت، انواع آزمایش را اضافه کنید." />
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding Rows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="visits:LabRowEditorViewModel">
+                                <Border Classes="ls-row">
+                                    <Grid ColumnDefinitions="*,150,110,32" ColumnSpacing="10">
+                                        <ComboBox Grid.Column="0" HorizontalAlignment="Stretch" CornerRadius="10" MinHeight="40"
+                                                  ItemsSource="{Binding Types}" SelectedItem="{Binding SelectedType}"
+                                                  PlaceholderText="نوع آزمایش">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="contracts:LabTestType">
+                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <TextBox Grid.Column="1" Classes="ls-inp" Text="{Binding Value}" MaxLength="200"
+                                                 PlaceholderText="مقدار" FlowDirection="LeftToRight" />
+                                        <TextBox Grid.Column="2" Classes="ls-inp" Text="{Binding Unit}" MaxLength="40"
+                                                 PlaceholderText="واحد" FlowDirection="LeftToRight" />
+                                        <Button Grid.Column="3" Classes="ghost" Padding="0" Width="32" Height="32" MinHeight="0" MinWidth="0"
+                                                VerticalAlignment="Center" Command="{Binding RemoveCommand}" ToolTip.Tip="حذف ردیف">
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                                  Data="{StaticResource IconTrash}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <TextBlock Text="{Binding Error}" IsVisible="{Binding Error.Length}" TextWrapping="Wrap"
+                           FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource DangerBrush}" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2" BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="24,14"
+                Background="{StaticResource PanelBrush}">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Command="{Binding SaveCommand}" IsEnabled="{Binding IsIdle}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Path Classes="icon" Width="15" Height="15" Stroke="White" Data="{StaticResource IconCheck}"
+                              VerticalAlignment="Center" />
+                        <TextBlock Text="ثبت آزمایش" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="ghost" Content="انصراف" Command="{Binding CancelCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

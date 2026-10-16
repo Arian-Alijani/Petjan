@@ -141,6 +141,8 @@ public static class ViewFactory
         // Visits (triage gate + clinical-encounter wizard).
         Register<global::Animora.Desktop.Pages.Visits.VisitEncounterViewModel, global::Animora.Desktop.Pages.Visits.VisitEncounterView>(factories);
         Register<global::Animora.Desktop.Pages.Visits.VisitsTriagePageViewModel, global::Animora.Desktop.Pages.Visits.VisitsTriagePageView>(factories);
+        Register<global::Animora.Desktop.Pages.Visits.RadiologySheetViewModel, global::Animora.Desktop.Pages.Visits.RadiologySheetView>(factories);
+        Register<global::Animora.Desktop.Pages.Visits.LabSheetViewModel, global::Animora.Desktop.Pages.Visits.LabSheetView>(factories);
 
         return factories;
     }

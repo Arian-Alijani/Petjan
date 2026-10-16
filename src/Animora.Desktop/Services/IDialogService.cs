@@ -40,6 +40,13 @@ public interface IDialogService
     /// </summary>
     Task<bool> SaveTextFileAsync(string suggestedName, string content, string extension = "csv");
 
+    /// <summary>
+    /// Runs the OS open-file flow (<c>IStorageProvider.OpenFilePickerAsync</c>) for the given extension patterns
+    /// (e.g. <c>*.png</c>). Returns the chosen files — empty when the user cancelled or no window is attached.
+    /// The platform call stays here, not inside a screen View or ViewModel.
+    /// </summary>
+    Task<IReadOnlyList<PickedFile>> PickFilesAsync(string title, IReadOnlyList<string> patterns, bool allowMultiple = true);
+
     /// <summary>Closes every overlay (modal, drawer and sheet) at once.</summary>
     void Close();
 
@@ -50,3 +57,9 @@ public interface IDialogService
     /// </summary>
     void CloseModal();
 }
+
+/// <summary>A file chosen through <see cref="IDialogService.PickFilesAsync"/>; its bytes are opened lazily.</summary>
+/// <param name="Name">File name with extension (no directory).</param>
+/// <param name="Size">Size in bytes, or <see langword="null"/> when the platform did not report one.</param>
+/// <param name="OpenReadAsync">Opens a fresh read stream; the caller disposes it.</param>
+public sealed record PickedFile(string Name, long? Size, Func<Task<Stream>> OpenReadAsync);

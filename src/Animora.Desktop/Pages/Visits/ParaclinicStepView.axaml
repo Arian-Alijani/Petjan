@@ -1,0 +1,194 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Visits.ParaclinicStepView"
+             x:Name="Root"
+             x:DataType="visits:VisitEncounterViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+
+    <!-- «پاراکلینیک» — the radiology + lab option entries of the encounter (Plan T7). Each button opens its
+         form as a sheet over the page; recorded entries are listed below and are replicated with the visit. -->
+    <UserControl.Styles>
+        <Style Selector="Button.pc-option">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="Button.pc-option:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Border.pc-ico">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Border.pc-entry">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style Selector="Border.pc-chip">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Margin" Value="0,6,6,0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+            <TextBlock Grid.Column="0" Classes="sec-title" Text="رادیولوژی و آزمایشات" />
+            <TextBlock Grid.Column="1" Classes="sec-hint" Text="نتیجهٔ پاراکلینیک همراه این ویزیت ثبت و همگام می‌شود" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <Button Grid.Column="0" Classes="pc-option" Command="{Binding OpenRadiologyCommand}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Border Grid.Column="0" Classes="pc-ico">
+                        <Path Classes="icon" Width="19" Height="19" Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconImage}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="رادیولوژی" FontSize="14" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="ثبت تصویر، عضو و نتیجه" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                    <Path Grid.Column="2" Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand600Brush}"
+                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                </Grid>
+            </Button>
+            <Button Grid.Column="1" Classes="pc-option" Command="{Binding OpenLabCommand}">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Border Grid.Column="0" Classes="pc-ico">
+                        <Path Classes="icon" Width="19" Height="19" Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconFlask}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="آزمایشات" FontSize="14" FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="ثبت مقادیر هر آزمایش" FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                    <Path Grid.Column="2" Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand600Brush}"
+                          Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
+                </Grid>
+            </Button>
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,14,0,0">
+            <!-- Recorded radiology -->
+            <StackPanel Grid.Column="0">
+                <TextBlock Classes="rx-empty" IsVisible="{Binding IsRadiologyEmpty}" Text="رادیولوژی‌ای ثبت نشده" />
+                <ItemsControl ItemsSource="{Binding RadiologyEntries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="visits:RadiologyEntryViewModel">
+                            <Border Classes="pc-entry">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <StackPanel Grid.Column="0" Spacing="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding BodyPart}" FontSize="13.5" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding DateText}" FontSize="11.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock IsVisible="{Binding HasResult}" Text="{Binding Result}" TextWrapping="Wrap"
+                                                   FontSize="12.5" Foreground="{StaticResource Ink2Brush}" />
+                                        <ItemsControl ItemsSource="{Binding Files}" IsVisible="{Binding HasFiles}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="visits:RadiologyFileViewModel">
+                                                    <Border Classes="pc-chip" ToolTip.Tip="باز کردن فایل">
+                                                        <Button Classes="ghost" Padding="0" MinHeight="0" MinWidth="0" Background="Transparent"
+                                                                BorderThickness="0"
+                                                                Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).OpenAttachmentCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand700Brush}"
+                                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                                      VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding Name}" FontSize="11.5" FontWeight="Bold" MaxWidth="170"
+                                                                           TextTrimming="CharacterEllipsis" Foreground="{StaticResource Ink2Brush}"
+                                                                           VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Classes="rx-rm" VerticalAlignment="Top" ToolTip.Tip="حذف"
+                                            Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).RemoveRadiologyCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                              Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Recorded lab results -->
+            <StackPanel Grid.Column="1">
+                <TextBlock Classes="rx-empty" IsVisible="{Binding IsLabEmpty}" Text="آزمایشی ثبت نشده" />
+                <ItemsControl ItemsSource="{Binding LabEntries}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="visits:LabEntryViewModel">
+                            <Border Classes="pc-entry">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <StackPanel Grid.Column="0" Spacing="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding DateText}" FontSize="13.5" FontWeight="ExtraBold"
+                                                       Foreground="{StaticResource InkBrush}" />
+                                            <TextBlock Text="{Binding CountText}" FontSize="11.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <TextBlock IsVisible="{Binding HasDescription}" Text="{Binding Description}" TextWrapping="Wrap"
+                                                   FontSize="12.5" Foreground="{StaticResource Ink2Brush}" />
+                                        <ItemsControl ItemsSource="{Binding Items}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="visits:LabItemViewModel">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6" Margin="0,2,0,0">
+                                                        <TextBlock Grid.Column="0" Text="{Binding TypeName}" FontSize="12.5" FontWeight="Bold"
+                                                                   Foreground="{StaticResource Ink2Brush}" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding ValueText}" FontSize="12.5" FontWeight="ExtraBold"
+                                                                   Foreground="{StaticResource InkBrush}" FlowDirection="LeftToRight" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding UnitText}" IsVisible="{Binding HasUnit}"
+                                                                   FontSize="11.5" FontWeight="Bold" Foreground="{StaticResource MutedBrush}"
+                                                                   FlowDirection="LeftToRight" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Classes="rx-rm" VerticalAlignment="Top" ToolTip.Tip="حذف"
+                                            Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).RemoveLabCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                              Data="{StaticResource IconX}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Grid>
+    </StackPanel>
+</UserControl>

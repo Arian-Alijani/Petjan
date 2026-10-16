@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Globalization;
 using System.Linq;
 using Animora.Contracts.Visits;
@@ -47,6 +48,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly ICapabilityGate _capabilities;
     private readonly IDialogService _dialogs;
+    private readonly ILabTestSettingsService _labSettings;
+    private readonly IFileLauncher _files;
 
     public bool CanEditVisit => _capabilities.Can("visits.write");
     private bool CanFinishVisit() => _capabilities.Can("visits.complete");
@@ -109,7 +112,9 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         IToastService toast,
         ICapabilityGate capabilities,
         IDataChangeNotifier changes,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        ILabTestSettingsService labSettings,
+        IFileLauncher files)
     {
         _service = service;
         _changes = changes;
@@ -118,6 +123,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         _toast = toast;
         _capabilities = capabilities;
         _dialogs = dialogs;
+        _labSettings = labSettings;
+        _files = files;
 
         Title = "ویزیت و پرونده پزشکی";
         Eyebrow = "پرونده الکترونیک سلامت";
@@ -135,6 +142,16 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     public ObservableCollection<RxLineViewModel> ServiceLines { get; } = [];
 
     public ObservableCollection<RxLineViewModel> ItemLines { get; } = [];
+
+    /// <summary>Radiology studies recorded on this visit («رادیولوژی»), oldest first.</summary>
+    public ObservableCollection<RadiologyEntryViewModel> RadiologyEntries { get; } = [];
+
+    /// <summary>Laboratory result sheets recorded on this visit («آزمایشات»), oldest first.</summary>
+    public ObservableCollection<LabEntryViewModel> LabEntries { get; } = [];
+
+    public bool IsRadiologyEmpty => RadiologyEntries.Count == 0;
+
+    public bool IsLabEmpty => LabEntries.Count == 0;
 
     // ---- step visibility ----
     public bool IsDoneStep => CurrentStep == EncounterStep.Done;
@@ -215,6 +232,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         HistoryText = _draft.Note;
 
         await RefreshCatalogAsync();
+        await LoadParaclinicAsync();
 
         CurrentStep = EncounterStep.Form;
         RecomputeSubtotal();
@@ -231,6 +249,182 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         _catalog.Clear();
         _catalog.AddRange(catalog);
     }
+
+    /// <summary>
+    /// Hydrates the radiology and lab lists from the persisted visit (so a visit pulled from another client renders
+    /// them too). A backend failure empties the lists and toasts instead of blocking the whole encounter from opening.
+    /// </summary>
+    private async Task LoadParaclinicAsync()
+    {
+        try
+        {
+            var radiology = await _service.GetRadiologyAsync(_encounterId);
+            var labs = await _service.GetLabsAsync(_encounterId);
+            RadiologyEntries.Clear();
+            foreach (var entry in radiology)
+            {
+                RadiologyEntries.Add(new RadiologyEntryViewModel(entry));
+            }
+
+            LabEntries.Clear();
+            foreach (var entry in labs)
+            {
+                LabEntries.Add(new LabEntryViewModel(entry));
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            RadiologyEntries.Clear();
+            LabEntries.Clear();
+            _toast.Show(
+                PatientsPresentation.CommandFailureMessage(ex, "بارگذاری رادیولوژی و آزمایشات ویزیت ناموفق بود"),
+                Tone.Danger);
+        }
+
+        NotifyParaclinicState();
+    }
+
+    private void NotifyParaclinicState()
+    {
+        OnPropertyChanged(nameof(IsRadiologyEmpty));
+        OnPropertyChanged(nameof(IsLabEmpty));
+    }
+
+    /// <summary>Opens the radiology form sheet over the encounter («رادیولوژی»).</summary>
+    [RelayCommand]
+    private void OpenRadiology()
+    {
+        if (!EnsureCanEdit())
+        {
+            return;
+        }
+
+        _dialogs.ShowSheet(new RadiologySheetViewModel(_service, _dialogs, SaveRadiologyAsync), width: 760, height: 720);
+    }
+
+    /// <summary>Opens the lab-result form sheet over the encounter («آزمایشات»).</summary>
+    [RelayCommand]
+    private void OpenLab()
+    {
+        if (!EnsureCanEdit())
+        {
+            return;
+        }
+
+        _dialogs.ShowSheet(new LabSheetViewModel(_labSettings, _dialogs, SaveLabAsync), width: 820, height: 720);
+    }
+
+    private bool EnsureCanEdit()
+    {
+        if (CanEditVisit)
+        {
+            return true;
+        }
+
+        _toast.Show("اجازهٔ ویرایش ویزیت را ندارید.", Tone.Danger);
+        return false;
+    }
+
+    // The sheet keeps its own inline error display, so failures propagate to it (InvalidOperationException);
+    // only a success reaches the list + change notification.
+    private async Task SaveRadiologyAsync(RadiologyEntry entry)
+    {
+        var id = await _service.AddRadiologyAsync(_encounterId, entry);
+        RadiologyEntries.Add(new RadiologyEntryViewModel(entry with { Id = id }));
+        NotifyParaclinicState();
+        _changes.Notify(DataDomain.Visits, DataDomain.History, DataDomain.Patients);
+        _toast.Show("رادیولوژی ثبت شد.", Tone.Ok);
+    }
+
+    private async Task SaveLabAsync(LabEntry entry)
+    {
+        var id = await _service.AddLabAsync(_encounterId, entry);
+        LabEntries.Add(new LabEntryViewModel(entry with { Id = id }));
+        NotifyParaclinicState();
+        _changes.Notify(DataDomain.Visits, DataDomain.History, DataDomain.Patients);
+        _toast.Show("آزمایش ثبت شد.", Tone.Ok);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditVisit))]
+    private void RemoveRadiology(RadiologyEntryViewModel? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel(
+            _dialogs, "danger", "IconTrash", "حذف رادیولوژی", "رادیولوژی ", entry.BodyPart, " حذف شود؟",
+            "فایل‌های پیوست از این ویزیت جدا می‌شوند.", "حذف", "انصراف",
+            () => _ = RunGuardedAsync(async () =>
+            {
+                await _service.RemoveRadiologyAsync(_encounterId, entry.Id);
+                RadiologyEntries.Remove(entry);
+                NotifyParaclinicState();
+                _changes.Notify(DataDomain.Visits, DataDomain.History, DataDomain.Patients);
+            }, "حذف رادیولوژی ناموفق بود؛ دوباره تلاش کنید")), 480);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanEditVisit))]
+    private void RemoveLab(LabEntryViewModel? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(new Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel(
+            _dialogs, "danger", "IconTrash", "حذف آزمایش", "آزمایش ", entry.DateText, " حذف شود؟",
+            "این عمل قابل بازگشت نیست.", "حذف", "انصراف",
+            () => _ = RunGuardedAsync(async () =>
+            {
+                await _service.RemoveLabAsync(_encounterId, entry.Id);
+                LabEntries.Remove(entry);
+                NotifyParaclinicState();
+                _changes.Notify(DataDomain.Visits, DataDomain.History, DataDomain.Patients);
+            }, "حذف آزمایش ناموفق بود؛ دوباره تلاش کنید")), 480);
+    }
+
+    /// <summary>
+    /// Opens a stored attachment with the OS viewer: the bytes are copied from the content-addressed store into a
+    /// temp file, and only passive image / document types are ever launched (attachments can arrive through sync).
+    /// </summary>
+    [RelayCommand]
+    private Task OpenAttachmentAsync(RadiologyFileViewModel? file) => RunGuardedAsync(async () =>
+    {
+        if (file is null)
+        {
+            return;
+        }
+
+        if (!ParaclinicPresentation.IsViewable(file.Name))
+        {
+            _toast.Show("این نوع فایل از داخل برنامه باز نمی‌شود.", Tone.Danger);
+            return;
+        }
+
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "Animora", "Attachments");
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, $"{file.Hash[..Math.Min(12, file.Hash.Length)]}-{ParaclinicPresentation.SafeFileName(file.Name)}");
+            if (!File.Exists(path))
+            {
+                await using var source = await _service.OpenAttachmentAsync(file.Hash);
+                await using var target = File.Create(path);
+                await source.CopyToAsync(target);
+            }
+
+            if (!_files.Open(path))
+            {
+                _toast.Show("برنامه‌ای برای باز کردن این فایل پیدا نشد.", Tone.Danger);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _toast.Show("باز کردن فایل پیوست ممکن نشد.", Tone.Danger);
+        }
+    }, "فایل پیوست پیدا نشد یا قابل خواندن نیست");
 
     partial void OnCurrentStepChanged(EncounterStep value)
     {
@@ -546,6 +740,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         CompleteVisitCommand.NotifyCanExecuteChanged();
         SaveDraftCommand.NotifyCanExecuteChanged();
         RemoveRxLineCommand.NotifyCanExecuteChanged();
+        RemoveRadiologyCommand.NotifyCanExecuteChanged();
+        RemoveLabCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(IsDiagnosisMissing));
         OnPropertyChanged(nameof(IsDoneStep));
         OnPropertyChanged(nameof(IsWorkflowVisible));
