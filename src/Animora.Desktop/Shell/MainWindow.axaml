@@ -100,13 +100,16 @@
         <!-- Permanent shell overlays. ViewModels open dialogs/toasts through
              services; no screen owns window or overlay plumbing. The SheetHost
              backs the Patients records' centered "sheet" pattern (owner/pet
-             files), above the modal/drawer/toast z-order. -->
-        <controls:ToastHost x:Name="Toast" ZIndex="100" IsHitTestVisible="False" />
+             files), above the drawer z-order. -->
         <controls:DrawerHost x:Name="Drawer" ZIndex="120" />
         <controls:SheetHost x:Name="Sheet" ZIndex="130" />
-        <!-- The modal is the top-most overlay so a dialog launched from inside a sheet (e.g. the patient
+        <!-- The modal is the top-most dialog overlay so a dialog launched from inside a sheet (e.g. the patient
              wizard from the booking panel, add-pet from the owner file) is not hidden behind it. -->
         <controls:ModalHost x:Name="Modal" ZIndex="140" />
+        <!-- Toasts sit ABOVE every dialog overlay (modal/sheet/drawer) so a transient
+             notification raised while a create/edit dialog is open is never buried
+             behind the dialog's backdrop. Non-hit-testable so it never steals input. -->
+        <controls:ToastHost x:Name="Toast" ZIndex="200" IsHitTestVisible="False" />
     </Grid>
 
 </Window>
