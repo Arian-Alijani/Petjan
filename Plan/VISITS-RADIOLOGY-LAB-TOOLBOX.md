@@ -352,7 +352,7 @@ new `RadiologyEntryViewModel.cs` + `LabEntryViewModel.cs`. Register sheet VMs if
 
 ---
 
-### [ ] T8 — End-to-end consistency & design pass (creator ⇄ server ⇄ polling client)
+### [x] T8 — End-to-end consistency & design pass (creator ⇄ server ⇄ polling client)
 **Goal:** Confirm the three sync legs and design coherence without heavy testing.
 **Checklist (targeted reads only, no blind exploration):**
 - Every new mutation command is `IJournaledCommand` + `[Auditable]` and its `CommandTypeName` is in
@@ -366,6 +366,17 @@ new `RadiologyEntryViewModel.cs` + `LabEntryViewModel.cs`. Register sheet VMs if
   Persian digits, Jalali dates, RTL. Settings tab matches the Patients settings card layout.
 **Verify:** final `scripts/sandbox/build.sh full` 0/0 + `scripts/sandbox/run.sh` → SMOKE RUN OK.
 **Push:** `scripts/git/push.sh "chore(visits): end-to-end sync + design consistency pass"`
+
+> **T8 findings (done, targeted greps only):**
+> - Sync: `AddRadiologyCommand`/`RemoveRadiologyCommand`/`AddLabResultCommand`/`RemoveLabResultCommand` are all `IJournaledCommand` +
+>   `[Auditable(Clinical,…)]` + `VisitsWrite`; the four `CommandTypes.Visits{Radiology,Lab}{Add,Remove}` consts are in `CommandTypes.All`;
+>   `Radiology`/`LabResults` are mapped (SQLite 036 / PostgreSQL 117 / `ReplicaMaterializer` PascalJson columns) so a pulled visit hydrates.
+> - Read path: `EncounterDraftQuery` → `EncounterEditReadModel(Radiology, Labs)` → `GetRadiologyAsync/GetLabsAsync` → `LoadParaclinicAsync` (VM).
+> - Lab types: `AddLabTestTypeCommand`/`RemoveLabTestTypeCommand` are `SettingsWrite` + `ISelfTransactedCommand` (NOT journaled); read = `VisitsRead`.
+> - Attachments: stored by SHA-256 via `ILocalFileStore`; the record syncs only as metadata (hash+name+type). **Blob bytes are not replicated by the
+>   journal** — on a peer that lacks the blob, opening a chip shows the toast «فایل پیوست پیدا نشد یا قابل خواندن نیست» instead of crashing
+>   (blob sync is out of scope for this plan).
+> - Design: sheets/lists reuse the encounter's teal card/pill tokens, Persian digits (`PersianNumberFormatter`), Jalali dates (`JalaliDatePicker`), RTL.
 
 ---
 
