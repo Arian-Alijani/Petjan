@@ -29,6 +29,14 @@ public sealed class AnimoraLocalDbContext(
         modelBuilder.Ignore<StayRoomAssignment>();
         modelBuilder.Ignore<PrescriptionLine>();
         modelBuilder.Ignore<VisitServiceLine>();
+        // Radiology/lab records are immutable JSON lists on the visit row (VisitConfiguration maps the backing
+        // fields via JsonFields.Map). Their nested value lists (Items/Attachments) make EF try to discover them
+        // as owned entities and fail constructor binding, so exclude the element types (and their nested rows)
+        // from entity discovery — the same treatment PrescriptionLine/VisitServiceLine already get.
+        modelBuilder.Ignore<RadiologyRecord>();
+        modelBuilder.Ignore<RadiologyAttachment>();
+        modelBuilder.Ignore<LabResult>();
+        modelBuilder.Ignore<LabResultItem>();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnimoraLocalDbContext).Assembly);
         ModelConventions.Apply(modelBuilder, this);
         // Conventions assign generic string bounds; this column is a fixed-width hex SHA-256.
