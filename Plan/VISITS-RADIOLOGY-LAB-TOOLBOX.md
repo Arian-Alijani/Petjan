@@ -249,7 +249,7 @@ here** adding BOTH the `Radiology` and `LabResults` columns (reused by T5), each
 
 ---
 
-### [ ] T4 — Task 2: Lab-test types in Settings (Settings store + commands + settings sub-page) + Task 0 Settings body
+### [x] T4 — Task 2: Lab-test types in Settings (Settings store + commands + settings sub-page) + Task 0 Settings body
 **Goal:** (a) make lab-test types configurable in Visits→تنظیمات; (b) fill the Settings tab body added in T1.
 **Backend (settings — NOT journaled, 0.5):**
 - New port `ILabTestCatalogStore` (`Application/Ports/`) mirroring `IAppointmentSettingsStore`:

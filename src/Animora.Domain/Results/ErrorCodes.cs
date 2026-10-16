@@ -200,6 +200,7 @@ public static class ErrorCodes
     public static readonly ErrorCode VisitIncomplete = new("VISIT_INCOMPLETE", ErrorCode.Validation);
     public static readonly ErrorCode RxLineNotFound = new("RX_LINE_NOT_FOUND", ErrorCode.NotFound);
     public static readonly ErrorCode RadiologyNotFound = new("RADIOLOGY_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode LabTestTypeDuplicate = new("LAB_TEST_TYPE_DUPLICATE", ErrorCode.Conflict);
     public static readonly ErrorCode LabResultNotFound = new("LAB_RESULT_NOT_FOUND", ErrorCode.NotFound);
     public static readonly ErrorCode VaccinationNotFound = new("VACCINATION_NOT_FOUND", ErrorCode.NotFound);
     public static readonly ErrorCode VaccinationAlreadyDone = new("VACCINATION_ALREADY_DONE", ErrorCode.Conflict);

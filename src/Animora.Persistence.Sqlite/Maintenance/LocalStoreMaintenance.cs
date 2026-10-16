@@ -42,7 +42,9 @@ public sealed class LocalStoreMaintenance(
     // A26: clinic configuration (custom appointment types, calendar mode, SMS intent) lives outside the database, so a
     // backup carries it as a sidecar next to the .db and a restore puts it back.
     internal const string SettingsSidecarSuffix = ".appointment-settings.json";
-    private static readonly string[] BackupSuffixes = [.. SideSuffixes, SettingsSidecarSuffix];
+    // Visits → تنظیمات: the laboratory test-type catalog is clinic configuration of the same kind and travels the same way.
+    internal const string LabCatalogSidecarSuffix = ".lab-test-types.json";
+    private static readonly string[] BackupSuffixes = [.. SideSuffixes, SettingsSidecarSuffix, LabCatalogSidecarSuffix];
 
     // Process-wide: a corrupt store detected during a rebuild must not trigger another rebuild.
     private static int _rebuilding;
@@ -164,6 +166,8 @@ public sealed class LocalStoreMaintenance(
         // The sidecar is not tenant-filtered; erase its cache and persisted clinic customization as well.
         if (services.GetService<IAppointmentSettingsStore>() is { } settings)
             await settings.SaveAsync(Animora.Contracts.Appointments.AppointmentSettings.Default, ct).ConfigureAwait(false);
+        if (services.GetService<ILabTestCatalogStore>() is { } labCatalog)
+            await labCatalog.ResetAsync(ct).ConfigureAwait(false);
         await transaction.CommitAsync(ct).ConfigureAwait(false);
         // Publish only after durable commit: a failed/cancelled wipe must leave the old filter intact.
         state.Set(installation);
@@ -583,18 +587,34 @@ public sealed class LocalStoreMaintenance(
     // A failure to package never fails the database backup itself - the database is the source of truth.
     private async Task ExportSettingsAsync(string target, CancellationToken ct)
     {
-        if (services.GetService<IAppointmentSettingsStore>() is not { } store) return;
-        try { await store.ExportToAsync(target + SettingsSidecarSuffix, ct); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        if (services.GetService<IAppointmentSettingsStore>() is { } store)
+        {
+            try { await store.ExportToAsync(target + SettingsSidecarSuffix, ct); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+
+        if (services.GetService<ILabTestCatalogStore>() is { } labCatalog)
+        {
+            try { await labCatalog.ExportToAsync(target + LabCatalogSidecarSuffix, ct); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private async Task ImportSettingsAsync(string backupPath, CancellationToken ct)
     {
-        if (services.GetService<IAppointmentSettingsStore>() is not { } store) return;
         var sidecar = backupPath + SettingsSidecarSuffix;
-        if (!File.Exists(sidecar)) return;
-        try { await store.ImportFromAsync(sidecar, ct); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        if (services.GetService<IAppointmentSettingsStore>() is { } store && File.Exists(sidecar))
+        {
+            try { await store.ImportFromAsync(sidecar, ct); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+
+        var labSidecar = backupPath + LabCatalogSidecarSuffix;
+        if (services.GetService<ILabTestCatalogStore>() is { } labCatalog && File.Exists(labSidecar))
+        {
+            try { await labCatalog.ImportFromAsync(labSidecar, ct); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private static void DeleteBackupFiles(string path)

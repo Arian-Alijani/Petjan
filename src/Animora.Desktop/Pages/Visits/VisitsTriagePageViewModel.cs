@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
+using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Patients;
+using Animora.Desktop.Pages.Visits.Settings;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia.Media;
@@ -68,7 +70,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         INavigationService navigation,
         IDataChangeNotifier changes,
         IPatientsQueryService patients,
-        IDialogService dialogs)
+        IDialogService dialogs,
+        ILabTestSettingsService labSettings,
+        ICapabilityGate capabilities)
     {
         _service = service;
         _readiness = readiness;
@@ -77,6 +81,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         _patients = patients;
         _dialogs = dialogs;
         _changes = changes;
+        Settings = new VisitsSettingsViewModel(labSettings, toast, capabilities);
         Title = "ویزیت و پرونده پزشکی";
         Eyebrow = "پرونده الکترونیک سلامت";
         Breadcrumbs.Add("مدیریت کلینیک");
@@ -95,8 +100,19 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         _ = ReloadPageAsync();
     }
 
+    /// <summary>The settings tab (laboratory test types); loaded the first time the tab is opened.</summary>
+    public VisitsSettingsViewModel Settings { get; }
+
+    private bool _settingsLoaded;
+
     partial void OnSectionChanged(VisitsSection value)
     {
+        if (value == VisitsSection.Settings && !_settingsLoaded)
+        {
+            _settingsLoaded = true;
+            _ = Settings.LoadAsync();
+        }
+
         OnPropertyChanged(nameof(IsVisitSection));
         OnPropertyChanged(nameof(IsSettingsSection));
     }

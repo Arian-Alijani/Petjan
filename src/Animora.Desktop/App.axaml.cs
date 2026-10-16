@@ -318,7 +318,7 @@ public partial class App : global::Avalonia.Application
                     sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<Animora.Persistence.Sqlite.Options.LocalStoreOptions>>(),
                     sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Animora.Infrastructure.Local.Security.FileFallbackSecretStore>>()));
         }
-        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddHistoryUseCases().AddDashboardUseCases().AddFinanceUseCases().AddChequeUseCases().AddSearchUseCases().AddProfileUseCases());
+        services.AddAnimoraApplication(builder => builder.AddIdentityUseCases().AddPatientsUseCases().AddReceptionUseCases().AddSchedulingUseCases().AddBoardingUseCases().AddVisitsUseCases().AddLabTestCatalogUseCases().AddVaccinationUseCases().AddInventoryUseCases().AddPurchasingUseCases().AddSalesUseCases().AddCashierUseCases().AddHistoryUseCases().AddDashboardUseCases().AddFinanceUseCases().AddChequeUseCases().AddSearchUseCases().AddProfileUseCases());
 
         // View resolution: the reflection-free View-type registry is static (no
         // DI), but the per-ViewModel View cache and the locator that consumes it
@@ -418,6 +418,9 @@ public partial class App : global::Avalonia.Application
         // A17: settings are read/written through authorized Application use cases over this durable store port.
         services.AddSingleton<Animora.Application.Ports.IAppointmentSettingsStore, AppointmentSettingsFileStore>();
         services.AddSingleton<IAppointmentSettingsService, AppointmentSettingsService>();
+        // Visits → تنظیمات: clinic-editable laboratory test types — local JSON beside the DB, same pattern as the appointment settings.
+        services.AddSingleton<Animora.Application.Ports.ILabTestCatalogStore, LabTestCatalogFileStore>();
+        services.AddSingleton<ILabTestSettingsService, LabTestSettingsService>();
         // A24: clinic-local today/now for the appointments UI (clock + clinic timezone), never device time.
         services.AddSingleton<IClinicClock, ClinicClockService>();
         services.AddSingleton<AppointmentsQueryService>();

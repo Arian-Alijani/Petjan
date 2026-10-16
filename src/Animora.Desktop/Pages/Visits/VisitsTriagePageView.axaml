@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:visits="using:Animora.Desktop.Pages.Visits"
              xmlns:vcontracts="using:Animora.Contracts.Visits"
+             xmlns:vsettings="using:Animora.Desktop.Pages.Visits.Settings"
              xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Visits.VisitsTriagePageView"
              x:Name="Root"
@@ -273,6 +274,18 @@
         <Style Selector="Button.segtap:pointerover">
             <Setter Property="Background" Value="Transparent" />
         </Style>
+        <Style Selector="Button.iconbtn">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.iconbtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Margin="26,22,26,40">
@@ -309,8 +322,98 @@
             </Border>
         </Grid>
 
-        <!-- Settings tab host (body filled by the lab-test types settings, T4) -->
-        <StackPanel x:Name="SettingsHost" IsVisible="{Binding IsSettingsSection}" />
+        <!-- Settings tab: laboratory test types offered by the encounter's lab form -->
+        <Border x:Name="SettingsHost" IsVisible="{Binding IsSettingsSection}"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="{StaticResource Radius}"
+                BoxShadow="{StaticResource ShadowCard}" Padding="18,16">
+            <StackPanel Spacing="14">
+                <StackPanel Orientation="Horizontal" Spacing="9">
+                    <Border Width="34" Height="34" CornerRadius="11" Background="{StaticResource Brand50Brush}">
+                        <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconFlask}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="انواع آزمایش" FontSize="15" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="آزمایش‌هایی که هنگام ثبت نتیجهٔ آزمایش در ویزیت قابل انتخاب هستند را اضافه یا حذف کنید."
+                                   FontSize="12.5" Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- add test type: name + usual unit -->
+                <Grid ColumnDefinitions="*,170,Auto" ColumnSpacing="10"
+                      IsVisible="{Binding Settings.CanEdit}">
+                    <Border Grid.Column="0" Background="{StaticResource Bg2Brush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                            CornerRadius="12" Padding="13,0">
+                        <TextBox Text="{Binding Settings.NewLabTypeName}"
+                                 PlaceholderText="نام آزمایش جدید (مثلاً کلسترول)…"
+                                 FontSize="13" BorderThickness="0" Background="Transparent"
+                                 Padding="0,10" VerticalContentAlignment="Center" />
+                    </Border>
+                    <Border Grid.Column="1" Background="{StaticResource Bg2Brush}"
+                            BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                            CornerRadius="12" Padding="13,0">
+                        <TextBox Text="{Binding Settings.NewLabTypeUnit}"
+                                 PlaceholderText="واحد (اختیاری)"
+                                 FontSize="13" BorderThickness="0" Background="Transparent"
+                                 Padding="0,10" VerticalContentAlignment="Center" />
+                    </Border>
+                    <Button Grid.Column="2" Classes="primary" Command="{Binding Settings.AddLabTypeCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                  Data="{StaticResource IconPlus}" />
+                            <TextBlock Text="افزودن آزمایش" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <TextBlock Text="{Binding Settings.CountText}" FontSize="12" FontWeight="Bold"
+                           Foreground="{StaticResource MutedBrush}" />
+
+                <TextBlock Text="هنوز نوع آزمایشی تعریف نشده است." FontSize="13"
+                           Foreground="{StaticResource MutedBrush}"
+                           IsVisible="{Binding Settings.IsEmpty}" />
+
+                <ItemsControl ItemsSource="{Binding Settings.LabTypes}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vsettings:LabTestTypeItemViewModel">
+                            <Border Background="{StaticResource Bg2Brush}"
+                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                    CornerRadius="12" Padding="14,8">
+                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="13.5"
+                                               FontWeight="Bold" Foreground="{StaticResource InkBrush}"
+                                               VerticalAlignment="Center" />
+                                    <Border Grid.Column="1" Padding="9,3" CornerRadius="999"
+                                            Background="{StaticResource Brand50Brush}"
+                                            VerticalAlignment="Center" IsVisible="{Binding HasUnit}">
+                                        <TextBlock Text="{Binding DefaultUnit}" FontSize="11.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource Brand700Brush}"
+                                                   FlowDirection="LeftToRight" />
+                                    </Border>
+                                    <Button Grid.Column="2" Classes="iconbtn" ToolTip.Tip="حذف نوع آزمایش"
+                                            IsVisible="{Binding #Root.((visits:VisitsTriagePageViewModel)DataContext).Settings.CanEdit}"
+                                            Command="{Binding RemoveCommand}">
+                                        <Path Classes="icon" Width="15" Height="15"
+                                              Stroke="{StaticResource DangerBrush}"
+                                              Data="{StaticResource IconTrash}" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
 
         <Grid ColumnDefinitions="340,*" ColumnSpacing="18" IsVisible="{Binding IsVisitSection}">
             <!-- ===== Doctor rail ===== -->
