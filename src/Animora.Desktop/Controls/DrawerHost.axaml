@@ -5,12 +5,51 @@
 
     <!-- Matches Animora-UI's drawer pattern (side panel over a dim
          backdrop, e.g. cheques add/edit drawer). Right-anchored, full
-         window height. Content is supplied by IDialogService.ShowDrawer(). -->
+         window height. Content is supplied by IDialogService.ShowDrawer().
+
+         Open animation: the backdrop fades in while the panel slides in from the
+         trailing edge (translateX → 0) with a short fade. Same timing family and
+         easing as the Modal/Sheet pop so every overlay feels like one system.
+         The `open` class is toggled one frame after show — see
+         DrawerHost.axaml.cs. The resting offset (560px) is larger than the panel
+         so it always starts fully off-screen regardless of the drawer width. -->
+    <UserControl.Styles>
+        <Style Selector="Border.drawer-backdrop">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.drawer-backdrop.open">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Border.drawer-panel">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="RenderTransform" Value="translateX(560px)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.16" Easing="CubicEaseOut" />
+                    <TransformOperationsTransition Property="RenderTransform"
+                                                   Duration="0:0:0.24" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.drawer-panel.open">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="RenderTransform" Value="translateX(0px)" />
+        </Style>
+    </UserControl.Styles>
+
     <Panel>
         <Border x:Name="Backdrop"
+                Classes="drawer-backdrop"
                 Background="#59101828"
                 PointerPressed="OnBackdropPressed" />
         <Border x:Name="Panel"
+                Classes="drawer-panel"
                 Background="{StaticResource PanelBrush}"
                 BoxShadow="{StaticResource ShadowPop}"
                 Width="420"
