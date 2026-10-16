@@ -211,7 +211,10 @@ Keep the single‑tenant model; add a **per‑tenant stash** of the whole local 
     or `repl_staging`). Do NOT run the full/long test suite — only the targeted test.
   - (push) `fix(sync): reconcile StaffMembership by business key so server row supersedes local mirror`
 
-- [ ] **T2. Fix BUG B + Task 2/3 — allow clinic switch, preserve outgoing clinic's unsynced data.**
+- [x] **T2. Fix BUG B + Task 2/3 — allow clinic switch, preserve outgoing clinic's unsynced data. (DONE)**
+  - Implemented: `ILocalStoreMaintenance`/`LocalStoreMaintenance` 3-arg `EnsureBoundToAsync(tenantId, preserveOutgoingUnsynced, ct)`,
+    per-tenant stash `<data>/clinics/<tenantId>/animora.db` (verified by quick_check), restore on bind-to, count in failure detail;
+    test `tests/Animora.Persistence.Tests/TenantSwitchStashTests.cs`. CI validates (no local build).
   File: `src/Animora.Persistence.Sqlite/Maintenance/LocalStoreMaintenance.cs` + the interface
   `ILocalStoreMaintenance.cs`. Chosen mechanism (file‑level per‑tenant stash, reusing existing plumbing):
   - **Signature change:** add an overload/optional param
