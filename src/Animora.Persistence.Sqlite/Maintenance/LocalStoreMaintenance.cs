@@ -54,7 +54,10 @@ public sealed class LocalStoreMaintenance(
     /// replica generations, cursors, sessions and local projections; no hand-maintained business-table list.
     /// Installation identity and global reference catalogs survive. No quarantine retains another clinic's rows.
     /// </summary>
-    public async Task<Result> EnsureBoundToAsync(string tenantId, CancellationToken ct)
+    public Task<Result> EnsureBoundToAsync(string tenantId, CancellationToken ct) =>
+        EnsureBoundToAsync(tenantId, preserveOutgoingUnsynced: false, ct);
+
+    public async Task<Result> EnsureBoundToAsync(string tenantId, bool preserveOutgoingUnsynced, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(tenantId) || tenantId.Length > 128 || tenantId == LocalInstallationState.DefaultTenantId)
             return Result.Fail(ErrorCodes.ValidationFailed);
@@ -62,70 +65,213 @@ public sealed class LocalStoreMaintenance(
         await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            await using var db = await contexts.CreateDbContextAsync(ct).ConfigureAwait(false);
-            var installation = await db.Set<LocalInstallation>().AsTracking().SingleOrDefaultAsync(ct).ConfigureAwait(false);
-            if (installation is null) return Result.Fail(ErrorCodes.StoreUnavailable, "installation_not_initialized");
-            if (installation.TenantId == tenantId)
+            string outgoingTenantId;
+            await using (var db = await contexts.CreateDbContextAsync(ct).ConfigureAwait(false))
             {
-                state.Set(installation);
-                return Result.Ok();
+                var installation = await db.Set<LocalInstallation>().AsTracking().SingleOrDefaultAsync(ct).ConfigureAwait(false);
+                if (installation is null) return Result.Fail(ErrorCodes.StoreUnavailable, "installation_not_initialized");
+                if (installation.TenantId == tenantId)
+                {
+                    state.Set(installation);
+                    return Result.Ok();
+                }
+                outgoingTenantId = installation.TenantId;
+
+                // The outgoing clinic still owns the live store. If it has unsynced work, either refuse (default) or — on a
+                // confirmed switch — park its WHOLE store under its own tenant key first so returning restores it intact. This
+                // guard runs whether or not the incoming clinic has a stash: a file‑level restore would otherwise overwrite the
+                // outgoing store and lose its unsynced data.
+                var outgoingHasUnsynced = await db.Set<PendingCommand>().IgnoreQueryFilters()
+                    .AnyAsync(x => x.Status != SettlementState.Settled && x.Status != SettlementState.Reversed, ct).ConfigureAwait(false);
+                if (outgoingHasUnsynced)
+                {
+                    if (!preserveOutgoingUnsynced || !IsRealTenant(outgoingTenantId))
+                    {
+                        // Surface the count so the UI can offer an explicit "switch anyway, keep them for later" choice (T3).
+                        var pending = await db.Set<PendingCommand>().IgnoreQueryFilters()
+                            .CountAsync(x => x.Status != SettlementState.Settled && x.Status != SettlementState.Reversed, ct)
+                            .ConfigureAwait(false);
+                        return Result.Fail(ErrorCodes.SyncPendingChanges, $"tenant_switch_requires_settlement:{pending}");
+                    }
+                    // A bad stash aborts the switch — never wipe/overwrite unsynced data without a verified copy of it.
+                    var parked = await StashCurrentAsync(db, outgoingTenantId, ct).ConfigureAwait(false);
+                    if (parked.IsFailure) return parked;
+                }
+
+                // The incoming clinic may have been parked earlier (switch‑away with unsynced data). Returning to it must bring
+                // its own store back verbatim — its unsynced commands and local rows — rather than rebinding to an empty clinic.
+                // A file‑level restore replaces the whole store, so the destructive table wipe is skipped for this case.
+                if (HasStash(tenantId))
+                    return await RestoreStashAsync(db, tenantId, state, ct).ConfigureAwait(false);
             }
 
-            await db.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
-            await db.Database.ExecuteSqlRawAsync("PRAGMA secure_delete=ON;", ct).ConfigureAwait(false);
-            await using var transaction = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-            // Even rejected/conflicted work can contain a user's unresolved intent. Never silently throw it away.
-            if (await db.Set<PendingCommand>().IgnoreQueryFilters()
-                .AnyAsync(x => x.Status != SettlementState.Settled && x.Status != SettlementState.Reversed, ct).ConfigureAwait(false))
-                return Result.Fail(ErrorCodes.SyncPendingChanges, "tenant_switch_requires_settlement");
-            await db.Database.ExecuteSqlRawAsync("PRAGMA defer_foreign_keys=ON;", ct).ConfigureAwait(false);
-            var preserved = new HashSet<string>(StringComparer.Ordinal)
-            {
-                db.Model.FindEntityType(typeof(LocalInstallation))!.GetTableName()!,
-                db.Model.FindEntityType(typeof(Permission))!.GetTableName()!,
-            };
-            var tables = db.Model.GetRelationalModel().Tables.Select(t => t.Name)
-                .Where(t => !preserved.Contains(t)).ToArray();
-            // Trigger-maintained caches go last: deletes of source rows can re-create their generation counters.
-            foreach (var table in tables.OrderBy(t => t == "DashboardGenerations" ? 1 : 0))
-            {
-                await using var deletion = db.Database.GetDbConnection().CreateCommand();
-                deletion.Transaction = transaction.GetDbTransaction();
-                deletion.CommandText = "DELETE FROM " + db.GetService<ISqlGenerationHelper>().DelimitIdentifier(table) + ";";
-                await deletion.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-            }
-            installation.BindTenant(tenantId);
-            await db.SaveChangesAsync(ct).ConfigureAwait(false);
-
-            // Bootstrap only identity reference data, never sample business data or a fake accounting period.
-            // A separate context shares this transaction but already uses the NEW tenant (the cache is still old).
-            var boundOptions = new DbContextOptionsBuilder<AnimoraLocalDbContext>()
-                .UseSqlite(db.Database.GetDbConnection()).Options;
-            await using (var bound = new AnimoraLocalDbContext(boundOptions, new BoundTenantContext(tenantId), clock))
-            {
-                await bound.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct).ConfigureAwait(false);
-                var tenant = Tenant.CreateLocalDefault("Animora Clinic");
-                bound.Entry(tenant).Property(x => x.Id).CurrentValue = tenantId;
-                tenant.TenantId = tenantId;
-                bound.Add(tenant);
-                bound.AddRange(Enum.GetValues<StaffRole>().Select(r => RoleDefinition.CreateSystem(tenantId, r, clock)));
-                await bound.SaveChangesAsync(ct).ConfigureAwait(false);
-            }
-            // The sidecar is not tenant-filtered; erase its cache and persisted clinic customization as well.
-            if (services.GetService<IAppointmentSettingsStore>() is { } settings)
-                await settings.SaveAsync(Animora.Contracts.Appointments.AppointmentSettings.Default, ct).ConfigureAwait(false);
-            await transaction.CommitAsync(ct).ConfigureAwait(false);
-            // Publish only after durable commit: a failed/cancelled wipe must leave the old filter intact.
-            state.Set(installation);
-            services.GetService<SessionContextCache>()?.Set(null);
-            services.GetService<IClinicTimeZoneProvider>()?.Invalidate();
-            return Result.Ok();
+            return await WipeAndBindAsync(tenantId, state, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (IsStoreFailure(ex))
         {
             return Result.Fail(Map(ex, ErrorCodes.StoreUnavailable), "tenant_binding_failed");
         }
         finally { state.TransitionGate.Release(); }
+    }
+
+    /// <summary>
+    /// Destructive single‑tenant transition: clears every business table of the current store (installation identity and the
+    /// global permission catalog survive), rebinds the installation and re‑seeds only the Tenant + RoleDefinitions. Assumes the
+    /// caller already decided the outgoing clinic's unsynced data is handled (refused or stashed) and holds the transition gate.
+    /// </summary>
+    private async Task<Result> WipeAndBindAsync(string tenantId, LocalInstallationState state, CancellationToken ct)
+    {
+        await using var db = await contexts.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var installation = await db.Set<LocalInstallation>().AsTracking().SingleOrDefaultAsync(ct).ConfigureAwait(false);
+        if (installation is null) return Result.Fail(ErrorCodes.StoreUnavailable, "installation_not_initialized");
+
+        await db.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
+        await db.Database.ExecuteSqlRawAsync("PRAGMA secure_delete=ON;", ct).ConfigureAwait(false);
+        await using var transaction = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await db.Database.ExecuteSqlRawAsync("PRAGMA defer_foreign_keys=ON;", ct).ConfigureAwait(false);
+        var preserved = new HashSet<string>(StringComparer.Ordinal)
+        {
+            db.Model.FindEntityType(typeof(LocalInstallation))!.GetTableName()!,
+            db.Model.FindEntityType(typeof(Permission))!.GetTableName()!,
+        };
+        var tables = db.Model.GetRelationalModel().Tables.Select(t => t.Name)
+            .Where(t => !preserved.Contains(t)).ToArray();
+        // Trigger-maintained caches go last: deletes of source rows can re-create their generation counters.
+        foreach (var table in tables.OrderBy(t => t == "DashboardGenerations" ? 1 : 0))
+        {
+            await using var deletion = db.Database.GetDbConnection().CreateCommand();
+            deletion.Transaction = transaction.GetDbTransaction();
+            deletion.CommandText = "DELETE FROM " + db.GetService<ISqlGenerationHelper>().DelimitIdentifier(table) + ";";
+            await deletion.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        installation.BindTenant(tenantId);
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        // Bootstrap only identity reference data, never sample business data or a fake accounting period.
+        // A separate context shares this transaction but already uses the NEW tenant (the cache is still old).
+        var boundOptions = new DbContextOptionsBuilder<AnimoraLocalDbContext>()
+            .UseSqlite(db.Database.GetDbConnection()).Options;
+        await using (var bound = new AnimoraLocalDbContext(boundOptions, new BoundTenantContext(tenantId), clock))
+        {
+            await bound.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct).ConfigureAwait(false);
+            var tenant = Tenant.CreateLocalDefault("Animora Clinic");
+            bound.Entry(tenant).Property(x => x.Id).CurrentValue = tenantId;
+            tenant.TenantId = tenantId;
+            bound.Add(tenant);
+            bound.AddRange(Enum.GetValues<StaffRole>().Select(r => RoleDefinition.CreateSystem(tenantId, r, clock)));
+            await bound.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        // The sidecar is not tenant-filtered; erase its cache and persisted clinic customization as well.
+        if (services.GetService<IAppointmentSettingsStore>() is { } settings)
+            await settings.SaveAsync(Animora.Contracts.Appointments.AppointmentSettings.Default, ct).ConfigureAwait(false);
+        await transaction.CommitAsync(ct).ConfigureAwait(false);
+        // Publish only after durable commit: a failed/cancelled wipe must leave the old filter intact.
+        state.Set(installation);
+        services.GetService<SessionContextCache>()?.Set(null);
+        services.GetService<IClinicTimeZoneProvider>()?.Invalidate();
+        return Result.Ok();
+    }
+
+    // ── Per‑tenant stash (clinic switch while unsynced data is parked, kept strictly isolated by tenant id) ──────────────────
+    // Layout: <DataDirectory>/clinics/<tenantId>/animora.db (+ -wal/-shm + appointment‑settings sidecar). A stash is a complete,
+    // separate encrypted database file; one clinic's rows can never surface in another because each tenant reads only its own
+    // folder. The latest switch‑away overwrites the previous stash for that tenant (only the newest parked state is kept).
+
+    private string StashRoot => Path.Combine(Store.DataDirectory, "clinics");
+
+    private string StashPath(string tenantId) => Path.Combine(StashRoot, SanitizeTenant(tenantId), "animora.db");
+
+    private static bool IsRealTenant(string tenantId) =>
+        !string.IsNullOrWhiteSpace(tenantId) && tenantId != LocalInstallationState.DefaultTenantId;
+
+    private bool HasStash(string tenantId)
+    {
+        if (!IsRealTenant(tenantId)) return false;
+        var path = StashPath(tenantId);
+        return File.Exists(path) && QuickCheck(path) == "ok";
+    }
+
+    /// <summary>Hot‑copies the live store (and its settings sidecar) into the outgoing tenant's stash, verified with quick_check.</summary>
+    private async Task<Result> StashCurrentAsync(AnimoraLocalDbContext db, string outgoingTenantId, CancellationToken ct)
+    {
+        // Close the live EF connection and drain the pool so BackupDatabase/opens see a consistent, unlocked file.
+        await db.Database.CloseConnectionAsync().ConfigureAwait(false);
+        SqliteConnection.ClearAllPools();
+        var target = StashPath(outgoingTenantId);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        foreach (var suffix in SideSuffixes)
+        {
+            var side = target + suffix;
+            if (File.Exists(side)) File.Delete(side); // overwrite any older stash for this tenant
+        }
+        using (var source = Open(Store.DatabasePath))
+        using (var destination = Open(target, sessionPragmas: false))
+            source.BackupDatabase(destination);
+        var settings = Store.DatabasePath + SettingsSidecarSuffix;
+        if (File.Exists(settings)) File.Copy(settings, target + SettingsSidecarSuffix, overwrite: true);
+        var check = QuickCheck(target);
+        if (check != "ok")
+        {
+            foreach (var suffix in BackupSuffixes)
+                if (File.Exists(target + suffix)) File.Delete(target + suffix);
+            return Result.Fail(ErrorCodes.StoreBackupFailed, $"stash quick_check: {check}");
+        }
+        await LogAsync(StoreMaintenanceKind.Backup, $"stash tenant {outgoingTenantId}", ct).ConfigureAwait(false);
+        return Result.Ok();
+    }
+
+    /// <summary>
+    /// Restores the incoming tenant's parked store over the live file (whole‑file swap), re‑publishes the installation and clears
+    /// the derived caches, then removes the consumed stash. The restored installation must already be bound to the incoming
+    /// tenant (it was captured at switch‑away); a mismatch aborts without deleting the stash so nothing is lost.
+    /// </summary>
+    private async Task<Result> RestoreStashAsync(AnimoraLocalDbContext db, string tenantId, LocalInstallationState state, CancellationToken ct)
+    {
+        var stash = StashPath(tenantId);
+        await db.Database.CloseConnectionAsync().ConfigureAwait(false);
+        SqliteConnection.ClearAllPools();
+        foreach (var suffix in SideSuffixes)
+        {
+            var side = Store.DatabasePath + suffix;
+            if (File.Exists(side)) File.Delete(side);
+        }
+        File.Copy(stash, Store.DatabasePath, overwrite: false);
+
+        await using (var restored = await contexts.CreateDbContextAsync(ct).ConfigureAwait(false))
+        {
+            var installation = await restored.Set<LocalInstallation>().AsTracking().SingleOrDefaultAsync(ct).ConfigureAwait(false);
+            if (installation is null || installation.TenantId != tenantId)
+                return Result.Fail(ErrorCodes.StoreCorrupt, "restored_stash_tenant_mismatch");
+            state.Set(installation);
+        }
+        // The appointment‑settings sidecar is clinic customization that travels with the store (A26): import the parked copy
+        // (quarantining the current one) so the restored clinic's calendar mode / custom types come back; absent = defaults.
+        var settingsStash = stash + SettingsSidecarSuffix;
+        if (File.Exists(settingsStash) && services.GetService<IAppointmentSettingsStore>() is { } appointmentSettings)
+            await appointmentSettings.ImportFromAsync(settingsStash, ct).ConfigureAwait(false);
+        else if (services.GetService<IAppointmentSettingsStore>() is { } reset)
+            await reset.SaveAsync(Animora.Contracts.Appointments.AppointmentSettings.Default, ct).ConfigureAwait(false);
+        services.GetService<SessionContextCache>()?.Set(null);
+        services.GetService<IClinicTimeZoneProvider>()?.Invalidate();
+
+        var folder = Path.GetDirectoryName(stash)!;
+        try { if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+        await LogAsync(StoreMaintenanceKind.Restore, $"stash tenant {tenantId}", ct).ConfigureAwait(false);
+        return Result.Ok();
+    }
+
+    private static string SanitizeTenant(string tenantId)
+    {
+        // Tenant ids are ULIDs (A–Z0–9), but be defensive: never let a crafted id escape the clinics root.
+        Span<char> buffer = stackalloc char[tenantId.Length];
+        for (var i = 0; i < tenantId.Length; i++)
+        {
+            var c = tenantId[i];
+            buffer[i] = char.IsLetterOrDigit(c) || c is '-' or '_' ? c : '_';
+        }
+        return new string(buffer);
     }
 
     private sealed class BoundTenantContext(string tenantId) : ILocalTenantContext

@@ -8,6 +8,18 @@ public interface ILocalStoreMaintenance
     /// <summary>Atomically clears the previous clinic and binds this installation; refuses to discard unsettled commands.</summary>
     Task<Result> EnsureBoundToAsync(string tenantId, CancellationToken ct);
 
+    /// <summary>
+    /// Binds this installation to <paramref name="tenantId"/> while, on a genuine clinic switch, isolating and preserving the
+    /// OUTGOING clinic's unsynced data instead of refusing. With <paramref name="preserveOutgoingUnsynced"/> the outgoing store
+    /// is hot-copied to a per-tenant stash (<c>&lt;data&gt;/clinics/&lt;outgoingTenantId&gt;/animora.db</c>) before the switch, and
+    /// binding TO a tenant that has a stash restores it (so returning to that clinic brings back its unsynced commands and local
+    /// rows to finish syncing). A stash is keyed strictly by tenant id and never crosses clinics. With the flag off this behaves
+    /// exactly like <see cref="EnsureBoundToAsync(string, CancellationToken)"/> (fails <c>SYNC_PENDING_CHANGES</c> when the
+    /// outgoing clinic has unsettled commands; the failure detail carries the count as
+    /// <c>tenant_switch_requires_settlement:&lt;N&gt;</c> so the UI can offer an explicit choice).
+    /// </summary>
+    Task<Result> EnsureBoundToAsync(string tenantId, bool preserveOutgoingUnsynced, CancellationToken ct);
+
     /// <summary>Online backup into the backup directory; returns the verified backup path.</summary>
     Task<Result<string>> BackupAsync(CancellationToken ct);
 
