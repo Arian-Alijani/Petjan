@@ -336,6 +336,19 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [ObservableProperty] private bool _isStaffBusy;
     [ObservableProperty] private string _accessMessage = string.Empty;
 
+    /// <summary>
+    /// True while the selected member's permission grid differs from what is persisted (what was loaded or last
+    /// saved). The baseline is captured whenever a member is (re)loaded or a save succeeds, so the editor can
+    /// disable «ذخیرهٔ دسترسی‌ها» when nothing changed and warn before an edit would be silently discarded.
+    /// </summary>
+    [ObservableProperty] private bool _hasAccessChanges;
+
+    /// <summary>The persisted grant set of <see cref="SelectedStaff"/>, against which unsaved edits are detected.</summary>
+    private HashSet<string>? _accessBaseline;
+
+    /// <summary>Suppresses dirty-tracking while the grid is being (re)built from a load/baseline reset.</summary>
+    private bool _suspendAccessTracking;
+
     public bool HasDevices => CanManageDevices && Devices.Count > 0;
     public string DevicesSummary => Devices.Count(d => d.IsPending) is var pending and > 0
         ? $"{ProfilePresentation.Fa(pending.ToString())} دستگاه در انتظار تأیید شماست."
@@ -363,12 +376,14 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         : SelectedStaff.IsProtected ? "حساب مدیر و حساب فعلی محافظت‌شده‌اند؛ مجوزهای آن‌ها فقط قابل مشاهده است."
         : !SelectedStaff.IsActive ? "کاربر غیرفعال است؛ برای تغییر دسترسی ابتدا حساب را فعال کنید."
         : !CanManageAccess ? "مجوز ویرایش دسترسی‌های کاربران را ندارید."
+        : HasAccessChanges ? "تغییرات ذخیره‌نشده دارید؛ با «ذخیرهٔ دسترسی‌ها» آن‌ها را ثبت کنید."
         : "مجوز مشاهده و انجام عملیات مستقل است. تغییرات فقط با ذخیرهٔ دسترسی‌ها ثبت می‌شوند.";
 
     partial void OnCanManageUsersChanged(bool value) => NotifyAccessState();
     partial void OnCanManageAccessChanged(bool value) => NotifyAccessState();
     partial void OnCanManageDevicesChanged(bool value) => OnPropertyChanged(nameof(HasDevices));
     partial void OnIsStaffBusyChanged(bool value) => NotifyAccessState();
+    partial void OnHasAccessChangesChanged(bool value) => NotifyAccessState();
 
     private void NotifyAccessState()
     {
@@ -392,13 +407,55 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     [ObservableProperty]
     private string _newMemberPhone = string.Empty;
 
+    partial void OnSelectedStaffChanging(StaffMemberViewModel? oldValue, StaffMemberViewModel? newValue)
+    {
+        // Stop tracking the member we are leaving so its toggles no longer feed the dirty flag.
+        if (oldValue is not null)
+            foreach (var permission in oldValue.Permissions)
+                permission.PropertyChanged -= OnPermissionChanged;
+    }
+
     partial void OnSelectedStaffChanged(StaffMemberViewModel? value)
     {
         foreach (var member in Staff)
         {
             member.IsSelected = ReferenceEquals(member, value);
         }
+        // A new (or no) member: its persisted grants become the baseline and the editor starts clean. Switching
+        // members intentionally drops any unsaved edits on the previous one — the Save button guards that case.
+        BeginAccessTracking(value);
         NotifyAccessState();
+    }
+
+    /// <summary>Captures the selected member's persisted grant set as the dirty baseline and subscribes to its toggles.</summary>
+    private void BeginAccessTracking(StaffMemberViewModel? member)
+    {
+        _suspendAccessTracking = true;
+        try
+        {
+            _accessBaseline = member is null
+                ? null
+                : new HashSet<string>(member.Permissions.Where(p => p.IsGranted).Select(p => p.SectionId), StringComparer.Ordinal);
+            HasAccessChanges = false;
+            if (member is not null)
+                foreach (var permission in member.Permissions)
+                    permission.PropertyChanged += OnPermissionChanged;
+        }
+        finally { _suspendAccessTracking = false; }
+    }
+
+    private void OnPermissionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_suspendAccessTracking || e.PropertyName != nameof(StaffPermissionViewModel.IsGranted)) return;
+        RecomputeAccessDirty();
+    }
+
+    /// <summary>Marks the access editor dirty only when the current grid genuinely differs from the baseline.</summary>
+    private void RecomputeAccessDirty()
+    {
+        if (_accessBaseline is null || SelectedStaff is null) { HasAccessChanges = false; return; }
+        var current = SelectedStaff.Permissions.Where(p => p.IsGranted).Select(p => p.SectionId);
+        HasAccessChanges = !_accessBaseline.SetEquals(current);
     }
 
     // ── Loading ──────────────────────────────────────────────────────────
@@ -406,8 +463,8 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     // Singleton page: reload on every visit so a staff/account change made elsewhere is never stale.
     public override void OnNavigatedTo()
     {
-        // Never overwrite edits the user has not saved yet.
-        if (!IsLoadInFlight && !HasProfileChanges && !HasSettingsChanges) _ = ReloadPageAsync();
+        // Never overwrite edits the user has not saved yet (profile, preferences, or an in-progress access grid).
+        if (!IsLoadInFlight && !HasProfileChanges && !HasSettingsChanges && !HasAccessChanges) _ = ReloadPageAsync();
     }
 
     private Task ReloadPageAsync() => TrackLoadResultAsync(LoadAsync);
@@ -633,7 +690,9 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     }
 
     private bool CanAddStaff() => CanManageUsers && !IsStaffBusy;
-    private bool CanSaveAccess() => CanEditSelected;
+    // Only persist when the editor is editable AND the grid actually differs from the stored grant set, so the
+    // button is inert (and the user is not misled) when there is nothing to save.
+    private bool CanSaveAccess() => CanEditSelected && HasAccessChanges;
     private bool CanRemoveStaff() => CanChangeSelectedStatus;
 
     [RelayCommand(CanExecute = nameof(CanAddStaff))]
@@ -716,22 +775,26 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
             "دسترسی دستگاه بازگردانده شد؛ کاربر می‌تواند دوباره وارد شود.");
     }
 
-    [RelayCommand(CanExecute = nameof(CanSaveAccess))]
+    // Bulk edits only need an editable selection; whether they produce a change is decided by RecomputeAccessDirty
+    // (firing through the tracked toggles), so «انتخاب همهٔ مجوزها» stays usable on an otherwise-clean editor.
+    [RelayCommand(CanExecute = nameof(CanEditSelected))]
     private void GrantAllPermissions()
     {
         if (SelectedStaff is null) return;
         foreach (var permission in SelectedStaff.Permissions) permission.IsGranted = true;
-        AccessMessage = "تغییرات هنوز ذخیره نشده است.";
+        AccessMessage = HasAccessChanges ? "تغییرات هنوز ذخیره نشده است." : "همهٔ مجوزها از پیش فعال بودند.";
     }
 
-    [RelayCommand(CanExecute = nameof(CanSaveAccess))]
+    [RelayCommand(CanExecute = nameof(CanEditSelected))]
     private void ResetPermissions()
     {
         if (SelectedStaff is null) return;
         var granted = _directory?.Roles.FirstOrDefault(r => r.Id == SelectedStaff.RoleId)?.DefaultPermissions ?? [];
         foreach (var permission in SelectedStaff.Permissions)
             permission.IsGranted = granted.Contains(permission.SectionId);
-        AccessMessage = "پیش‌فرض نقش اعمال شد؛ برای ثبت، ذخیرهٔ دسترسی‌ها را بزنید.";
+        AccessMessage = HasAccessChanges
+            ? "پیش‌فرض نقش اعمال شد؛ برای ثبت، ذخیرهٔ دسترسی‌ها را بزنید."
+            : "دسترسی‌ها همان پیش‌فرض نقش هستند.";
     }
 
     [RelayCommand(CanExecute = nameof(CanSaveAccess))]
