@@ -138,6 +138,14 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
+        // Radiology/lab records are immutable JSON lists on the visit row (VisitConfiguration maps the backing
+        // fields via JsonFields.Map). Their nested value lists (Items/Attachments) make EF try to discover them
+        // as owned entities and fail constructor binding, so exclude the element types (and their nested rows)
+        // from entity discovery before the configurations run.
+        modelBuilder.Ignore<RadiologyRecord>();
+        modelBuilder.Ignore<RadiologyAttachment>();
+        modelBuilder.Ignore<LabResult>();
+        modelBuilder.Ignore<LabResultItem>();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AnimoraServerDbContext).Assembly);
         ServerModelConventions.ApplyTenancy(modelBuilder, () => CurrentTenantId);
         modelBuilder.Entity<FileObject>().HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
