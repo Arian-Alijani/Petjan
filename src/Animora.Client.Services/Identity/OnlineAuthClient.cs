@@ -26,7 +26,8 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
 
     /// <inheritdoc />
-    public async Task<Result<OnlineLoginOutcome>> LoginAsync(string tenantCode, string userName, string password, CancellationToken ct = default)
+    public async Task<Result<OnlineLoginOutcome>> LoginAsync(string tenantCode, string userName, string password, CancellationToken ct = default,
+        bool preserveUnsyncedOnSwitch = false)
     {
         if (string.IsNullOrWhiteSpace(tenantCode) || string.IsNullOrWhiteSpace(userName) || string.IsNullOrEmpty(password))
             return Result<OnlineLoginOutcome>.Fail(ErrorCodes.ValidationFailed);
@@ -72,7 +73,7 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
         await using (var scope = scopes.CreateAsyncScope())
         {
             var bound = await scope.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>()
-                .EnsureBoundToAsync(login.TenantId, ct).ConfigureAwait(false);
+                .EnsureBoundToAsync(login.TenantId, preserveUnsyncedOnSwitch, ct).ConfigureAwait(false);
             if (bound.IsFailure) return Result<OnlineLoginOutcome>.Fail(bound.Error, bound.Detail);
         }
         var stored = await sessions.WriteAsync(ToSession(login, stamp: string.Empty), ct).ConfigureAwait(false);

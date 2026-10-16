@@ -19,8 +19,12 @@ public interface IOnlineAuthClient
     /// verifier). A definitive server refusal is returned as-is (<c>CREDENTIALS_INVALID</c>, <c>USER_LOCKED_OUT</c>, <c>DEVICE_REVOKED</c>…); when
     /// the server is unreachable the credential mirror may authorise an offline start, otherwise <c>NETWORK_UNAVAILABLE</c> /
     /// <c>OFFLINE_SESSION_UNAVAILABLE</c> / <c>OFFLINE_CREDENTIAL_MISMATCH</c>.
+    /// <para><paramref name="preserveUnsyncedOnSwitch"/>: the user explicitly confirmed entering another clinic while the previous one still has
+    /// unsynced commands; they are then parked in a per-clinic stash (restored when that clinic signs in again) instead of the login failing
+    /// with <c>SYNC_PENDING_CHANGES</c>.</para>
     /// </summary>
-    Task<Result<OnlineLoginOutcome>> LoginAsync(string tenantCode, string userName, string password, CancellationToken ct = default);
+    Task<Result<OnlineLoginOutcome>> LoginAsync(string tenantCode, string userName, string password, CancellationToken ct = default,
+        bool preserveUnsyncedOnSwitch = false);
 
     /// <summary>Rotates the stored refresh token; <c>SESSION_EXPIRED</c> clears the session.</summary>
     Task<Result> RefreshAsync(CancellationToken ct = default);

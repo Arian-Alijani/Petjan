@@ -259,7 +259,11 @@ Keep the single‑tenant model; add a **per‑tenant stash** of the whole local 
     pending command is restored and B's rows are absent. Targeted test only — NO full/long suite.
   - (push) `feat(store): isolate & preserve per-clinic unsynced data across tenant switch`
 
-- [ ] **T3. Fix UX (Task 1 & 3) — clean warning + explicit switch affordance in login.**
+- [x] **T3. Fix UX (Task 1 & 3) — clean warning + explicit switch affordance in login. (DONE)**
+  - Implemented: `IOnlineAuthClient.LoginAsync`/`OnlineAuthClient` take `preserveUnsyncedOnSwitch` (forwarded to `EnsureBoundToAsync`);
+    `LoginViewModel` shows a `warn` `ConfirmDialogViewModel` with the unsynced count on the first `SYNC_PENDING_CHANGES`, and the
+    confirm re-drives sign-in with the preserve flag (no prompt loop). Same-clinic multi-user path needs no code (T1 purge is role-agnostic).
+    CI validates (no local build).
   File: `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` only (reuse existing
   `ConfirmDialogViewModel`; no new axaml needed).
   - Thread the confirm choice into the online login so T2's `preserveOutgoingUnsynced` runs. Minimal

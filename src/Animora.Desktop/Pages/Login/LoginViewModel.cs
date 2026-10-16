@@ -3,6 +3,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Animora.Client.Services.Identity;
 using Animora.Contracts.Identity;
+using Animora.Domain.Results;
+using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Sales.Shared;
 using Animora.Desktop.Services;
 using Animora.Sync.Custom;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -26,6 +29,12 @@ public sealed partial class LoginViewModel : ObservableObject
     private readonly IOnlineAuthClient? _onlineAuth;
     private readonly ServerEndpointOptions? _serverOptions;
     private OnlineLoginOutcome? _onlineOutcome;
+
+    /// <summary>
+    /// Set only by the explicit «ورود و حفظ تغییرات» confirmation: the retry then parks the previous clinic's unsynced data in
+    /// its per-clinic stash instead of failing with <c>SYNC_PENDING_CHANGES</c>. Reset after every attempt so it never lingers.
+    /// </summary>
+    private bool _confirmedClinicSwitch;
 
     public LoginViewModel(IAuthenticationService authentication, IDialogService dialogs,
         Func<FirstRunViewModel> firstRunFactory, IServerConnectivityService? connectivity = null,
@@ -214,7 +223,8 @@ public sealed partial class LoginViewModel : ObservableObject
         {
             // 1) ONLINE FIRST (mandatory when a server is configured): clinic code + user + password are checked by
             //    the central server, which also seals the licence/subscription. No server session ⇒ no shell.
-            if (!await EstablishServerSessionAsync(user, Password, ct))
+            var attemptedPassword = Password;
+            if (!await EstablishServerSessionAsync(user, attemptedPassword, ct))
             {
                 Password = string.Empty;
                 return;
@@ -240,8 +250,49 @@ public sealed partial class LoginViewModel : ObservableObject
         }
         finally
         {
+            _confirmedClinicSwitch = false;
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// The previous clinic still has unsynced commands. Instead of a dead-end error, state the count and let the user choose:
+    /// go back (sync that clinic first) or enter this clinic while the previous clinic's data is kept for later. Confirming
+    /// re-drives the whole sign-in with the preserve flag (the store stashes the outgoing clinic under its own tenant key).
+    /// </summary>
+    private void OfferClinicSwitch(string? detail, string password)
+    {
+        var count = ParsePendingCount(detail);
+        var lead = count > 0
+            ? $"این کلینیک {PersianNumberFormatter.ToPersianDigits(count.ToString())} تغییر همگام‌نشده دارد. "
+            : "این کلینیک تغییرات همگام‌نشده دارد. ";
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "warn",
+            "IconAlert",
+            "ورود به کلینیک دیگر",
+            lead,
+            string.Empty,
+            string.Empty,
+            "می‌توانید به همان کلینیک برگردید و همگام‌سازی را کامل کنید، یا به کلینیک دیگر وارد شوید؛ " +
+            "تغییرات این کلینیک حفظ و دفعهٔ بعد که برگشتید همگام می‌شوند.",
+            "ورود و حفظ تغییرات",
+            "بازگشت",
+            () =>
+            {
+                _confirmedClinicSwitch = true;
+                Password = password;
+                _ = SignInCommand.ExecuteAsync(null);
+            }), 520);
+    }
+
+    /// <summary>Reads N from the <c>tenant_switch_requires_settlement:&lt;N&gt;</c> failure detail; 0 when absent/malformed.</summary>
+    internal static int ParsePendingCount(string? detail)
+    {
+        const string prefix = "tenant_switch_requires_settlement:";
+        if (detail is null || !detail.StartsWith(prefix, StringComparison.Ordinal)) return 0;
+        return int.TryParse(detail.AsSpan(prefix.Length), System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture, out var n) && n > 0 ? n : 0;
     }
 
     /// <summary>
@@ -320,11 +371,19 @@ public sealed partial class LoginViewModel : ObservableObject
             $"server login → POST /auth/login  [tenant={tenantCode}, user={username}]", "auth");
         try
         {
-            var result = await _onlineAuth.LoginAsync(tenantCode, username, password, ct);
+            var result = await _onlineAuth.LoginAsync(tenantCode, username, password, ct,
+                preserveUnsyncedOnSwitch: _confirmedClinicSwitch);
             if (!result.IsSuccess)
             {
                 Animora.Desktop.Diagnostics.AppTrace.Warn(
                     $"server login FAILED (code={result.Error.Code}{(string.IsNullOrWhiteSpace(result.Detail) ? "" : $", detail={result.Detail}")}).", "auth");
+                // First refusal for unsynced data of the previous clinic: ask, don't dead-end. A refusal that persists even with
+                // the confirmed flag (should not happen) falls through to the plain message, so there is no prompt loop.
+                if (result.Error.Code == ErrorCodes.SyncPendingChanges.Code && !_confirmedClinicSwitch)
+                {
+                    OfferClinicSwitch(result.Detail, password);
+                    return false;
+                }
                 ErrorMessage = MapError(result.Error.Code);
                 return false;
             }
