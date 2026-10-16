@@ -1,0 +1,331 @@
+/* =========================================================
+   وت‌پلاس · داشبورد — ری‌دیزاین «Aurora»
+   assets/dashboard-aurora.css
+   -----------------------------------------------------------
+   این فایل فقط در dashboard.html بارگذاری می‌شود و استایل
+   داشبورد را دقیقاً مطابق نمونهٔ طراحی (تم بنفش/لَوَندر، کارت‌های
+   نرم و گرد، چارت خطی Performance، دونات چندحلقه، نمای روزانه و
+   جدول نواری) بازسازی می‌کند. موضوع/محتوای باکس‌ها بدون تغییر
+   می‌ماند؛ تنها شکل و حسِ ظاهری عوض می‌شود. صفحات دیگر دست‌نخورده‌اند.
+   ========================================================= */
+
+/* ---------- 1) توکن‌های تم جدید (scope به داشبورد) ---------- */
+body .app {
+  /* پالت بنفش/اینديگو مطابق نمونه */
+  --au-primary:   #5B42F3;   /* ایندیگوی اصلی */
+  --au-primary-2: #6C4CF1;
+  --au-coral:     #FA6432;   /* مرجانی/نارنجی */
+  --au-teal:      #22C55E;   /* سبز مینت */
+  --au-teal-2:    #34D399;
+  --au-lilac:     #8B5CF6;
+
+  --au-canvas:    #F4F6FC;   /* پس‌زمینهٔ صفحه */
+  --au-card:      #FFFFFF;
+  --au-ink:       #1B1D3E;   /* عنوان/عدد */
+  --au-ink-soft:  #30324E;
+  --au-muted:     #8A90B5;   /* برچسب‌های کم‌رنگ */
+  --au-muted-2:   #AEB2CC;
+  --au-line:      #EEF0F8;
+
+  /* پس‌زمینهٔ نرم آیکون‌ها (کارت‌های آمار) */
+  --au-bg-blue:   #ECF2FE;
+  --au-bg-coral:  #FFF1EA;
+  --au-bg-purple: #F1ECFE;
+  --au-bg-green:  #E9FBF3;
+
+  --au-radius:    20px;
+  --au-radius-sm: 14px;
+  --au-shadow:    0 18px 40px -22px rgba(76, 70, 150, .35), 0 6px 16px -10px rgba(76, 70, 150, .12);
+  --au-shadow-sm: 0 10px 26px -18px rgba(76, 70, 150, .30);
+}
+
+/* پس‌زمینهٔ کل صفحهٔ داشبورد */
+body:has(#dash-root) {
+  background: var(--au-canvas);
+}
+
+/* ---------- 2) شل: ساید‌بار و تاپ‌بار نرم ---------- */
+body:has(#dash-root) .main { background: var(--au-canvas); }
+
+body:has(#dash-root) .topbar {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom: 0;
+}
+body:has(#dash-root).is-scrolled .topbar {
+  background: rgba(244, 246, 252, .85);
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
+  backdrop-filter: saturate(160%) blur(10px);
+  box-shadow: 0 10px 24px -18px rgba(76, 70, 150, .35);
+}
+body:has(#dash-root) .topbar-title::before { background: var(--au-primary); }
+body:has(#dash-root) .topbar-title .crumbs .last { color: var(--au-primary); }
+
+body:has(#dash-root) .search input:focus {
+  border-color: var(--au-primary);
+  box-shadow: 0 0 0 4px rgba(91, 66, 243, .12);
+}
+
+body:has(#dash-root) .page { padding: 20px 26px 44px; }
+
+/* ساید‌بار: آیتم فعال بنفش مطابق نمونه */
+body:has(#dash-root) .brand-logo {
+  background: linear-gradient(135deg, var(--au-primary-2), var(--au-primary));
+  box-shadow: 0 10px 22px -8px rgba(91, 66, 243, .55);
+}
+
+/* ---------- 3) کارت پایه (همهٔ .card های داشبورد) ---------- */
+#dash-root .card {
+  background: var(--au-card);
+  border: 0;
+  border-radius: var(--au-radius);
+  box-shadow: var(--au-shadow);
+}
+#dash-root .card.hoverable:hover {
+  box-shadow: 0 24px 50px -24px rgba(76, 70, 150, .42);
+  border: 0;
+  transform: translateY(-2px);
+}
+#dash-root .card-header { border-bottom: 0; padding: 20px 22px 6px; }
+#dash-root .card-header h3 { font-size: 16px; font-weight: 800; color: var(--au-ink); letter-spacing: -.2px; }
+#dash-root .card-header .link-more,
+#dash-root .card-header .muted { color: var(--au-muted); font-size: 12px; }
+#dash-root .card-header .link-more:hover { color: var(--au-primary); }
+
+/* ---------- 4) ردیف KPI → کارت‌های آمار سبک نمونه ---------- */
+#dash-root .stats-grid { gap: 18px; margin-top: 4px; }
+#dash-root .stat {
+  background: var(--au-card);
+  border: 0;
+  border-radius: var(--au-radius);
+  padding: 20px 20px 18px;
+  box-shadow: var(--au-shadow);
+  overflow: hidden;
+}
+#dash-root .stat::after { display: none; }
+#dash-root .stat:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 50px -24px rgba(76, 70, 150, .42);
+  border: 0;
+}
+/* آیکون پاستلی بالا-راست‌چین مطابق نمونه */
+#dash-root .stat-head { margin-bottom: 14px; }
+#dash-root .stat-icon {
+  width: 42px; height: 42px; border-radius: 13px;
+  background: var(--au-bg-blue); color: var(--au-primary);
+  border: 0;
+  order: -1;            /* آیکون سمت شروع (راست در RTL) */
+}
+#dash-root .stat-icon svg { width: 20px; height: 20px; }
+/* نگاشت رنگ آیکون‌ها به چهار پاستل نمونه بر اساس ترتیب کارت */
+#dash-root .stats-grid .stat:nth-child(1) .stat-icon { background: var(--au-bg-blue);   color: var(--au-primary); }
+#dash-root .stats-grid .stat:nth-child(2) .stat-icon { background: var(--au-bg-coral);  color: var(--au-coral); }
+#dash-root .stats-grid .stat:nth-child(3) .stat-icon { background: var(--au-bg-purple); color: var(--au-lilac); }
+#dash-root .stats-grid .stat:nth-child(4) .stat-icon { background: var(--au-bg-green);  color: var(--au-teal); }
+
+#dash-root .stat-delta {
+  background: transparent;
+  color: var(--au-teal);
+  font-size: 12px; font-weight: 700;
+  padding: 0;
+}
+#dash-root .stat-delta.down { background: transparent; color: var(--au-coral); }
+#dash-root .stat-value { font-size: 28px; font-weight: 800; color: var(--au-ink); }
+#dash-root .stat-label { color: var(--au-muted); font-size: 12.5px; margin-top: 6px; }
+#dash-root .stat-foot  { color: var(--au-muted-2); font-size: 11px; margin-top: 4px; }
+/* اسپارک‌لاین زیر کارت با رنگ تم */
+#dash-root .stat .spark { opacity: .0; }
+#dash-root .stat:hover .spark { opacity: .55; }
+
+/* ---------- 5) چارت «نبض مالی» → سبک Performance نمونه ---------- */
+#dash-root .pulse-card { padding: 22px 24px 18px; }
+#dash-root .pulse-title h3 { font-size: 16px; font-weight: 800; color: var(--au-ink); }
+#dash-root .pulse-value .num { font-size: 28px; font-weight: 800; color: var(--au-ink); }
+#dash-root .pulse-value .cur { color: var(--au-muted); }
+#dash-root .pulse-value .delta { color: var(--au-teal); }
+
+/* تب‌های بازه → سبک قرص (pill) نمونه */
+#dash-root .range-tabs {
+  background: #F3F4FB;
+  padding: 4px;
+  border-radius: 99px;
+  gap: 2px;
+}
+#dash-root .range-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--au-muted);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 99px;
+}
+#dash-root .range-tabs button.active {
+  background: var(--au-primary);
+  color: #fff;
+  box-shadow: 0 8px 18px -6px rgba(91, 66, 243, .5);
+}
+
+/* خط و ناحیهٔ چارت به بنفش */
+#dash-root #chartLine { stroke: var(--au-primary); stroke-width: 3; }
+#dash-root #chartArea { fill: url(#ga); }
+#dash-root #pulseChart defs #ga stop:first-child { stop-color: var(--au-primary); }
+#dash-root .hover-dot {
+  box-shadow: 0 0 0 4px #fff, 0 0 0 7px rgba(91, 66, 243, .35);
+  background: var(--au-primary) !important;
+}
+#dash-root .hover-line { background: linear-gradient(to bottom, rgba(91,66,243,.45), rgba(91,66,243,0)) !important; }
+#dash-root .chart-tip {
+  border-radius: 12px;
+  box-shadow: var(--au-shadow-sm);
+  border: 1px solid var(--au-line);
+}
+#dash-root .chart-tip b { color: var(--au-ink); }
+
+/* ---------- 6) بار کاری پزشکان (نوارهای افقی سبک نمونه) ---------- */
+#dash-root .db-docload { padding: 6px 8px 14px; }
+#dash-root .db-docload-bar { background: #F1F2FA; height: 7px; }
+
+/* ---------- 7) دونات «بیماران بر اساس گونه» → چندحلقه مطابق نمونه ---------- */
+#dash-root .species-body { padding: 10px 20px 22px; grid-template-columns: 190px 1fr; }
+#dash-root .donut-wrap .donut-track { stroke: #F1F2FA; }
+#dash-root .donut-center .dc-val { color: var(--au-ink); font-weight: 800; }
+#dash-root .legend-row .lg-count { color: var(--au-ink); font-weight: 800; }
+#dash-root .legend-row:hover, #dash-root .legend-row.on {
+  background: #F7F6FF; border-color: var(--au-line);
+}
+
+/* ---------- 8) هشدارهای مدیریتی ---------- */
+#dash-root .db-alert { border-bottom: 1px solid var(--au-line); }
+#dash-root .db-alert:hover { background: #F7F6FF; }
+#dash-root .db-alert-ic.lilac { background: var(--au-bg-purple); color: var(--au-lilac); }
+#dash-root .db-alert .t { color: var(--au-ink); }
+
+/* ---------- 9) صف زنده ---------- */
+#dash-root .db-queue-row { border-bottom: 1px solid var(--au-line); }
+#dash-root .db-queue-row:hover { background: #F7F6FF; }
+#dash-root .db-queue-info .n { color: var(--au-ink); }
+
+/* ---------- 10) دسترسی سریع (quick tiles) ---------- */
+#dash-root .quick-grid {
+  padding: 6px 20px 22px;
+  grid-template-columns: 1fr 1fr;   /* در ستون باریکِ نمونه دو‌تایی چیده می‌شود */
+  gap: 10px;
+}
+#dash-root .quick-tile {
+  border-radius: var(--au-radius-sm);
+  border: 1px solid var(--au-line);
+  box-shadow: none;
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+#dash-root .quick-tile .qt-key { display: none; }   /* برچسب Alt در فضای فشرده مخفی */
+#dash-root .quick-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px -20px rgba(76, 70, 150, .4);
+  border-color: transparent;
+}
+#dash-root .quick-tile .qt-icon { background: var(--tile-soft, var(--au-bg-purple)); }
+
+/* ---------- 11) دکمه‌ها با تم بنفش ---------- */
+#dash-root .btn-primary {
+  background: var(--au-primary);
+  box-shadow: 0 10px 24px -8px rgba(91, 66, 243, .5);
+  border-radius: 99px;
+}
+#dash-root .btn-primary:hover { background: var(--au-primary-2); }
+#dash-root .btn-outline { border-radius: 99px; border-color: var(--au-line); color: var(--au-ink); }
+#dash-root .btn-outline:hover { border-color: var(--au-primary); color: var(--au-primary); }
+
+/* ---------- 12) قرص‌های وضعیت ---------- */
+#dash-root .pill-info { background: var(--au-bg-blue); color: var(--au-primary); }
+
+/* =========================================================
+   13) اجزای تازهٔ نمونه (نمای روزانه + جدول نواری + بنر)
+   کلاس‌های au-* فقط در نمای manager استفاده می‌شوند.
+   ========================================================= */
+
+/* ردیف دو-ستونه با نسبت نمونه */
+#dash-root .au-grid { display: grid; gap: 18px; }
+#dash-root .au-grid.main-split { grid-template-columns: 1.55fr 1fr; }
+#dash-root .au-grid.triple { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1100px) {
+  #dash-root .au-grid.main-split { grid-template-columns: 1fr; }
+  #dash-root .au-grid.triple { grid-template-columns: 1fr; }
+}
+
+/* --- نمای روزانه: هدر + دکمهٔ Export --- */
+#dash-root .au-overview-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 22px 2px 14px;
+}
+#dash-root .au-overview-head h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--au-ink); }
+#dash-root .au-export-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: #fff; color: var(--au-ink);
+  border: 1px solid var(--au-line);
+  border-radius: 99px;
+  padding: 8px 18px; font: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; box-shadow: var(--au-shadow-sm);
+  transition: transform .15s, box-shadow .2s, color .2s;
+}
+#dash-root .au-export-btn:hover { color: var(--au-primary); transform: translateY(-1px); }
+#dash-root .au-export-btn svg { width: 15px; height: 15px; }
+
+/* --- کارت‌های نمای روزانه با حلقهٔ پیشرفت (مثل 5,461 / 8,085) --- */
+#dash-root .au-daily { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 720px) { #dash-root .au-daily { grid-template-columns: 1fr; } }
+#dash-root .au-daily-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 22px 24px;
+}
+#dash-root .au-daily-col { text-align: center; }
+#dash-root .au-daily-col .v { font-size: 26px; font-weight: 800; color: var(--au-ink); letter-spacing: -.4px; }
+#dash-root .au-daily-col .l { font-size: 12px; color: var(--au-muted); margin-top: 3px; }
+#dash-root .au-ring {
+  position: relative; width: 74px; height: 74px; flex: none;
+}
+#dash-root .au-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+#dash-root .au-ring .trk { fill: none; stroke: #F1F2FA; stroke-width: 9; }
+#dash-root .au-ring .val {
+  fill: none; stroke-width: 9; stroke-linecap: round;
+  stroke-dasharray: 201;
+  stroke-dashoffset: calc(201 - 201 * var(--pct, 65) / 100);
+  transition: stroke-dashoffset 1.1s cubic-bezier(.22,1,.36,1);
+}
+#dash-root .au-ring .au-ring-lbl {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .5px;
+}
+
+/* --- جدول نواری «کانال/ترافیک/مقدار» مثل نمونه --- */
+#dash-root .au-channel { padding: 4px 22px 20px; }
+#dash-root .au-channel-head,
+#dash-root .au-channel-row {
+  display: grid;
+  grid-template-columns: 1.1fr 2fr .9fr;
+  align-items: center; gap: 14px;
+}
+#dash-root .au-channel-head {
+  color: var(--au-muted); font-size: 12px; font-weight: 700;
+  padding-bottom: 12px; border-bottom: 1px solid var(--au-line); margin-bottom: 6px;
+}
+#dash-root .au-channel-row { padding: 12px 0; border-bottom: 1px solid var(--au-line); }
+#dash-root .au-channel-row:last-child { border-bottom: 0; }
+#dash-root .au-channel-name { font-size: 13px; font-weight: 700; color: var(--au-ink-soft); }
+#dash-root .au-channel-track { height: 7px; border-radius: 99px; background: #F1F2FA; overflow: hidden; }
+#dash-root .au-channel-track span {
+  display: block; height: 100%; border-radius: 99px;
+  transition: width 1s cubic-bezier(.22,1,.36,1);
+}
+#dash-root .au-channel-val { text-align: end; font-size: 13px; font-weight: 700; color: var(--au-ink-soft); }
+
+/* --- بنر پایانی با دکمهٔ View --- */
+#dash-root .au-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 22px 24px;
+}
+#dash-root .au-banner-txt h3 { margin: 0; font-size: 16px; font-weight: 800; color: var(--au-ink); }
+#dash-root .au-banner-txt p { margin: 5px 0 0; font-size: 12.5px; color: var(--au-muted); }
+#dash-root .au-banner .btn-primary { padding: 11px 30px; }

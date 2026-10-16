@@ -21,31 +21,9 @@
      ===================================================== */
   window.DASH_VIEW_MANAGER = function () {
     return `
-      <!-- KPI row -->
-      <div class="stats-grid">
-        ${[
-          { delta: '۲۴٪↑', icon: 'arrowUpRight', tone: '', deltaCls: '',
-            value: '86.4', dec: 1, suffix: ' م', label: 'درآمد امروز', foot: 'هدف: ۷۵ م تومان', spark: '4,6,5,7,6,9,10', sc: '#14b8a6' },
-          { delta: '۸٪↑', icon: 'users', tone: 'lilac', deltaCls: '',
-            value: '1284', label: 'بیماران فعال', foot: '۲۷ پرونده جدید این ماه', spark: '3,4,4,5,6,7,8', sc: '#7b5cc4' },
-          { delta: '۷۵٪', icon: 'chart', tone: 'info', deltaCls: '',
-            value: '18', suffix: ' ویزیت', label: 'ویزیت‌های امروز', foot: '۱۲ انجام‌شده · ۶ در صف', spark: '2,4,3,5,4,6,6', sc: '#1570cd' },
-          { delta: '۲٫۱٪↓', icon: 'alert', tone: 'danger', deltaCls: 'down',
-            value: '3', label: 'هشدار موجودی', foot: 'نیازمند تأمین فوری', spark: '6,5,7,4,5,3,3', sc: '#d92d20' },
-        ].map(s => `
-        <div class="stat reveal" data-spark="${s.spark}" data-spark-color="${s.sc}">
-          <div class="stat-head">
-            <span class="stat-delta ${s.deltaCls}">${s.delta}</span>
-            <div class="stat-icon ${s.tone}">${I(s.icon)}</div>
-          </div>
-          <div class="stat-value num-fa" data-count="${s.value}" ${s.dec ? `data-dec="${s.dec}"` : ''} ${s.suffix ? `data-suffix="${s.suffix}"` : ''}>${s.value}</div>
-          <div class="stat-label">${s.label}</div>
-          <div class="stat-foot num-fa">${s.foot}</div>
-        </div>`).join('')}
-      </div>
-
-      <!-- Revenue + clinic pulse -->
-      <div class="grid-2c mt-20 reveal" style="grid-template-columns: 1.3fr 1fr;">
+      <!-- ===== ردیف بالا: چارت عملکرد مالی + دونات گونه‌ها (چیدمان نمونه) ===== -->
+      <div class="au-grid main-split reveal">
+        <!-- نبض مالی کلینیک (چارت خطی Performance) -->
         <div class="card hoverable">
           <div class="pulse-card">
             <div class="pulse-head">
@@ -68,17 +46,17 @@
               <svg id="pulseChart" viewBox="0 0 500 180" width="100%" height="180" preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="ga" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stop-color="#14b8a6" stop-opacity=".35"/>
-                    <stop offset="100%" stop-color="#14b8a6" stop-opacity="0"/>
+                    <stop offset="0%" stop-color="#5B42F3" stop-opacity=".30"/>
+                    <stop offset="100%" stop-color="#5B42F3" stop-opacity="0"/>
                   </linearGradient>
                 </defs>
-                <g stroke="#eef2f0" stroke-dasharray="3 4">
+                <g stroke="#eef0f8" stroke-dasharray="3 4">
                   <line x1="0" y1="40" x2="500" y2="40"/>
                   <line x1="0" y1="80" x2="500" y2="80"/>
                   <line x1="0" y1="120" x2="500" y2="120"/>
                 </g>
                 <path id="chartArea" d="" fill="url(#ga)"/>
-                <path id="chartLine" d="" fill="none" stroke="#14b8a6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path id="chartLine" d="" fill="none" stroke="#5B42F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
               <span class="hover-line" id="hoverLine"></span>
               <span class="hover-dot" id="hoverDot"></span>
@@ -88,51 +66,7 @@
           </div>
         </div>
 
-        <!-- Doctor load -->
-        <div class="card hoverable">
-          <div class="card-header">
-            <h3>بار کاری پزشکان امروز</h3>
-            <span class="muted" style="font-size:11px">نوبت انجام‌شده / کل</span>
-          </div>
-          <div class="db-docload">
-            ${[
-              { ini: 'آ', name: 'دکتر آریا نیک', spec: 'داخلی و جراحی', done: 5, total: 7, c: '#0d9488' },
-              { ini: 'م', name: 'دکتر مینا همتی', spec: 'واکسن و پیشگیری', done: 3, total: 6, c: '#1570cd' },
-              { ini: 'س', name: 'دکتر سهیل کاویانی', spec: 'دندان‌پزشکی', done: 4, total: 5, c: '#8f74d1' },
-              { ini: 'ن', name: 'نگار راد', spec: 'آرایش و نگهداری', done: 0, total: 3, c: '#e08a5c' },
-            ].map(d => `
-            <div class="db-docload-row">
-              <span class="db-docload-ini" style="background:${d.c}1a;color:${d.c}">${d.ini}</span>
-              <div class="db-docload-info">
-                <div class="n">${d.name}</div>
-                <div class="db-docload-bar"><span style="width:${Math.round(d.done / d.total * 100)}%;background:${d.c}"></span></div>
-              </div>
-              <span class="db-docload-num num-fa">${fa(d.done)}<i>/</i>${fa(d.total)}</span>
-            </div>`).join('')}
-          </div>
-        </div>
-      </div>
-
-      <!-- Live queue + species + alerts -->
-      <div class="grid-2c mt-20 reveal" style="grid-template-columns: 1fr 1fr 1fr;">
-        <div class="card hoverable">
-          <div class="card-header">
-            <h3>صف زندهٔ امروز</h3>
-            <a href="reception.html" class="link-more">پذیرش ←</a>
-          </div>
-          <div class="db-queue">
-            ${CLINIC.QUEUE.filter(q => ['waiting','called','inVisit'].includes(q.state)).slice(0, 5).map(q => `
-            <div class="db-queue-row" tabindex="0" onclick="navigateTo('reception.html')">
-              <span class="avatar-pet ${q.pet.av}">${q.pet.name[0]}</span>
-              <div class="db-queue-info">
-                <div class="n">${q.pet.name} <span class="db-queue-kind">${q.pet.kind}</span></div>
-                <div class="s">${q.pet.owner}</div>
-              </div>
-              <span class="pill pill-${q.prio === 'urgent' ? 'danger' : q.state === 'inVisit' ? 'warn' : q.state === 'called' ? 'info' : 'mute'}">${q.prio === 'urgent' ? 'اورژانس' : q.state === 'inVisit' ? 'در ویزیت' : q.state === 'called' ? 'فراخوانده' : 'در انتظار'}</span>
-            </div>`).join('')}
-          </div>
-        </div>
-
+        <!-- بیماران بر اساس گونه (دونات چندحلقه) -->
         <div class="card hoverable">
           <div class="card-header">
             <h3>بیماران بر اساس گونه</h3>
@@ -153,13 +87,133 @@
             <div class="species-legend" id="speciesLegend"></div>
           </div>
         </div>
+      </div>
+
+      <!-- ===== ردیف KPI: چهار کارت آمار با آیکون پاستلی (سبک نمونه) ===== -->
+      <div class="stats-grid reveal" style="margin-top:18px">
+        ${[
+          { delta: '۲۴٪↑', icon: 'arrowUpRight', tone: '', deltaCls: '',
+            value: '86.4', dec: 1, suffix: ' م', label: 'درآمد امروز', foot: 'هدف: ۷۵ م تومان', spark: '4,6,5,7,6,9,10', sc: '#5B42F3' },
+          { delta: '۸٪↑', icon: 'users', tone: 'lilac', deltaCls: '',
+            value: '1284', label: 'بیماران فعال', foot: '۲۷ پرونده جدید این ماه', spark: '3,4,4,5,6,7,8', sc: '#FA6432' },
+          { delta: '۷۵٪', icon: 'chart', tone: 'info', deltaCls: '',
+            value: '18', suffix: ' ویزیت', label: 'ویزیت‌های امروز', foot: '۱۲ انجام‌شده · ۶ در صف', spark: '2,4,3,5,4,6,6', sc: '#8B5CF6' },
+          { delta: '۲٫۱٪↓', icon: 'alert', tone: 'danger', deltaCls: 'down',
+            value: '3', label: 'هشدار موجودی', foot: 'نیازمند تأمین فوری', spark: '6,5,7,4,5,3,3', sc: '#22C55E' },
+        ].map(s => `
+        <div class="stat" data-spark="${s.spark}" data-spark-color="${s.sc}">
+          <div class="stat-head">
+            <div class="stat-icon ${s.tone}">${I(s.icon)}</div>
+            <span class="stat-delta ${s.deltaCls}">${s.delta}</span>
+          </div>
+          <div class="stat-value num-fa" data-count="${s.value}" ${s.dec ? `data-dec="${s.dec}"` : ''} ${s.suffix ? `data-suffix="${s.suffix}"` : ''}>${s.value}</div>
+          <div class="stat-label">${s.label}</div>
+          <div class="stat-foot num-fa">${s.foot}</div>
+        </div>`).join('')}
+      </div>
+
+      <!-- ===== نمای روزانه + ستون راست (بار کاری کانالی + بنر) ===== -->
+      <div class="au-grid main-split reveal" style="margin-top:4px">
+        <!-- ستون چپ: نمای روزانه با دکمهٔ خروجی + دو کارت حلقه‌ای -->
+        <div>
+          <div class="au-overview-head">
+            <h3>نمای روزانه</h3>
+            <button class="au-export-btn" onclick="navigateTo('reports.html')">${I('download') || I('printer') || ''}<span>خروجی</span></button>
+          </div>
+          <div class="au-daily">
+            <!-- درآمد امروز نسبت به هدف -->
+            <div class="card hoverable au-daily-card">
+              <div class="au-daily-col">
+                <div class="v num-fa">۸۶٫۴ م</div>
+                <div class="l">امروز</div>
+              </div>
+              <div class="au-ring">
+                <svg viewBox="0 0 74 74"><circle class="trk" cx="37" cy="37" r="32"/><circle class="val" cx="37" cy="37" r="32" style="--pct:88;stroke:#5B42F3"/></svg>
+                <span class="au-ring-lbl" style="color:#5B42F3">درآمد</span>
+              </div>
+              <div class="au-daily-col">
+                <div class="v num-fa">۷۵ م</div>
+                <div class="l">هدف</div>
+              </div>
+            </div>
+            <!-- ویزیت‌های انجام‌شده نسبت به کل -->
+            <div class="card hoverable au-daily-card">
+              <div class="au-daily-col">
+                <div class="v num-fa">۱۲</div>
+                <div class="l">انجام‌شده</div>
+              </div>
+              <div class="au-ring">
+                <svg viewBox="0 0 74 74"><circle class="trk" cx="37" cy="37" r="32"/><circle class="val" cx="37" cy="37" r="32" style="--pct:67;stroke:#FA6432"/></svg>
+                <span class="au-ring-lbl" style="color:#FA6432">ویزیت</span>
+              </div>
+              <div class="au-daily-col">
+                <div class="v num-fa">۱۸</div>
+                <div class="l">کل امروز</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ستون راست: بار کاری پزشکان (جدول نواری) + بنر -->
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="card hoverable">
+            <div class="card-header">
+              <h3>بار کاری پزشکان امروز</h3>
+              <span class="muted">نوبت انجام‌شده / کل</span>
+            </div>
+            <div class="au-channel">
+              <div class="au-channel-head">
+                <span>پزشک</span><span>بار کاری (٪)</span><span>تعداد</span>
+              </div>
+              ${[
+                { name: 'دکتر آریا نیک', done: 5, total: 7, c: '#5B42F3' },
+                { name: 'دکتر مینا همتی', done: 3, total: 6, c: '#FA6432' },
+                { name: 'دکتر سهیل کاویانی', done: 4, total: 5, c: '#22C55E' },
+              ].map(d => `
+              <div class="au-channel-row">
+                <span class="au-channel-name">${d.name}</span>
+                <div class="au-channel-track"><span style="width:${Math.round(d.done / d.total * 100)}%;background:${d.c}"></span></div>
+                <span class="au-channel-val num-fa">${fa(d.done)}/${fa(d.total)}</span>
+              </div>`).join('')}
+            </div>
+          </div>
+
+          <div class="card hoverable au-banner">
+            <div class="au-banner-txt">
+              <h3>هشدارهای مدیریتی</h3>
+              <p>۳ کمبود موجودی · ۲ چک سررسید · ۶ واکسن</p>
+            </div>
+            <button class="btn btn-primary" onclick="navigateTo('reports.html')">مشاهده</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ردیف پایین: صف زنده + هشدارها + دسترسی سریع ===== -->
+      <div class="au-grid triple reveal" style="margin-top:18px">
+        <div class="card hoverable">
+          <div class="card-header">
+            <h3>صف زندهٔ امروز</h3>
+            <a href="reception.html" class="link-more">پذیرش ←</a>
+          </div>
+          <div class="db-queue" style="padding:4px 22px 16px">
+            ${CLINIC.QUEUE.filter(q => ['waiting','called','inVisit'].includes(q.state)).slice(0, 5).map(q => `
+            <div class="db-queue-row" tabindex="0" onclick="navigateTo('reception.html')">
+              <span class="avatar-pet ${q.pet.av}">${q.pet.name[0]}</span>
+              <div class="db-queue-info">
+                <div class="n">${q.pet.name} <span class="db-queue-kind">${q.pet.kind}</span></div>
+                <div class="s">${q.pet.owner}</div>
+              </div>
+              <span class="pill pill-${q.prio === 'urgent' ? 'danger' : q.state === 'inVisit' ? 'warn' : q.state === 'called' ? 'info' : 'mute'}">${q.prio === 'urgent' ? 'اورژانس' : q.state === 'inVisit' ? 'در ویزیت' : q.state === 'called' ? 'فراخوانده' : 'در انتظار'}</span>
+            </div>`).join('')}
+          </div>
+        </div>
 
         <div class="card hoverable">
           <div class="card-header">
             <h3>هشدارهای مدیریتی</h3>
-            <span class="muted" style="font-size:11px">نیازمند اقدام</span>
+            <span class="muted">نیازمند اقدام</span>
           </div>
-          <div class="db-alerts">
+          <div class="db-alerts" style="padding:4px 22px 16px">
             ${[
               { tone: 'danger', icon: 'alert', t: '۳ قلم کالا زیر حد بحرانی', s: 'سرم، آنتی‌بیوتیک، پوشک — سفارش تأمین' },
               { tone: 'warn', icon: 'cheque', t: '۲ چک سررسید نزدیک', s: '۴۵ م تومان — بررسی وضعیت' },
@@ -176,15 +230,14 @@
             </div>`).join('')}
           </div>
         </div>
-      </div>
 
-      <!-- Quick access -->
-      <div class="card hoverable mt-20 reveal">
-        <div class="card-header">
-          <h3>دسترسی سریع به بخش‌های مهم</h3>
-          <span class="muted" style="font-size:11px">کلید <kbd style="font-family:inherit;font-size:10px;border:1px solid var(--line);border-radius:6px;padding:0 5px">Alt</kbd> + شماره</span>
+        <div class="card hoverable">
+          <div class="card-header">
+            <h3>دسترسی سریع</h3>
+            <span class="muted">کلید Alt + شماره</span>
+          </div>
+          <div class="quick-grid" id="quickGrid"></div>
         </div>
-        <div class="quick-grid" id="quickGrid"></div>
       </div>
     `;
   };
