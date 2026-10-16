@@ -5,12 +5,54 @@
 
     <!-- Matches Animora-UI's .modal-backdrop + .modal: dim/blur backdrop,
          centered rounded panel with pop shadow. Content is supplied by
-         IDialogService.ShowModal(); this control only owns the chrome. -->
+         IDialogService.ShowModal(); this control only owns the chrome.
+
+         Open animation (minimal / modern): the backdrop fades in while the panel
+         "pops" — a short upward nudge plus a subtle scale from 0.96 → 1. Both are
+         declarative Avalonia transitions (compositor-driven, no UI-thread work),
+         toggled by the `open` class one frame after the host is shown so the
+         transition always has a from→to delta to tween. See ModalHost.axaml.cs. -->
+    <UserControl.Styles>
+        <!-- Backdrop: starts transparent, fades to the dim tint. -->
+        <Style Selector="Border.modal-backdrop">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.modal-backdrop.open">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <!-- Panel: resting state is nudged down a touch and scaled slightly in,
+             fully transparent; the open state settles to its natural pose. -->
+        <Style Selector="Border.modal-panel">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="translateY(8px) scale(0.96)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut" />
+                    <TransformOperationsTransition Property="RenderTransform"
+                                                   Duration="0:0:0.22" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.modal-panel.open">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="RenderTransform" Value="translateY(0px) scale(1)" />
+        </Style>
+    </UserControl.Styles>
+
     <Panel>
         <Border x:Name="Backdrop"
+                Classes="modal-backdrop"
                 Background="#59101828"
                 PointerPressed="OnBackdropPressed" />
         <Border x:Name="Panel"
+                Classes="modal-panel"
                 Background="{StaticResource PanelBrush}"
                 CornerRadius="{StaticResource RadiusLg}"
                 BoxShadow="{StaticResource ShadowPop}"
