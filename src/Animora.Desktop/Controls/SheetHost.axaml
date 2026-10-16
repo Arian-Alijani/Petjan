@@ -8,12 +8,50 @@
          backdrop with a centered, elevated rounded surface that scales in.
          Owner File (680×760) and Patient File (1120×880) are BOTH sheets in the
          reference — not full pages — so this host owns their chrome. Content is
-         supplied by IDialogService.ShowSheet(); the host only manages the frame. -->
+         supplied by IDialogService.ShowSheet(); the host only manages the frame.
+
+         Open animation: identical "pop" language to ModalHost (backdrop fade +
+         panel fade/scale from 0.96 → 1) so every overlay in the app opens the
+         same way. Declarative compositor transitions toggled by the `open`
+         class one frame after show — see SheetHost.axaml.cs. -->
+    <UserControl.Styles>
+        <Style Selector="Border.sheet-backdrop">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.18" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.sheet-backdrop.open">
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+
+        <Style Selector="Border.sheet-panel">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="RenderTransform" Value="translateY(10px) scale(0.96)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut" />
+                    <TransformOperationsTransition Property="RenderTransform"
+                                                   Duration="0:0:0.24" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.sheet-panel.open">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="RenderTransform" Value="translateY(0px) scale(1)" />
+        </Style>
+    </UserControl.Styles>
+
     <Panel>
         <Border x:Name="Backdrop"
+                Classes="sheet-backdrop"
                 Background="#6B101828"
                 PointerPressed="OnBackdropPressed" />
         <Border x:Name="Panel"
+                Classes="sheet-panel"
                 Background="White"
                 CornerRadius="28"
                 BoxShadow="0 24 70 0 #47101828, 0 4 14 0 #1F101828"
