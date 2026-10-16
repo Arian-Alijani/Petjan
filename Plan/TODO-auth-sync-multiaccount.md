@@ -101,6 +101,43 @@ clinic A's unsynced data must be preserved (isolated) so they can return and syn
 
 ---
 
+### VERIFIED call‑chain facts (gathered 2026‑10‑16, so T2/T3 need no re‑investigation)
+- `ILocalStoreMaintenance.EnsureBoundToAsync(string tenantId, CancellationToken ct)`
+  (`src/Animora.Persistence.Sqlite/Maintenance/ILocalStoreMaintenance.cs:9`) is the ONLY tenant‑bind
+  entry point. It is called from exactly two places:
+  - `OnlineAuthClient.LoginAsync` (`src/Animora.Client.Services/Identity/OnlineAuthClient.cs:74‑76`)
+    inside a `scopes.CreateAsyncScope()`; a failure returns the login as failed.
+  - `OfflineSessionAuthorizer` (`src/Animora.Client.Services/Identity/OfflineSessionAuthorizer.cs:47`).
+- `EnsureBoundToAsync` today performs a **row‑level wipe** (not a file swap): same‑tenant → `state.Set`
+  + `Ok`; different‑tenant → under `TransitionGate` + a transaction it (1) hard‑fails with
+  `SyncPendingChanges`/`tenant_switch_requires_settlement` if any `PendingCommand.Status` is not
+  `Settled`/`Reversed` (`LocalStoreMaintenance.cs:78‑80`), else (2) `DELETE FROM` every table except
+  `LocalInstallation`+`Permission`, (3) `installation.BindTenant(tenantId)`, (4) re‑seed Tenant +
+  RoleDefinitions, (5) reset appointment‑settings sidecar, (6) commit, (7) `state.Set`, clear
+  `SessionContextCache`, invalidate `IClinicTimeZoneProvider`.
+- The store is a SINGLE encrypted SQLite file at `LocalStoreOptions.DatabasePath`; sidecars are the
+  `-wal`/`-shm` files (`SideSuffixes = ["","-wal","-shm"]`) and the appointment‑settings JSON
+  (`SettingsSidecarSuffix`). `Store.DataDirectory` = the dir containing the db.
+- Existing reusable file plumbing in `LocalStoreMaintenance`: `Open(path, sessionPragmas)` (keyed
+  connection), `source.BackupDatabase(destination)` (hot copy, used by `BackupAsync`), `QuickCheck`,
+  `MoveToQuarantine`, `UniquePath`, `SqliteConnection.ClearAllPools()`. Use these — do not hand‑roll.
+- `IDialogService` (`src/Animora.Desktop/Services/IDialogService.cs`) has NO built‑in confirm; reuse the
+  existing **`ConfirmDialogViewModel`** (`src/Animora.Desktop/Pages/Sales/Shared/ConfirmDialogViewModel.cs`)
+  — ctor `(IDialogService, tone, iconKey, title, bodyLead, bodyStrong, bodyTrail, bodyNote, confirmLabel,
+  cancelLabel, Action? onConfirm)`; it closes the dialog then invokes `onConfirm`. Show it via
+  `_dialogs.ShowModal(vm, 520)`. Tones: `danger|warn|brand|neutral`.
+- Pending count for the message: `PendingCommandSummaryQuery` → `PendingCommandSummary.Total`
+  (`src/Animora.Application/UseCases/Sync/PendingCommandSummaryQuery.cs`). LoginViewModel does not yet
+  take an `IDispatcher`/mediator; `IAuthenticationService` is what it holds. Simplest: thread the count
+  through the `SyncPendingChanges` failure detail OR add a tiny query port the VM can call. **Chosen:
+  put the count in the failure `Detail`** (format `tenant_switch_requires_settlement:<N>`) so no new VM
+  dependency is needed — `EnsureBoundToAsync` already has the db to `Count()` the unsettled commands.
+- `OnlineLoginOutcome` (`IOnlineAuthClient.cs:12`) is a record; `MapError` lives in `LoginViewModel`
+  (`:353`) and already has a `SYNC_PENDING_CHANGES` Persian string (`:398`) — that string becomes the
+  dialog body, not a dead‑end error, after T3.
+
+---
+
 ## 2. DECISIONS (so the implementing model does not re‑derive them)
 
 **Fix A — reconcile StaffMembership on its business key (chosen).**
@@ -174,31 +211,80 @@ Keep the single‑tenant model; add a **per‑tenant stash** of the whole local 
     or `repl_staging`). Do NOT run the full/long test suite — only the targeted test.
   - (push) `fix(sync): reconcile StaffMembership by business key so server row supersedes local mirror`
 
-- [ ] **T2. Fix BUG B + Task3 — allow clinic switch, preserve outgoing clinic's unsynced data.**
-  - File: `src/Animora.Persistence.Sqlite/Maintenance/LocalStoreMaintenance.cs` (`EnsureBoundToAsync`
-    and new stash/restore helpers reusing `Open`/`BackupDatabase`/`SideSuffixes`/quarantine plumbing).
-  - Behaviour: on switch‑away with unsettled commands → stash by tenant; on bind‑to a tenant with a
-    stash → restore it; strict per‑tenant isolation. See §2 Fix B for the exact contract and the
-    minimum‑acceptable fallback.
-  - Add an explicit opt‑in signal (parameter/flag or a separate method) so the destructive/stash path
-    only runs when the user confirmed in the UI (wired in T3). Default = current safe behaviour
-    (still fail with `SYNC_PENDING_CHANGES`) when not confirmed, so nothing regresses.
-  - Validate with a targeted maintenance test (stash A → switch to B → switch back to A restores A's
-    pending commands; B never sees A's rows). Targeted test only.
+- [ ] **T2. Fix BUG B + Task 2/3 — allow clinic switch, preserve outgoing clinic's unsynced data.**
+  File: `src/Animora.Persistence.Sqlite/Maintenance/LocalStoreMaintenance.cs` + the interface
+  `ILocalStoreMaintenance.cs`. Chosen mechanism (file‑level per‑tenant stash, reusing existing plumbing):
+  - **Signature change:** add an overload/optional param
+    `EnsureBoundToAsync(string tenantId, bool preserveOutgoingUnsynced, CancellationToken ct)`
+    (keep the old 2‑arg signature delegating with `preserveOutgoingUnsynced: false` so
+    `OfflineSessionAuthorizer` and tests do not change). Update `ILocalStoreMaintenance`.
+  - **Pending detail with count (for T3):** when the different‑tenant branch finds unsettled commands
+    AND `preserveOutgoingUnsynced == false`, keep failing but put the count in the detail:
+    `Result.Fail(ErrorCodes.SyncPendingChanges, $"tenant_switch_requires_settlement:{count}")` where
+    `count = await db.Set<PendingCommand>().IgnoreQueryFilters().CountAsync(x => x.Status != Settled && x.Status != Reversed, ct)`.
+  - **Stash on switch‑away (preserve == true):** BEFORE the wipe, if the current (outgoing)
+    `installation.TenantId` is a real tenant (not `DefaultTenantId`), hot‑copy the live db to a
+    per‑tenant stash path and snapshot the settings sidecar:
+    `stashDb = <DataDirectory>/clinics/<outgoingTenantId>/animora.db` (via `Directory.CreateDirectory`
+    + `UniquePath`‑style but DETERMINISTIC per tenant — overwrite the previous stash for that tenant so
+    only the latest state is kept). Implement `StashCurrentAsync(outgoingTenantId, ct)` using
+    `using var src = Open(Store.DatabasePath); using var dst = Open(stashDb, sessionPragmas:false);
+    src.BackupDatabase(dst);` then copy the `SettingsSidecarSuffix` file next to `stashDb` if present.
+    `QuickCheck(stashDb)` must be `"ok"` or fail the whole switch (never wipe without a good stash).
+  - **Restore on bind‑to (always, independent of the flag):** at the top of the different‑tenant branch,
+    if `<DataDirectory>/clinics/<tenantId>/animora.db` exists and `QuickCheck` = ok, RESTORE it instead
+    of wiping‑to‑empty: after the normal wipe of the live file is not needed — instead copy the stash
+    over the live db (`SqliteConnection.ClearAllPools()`, close EF connections first), re‑open, verify
+    the restored `LocalInstallation.TenantId == tenantId`, then DELETE the consumed stash folder. Because
+    restoring replaces the whole file the destructive table‑wipe path is skipped for that case. Keep the
+    seed‑Tenant/RoleDefinition path ONLY for the no‑stash (brand‑new clinic) case.
+  - **Hard isolation:** a stash dir is named strictly by `tenantId`; a restore only ever loads
+    `clinics/<tenantId>/…`. Never read another tenant's folder. One clinic's rows can never surface in
+    another because each stash is a complete, separate encrypted db file.
+  - **Minimum‑acceptable fallback** (if the full file‑swap restore proves too large in one pass): still
+    (a) add the flag + count detail, (b) when `preserve == true` STASH the outgoing db with
+    `BackupDatabase` to `clinics/<outgoingTenantId>/` before the existing row‑wipe, (c) on bind‑to a
+    tenant that has a stash, log it and leave a clearly‑named backup so nothing is lost (manual restore).
+    Never silently discard unsynced data.
+  - **Order of operations (critical):** drain `TransitionGate` (already held), snapshot/close EF conns,
+    stash outgoing → restore incoming OR wipe+seed → `BindTenant` → commit → publish `state.Set`, clear
+    `SessionContextCache`, invalidate zone. A failure before commit must leave the live store on the OLD
+    tenant (do not delete a stash until after the successful bind that consumed it).
+  - Validate with a targeted maintenance test in `tests/` (find an existing `LocalStoreMaintenance`/
+    `EnsureBoundTo` test to extend): bind A, write a pending command, switch to B with
+    `preserveOutgoingUnsynced:true`, assert B is empty of A's pending; switch back to A, assert A's
+    pending command is restored and B's rows are absent. Targeted test only — NO full/long suite.
   - (push) `feat(store): isolate & preserve per-clinic unsynced data across tenant switch`
 
-- [ ] **T3. Fix UX (Task 1 & 3) — clean warning + switch affordance in login.**
-  - Files: `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` (+ its `.axaml` if a dialog is needed),
-    `IDialogService` for the confirm dialog, `PendingCommandSummaryQuery` for the count.
-  - When `EstablishServerSessionAsync` would fail with `SYNC_PENDING_CHANGES`, show a clean Persian
-    confirm dialog ("این کلینیک N تغییر همگام‌نشده دارد … بازگشت و همگام‌سازی / ورود به کلینیک دیگر و
-    نگه‌داری تغییرات برای بعد"). On "switch anyway" → re‑drive login with the confirmed flag so T2's
-    stash+switch path runs; then continue the normal mirror + local sign‑in.
-  - Also ensure Task 1 (same machine, multiple user accounts of the SAME clinic, e.g. doctor then
-    cashier) stays seamless — that path does NOT switch tenants (same tenantId), so after T1 it should
-    be clean. Verify no regression: logging in as ryan (Doctor) then mamad (Cashier) on the same
-    tenant must not produce the StaffMembership skip anymore and must keep data integrity.
-  - Validate: targeted VM/dialog test or manual reasoning; no full build/long test.
+- [ ] **T3. Fix UX (Task 1 & 3) — clean warning + explicit switch affordance in login.**
+  File: `src/Animora.Desktop/Pages/Login/LoginViewModel.cs` only (reuse existing
+  `ConfirmDialogViewModel`; no new axaml needed).
+  - Thread the confirm choice into the online login so T2's `preserveOutgoingUnsynced` runs. Minimal
+    approach without widening `IOnlineAuthClient`: add a private `bool _confirmedClinicSwitch` field on
+    the VM, and in `EstablishServerSessionAsync` pass it through — BUT `IOnlineAuthClient.LoginAsync`
+    does not take the flag. Chosen: widen `IOnlineAuthClient.LoginAsync` + `OnlineAuthClient.LoginAsync`
+    with an optional `bool preserveUnsyncedOnSwitch = false` param forwarded to
+    `EnsureBoundToAsync(login.TenantId, preserveUnsyncedOnSwitch, ct)`. (Only two impls — real + any test
+    double; keep the default so nothing else changes.)
+  - Flow in `SignInAsync`: on the FIRST attempt `_confirmedClinicSwitch = false`. If
+    `EstablishServerSessionAsync` fails and `result.Error.Code == SYNC_PENDING_CHANGES`, DO NOT just set
+    `ErrorMessage`; parse N from the detail (`tenant_switch_requires_settlement:<N>`) and show a
+    `ConfirmDialogViewModel` (tone `warn`): title «ورود به کلینیک دیگر», body «این کلینیک N تغییر
+    همگام‌نشده دارد. می‌توانید به همان کلینیک برگردید و همگام‌سازی را کامل کنید، یا به کلینیک دیگر وارد
+    شوید؛ تغییرات این کلینیک حفظ و دفعهٔ بعد که برگشتید همگام می‌شوند.», confirm «ورود و حفظ تغییرات»,
+    cancel «بازگشت». `onConfirm` sets `_confirmedClinicSwitch = true` and re‑invokes `SignInCommand`
+    (re‑drives the whole sign‑in; on the retry the flag makes T2 stash+switch).
+  - Keep a safety net: if the server session still returns `SYNC_PENDING_CHANGES` even with the flag
+    true (should not happen), fall back to the current `ErrorMessage` so there is no infinite loop
+    (guard: only prompt when `!_confirmedClinicSwitch`).
+  - **Task 1 (same machine, multiple SAME‑clinic users: ryan Doctor → mamad Cashier → owner2 Manager):**
+    this path keeps the SAME `tenantId`, so `EnsureBoundToAsync` short‑circuits (`installation.TenantId
+    == tenantId` → `state.Set` + `Ok`) and never wipes — after T1 the StaffMembership skip is gone and
+    data integrity holds. No code needed here beyond confirming the StaffMembership purge (T1) covers the
+    Cashier/Manager server rows too (log shows the same skip for mamad/owner2 — T1's business‑key purge
+    is role‑agnostic, so it does). State this in the commit body.
+  - Validate: targeted VM reasoning / a small VM test if an existing LoginViewModel test harness exists;
+    otherwise rely on CI build + the T2 maintenance test. No full/long test.
   - (push) `feat(login): clear unsynced-data warning with explicit clinic-switch choice`
 
 - [ ] **T4. Final — delete this plan file.**
