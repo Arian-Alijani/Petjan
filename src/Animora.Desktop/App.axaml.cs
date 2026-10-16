@@ -357,6 +357,12 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<INavigationService, NavigationService>();
         services.AddSingleton<IDataChangeNotifier, DataChangeNotifier>();
 
+        // Device-level (pre-login) preferences: «مرا بخاطر بسپار» (auto-restore the last session on next launch)
+        // and «اجرای خودکار هنگام روشن شدن ویندوز». Both are stored in device-prefs.json beside the DB so they
+        // can be read BEFORE any user signs in, and the Windows-startup toggle is the OS Run-key seam.
+        services.AddSingleton<Animora.Contracts.Device.IDevicePreferencesService, Animora.Client.Services.Device.DevicePreferencesFileStore>();
+        services.AddSingleton<Animora.Contracts.Device.IStartupRegistration, Animora.Client.Services.Device.WindowsStartupRegistration>();
+
         // D14: a background sync pass writes straight into the local store, so the open page must be told — this
         // bridge re-announces a completed pass on the same DataChangeNotifier channel the local write path uses.
         services.AddSingleton<SyncChangeBridge>();
