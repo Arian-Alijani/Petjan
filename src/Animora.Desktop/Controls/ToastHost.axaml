@@ -4,37 +4,90 @@
              x:Class="Animora.Desktop.Controls.ToastHost"
              HorizontalAlignment="Right"
              VerticalAlignment="Top"
+             FlowDirection="RightToLeft"
              IsHitTestVisible="False">
 
-    <!-- Matches Animora-UI's .toast-host: fixed top-corner stack of
-         .toast items (icon + text, popup shadow). Bind ItemsSource to
-         ToastService.Toasts from the composition root. -->
+    <!-- Top-corner stack of transient notifications. Each toast is a minimal,
+         modern card: a tone-coloured accent bar, a soft tinted icon chip and a
+         bold message line, lifted off the surface by a soft pop shadow. The card
+         animates in (fade + slide down) and out (fade + slide up) via the
+         `.toast` / `.toast.open` style selectors below, driven by the message's
+         IsOpen flag set by ToastService. -->
+    <UserControl.Styles>
+        <!-- Resting (closed) state: fully transparent, nudged up a touch so the
+             enter tween reads as a gentle downward glide. -->
+        <Style Selector="Border.toast">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="RenderTransform" Value="translateY(-10px)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.26" Easing="CubicEaseOut" />
+                    <TransformOperationsTransition Property="RenderTransform"
+                                                   Duration="0:0:0.26" Easing="CubicEaseOut" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <!-- Open state: settle to full opacity at its natural position. -->
+        <Style Selector="Border.toast.open">
+            <Setter Property="Opacity" Value="1" />
+            <Setter Property="RenderTransform" Value="translateY(0px)" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Bind ItemsSource to ToastService.Toasts from the composition root. -->
     <ItemsControl x:Name="Items" Margin="18">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-                <StackPanel Spacing="{StaticResource Spacing8}" />
+                <StackPanel Spacing="{StaticResource Spacing12}" />
             </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
             <DataTemplate DataType="controls:ToastMessage">
-                <Border Background="{StaticResource PanelBrush}"
+                <Border Classes="toast"
+                        Classes.open="{Binding IsOpen}"
+                        MinWidth="280"
+                        MaxWidth="400"
+                        Background="{StaticResource PanelBrush}"
                         BorderBrush="{StaticResource LineBrush}"
                         BorderThickness="1"
-                        CornerRadius="12"
+                        CornerRadius="14"
                         BoxShadow="{StaticResource ShadowPop}"
-                        Padding="16,12">
-                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Spacing8}">
-                        <Path Classes="icon"
-                              Data="{Binding Icon}"
-                              Width="18"
-                              Height="18"
-                              Stroke="{StaticResource Brand600Brush}" />
-                        <TextBlock Text="{Binding Text}"
+                        ClipToBounds="True">
+                    <Grid ColumnDefinitions="4,Auto,*">
+                        <!-- Tone accent bar down the leading edge. -->
+                        <Border Grid.Column="0"
+                                Background="{Binding AccentBrush}"
+                                VerticalAlignment="Stretch" />
+
+                        <!-- Tinted icon chip. -->
+                        <Border Grid.Column="1"
+                                Width="34" Height="34"
+                                Margin="14,13,0,13"
+                                CornerRadius="10"
+                                Background="{Binding IconBackground}"
+                                VerticalAlignment="Center">
+                            <Path Data="{Binding Icon}"
+                                  Width="18" Height="18"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Stroke="{Binding AccentBrush}"
+                                  StrokeThickness="1.8"
+                                  StrokeLineCap="Round"
+                                  StrokeJoin="Round" />
+                        </Border>
+
+                        <!-- Message. -->
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding Text}"
+                                   Margin="12,13,16,13"
                                    FontSize="{StaticResource FontSizeSm}"
-                                   FontWeight="Bold"
+                                   FontWeight="SemiBold"
+                                   LineHeight="19"
+                                   TextWrapping="Wrap"
                                    Foreground="{StaticResource InkBrush}"
                                    VerticalAlignment="Center" />
-                    </StackPanel>
+                    </Grid>
                 </Border>
             </DataTemplate>
         </ItemsControl.ItemTemplate>
