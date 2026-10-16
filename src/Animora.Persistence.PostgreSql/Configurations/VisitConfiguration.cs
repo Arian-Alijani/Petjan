@@ -26,6 +26,11 @@ public sealed class VisitConfiguration : IEntityTypeConfiguration<Visit>
         // Service lines have no materialization constructor; keep their immutable snapshot as jsonb.
         builder.Ignore(e => e.ServiceLines);
         JsonFields.Map<Visit, VisitServiceLine>(builder, "_serviceLines", "ServiceLines");
+        // Radiology studies + lab result sheets: immutable JSON lists on the visit row (replicated with it).
+        builder.Ignore(e => e.Radiology);
+        JsonFields.Map<Visit, RadiologyRecord>(builder, "_radiology", "Radiology");
+        builder.Ignore(e => e.LabResults);
+        JsonFields.Map<Visit, LabResult>(builder, "_labResults", "LabResults");
     }
 }
 

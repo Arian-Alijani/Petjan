@@ -81,6 +81,8 @@ public sealed class Visit : AggregateRoot
 {
     private readonly List<PrescriptionLine> _prescriptions = [];
     private readonly List<VisitServiceLine> _serviceLines = [];
+    private readonly List<RadiologyRecord> _radiology = [];
+    private readonly List<LabResult> _labResults = [];
 
     /// <summary>EF Core materialization constructor. Not for business code.</summary>
     private Visit()
@@ -137,6 +139,12 @@ public sealed class Visit : AggregateRoot
 
     /// <summary>Billable lines — the payload Sales converts into invoice lines.</summary>
     public IReadOnlyList<VisitServiceLine> ServiceLines => _serviceLines;
+
+    /// <summary>Radiology studies recorded during the encounter.</summary>
+    public IReadOnlyList<RadiologyRecord> Radiology => _radiology;
+
+    /// <summary>Laboratory result sheets recorded during the encounter.</summary>
+    public IReadOnlyList<LabResult> LabResults => _labResults;
 
     /// <summary><see langword="true"/> once the lines may no longer change.</summary>
     public bool AreLinesLocked => State >= VisitState.Invoiced;
@@ -253,6 +261,34 @@ public sealed class Visit : AggregateRoot
         return RemoveLine(_serviceLines, static l => l.LineId, lineId);
     }
 
+    /// <summary>Records a radiology study. Refused once the encounter is closed or when the id already exists.</summary>
+    public Result AddRadiology(RadiologyRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        return AddClinicalRecord(_radiology, record, static r => r.Id);
+    }
+
+    /// <summary>Removes a radiology study by its id. Refused once the encounter is closed.</summary>
+    public Result RemoveRadiology(string radiologyId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(radiologyId);
+        return RemoveClinicalRecord(_radiology, static r => r.Id, radiologyId);
+    }
+
+    /// <summary>Records a laboratory result sheet. Refused once the encounter is closed or when the id already exists.</summary>
+    public Result AddLabResult(LabResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        return AddClinicalRecord(_labResults, result, static r => r.Id);
+    }
+
+    /// <summary>Removes a laboratory result sheet by its id. Refused once the encounter is closed.</summary>
+    public Result RemoveLabResult(string labResultId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(labResultId);
+        return RemoveClinicalRecord(_labResults, static r => r.Id, labResultId);
+    }
+
     /// <summary>
     /// Closes the encounter clinically. A diagnosis is mandatory — an encounter without one is an
     /// incomplete medical record, so this returns <c>VISIT_DIAGNOSIS_REQUIRED</c>.
@@ -364,6 +400,42 @@ public sealed class Visit : AggregateRoot
         AreLinesLocked
             ? Result.Fail(ErrorCodes.VisitLocked, $"Visit '{Id}' is {State}; its lines are final.")
             : Result.Ok();
+
+    private Result AddClinicalRecord<T>(List<T> records, T record, Func<T, string> idOf)
+    {
+        var guard = EnsureOpen();
+        if (guard.IsFailure)
+        {
+            return guard;
+        }
+
+        var id = idOf(record);
+        if (records.Exists(r => string.Equals(idOf(r), id, StringComparison.Ordinal)))
+        {
+            return Result.Fail(ErrorCodes.ValidationFailed, $"Record '{id}' already exists on visit '{Id}'.");
+        }
+
+        records.Add(record);
+        return Result.Ok();
+    }
+
+    private Result RemoveClinicalRecord<T>(List<T> records, Func<T, string> idOf, string recordId)
+    {
+        var guard = EnsureOpen();
+        if (guard.IsFailure)
+        {
+            return guard;
+        }
+
+        var index = records.FindIndex(r => string.Equals(idOf(r), recordId, StringComparison.Ordinal));
+        if (index < 0)
+        {
+            return Result.Fail(ErrorCodes.NotFound, $"Record '{recordId}' is not on visit '{Id}'.");
+        }
+
+        records.RemoveAt(index);
+        return Result.Ok();
+    }
 
     private Result RemoveLine<T>(List<T> lines, Func<T, string> idOf, string lineId)
     {

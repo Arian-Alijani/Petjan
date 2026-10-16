@@ -21,5 +21,7 @@ public sealed record VisitSyncContract
     public string? CancellationReason { get; init; }
     public JsonElement Prescriptions { get; init; }
     public JsonElement ServiceLines { get; init; }
+    public JsonElement Radiology { get; init; }
+    public JsonElement LabResults { get; init; }
     public JsonElement BillingHandoffs { get; init; }
 }

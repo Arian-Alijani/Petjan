@@ -32,6 +32,10 @@ internal static class ServerHandlerModuleS07
         catalog.Add<RecordVaccinationReminderCommand>(CommandTypes.VaccinationRecordReminder, "VaccinationRecord");
         catalog.Add<AddPrescriptionLineCommand>(CommandTypes.VisitsRxAdd, "Visit");
         catalog.Add<RemovePrescriptionLineCommand>(CommandTypes.VisitsRxRemove, "Visit");
+        catalog.Add<AddRadiologyCommand>(CommandTypes.VisitsRadiologyAdd, "Visit");
+        catalog.Add<RemoveRadiologyCommand>(CommandTypes.VisitsRadiologyRemove, "Visit");
+        catalog.Add<AddLabResultCommand>(CommandTypes.VisitsLabAdd, "Visit");
+        catalog.Add<RemoveLabResultCommand>(CommandTypes.VisitsLabRemove, "Visit");
         catalog.Add<CompleteVisitCommand>(CommandTypes.VisitsVisitComplete, "Visit");
         catalog.Add<SaveVisitNoteCommand>(CommandTypes.VisitsVisitNote, "Visit");
         catalog.Add<StartVisitFromTicketCommand>(CommandTypes.VisitsVisitStart, "Visit");

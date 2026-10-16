@@ -11,7 +11,9 @@ namespace Animora.Application.UseCases.Visits;
 
 public sealed record EncounterEditReadModel(EncounterDraftReadModel Draft, PetVitals? Vitals,
     string History, string Exam, string Diagnosis, string Plan,
-    IReadOnlyList<VisitServiceLine> Lines);
+    IReadOnlyList<VisitServiceLine> Lines,
+    IReadOnlyList<RadiologyRecord> Radiology,
+    IReadOnlyList<LabResult> Labs);
 
 public sealed record EncounterSummaryReadModel(string EncounterId, string PatientName, string PatientKind,
     string DoctorId, string DoctorShortName, long Subtotal, long Tax, long Total, DateTimeOffset CompletedUtc);
@@ -52,7 +54,7 @@ public sealed class EncounterDraftQueryHandler(IVisitRepository visits, IPetRepo
         var (history, exam) = EncounterNoteSections.Split(visit.DoctorNotes);
         return Result<EncounterEditReadModel>.Ok(new EncounterEditReadModel(draft, visit.Vitals,
             history, exam, visit.Diagnosis ?? string.Empty, visit.TreatmentPlan ?? string.Empty,
-            visit.ServiceLines.ToArray()));
+            visit.ServiceLines.ToArray(), visit.Radiology.ToArray(), visit.LabResults.ToArray()));
     }
 }
 

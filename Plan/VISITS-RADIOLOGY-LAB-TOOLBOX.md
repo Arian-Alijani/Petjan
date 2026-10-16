@@ -183,7 +183,7 @@ new `Pages/Visits/VisitsPageEnums.cs`. Style source: `Pages/Patients/PatientsPag
 
 ---
 
-### [ ] T2 — Task 1: Radiology — backend (Domain + Application + persistence + sync)
+### [x] T2 — Task 1: Radiology — backend (Domain + Application + persistence + sync)
 **Goal:** Record radiology entries on a visit: date, result text, body part/organ, + image/file attachment(s).
 **Model (add to `src/Animora.Domain/Clinical/`):** new `RadiologyRecord` value object/record:
 `record RadiologyRecord(string Id, DateTimeOffset TakenUtc, string BodyPart, string? Result,
@@ -219,6 +219,12 @@ here** adding BOTH the `Radiology` and `LabResults` columns (reused by T5), each
 `Contracts.Wire/Commands/CommandTypes.cs`. (Attachments use `ILocalFileStore` — 0.6.)
 **Verify:** backend changed → `scripts/sandbox/build.sh full` 0/0.
 **Push:** `scripts/git/push.sh "feat(visits): radiology domain+command+journal+query backend"`
+
+> **T2 implementation notes (done):** the command's optional client id parameter is named `EntryId` (not `RecordId`, which the
+> clinical test fixture maps to a vaccination id). Both `Radiology` + `LabResults` records/commands/columns were created here
+> (domain `RadiologyRecord.cs` + `LabResult.cs`, `EncounterRadiologyLabCommands.cs`) together with SQLite migration `036`, PostgreSQL
+> migration `117`, the server payload catalog / permission table rows, the `VisitSyncContract` + `ReplicaMaterializer` columns (so the
+> pull side materialises them) and the extended `EncounterEditReadModel(…, Radiology, Labs)`. T5 therefore only needs to confirm them.
 
 ---
 

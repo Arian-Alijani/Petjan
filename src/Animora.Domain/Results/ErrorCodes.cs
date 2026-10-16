@@ -199,6 +199,8 @@ public static class ErrorCodes
     public static readonly ErrorCode VisitNotEditable = new("VISIT_NOT_EDITABLE", ErrorCode.Conflict);
     public static readonly ErrorCode VisitIncomplete = new("VISIT_INCOMPLETE", ErrorCode.Validation);
     public static readonly ErrorCode RxLineNotFound = new("RX_LINE_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode RadiologyNotFound = new("RADIOLOGY_NOT_FOUND", ErrorCode.NotFound);
+    public static readonly ErrorCode LabResultNotFound = new("LAB_RESULT_NOT_FOUND", ErrorCode.NotFound);
     public static readonly ErrorCode VaccinationNotFound = new("VACCINATION_NOT_FOUND", ErrorCode.NotFound);
     public static readonly ErrorCode VaccinationAlreadyDone = new("VACCINATION_ALREADY_DONE", ErrorCode.Conflict);
     public static readonly ErrorCode SmsTemplateTokenUnknown = new("SMS_TEMPLATE_TOKEN_UNKNOWN", ErrorCode.Validation);

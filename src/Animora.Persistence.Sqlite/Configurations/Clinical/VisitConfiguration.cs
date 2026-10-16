@@ -23,5 +23,10 @@ public sealed class VisitConfiguration : IEntityTypeConfiguration<Visit>
         Animora.Persistence.Sqlite.Conventions.JsonFields.Map<Visit, PrescriptionLine>(builder, "_prescriptions", "Prescriptions");
         builder.Ignore(e => e.ServiceLines);
         Animora.Persistence.Sqlite.Conventions.JsonFields.Map<Visit, VisitServiceLine>(builder, "_serviceLines", "ServiceLines");
+        // M036: radiology studies + lab result sheets are JSON lists on the visit row (replicated with it).
+        builder.Ignore(e => e.Radiology);
+        Animora.Persistence.Sqlite.Conventions.JsonFields.Map<Visit, RadiologyRecord>(builder, "_radiology", "Radiology");
+        builder.Ignore(e => e.LabResults);
+        Animora.Persistence.Sqlite.Conventions.JsonFields.Map<Visit, LabResult>(builder, "_labResults", "LabResults");
     }
 }

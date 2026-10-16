@@ -946,6 +946,8 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.Property<string>("InvoiceId").HasColumnType("text");
                 b.Property<string>("CancellationReason").HasColumnType("text");
                 b.Property<string>("_serviceLines").HasColumnName("ServiceLines").IsRequired().HasColumnType("jsonb");
+                b.Property<string>("_radiology").HasColumnName("Radiology").IsRequired().HasColumnType("jsonb");
+                b.Property<string>("_labResults").HasColumnName("LabResults").IsRequired().HasColumnType("jsonb");
                 b.HasKey("Id");
                 b.ToTable("Visits", "public");
                 b.HasIndex("TenantId", "PetId", "StartedUtc").HasDatabaseName("IX_Visits_TenantId_PetId_StartedUtc");

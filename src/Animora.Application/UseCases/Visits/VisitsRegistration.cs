@@ -25,6 +25,14 @@ public static class VisitsRegistration
         .AddValidator<AddPrescriptionLineCommand, AddPrescriptionLineCommandValidator>()
         .AddCommand<RemovePrescriptionLineCommand, Unit, RemovePrescriptionLineCommandHandler>()
         .AddValidator<RemovePrescriptionLineCommand, RemovePrescriptionLineCommandValidator>()
+        .AddCommand<AddRadiologyCommand, string, AddRadiologyCommandHandler>()
+        .AddValidator<AddRadiologyCommand, AddRadiologyCommandValidator>()
+        .AddCommand<RemoveRadiologyCommand, Unit, RemoveRadiologyCommandHandler>()
+        .AddValidator<RemoveRadiologyCommand, RemoveRadiologyCommandValidator>()
+        .AddCommand<AddLabResultCommand, string, AddLabResultCommandHandler>()
+        .AddValidator<AddLabResultCommand, AddLabResultCommandValidator>()
+        .AddCommand<RemoveLabResultCommand, Unit, RemoveLabResultCommandHandler>()
+        .AddValidator<RemoveLabResultCommand, RemoveLabResultCommandValidator>()
         .AddCommand<CompleteVisitCommand, EncounterSummaryReadModel, CompleteVisitCommandHandler>()
         .AddValidator<CompleteVisitCommand, CompleteVisitCommandValidator>();
 }

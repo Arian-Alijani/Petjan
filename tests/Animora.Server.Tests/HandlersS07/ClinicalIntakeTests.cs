@@ -27,6 +27,10 @@ public sealed class ClinicalIntakeTests
     [Fact] public Task Settles_RecordVaccinationReminderCommand() => SettlesAsync(typeof(RecordVaccinationReminderCommand));
     [Fact] public Task Settles_AddPrescriptionLineCommand() => SettlesAsync(typeof(AddPrescriptionLineCommand));
     [Fact] public Task Settles_RemovePrescriptionLineCommand() => SettlesAsync(typeof(RemovePrescriptionLineCommand));
+    [Fact] public Task Settles_AddRadiologyCommand() => SettlesAsync(typeof(AddRadiologyCommand));
+    [Fact] public Task Settles_RemoveRadiologyCommand() => SettlesAsync(typeof(RemoveRadiologyCommand));
+    [Fact] public Task Settles_AddLabResultCommand() => SettlesAsync(typeof(AddLabResultCommand));
+    [Fact] public Task Settles_RemoveLabResultCommand() => SettlesAsync(typeof(RemoveLabResultCommand));
     [Fact] public Task Settles_CompleteVisitCommand() => SettlesAsync(typeof(CompleteVisitCommand));
     [Fact] public Task Settles_SaveVisitNoteCommand() => SettlesAsync(typeof(SaveVisitNoteCommand));
     [Fact] public Task Settles_StartVisitFromTicketCommand() => SettlesAsync(typeof(StartVisitFromTicketCommand));
@@ -65,6 +69,8 @@ public sealed class ClinicalIntakeTests
             nameof(AdmitTicketCommand) or nameof(EnterVisitCommand) or nameof(LeaveQueueCommand)
                 or nameof(MarkNoShowCommand) or nameof(ToggleTicketUrgentCommand) or nameof(StartVisitFromTicketCommand) => ErrorCodes.TicketNotFound,
             nameof(SaveVisitVitalsCommand) or nameof(SaveVisitNoteCommand) or nameof(RemovePrescriptionLineCommand)
+                or nameof(RemoveRadiologyCommand) or nameof(RemoveLabResultCommand)
+                or nameof(AddLabResultCommand)
                 or nameof(CompleteVisitCommand) => ErrorCodes.VisitNotFound,
             nameof(CancelTreatmentPlanCommand) => ErrorCodes.TreatmentPlanNotFound,
             nameof(MarkTreatmentOccurrenceDoneCommand) => ErrorCodes.TreatmentOccurrenceNotFound,

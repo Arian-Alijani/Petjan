@@ -51,6 +51,8 @@ internal sealed class ClinicalHandlerFixture : IDisposable
     public TreatmentPlanDraft Plan { get; }
     public string DoctorId { get; } = IdGenerator.NewId();
     public string LineId { get; } = IdGenerator.NewId();
+    public string RadiologyId { get; } = IdGenerator.NewId();
+    public string LabResultId { get; } = IdGenerator.NewId();
 
     public ClinicalHandlerFixture(Action<IServiceCollection>? configure = null)
     {
@@ -63,6 +65,8 @@ internal sealed class ClinicalHandlerFixture : IDisposable
         Visit = Animora.Domain.Clinical.Visit.Open(Intake.TenantId, Pet.Id, Owner.Id, DoctorId, VisitReason.Checkup, clock);
         Visit.Start(); Visit.SetAssessment("Healthy");
         Visit.AddServiceLine(new VisitServiceLine(LineId, null, "Exam", new Quantity(1, "PCS"), Money.Irt(100), VisitLineSource.Custom));
+        Visit.AddRadiology(new RadiologyRecord(RadiologyId, clock.UtcNow, "Chest", null, []));
+        Visit.AddLabResult(new LabResult(LabResultId, clock.UtcNow, "CBC", []));
         Visits.Add(Visit);
         Appointment = Animora.Domain.Scheduling.Appointment.Book(Intake.TenantId, Pet.Id, Owner.Id, "CHECKUP", clock.UtcNow,
             30, AppointmentSource.Phone, Intake.UserId, clock, DoctorId).Value!;
@@ -113,6 +117,8 @@ internal sealed class ClinicalHandlerFixture : IDisposable
             "RecordId" => reject ? missing : Vaccine.Id, "PlanId" => reject ? missing : Plan.Plan.Id,
             "OccurrenceId" => reject ? missing : Plan.Occurrences[0].Id,
             "RxLineId" => reject ? missing : LineId,
+            "RadiologyId" => reject ? missing : RadiologyId, "LabResultId" => reject ? missing : LabResultId,
+            "BodyPart" => reject ? "" : "Chest",
             "Phone" or "PhonePrimary" or "OwnerPhone" => "09120000000",
             "PatientKind" => "Dog", "TypeId" => "CHECKUP",
             "PatientName" or "OwnerName" or "FullName" or "Name" or "Title" => reject ? "" : "Fluffy",

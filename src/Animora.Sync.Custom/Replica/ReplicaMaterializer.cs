@@ -256,6 +256,7 @@ internal static class ReplicaMaterializer
             new("Vitals_WeightKg", Kind.Text, Path: "vitals.weightKg"), new("Vitals_TemperatureC", Kind.Text, Path: "vitals.temperatureC"),
             new("Diagnosis", Kind.Text), new("TreatmentPlan", Kind.Text), new("DoctorNotes", Kind.Text), new("InvoiceId", Kind.Text), new("CancellationReason", Kind.Text),
             new("Prescriptions", Kind.PascalJson), new("ServiceLines", Kind.PascalJson),
+            new("Radiology", Kind.PascalJson), new("LabResults", Kind.PascalJson),
         ]),
         new("TreatmentPlan", "TreatmentPlans",
         [

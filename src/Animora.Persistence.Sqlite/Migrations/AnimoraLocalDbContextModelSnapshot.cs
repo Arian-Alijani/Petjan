@@ -849,10 +849,20 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(400)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("_labResults")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("LabResults");
+
                     b.Property<string>("_prescriptions")
                         .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("Prescriptions");
+
+                    b.Property<string>("_radiology")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("Radiology");
 
                     b.Property<string>("_serviceLines")
                         .IsRequired()
