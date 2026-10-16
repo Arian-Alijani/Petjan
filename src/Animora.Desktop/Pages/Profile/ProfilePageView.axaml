@@ -924,7 +924,8 @@
         </Grid>
 
         <!-- ═══════════ TAB · امنیت و نشست‌ها ═══════════ -->
-        <Grid x:Name="SecurityCards" IsVisible="{Binding IsSecurityTab}" ColumnDefinitions="*,*" ColumnSpacing="14" VerticalAlignment="Top">
+        <StackPanel IsVisible="{Binding IsSecurityTab}" Spacing="14" VerticalAlignment="Top">
+        <Grid x:Name="SecurityCards" ColumnDefinitions="*,*" ColumnSpacing="14">
             <!-- card · امنیت حساب -->
             <Border Grid.Column="0" Classes="ps-card">
                 <StackPanel Spacing="11">
@@ -1016,6 +1017,38 @@
                 </StackPanel>
             </Border>
         </Grid>
+
+            <!-- card · ناحیهٔ خطر · پاک‌سازی کامل داده‌های محلی و همگام‌سازی دوباره -->
+            <Border Classes="ps-card" BorderBrush="{StaticResource DangerBrush}" BorderThickness="1">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
+                            Background="{StaticResource DangerBgBrush}" VerticalAlignment="Top">
+                        <Path Classes="icon" Width="17" Height="17" Stroke="{StaticResource DangerBrush}"
+                              Data="{StaticResource IconAlert}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Classes="ps-title" Text="پاک‌سازی کامل و همگام‌سازی دوباره"
+                                   Foreground="{StaticResource DangerBrush}" />
+                        <TextBlock Classes="ps-sub" TextWrapping="Wrap"
+                                   Text="تمام داده‌های محلی این دستگاه بطور کامل پاک و برنامه ریست می‌شود، سپس همهٔ اطلاعات دوباره بطور کامل از سرور دریافت و همگام می‌شود. تغییرات هم‌گام‌نشده از بین می‌رود." />
+                    </StackPanel>
+                    <Button Grid.Column="2" Padding="16,9" VerticalAlignment="Center"
+                            Background="{StaticResource DangerBrush}" Foreground="White"
+                            Command="{Binding ResetLocalDataCommand}" IsEnabled="{Binding !IsResettingLocalData}"
+                            AutomationProperties.Name="پاک‌سازی کامل و همگام‌سازی دوباره">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Path Classes="icon" Width="14" Height="14" Stroke="White"
+                                  Data="{StaticResource IconRefresh}" VerticalAlignment="Center"
+                                  IsVisible="{Binding !IsResettingLocalData}" />
+                            <TextBlock Text="پاک‌سازی و همگام‌سازی" VerticalAlignment="Center"
+                                       IsVisible="{Binding !IsResettingLocalData}" />
+                            <TextBlock Text="در حال انجام…" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsResettingLocalData}" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+        </StackPanel>
 
         <!-- ═══════════ TAB · مدیریت دسترسی‌ها ═══════════ -->
         <StackPanel IsVisible="{Binding IsAccessTab}" Spacing="14">
