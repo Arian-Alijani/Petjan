@@ -34,6 +34,27 @@ public interface IVisitEncounterService
     /// <summary>Removes a billable line by id (reference's <c>.rm</c> splice).</summary>
     Task RemoveRxLineAsync(string encounterId, string rxLineId);
 
+    /// <summary>Lists the radiology studies recorded on the encounter, oldest first («رادیولوژی»).</summary>
+    Task<IReadOnlyList<RadiologyEntry>> GetRadiologyAsync(string encounterId);
+
+    /// <summary>
+    /// Records a radiology study on the encounter and returns its id. Journaled, so the entry reaches
+    /// the server and every other client on the next sync.
+    /// </summary>
+    Task<string> AddRadiologyAsync(string encounterId, RadiologyEntry entry);
+
+    /// <summary>Removes a radiology study by id (journaled).</summary>
+    Task RemoveRadiologyAsync(string encounterId, string radiologyId);
+
+    /// <summary>
+    /// Stores an attachment's bytes in the content-addressed local file store and returns the
+    /// <see cref="RadiologyFile"/> reference (hash + name + content type) to put on a radiology entry.
+    /// </summary>
+    Task<RadiologyFile> StoreAttachmentAsync(Stream content, string fileName, string contentType, CancellationToken cancellationToken = default);
+
+    /// <summary>Opens a previously stored attachment for reading; the caller disposes the stream.</summary>
+    Task<Stream> OpenAttachmentAsync(string hash, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// The selectable billable catalog behind the rx step's «افزودن خدمت…» /
     /// «افزودن کالا…» pickers (reference <c>C().SERVICES</c> + <c>C().ITEMS</c>).

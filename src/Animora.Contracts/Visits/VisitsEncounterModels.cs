@@ -100,3 +100,22 @@ public sealed record EncounterSummary(
     long Tax,
     long Total,
     DateTime CompletedAt);
+
+/// <summary>
+/// A file attached to a radiology study. The bytes live in the content-addressed local file store;
+/// <see cref="Hash"/> (lowercase hex SHA-256) is its key.
+/// </summary>
+public sealed record RadiologyFile(string Hash, string Name, string ContentType);
+
+/// <summary>
+/// One radiology study recorded on the encounter («رادیولوژی»): the date it was taken, the imaged
+/// organ / body part, the written result and the attached image files. <see cref="Id"/> is empty for
+/// an entry that has not been saved yet — the service mints the id and returns it from
+/// <see cref="IVisitEncounterService.AddRadiologyAsync"/>.
+/// </summary>
+public sealed record RadiologyEntry(
+    string Id,
+    DateTime TakenAt,
+    string BodyPart,
+    string? Result,
+    IReadOnlyList<RadiologyFile> Files);

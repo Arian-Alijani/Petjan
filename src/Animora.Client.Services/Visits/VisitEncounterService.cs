@@ -1,6 +1,7 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Correlation;
 using Animora.Application.Dispatch;
+using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Visits;
 using Animora.Contracts.Visits;
@@ -51,6 +52,44 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
     {
         await FlushAsync();
         await SendAsync(new RemovePrescriptionLineCommand(encounterId, rxLineId));
+    }
+
+    public async Task<IReadOnlyList<RadiologyEntry>> GetRadiologyAsync(string encounterId) =>
+        (await QueryAsync(new EncounterDraftQuery(encounterId))).Radiology
+            .OrderBy(r => r.TakenUtc).Select(r => r.ToContract()).ToArray();
+
+    public async Task<string> AddRadiologyAsync(string encounterId, RadiologyEntry entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        await FlushAsync();
+        return await SendAsync(entry.ToCommand(encounterId));
+    }
+
+    public async Task RemoveRadiologyAsync(string encounterId, string radiologyId)
+    {
+        await FlushAsync();
+        await SendAsync(new RemoveRadiologyCommand(encounterId, radiologyId));
+    }
+
+    public async Task<RadiologyFile> StoreAttachmentAsync(Stream content, string fileName, string contentType,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        await using var scope = scopes.CreateAsyncScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>().PutAsync(content, cancellationToken);
+        if (stored.IsFailure) throw new ServiceException(stored.Error);
+        return new RadiologyFile(stored.Value!, fileName.Trim(),
+            string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType.Trim());
+    }
+
+    public async Task<Stream> OpenAttachmentAsync(string hash, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hash);
+        await using var scope = scopes.CreateAsyncScope();
+        var opened = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>().OpenAsync(hash, cancellationToken);
+        if (opened.IsFailure) throw new ServiceException(opened.Error);
+        return opened.Value!;
     }
 
     public async Task<IReadOnlyList<RxCatalogItem>> GetCatalogAsync()

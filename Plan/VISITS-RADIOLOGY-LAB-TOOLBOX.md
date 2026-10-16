@@ -228,7 +228,7 @@ here** adding BOTH the `Radiology` and `LabResults` columns (reused by T5), each
 
 ---
 
-### [ ] T3 — Task 1: Radiology — Contracts + Client.Services seam
+### [x] T3 — Task 1: Radiology — Contracts + Client.Services seam
 **Goal:** Expose radiology through the `IVisitEncounterService` seam so the wizard can read/add/remove.
 **Do:**
 - In `src/Animora.Contracts/Visits/VisitsEncounterModels.cs` add contract records
