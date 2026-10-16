@@ -34,6 +34,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     private DoctorTileViewModel? _selectedDoctor;
 
     [ObservableProperty]
+    private VisitsSection _section = VisitsSection.Visit;
+
+    [ObservableProperty]
     private VisitEntryMode _mode = VisitEntryMode.Booked;
 
     [ObservableProperty]
@@ -92,6 +95,17 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
         _ = ReloadPageAsync();
     }
 
+    partial void OnSectionChanged(VisitsSection value)
+    {
+        OnPropertyChanged(nameof(IsVisitSection));
+        OnPropertyChanged(nameof(IsSettingsSection));
+    }
+
+    /// <summary>Raised by the page-level toolbox switch (visit / settings).</summary>
+    [RelayCommand]
+    private void SetSection(string? section) =>
+        Section = section == "settings" ? VisitsSection.Settings : VisitsSection.Visit;
+
     public ObservableCollection<DoctorTileViewModel> Doctors { get; } = [];
     public ObservableCollection<BookedRowViewModel> BookedRows { get; } = [];
     public ObservableCollection<VisitTypeOptionViewModel> Types { get; } = [];
@@ -104,6 +118,9 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     public string DoctorCountText => PersianNumberFormatter.ToPersianDigits(Doctors.Count);
     public string TodayText => PersianNumberFormatter.ToPersianDigits(
         JalaliDate.FromDateTime(DateTime.Today).ToString("short"));
+    public bool IsVisitSection => Section == VisitsSection.Visit;
+    public bool IsSettingsSection => Section == VisitsSection.Settings;
+
     public bool HasSelectedDoctor => SelectedDoctor is not null;
     public bool HasNoDoctor => SelectedDoctor is null;
     public bool IsBookedMode => Mode == VisitEntryMode.Booked;

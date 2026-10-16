@@ -158,7 +158,7 @@ Status legend: `[ ]` pending · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] T1 — Task 0: Toolbox navbar on the Visits encounter page (Visit ⇄ Settings)
+### [x] T1 — Task 0: Toolbox navbar on the Visits encounter page (Visit ⇄ Settings)
 **Goal:** Add a segmented toolbox (like Patients/Cashier) at the top of the Visits area letting the
 user switch between the **ویزیت** (encounter) view and a **تنظیمات** (visits settings) view.
 **Decide first:** the toolbox belongs on the Visits *area*. The encounter form (`VisitEncounterView`)

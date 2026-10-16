@@ -246,15 +246,73 @@
         <Style Selector="Button.row-cta.urgent:pointerover">
             <Setter Property="Background" Value="#b23a2f" />
         </Style>
+        <!-- Toolbox segmented switch (visit / settings): soft track + pill tabs,
+             same look as the Patients page section switch. -->
+        <Style Selector="Border.seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Border.segitem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Border.segitem.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Button.segtap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
+        </Style>
+        <Style Selector="Button.segtap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Margin="26,22,26,40">
-        <StackPanel Margin="0,0,0,18">
-            <TextBlock Text="ویزیت و پرونده پزشکی" FontSize="26" FontWeight="ExtraBold"
-                       Foreground="{StaticResource InkBrush}" />
-        </StackPanel>
+        <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,18">
+            <TextBlock Grid.Column="0" Text="ویزیت و پرونده پزشکی" FontSize="26" FontWeight="ExtraBold"
+                       Foreground="{StaticResource InkBrush}" VerticalAlignment="Center" />
+            <!-- Toolbox: visit workspace / visits settings -->
+            <Border Grid.Column="1" Classes="seg" VerticalAlignment="Center">
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="2">
+                    <Border Grid.Column="0" Classes="segitem" Classes.on="{Binding IsVisitSection}">
+                        <Button Classes="segtap" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Command="{Binding SetSectionCommand}" CommandParameter="visit">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Data="{StaticResource IconStetho}" />
+                                <TextBlock Text="ویزیت" FontSize="13.5" FontWeight="Bold" />
+                            </StackPanel>
+                        </Button>
+                    </Border>
+                    <Border Grid.Column="1" Classes="segitem" Classes.on="{Binding IsSettingsSection}">
+                        <Button Classes="segtap" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Command="{Binding SetSectionCommand}" CommandParameter="settings"
+                                ToolTip.Tip="تنظیمات ویزیت">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Data="{StaticResource IconTag}" />
+                                <TextBlock Text="تنظیمات" FontSize="13.5" FontWeight="Bold" />
+                            </StackPanel>
+                        </Button>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
 
-        <Grid ColumnDefinitions="340,*" ColumnSpacing="18">
+        <!-- Settings tab host (body filled by the lab-test types settings, T4) -->
+        <StackPanel x:Name="SettingsHost" IsVisible="{Binding IsSettingsSection}" />
+
+        <Grid ColumnDefinitions="340,*" ColumnSpacing="18" IsVisible="{Binding IsVisitSection}">
             <!-- ===== Doctor rail ===== -->
             <Border Grid.Column="0" Background="{StaticResource PanelBrush}"
                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
