@@ -106,43 +106,16 @@
 
                     </Grid>
 
-                    <!-- Area + line chart drawn from the normalized pulse series.
-                         Canvas is 500×180 to match the reference viewBox. -->
-                    <Border CornerRadius="12" ClipToBounds="True" Height="180"
+                    <!-- Smooth area + line revenue chart, re-designed from the
+                         reference "Reports" card: horizontal blue→magenta
+                         gradient, hollow markers and a light hover tooltip.
+                         Driven straight from the normalized pulse series — the
+                         control owns gridlines, axes, smoothing and hover. -->
+                    <Border CornerRadius="12" ClipToBounds="True" Height="196"
                             ToolTip.Tip="{Binding RevenueTooltip}"
                             AutomationProperties.Name="{Binding RevenuePulse.Summary}">
-                        <Viewbox Stretch="Fill">
-                            <Canvas Width="500" Height="180">
-                                <!-- dashed gridlines -->
-                                <Line StartPoint="0,40" EndPoint="500,40"
-                                      Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
-                                <Line StartPoint="0,80" EndPoint="500,80"
-                                      Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
-                                <Line StartPoint="0,120" EndPoint="500,120"
-                                      Stroke="{StaticResource Line2Brush}" StrokeThickness="1" StrokeDashArray="3,4" />
-
-                                <!-- zero baseline: negative days fall below this line -->
-                                <Path Data="{Binding RevenueZeroLineGeometry}"
-                                      Stroke="{StaticResource MutedBrush}" StrokeThickness="1" />
-
-                                <!-- filled area between the line and the zero baseline -->
-                                <Path Data="{Binding RevenueAreaGeometry}">
-                                    <Path.Fill>
-                                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                            <GradientStop Offset="0" Color="{StaticResource ChartAreaTopColor}" />
-                                            <GradientStop Offset="1" Color="{StaticResource ChartAreaBottomColor}" />
-                                        </LinearGradientBrush>
-                                    </Path.Fill>
-                                </Path>
-
-                                <!-- revenue trend line -->
-                                <Path Data="{Binding RevenueLineGeometry}"
-                                      Stroke="{StaticResource Brand500Brush}"
-                                      StrokeThickness="2.5"
-                                      StrokeLineCap="Round"
-                                      StrokeJoin="Round" />
-                            </Canvas>
-                        </Viewbox>
+                        <controls:RevenuePulseChart Pulse="{Binding RevenuePulse}"
+                                                    HoverCaption="درآمد" />
                     </Border>
                 </StackPanel>
             </Border>
