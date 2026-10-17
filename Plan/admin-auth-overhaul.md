@@ -208,16 +208,16 @@
 کامپوننت ادغام کن).
 
 ### ۳.۱ — زیرساخت چندزبانگی فا/انگلیسی
-- [ ] یک سرویس سادهٔ منابع متن بساز: `src/Animora.Web.Admin/Localization/AdminStrings.cs` با دیکشنری
+- [x] یک سرویس سادهٔ منابع متن بساز: `src/Animora.Web.Admin/Localization/AdminStrings.cs` با دیکشنری
     `en`/`fa` و یک `AdminCulture` (کوکی `admin_lang`، پیش‌فرض `fa`, RTL وقتی fa). از پیچیدگی `.resx`
     پرهیز کن (سبک بماند). یک متد `string T(string key)` که از culture فعلی می‌خواند.
-- [ ] در `Layout/MainLayout.razor` کلید سوییچ زبان (fa/en) + ست‌کردن `dir="rtl"`/`ltr` و `lang` روی
+- [x] در `Layout/MainLayout.razor` کلید سوییچ زبان (fa/en) + ست‌کردن `dir="rtl"`/`ltr` و `lang` روی
     `<html>`/wrapper. کوکی را Static SSR سازگار ست کن (فرم POST کوچک یا query).
-- [ ] تمام متن‌های inline صفحات/ناوبری را با `@T("key")` جایگزین کن (به‌تدریج در هر صفحه‌ای که در
+- [x] تمام متن‌های inline صفحات/ناوبری را با `@T("key")` جایگزین کن (به‌تدریج در هر صفحه‌ای که در
     تسک‌های بعدی لمس می‌شود؛ برای صفحات لمس‌نشده حداقل عنوان و ناوبری ترجمه شود).
-- [ ] `wwwroot/admin.css`: استایل RTL (jer جهت، فاصله‌ها) + تمیزکاری ظاهری (کارت، جدول، بج وضعیت،
+- [x] `wwwroot/admin.css`: استایل RTL (jer جهت، فاصله‌ها) + تمیزکاری ظاهری (کارت، جدول، بج وضعیت،
     فاصله‌گذاری). سبک و بدون وابستگی سنگین.
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.1] fa/en localization + RTL + css cleanup"`
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.1] fa/en localization + RTL + css cleanup"`
 
 ### ۳.۲ — صفحهٔ کارکنان/اکانت‌های یک کلینیک (مشاهده)
 - [ ] **کوئری سرور.** در `OperatorReadQueries.cs` متد
