@@ -75,9 +75,9 @@
         if (reset) { Cursor = 0; Lines.Clear(); }
         var result = await Log.ReadAsync(new LogFilter(Level, Search, Cursor, MaxLines), _stop?.Token ?? CancellationToken.None);
         Error = result.IsFailure ? result.Error.Code : null;
-        if (result.IsFailure) { if (Running) await StopLoop(); return; }
-        Cursor = result.Value.LastSequence;
-        Lines.AddRange(result.Value.Lines);
+        if (result.IsFailure || result.Value is not { } snapshot) { if (Running) await StopLoop(); return; }
+        Cursor = snapshot.LastSequence;
+        Lines.AddRange(snapshot.Lines);
         if (Lines.Count > MaxLines) Lines.RemoveRange(0, Lines.Count - MaxLines);
     }
     private async Task OnLevel(ChangeEventArgs e) { Level = e.Value?.ToString() ?? ""; await Refresh(reset: true); }
