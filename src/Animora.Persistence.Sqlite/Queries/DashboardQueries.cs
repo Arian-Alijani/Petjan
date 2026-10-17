@@ -225,6 +225,15 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db, Animora.Applicati
             if (role == UserRole.Doctor) walkIns = walkIns.Where(r => r.DoctorUserId == userId);
             queueCount += await walkIns.CountAsync(ct);
         }
+        var appointmentsBooked = appointmentCounts.Sum(x => x.Total);
+        var appointmentsDone = appointmentCounts.Sum(x => Math.Clamp(x.Done, 0, x.Total));
+        // Items sold today = product lines on invoices issued today that are still standing (not void/refunded/draft)
+        // and are sales (not returns). One aggregate; absent from SQL entirely without the sales permission.
+        var salesItems = access.Sales ? await db.Set<Invoice>().AsNoTracking()
+            .Where(i => i.TenantId == tenantId && i.Kind != InvoiceKind.SalesReturn
+                && i.PostedUtc != null && i.PostedUtc >= window.StartUtc && i.PostedUtc < window.EndUtc
+                && (i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid || i.State == InvoiceState.Paid))
+            .SelectMany(i => i.Lines).CountAsync(l => l.Kind == InvoiceLineKind.Product, ct) : 0;
         var preview = await (from appointment in appointments.Where(a => a.State != AppointmentState.Cancelled
                 && a.State != AppointmentState.NoShow && a.State != AppointmentState.Completed)
             join pet in db.Set<Pet>().AsNoTracking() on appointment.PetId equals pet.Id
@@ -258,6 +267,7 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db, Animora.Applicati
                     vaccine.NextDueUtc!.Value, "Due", vaccine.VaccineName)).Take(8).ToListAsync(ct);
         }
         return new DashboardSlice(facts, activity, loads, species, open, low,
-            queueCount, totals, preview, access, receipts, invoiceRows, readyRows, reminders, awaitingPayment, projection);
+            queueCount, totals, preview, access, receipts, invoiceRows, readyRows, reminders, awaitingPayment, projection,
+            AppointmentsBooked: appointmentsBooked, AppointmentsDone: appointmentsDone, SalesItemsCount: salesItems);
     }
 }

@@ -40,7 +40,9 @@ public sealed record DashboardAlertRow(string Kind, string Title, string Subtitl
     /// <summary>Treatment alerts only: <c>Vaccine</c> | <c>Medication</c> (empty for every other source).</summary>
     public string ItemType { get; init; } = string.Empty;
 }
-/// <remarks><b>Generation</b> is the tenant source generation read at the start of the same short read transaction as
+/// <remarks><b>AppointmentsBooked</b>/<b>AppointmentsDone</b> are today's non-cancelled appointments and the completed subset (independent of the
+/// per-doctor workload permission); <b>SalesItemsCount</b> is the number of product lines on today's issued, non-returned invoices.
+/// <b>Generation</b> is the tenant source generation read at the start of the same short read transaction as
 /// every other member, so the data and its generation always describe one committed state.</remarks>
 public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardActivity> Activity, IReadOnlyList<DashboardWorkload> Workloads,
@@ -52,7 +54,8 @@ public sealed record DashboardSlice(IReadOnlyList<DashboardDay> RevenueDays,
     IReadOnlyList<DashboardOperationalRow>? ReminderRows = null, int AwaitingPaymentCount = 0,
     DashboardProjectionLag? Projection = null,
     long Generation = 0,
-    IReadOnlyList<DashboardAlertRow>? Alerts = null, int AlertOverflow = 0);
+    IReadOnlyList<DashboardAlertRow>? Alerts = null, int AlertOverflow = 0,
+    int AppointmentsBooked = 0, int AppointmentsDone = 0, int SalesItemsCount = 0);
 
 /// <summary>The local day and its half-open UTC range, resolved once using ClinicCalendar.</summary>
 public sealed record DashboardDayWindow(int LocalDay, DateTimeOffset StartUtc, DateTimeOffset EndUtc)

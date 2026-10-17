@@ -125,8 +125,7 @@ internal static class DashboardMapping
                 { Foot = slice.Receipts is { } receipt ? $"دریافت ناخالص: {receipt.Gross:N0} · بازپرداخت: {receipt.Refunds:N0} تومان" : null },
                 Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices), Stat("IconWallet", "در انتظار پرداخت", slice.AwaitingPaymentCount),
                 Stat("IconCheque", "تغییر وضعیت چک امروز", totals.Cheques) },
-            _ => new[] { Stat("IconArrowUpRight", "درآمد امروز", today),
-                Stat("IconUsers", "ویزیت امروز", visits) },
+            _ => ManagerStats(slice, today),
         };
         if (slice.Access is { } allowed)
             stats = stats.Where(stat => stat.IconKey switch
@@ -136,7 +135,7 @@ internal static class DashboardMapping
                 "IconReceipt" or "IconWallet" => allowed.Sales,
                 "IconBox" => allowed.Inventory,
                 "IconUsers" or "IconCheck" => allowed.Visits,
-                "IconClock" or "IconEdit" or "IconClipboard" => allowed.Appointments,
+                "IconCalendar" or "IconClock" or "IconEdit" or "IconClipboard" => allowed.Appointments,
                 "IconSyringe" => allowed.Vaccination,
                 "IconCheque" => allowed.Cheques,
                 _ => false,
@@ -257,6 +256,36 @@ internal static class DashboardMapping
             Math.Clamp(x.Done, 0, x.Total), x.Total, "#0D9488");
     }
 
+    // Manager KPI row: revenue, visits (booked / done) and items sold. Each card carries the 14-day revenue shape as its
+    // sparkline (the only daily series the slice holds; sales and visit volume follow it) and the page it opens on click.
+    // The spark is omitted when there is no finance series (no permission / no data) so no card draws a fake flat chart.
+    private static DashboardStat[] ManagerStats(DashboardSlice slice, long today)
+    {
+        var revenue = slice.RevenueDays.Select(x => x.RevenueMinor).ToArray();
+        var spark = revenue.Length < 2 ? null : Normalize(revenue).Points;
+        var booked = slice.AppointmentsBooked;
+        var done = Math.Clamp(slice.AppointmentsDone, 0, booked);
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        return
+        [
+            Stat("IconArrowUpRight", "درآمد امروز", today) with
+            {
+                Spark = spark, NavTarget = DashboardStatTargets.Statistics,
+                Secondary = $"{CurrencyLabel} · ۱۴ روز اخیر",
+            },
+            Stat("IconCalendar", "ویزیت‌ها", booked) with
+            {
+                Spark = spark, NavTarget = DashboardStatTargets.Appointments,
+                Secondary = $"{booked.ToString("N0", invariant)} نوبت رزرو · {done.ToString("N0", invariant)} انجام‌شده",
+            },
+            Stat("IconReceipt", "اقلام فروخته‌شده", slice.SalesItemsCount) with
+            {
+                Spark = spark, NavTarget = DashboardStatTargets.Statistics,
+                Secondary = $"{slice.SalesItemsCount.ToString("N0", invariant)} قلم · درآمد {today.ToString("N0", invariant)} {CurrencyLabel}",
+            },
+        ];
+    }
+
     private static DashboardStat Stat(string icon, string label, long value) =>
         new(icon, label, value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), null, true, StatTone(icon));
 
@@ -264,7 +293,7 @@ internal static class DashboardMapping
     // queue/time = lilac, stock/pending = warn, cheques = peach).
     private static DashboardTone StatTone(string icon) => icon switch
     {
-        "IconUsers" or "IconCheck" => DashboardTone.Info,
+        "IconUsers" or "IconCheck" or "IconCalendar" => DashboardTone.Info,
         "IconClock" or "IconEdit" => DashboardTone.Lilac,
         "IconBox" or "IconWallet" => DashboardTone.Warn,
         "IconCheque" or "IconSyringe" => DashboardTone.Peach,

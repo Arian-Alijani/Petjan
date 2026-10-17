@@ -153,7 +153,7 @@ KPI ها از پایین به بالا این‌طور ساخته و رندر م
 
 ---
 
-### ⬜ تسک T4 — ساخت کارت‌های جدید «ویزیت‌ها» و «اقلام فروخته شده» در سرویس
+### ✅ تسک T4 — ساخت کارت‌های جدید «ویزیت‌ها» و «اقلام فروخته شده» در سرویس
 **فایل:** `src/Animora.Client.Services/Dashboard/DashboardQueryService.cs` (متد `Map`, آرایه Manager)
 - **کارت ویزیت‌ها:** از `slice.Workloads` → `booked = Workloads.Sum(w=>w.Total)` (یا QueueCount+Done بسته به تعریف «رزرو شده»)، `done = Workloads.Sum(w=>Math.Clamp(w.Done,0,w.Total))`. value = `booked` (تعداد نوبت رزرو شده)، Foot/Secondary = «`done` نوبت انجام شده از `booked`». IconKey = `IconCalendar` یا `IconUsers`. NavTarget=`"Appointments"`. Spark = سری نرمال‌شده‌ی مشتق از RevenueDays یا یک سری ثابت/محاسبه‌شده (اگر سری واقعی ویزیت نداری، از همان `Normalize(slice.RevenueDays...)` یا شکل روند موجود استفاده کن؛ هدف ظاهر نمودار است).
 - **کارت اقلام فروخته شده:** طبق «تصمیم داده» بالا. value = تعداد اقلام (یا جایگزین مینیمال)، Foot/Secondary = «درآمد: X تومان» (X = `today` با فرمت `ToPersianDigits`/`N0`). IconKey = `IconCart` یا `IconReceipt`. NavTarget=`"Statistics"`. Spark = سری درآمد `slice.RevenueDays`.

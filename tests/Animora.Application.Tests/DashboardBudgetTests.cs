@@ -601,7 +601,7 @@ public sealed class DashboardBudgetTests
         Assert.Equal(105, slice.ActivityTotals.Vaccinations);
         Assert.Equal(90, slice.ActivityTotals.Cheques);
         var mapped = InvokeMap(role, slice);
-        if (role == UserRole.Manager) Assert.Equal("108", mapped.Stats[1].Value);
+        if (role == UserRole.Manager) Assert.DoesNotContain(mapped.Stats, x => x.Value == "108"); // Manager shows booked appointments, not completed-visit totals.
         if (role == UserRole.Cashier) Assert.Equal("95,000", mapped.Stats[0].Value);
     }
 
@@ -897,6 +897,26 @@ public sealed class DashboardBudgetTests
         role is UserRole.Manager or UserRole.Receptionist, role != UserRole.Doctor,
         role is UserRole.Manager or UserRole.Receptionist, role != UserRole.Doctor,
         true, true, role != UserRole.Doctor, true, true, role is UserRole.Manager or UserRole.Receptionist);
+
+    [Fact]
+    public void ManagerStats_ShowRevenueVisitsAndItemsSold_WithSparkAndNavigation()
+    {
+        var days = Enumerable.Range(0, 14).Select(i => new DashboardDay(20260217 + i, 100L * (i + 1))).ToArray();
+        var slice = new DashboardSlice(days, [], [], new Dictionary<string, int>(), 0, 7, 3,
+            AppointmentsBooked: 9, AppointmentsDone: 4, SalesItemsCount: 12);
+        var stats = InvokeMap(UserRole.Manager, slice).Stats;
+        Assert.Equal(["IconArrowUpRight", "IconCalendar", "IconReceipt"], stats.Select(x => x.IconKey).ToArray());
+        Assert.DoesNotContain(stats, x => x.IconKey is "IconBox" or "IconClock");
+        Assert.Equal("9", stats[1].Value);
+        Assert.Contains("4", stats[1].Secondary!);
+        Assert.Equal("12", stats[2].Value);
+        Assert.Contains("1,400", stats[2].Secondary!);
+        Assert.Equal(Contracts.Dashboard.DashboardStatTargets.Appointments, stats[1].NavTarget);
+        Assert.All([stats[0], stats[2]], x => Assert.Equal(Contracts.Dashboard.DashboardStatTargets.Statistics, x.NavTarget));
+        Assert.All(stats, x => Assert.Equal(14, x.Spark!.Count));
+        var empty = InvokeMap(UserRole.Manager, new DashboardSlice([], [], [], new Dictionary<string, int>(), 0, 0, 0)).Stats;
+        Assert.All(empty, x => Assert.Null(x.Spark));
+    }
 
     [Fact]
     public void Mapping_UsesRealAppointmentDetailsAndSemanticEventIcons()
