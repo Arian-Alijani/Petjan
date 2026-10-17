@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Animora.Contracts.Device;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Profile;
 using Animora.Contracts.Sync;
@@ -27,6 +28,11 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     private readonly ICapabilityGate? _capabilities;
     private readonly IDialogService? _dialogs;
     private readonly ILocalDataResetService? _localReset;
+    private readonly IDevicePreferencesService? _devicePreferences;
+    private readonly IStartupRegistration? _startupRegistration;
+
+    /// <summary>Guards the first programmatic seed of <see cref="StartWithWindows"/> so it does not re-write the registry.</summary>
+    private bool _suppressStartupWrite;
 
     public event EventHandler? SignedOut;
 
@@ -111,7 +117,8 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     public ProfilePageViewModel(IUserProfileService service, IStoreReadinessGate readiness, IToastService toast,
         IAuthenticationService authentication, ICapabilityGate? capabilities = null,
-        IDialogService? dialogs = null, ILocalDataResetService? localReset = null)
+        IDialogService? dialogs = null, ILocalDataResetService? localReset = null,
+        IDevicePreferencesService? devicePreferences = null, IStartupRegistration? startupRegistration = null)
     {
         _service = service;
         _readiness = readiness;
@@ -120,7 +127,10 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         _capabilities = capabilities;
         _dialogs = dialogs;
         _localReset = localReset;
+        _devicePreferences = devicePreferences;
+        _startupRegistration = startupRegistration;
         if (_capabilities is not null) _capabilities.CapabilitiesChanged += OnCapabilitiesChanged;
+        _ = SeedStartupPreferenceAsync();
 
         Title = "تنظیمات";
         Eyebrow = "حساب کاربری";
@@ -162,6 +172,64 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         }
         if (Dispatcher.UIThread.CheckAccess()) Apply();
         else Dispatcher.UIThread.Post(Apply);
+    }
+
+    // ── «اجرای خودکار هنگام روشن شدن ویندوز» (device-level, look tab) ───────
+
+    /// <summary>True only on platforms where launch-on-sign-in can be registered (Windows). Hides the control elsewhere.</summary>
+    public bool IsStartupSupported => _startupRegistration?.IsSupported ?? false;
+
+    /// <summary>
+    /// «اجرای خودکار هنگام روشن شدن ویندوز». Device-level (NOT part of the per-user settings save): toggling it writes
+    /// the HKCU Run key immediately via <see cref="IStartupRegistration"/> and mirrors the flag into the device prefs.
+    /// </summary>
+    [ObservableProperty]
+    private bool _startWithWindows;
+
+    /// <summary>Seeds the toggle from the live OS registry (source of truth), falling back to the stored preference.</summary>
+    private async Task SeedStartupPreferenceAsync()
+    {
+        if (_startupRegistration is null || !_startupRegistration.IsSupported) return;
+        bool enabled;
+        try { enabled = _startupRegistration.IsEnabled(); }
+        catch { enabled = false; }
+
+        // If the registry read disagrees with the stored preference, trust the registry and realign the preference.
+        if (_devicePreferences is not null)
+        {
+            try { await _devicePreferences.SetStartWithWindowsAsync(enabled); } catch { /* best effort */ }
+        }
+
+        void Apply()
+        {
+            _suppressStartupWrite = true;
+            StartWithWindows = enabled;
+            _suppressStartupWrite = false;
+        }
+        if (Dispatcher.UIThread.CheckAccess()) Apply();
+        else Dispatcher.UIThread.Post(Apply);
+    }
+
+    partial void OnStartWithWindowsChanged(bool value)
+    {
+        if (_suppressStartupWrite || _startupRegistration is null || !_startupRegistration.IsSupported) return;
+        try
+        {
+            _startupRegistration.SetEnabled(value);
+            if (_devicePreferences is not null) _ = _devicePreferences.SetStartWithWindowsAsync(value);
+            _toast.Show(value
+                ? "اجرای خودکار هنگام روشن شدن ویندوز فعال شد."
+                : "اجرای خودکار هنگام روشن شدن ویندوز غیرفعال شد.", Tone.Ok);
+        }
+        catch (Exception ex)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Error("toggling start-with-windows failed", ex, "device");
+            _toast.Show("تغییر وضعیت اجرای خودکار انجام نشد؛ دوباره تلاش کنید.", Tone.Danger);
+            // Revert the UI to the real registry state so the switch never lies.
+            _suppressStartupWrite = true;
+            try { StartWithWindows = _startupRegistration.IsEnabled(); } catch { StartWithWindows = !value; }
+            _suppressStartupWrite = false;
+        }
     }
 
     // ── Chrome ───────────────────────────────────────────────────────────

@@ -919,6 +919,20 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+
+                    <!-- «اجرای خودکار هنگام روشن شدن ویندوز» — device-level (not a per-user saved toggle);
+                         writes the HKCU Run key instantly. Hidden on non-Windows platforms. -->
+                    <Border Classes="switch-row" Cursor="Hand" IsVisible="{Binding IsStartupSupported}">
+                        <StackPanel Orientation="Horizontal" Spacing="11">
+                            <ToggleSwitch IsChecked="{Binding StartWithWindows, Mode=TwoWay}" OnContent="" OffContent=""
+                                          VerticalAlignment="Center" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Classes="sw-title" Text="اجرای خودکار هنگام روشن شدن ویندوز" TextWrapping="Wrap" />
+                                <TextBlock Classes="sw-sub" TextWrapping="Wrap"
+                                           Text="برنامه با ورود به ویندوز به‌صورت پنهان در نوار وظیفه اجرا و همگام‌سازی می‌شود." />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </Border>
         </Grid>
