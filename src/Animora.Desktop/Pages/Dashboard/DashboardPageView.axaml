@@ -115,6 +115,8 @@
                                         Value="{Binding Value}"
                                         Label="{Binding Label}"
                                         Foot="{Binding Foot}"
+                                        Secondary="{Binding Secondary}"
+                                        Spark="{Binding Spark}"
                                         Delta="{Binding Delta}"
                                         IsDeltaPositive="{Binding IsDeltaPositive}"
                                         IconTone="{Binding IconTone, Converter={StaticResource ToneConverter}}" />

@@ -169,7 +169,7 @@ KPI ها از پایین به بالا این‌طور ساخته و رندر م
 
 ---
 
-### ⬜ تسک T5 — ریدیزاین کامل کنترل `StatCard` (ظاهر مشابه نمونه + sparkline + هاور)
+### ✅ تسک T5 — ریدیزاین کامل کنترل `StatCard` (ظاهر مشابه نمونه + sparkline + هاور)
 **فایل‌ها:** `src/Animora.Desktop/Controls/StatCard.axaml` + `StatCard.axaml.cs`
 طراحی هدف (از تحلیل تصویر نمونه، با توکن روشن برنامه):
 - چیدمان کارت: بالا = لیبل کوچک (MutedBrush, FontSizeSm) + یک chevron کوچک `›`/`‹` (RTL → `IconChevronLeft` مثل quick-tile) که «قابل‌کلیک بودن» را نشان دهد. پایین‌چپ = مقدار بزرگ (InkBrush, FontSizeXl, ExtraBold). متن دوم (Secondary/Foot) زیر آن یا کنار (Muted2Brush, Xs). سمت مقابل = **sparkline** که نیمه‌ی عرض کارت را می‌گیرد (مثل نمونه خط سبز زیگزاگ با گرادیان کمرنگ زیرش).

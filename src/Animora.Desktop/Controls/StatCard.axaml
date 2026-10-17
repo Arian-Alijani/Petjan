@@ -1,67 +1,111 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Controls.StatCard"
+             Classes="stat-host"
              FlowDirection="RightToLeft">
 
-    <!-- KPI stat card, Material-Design-3 outlined style, fully RTL.
-         The card is authored RightToLeft so every "Start/leading" edge is the
-         RIGHT and every "End/trailing" edge is the LEFT — matching the Persian
-         reference (dashboard-views.js .stat-head, justify-content:space-between).
-         Header row: delta chip on the leading (right) side, tinted icon tile on
-         the trailing (left) side. Value / label / foot are a leading-aligned
-         (right) block. -->
-    <Border Classes="card" Padding="18,16" MinHeight="132">
-        <StackPanel Spacing="14">
+    <UserControl.Styles>
+        <!-- Light hover affordance (all KPI cards): a 2px lift, a brand-tinted border and a softer shadow. -->
+        <Style Selector="Border.card.stat-card">
+            <Setter Property="RenderTransform" Value="translateY(0px)" />
+        </Style>
+        <Style Selector="Border.card.stat-card:pointerover, UserControl.stat-host:focus-visible Border.card.stat-card">
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="BoxShadow" Value="0 8 18 -8 #24101828, 0 2 4 0 #0D101828" />
+        </Style>
+        <Style Selector="Border.card.stat-card.clickable:pointerover Path.stat-chevron, UserControl.stat-host:focus-visible Border.card.stat-card.clickable Path.stat-chevron">
+            <Setter Property="Stroke" Value="{StaticResource Brand600Brush}" />
+        </Style>
+    </UserControl.Styles>
 
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <!-- Delta chip: leading edge (right in RTL) -->
-                <Border x:Name="DeltaChip"
-                        Grid.Column="0"
-                        CornerRadius="10"
-                        Padding="8,3"
-                        Background="{StaticResource OkBgBrush}"
-                        VerticalAlignment="Center"
-                        HorizontalAlignment="Left">
-                    <TextBlock x:Name="DeltaText"
-                               FontSize="{StaticResource FontSizeXs}"
-                               FontWeight="Bold"
-                               Foreground="{StaticResource OkBrush}" />
-                </Border>
+    <!-- KPI card, fully RTL: the card is authored RightToLeft so "start/leading" is the RIGHT edge and
+         "end/trailing" is the LEFT edge (the reference sample is LTR, so the layout is mirrored).
+         Header row: tinted icon tile + label (leading), delta chip, chevron (only when the card is clickable).
+         Body row: value + secondary/foot text (leading) and the sparkline (trailing, left). The sparkline
+         column collapses when there is no series so the other pages' cards keep their text full-width. -->
+    <Border x:Name="Root" Classes="card stat-card" Padding="16,14" MinHeight="132">
+        <Border.Transitions>
+            <Transitions>
+                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
+                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2" Easing="CubicEaseOut" />
+            </Transitions>
+        </Border.Transitions>
 
-                <!-- Icon tile: trailing edge (left in RTL) -->
+        <Grid RowDefinitions="Auto,*" ColumnDefinitions="*,Auto" RowSpacing="10">
+
+            <Grid Grid.Row="0" Grid.ColumnSpan="2" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
+                <!-- Icon tile: leading edge (right in RTL) -->
                 <Border x:Name="IconTile"
-                        Grid.Column="2"
-                        Width="42"
-                        Height="42"
-                        CornerRadius="13"
+                        Grid.Column="0"
+                        Width="36"
+                        Height="36"
+                        CornerRadius="11"
                         BorderThickness="1"
                         VerticalAlignment="Center"
                         Background="{StaticResource Brand50Brush}"
                         BorderBrush="{StaticResource Brand100Brush}">
                     <Path x:Name="IconPath"
                           Classes="icon"
-                          Width="19"
-                          Height="19"
+                          Width="17"
+                          Height="17"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
                           Stroke="{StaticResource Brand600Brush}" />
                 </Border>
+
+                <TextBlock x:Name="LabelText"
+                           Grid.Column="1"
+                           FontSize="{StaticResource FontSizeSm}"
+                           FontWeight="SemiBold"
+                           TextWrapping="Wrap"
+                           TextAlignment="Start"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource MutedBrush}" />
+
+                <!-- Delta chip -->
+                <Border x:Name="DeltaChip"
+                        Grid.Column="2"
+                        CornerRadius="10"
+                        Padding="8,3"
+                        Background="{StaticResource OkBgBrush}"
+                        VerticalAlignment="Center">
+                    <TextBlock x:Name="DeltaText"
+                               FontSize="{StaticResource FontSizeXs}"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource OkBrush}" />
+                </Border>
+
+                <!-- Chevron: "this card opens something" (trailing edge, points left in RTL). -->
+                <Path x:Name="ChevronPath"
+                      Grid.Column="3"
+                      Classes="icon stat-chevron"
+                      Width="14"
+                      Height="14"
+                      VerticalAlignment="Center"
+                      IsVisible="False"
+                      Data="{StaticResource IconChevronLeft}"
+                      Stroke="{StaticResource Muted2Brush}" />
             </Grid>
 
-            <StackPanel Spacing="3" HorizontalAlignment="Stretch">
+            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="3" VerticalAlignment="Bottom" HorizontalAlignment="Stretch">
                 <TextBlock x:Name="ValueText"
                            FontSize="{StaticResource FontSizeXl}"
                            FontWeight="ExtraBold"
                            TextAlignment="Start"
                            HorizontalAlignment="Left"
                            Foreground="{StaticResource InkBrush}" />
-                <TextBlock x:Name="LabelText"
-                           FontSize="{StaticResource FontSizeSm}"
+                <TextBlock x:Name="SecondaryText"
+                           FontSize="{StaticResource FontSizeXs}"
                            FontWeight="SemiBold"
-                           TextWrapping="Wrap"
                            TextAlignment="Start"
                            HorizontalAlignment="Left"
-                           Foreground="{StaticResource MutedBrush}" />
+                           TextWrapping="Wrap"
+                           Foreground="{StaticResource Ink2Brush}"
+                           IsVisible="False" />
                 <TextBlock x:Name="FootText"
                            FontSize="{StaticResource FontSizeXs}"
                            TextAlignment="Start"
@@ -71,7 +115,19 @@
                            IsVisible="False" />
             </StackPanel>
 
-        </StackPanel>
+            <!-- Time flows left→right like the reference chart, independent of the RTL card. -->
+            <controls:SparklineChart x:Name="SparkChart"
+                                     Grid.Row="1"
+                                     Grid.Column="1"
+                                     Width="104"
+                                     Height="48"
+                                     Margin="12,0,0,0"
+                                     VerticalAlignment="Bottom"
+                                     FlowDirection="LeftToRight"
+                                     IsHitTestVisible="False"
+                                     IsVisible="False"
+                                     Stroke="{StaticResource OkBrush}" />
+        </Grid>
     </Border>
 
 </UserControl>
