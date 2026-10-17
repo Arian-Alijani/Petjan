@@ -6,7 +6,8 @@
 <nav aria-label="Audit source"><a href="/admin/audit?tab=operator">Operator audit</a> <a href="/admin/audit?tab=tenant">Tenant security audit</a></nav>
 <form method="get"><input type="hidden" name="tab" value="@Tab" />
 <label>Tenant id <input name="tenantId" value="@TenantId" maxlength="26" required="@(Tab == "tenant")" /></label>
-@if (Tab != "tenant") { <label>Action <input name="action" value="@Action" maxlength="64" /></label> }
+<label>Action <input name="action" value="@Action" maxlength="64" /></label>
+@if (Tab == "tenant") { <label>Actor (user id) <input name="actorId" value="@ActorId" maxlength="26" dir="ltr" /></label> }
 <label>From UTC (inclusive) <input type="date" name="from" value="@From?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
 <label>To UTC (exclusive) <input type="date" name="to" value="@To?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
 <button type="submit">Filter</button></form>
@@ -24,16 +25,17 @@
     [SupplyParameterFromQuery] public string Tab { get; set; } = "operator";
     [SupplyParameterFromQuery] public string? TenantId { get; set; }
     [SupplyParameterFromQuery] public string? Action { get; set; }
+    [SupplyParameterFromQuery] public string? ActorId { get; set; }
     [SupplyParameterFromQuery] public DateTime? From { get; set; }
     [SupplyParameterFromQuery] public DateTime? To { get; set; }
     [SupplyParameterFromQuery] public int Page { get; set; } = 1;
     [SupplyParameterFromQuery] public int PageSize { get; set; } = 50;
     private AdminPage<AuditSummary>? Rows;
     private static DateTimeOffset? Utc(DateTime? value) => value is { } date ? new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc)) : null;
-    private string FilterUrl => $"/admin/audit?tab={Uri.EscapeDataString(Tab)}&tenantId={Uri.EscapeDataString(TenantId ?? "")}&action={Uri.EscapeDataString(Action ?? "")}&from={From:yyyy-MM-dd}&to={To:yyyy-MM-dd}";
+    private string FilterUrl => $"/admin/audit?tab={Uri.EscapeDataString(Tab)}&tenantId={Uri.EscapeDataString(TenantId ?? "")}&action={Uri.EscapeDataString(Action ?? "")}&actorId={Uri.EscapeDataString(ActorId ?? "")}&from={From:yyyy-MM-dd}&to={To:yyyy-MM-dd}";
     protected override async Task OnInitializedAsync()
     {
-        var query = new AdminAuditQuery(TenantId, Action, Utc(From), Utc(To), Page, PageSize);
+        var query = new AdminAuditQuery(TenantId, Action, Utc(From), Utc(To), Page, PageSize, ActorId);
         if (Tab == "tenant")
         {
             if (string.IsNullOrWhiteSpace(TenantId) || From is null || To is null) return;

@@ -16,7 +16,7 @@ internal sealed class AdminAuditAdapter(AuditQueries queries, AdminSession sessi
         _ = session.OperatorId;
         if (string.IsNullOrWhiteSpace(query.TenantId) || query.From is not { } from || query.To is not { } to ||
             to <= from || to - from > TimeSpan.FromDays(90)) return Result<AdminPage<AuditSummary>>.Fail(ErrorCodes.ValidationFailed);
-        return Map(await queries.TenantAsync(query.TenantId, from, to, query.Page, query.PageSize, ct).ConfigureAwait(false));
+        return Map(await queries.TenantAsync(query.TenantId, from, to, query.Page, query.PageSize, ct, query.Action, query.ActorId).ConfigureAwait(false));
     }
     private static Result<AdminPage<AuditSummary>> Map(Result<OperatorPage<AuditRow>> result)
     {

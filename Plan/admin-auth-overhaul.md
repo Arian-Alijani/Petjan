@@ -264,10 +264,10 @@
 - [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.4] per-clinic products view with filters"`
 
 ### ۳.۵ — مشاهدهٔ «تمام اطلاعات ثبت‌شدهٔ» کلینیک + فیلتر عمومی
-- [ ] با استفاده از صفحهٔ Audit موجود (`Pages/Audit.razor` + `IAdminAuditQueries.TenantAsync`) یک نمای
+- [x] با استفاده از صفحهٔ Audit موجود (`Pages/Audit.razor` + `IAdminAuditQueries.TenantAsync`) یک نمای
     جامع‌تر برای یک tenant بده: فیلتر بر اساس action، بازهٔ زمانی، actor. اگر `AdminAuditQuery` کفایت
     می‌کند فقط UI را به tenant گره بزن (لینک از TenantDetail). کوئری جدید فقط در صورت کمبود فیلد.
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.5] clinic-scoped audit/data explorer with filters"`
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.5] clinic-scoped audit/data explorer with filters"`
 
 ### ۳.۶ — ریست/تغییر دستی رمز هر کاربر کلینیک (مالک و کارکنان) از پنل
 - [ ] **تعمیم `OwnerCredentialAdministration`.** یک متد عمومی‌تر اضافه کن (یا سرویس جدید

@@ -11,7 +11,7 @@
 <nav class="quick" aria-label="@Loc.T("tenant.detail")"><a href="@($"/admin/tenants/{Id}/licenses")">@Loc.T("tenant.manageLicences")</a>
 <a href="@($"/admin/tenants/{Id}/staff")">@Loc.T("tenant.staffLink")</a>
 <a href="@($"/admin/tenants/{Id}/products")">@Loc.T("tenant.productsLink")</a>
-<a href="@($"/admin/audit?tab=tenant&tenantId={Id}")">@Loc.T("tenant.auditLink")</a></nav>
+<a href="@AuditUrl">@Loc.T("tenant.auditLink")</a></nav>
 @if (Detail.Subscription is { } subscription) {
 <h2>@Loc.T("tenant.subscription")</h2><p>@subscription.Status · @subscription.Seats @Loc.T("tenant.seats") · @Loc.T("tenant.ends") @subscription.PeriodEnd.ToString("u")</p>
 @foreach (var operation in Operations) {
@@ -32,6 +32,8 @@
 }
 @code {
     [Parameter] public string Id { get; set; }="";
+    /// <summary>Clinic-scoped audit explorer pre-filled with the last 30 days (the tenant audit window is capped at 90).</summary>
+    private string AuditUrl=>$"/admin/audit?tab=tenant&tenantId={Uri.EscapeDataString(Id)}&from={DateTime.UtcNow.AddDays(-30):yyyy-MM-dd}&to={DateTime.UtcNow.AddDays(1):yyyy-MM-dd}";
     [SupplyParameterFromForm] public SubscriptionActionForm? Form { get; set; }
     private Models.TenantDetail? Detail; private MutationReceipt? Receipt;
     private static readonly string[] Operations=["extend","reduce","suspend","reinstate","cancel","renew","seats","plan","reset-owner-password"];

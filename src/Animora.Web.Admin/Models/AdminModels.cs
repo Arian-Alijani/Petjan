@@ -69,7 +69,7 @@ public sealed record WebsiteClientSecret(string KeyId, string Secret)
 public sealed record FileMismatchSummary(string TenantId, string TenantCode, string FileId, long SizeBytes, string? ShaPrefix, DateTimeOffset UpdatedUtc);
 public sealed record AuditSummary(string Id, DateTimeOffset OccurredUtc, string? ActorId, string Action, string? TenantId,
     string Outcome, string CorrelationId, string? Detail);
-public sealed record AdminAuditQuery(string? TenantId, string? Action, DateTimeOffset? From, DateTimeOffset? To, int Page = 1, int PageSize = 50);
+public sealed record AdminAuditQuery(string? TenantId, string? Action, DateTimeOffset? From, DateTimeOffset? To, int Page = 1, int PageSize = 50, string? ActorId = null);
 public sealed record InsightStatus(bool Enabled, bool HasConsentAdr);
 public sealed class ProvisioningActionForm { public string Id { get; set; } = ""; public bool Confirmed { get; set; } }
 public sealed class WebsiteClientCreateForm { public string Label { get; set; } = ""; public bool Confirmed { get; set; } }

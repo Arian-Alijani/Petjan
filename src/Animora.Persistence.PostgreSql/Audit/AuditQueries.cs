@@ -38,15 +38,19 @@ public sealed class AuditQueries(AnimoraOperatorDbContext db, IReportingQuerySes
         return Result<OperatorPage<AuditRow>>.Ok(new(rows.Select(x => x with { Detail = TruncateDetail(x.Detail) }).ToArray(), page, size, total));
     }
     public async Task<Result<OperatorPage<AuditRow>>> TenantAsync(string tenantId, DateTimeOffset from, DateTimeOffset to,
-        int page, int size, CancellationToken ct = default)
+        int page, int size, CancellationToken ct = default, string? action = null, string? actorId = null)
     {
-        if (string.IsNullOrWhiteSpace(tenantId) || tenantId.Length > 26 || to <= from || to - from > TimeSpan.FromDays(90))
+        if (string.IsNullOrWhiteSpace(tenantId) || tenantId.Length > 26 || to <= from || to - from > TimeSpan.FromDays(90)
+            || action is { Length: > 64 } || actorId is { Length: > 26 })
             return Result<OperatorPage<AuditRow>>.Fail(ErrorCodes.ValidationFailed);
         page = Math.Clamp(page, 1, int.MaxValue / 200); size = Math.Clamp(size, 1, 200);
         var query = db.Database.SqlQueryRaw<AuditRow>("""
             SELECT "Id", "OccurredUtc", "ActorUserId" AS "ActorId", "Action", "TenantId", "Outcome", "CorrelationId",
                 LEFT("DetailJson"::text, 2048) AS "Detail" FROM public."SecurityAudit"
             """).AsNoTracking().Where(x => x.TenantId == tenantId && x.OccurredUtc >= from && x.OccurredUtc < to);
+        // Optional exact-match filters; the (TenantId, OccurredUtc) range above keeps every query index-bounded.
+        if (!string.IsNullOrWhiteSpace(action)) query = query.Where(x => x.Action == action);
+        if (!string.IsNullOrWhiteSpace(actorId)) query = query.Where(x => x.ActorId == actorId);
         long total = await query.LongCountAsync(ct).ConfigureAwait(false);
         var rows = await query.OrderByDescending(x => x.OccurredUtc).ThenByDescending(x => x.Id).Skip((page - 1) * size).Take(size)
             .ToListAsync(ct).ConfigureAwait(false);
