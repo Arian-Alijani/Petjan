@@ -53,3 +53,15 @@ public sealed class AdminPagesTests
     [Fact] public void TempPassword_ShownOnce_NotInUrlOrLogs()
     { foreach(string f in Directory.EnumerateFiles(Path.Combine(RepoRoot.Find(),"src/Animora.Web.Admin/Pages"),"*.razor")) {var source=File.ReadAllText(f);Assert.DoesNotContain("?password",source);Assert.DoesNotContain("Logger",source);}Assert.Contains("r.WasReplay?null:r.OwnerTemporaryPassword",File.ReadAllText(Path.Combine(RepoRoot.Find(),"src/Animora.Server/Admin/AdminSubscriptionAdapter.cs"))); }
 }
+public sealed class AdminPageAuthorizationSourceTests
+{
+    /// <summary>Every routable operator page (anything with <c>@page</c>) must carry the AdminOnly policy except the login page.</summary>
+    [Fact] public void EveryRoutablePage_RequiresAdminOnly_ExceptLogin()
+    {
+        var pages = Directory.EnumerateFiles(Path.Combine(RepoRoot.Find(), "src/Animora.Web.Admin/Pages"), "*.razor")
+            .Where(f => File.ReadAllText(f).Contains("@page ", StringComparison.Ordinal)).ToArray();
+        Assert.NotEmpty(pages);
+        foreach (string f in pages.Where(f => Path.GetFileName(f) != "Login.razor"))
+            Assert.True(File.ReadAllText(f).Contains("[Authorize(Policy=\"AdminOnly\")]", StringComparison.Ordinal), Path.GetFileName(f));
+    }
+}

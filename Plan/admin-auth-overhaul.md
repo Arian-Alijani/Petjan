@@ -309,12 +309,12 @@
 - [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.7] live server log viewer with filter & search"`
 
 ### ۳.۸ — داشبورد تمیز + بازبینی نهایی UX/امنیت
-- [ ] داشبورد (`Pages/Dashboard.razor`) را مرتب کن: کارت‌های خلاصه (tenantها، expiring, past-due از
+- [x] داشبورد (`Pages/Dashboard.razor`) را مرتب کن: کارت‌های خلاصه (tenantها، expiring, past-due از
     `AdminStatus`) + لینک‌های سریع. ترجمه‌شده. `LiveStatusPanel` را نگه‌دار.
-- [ ] بازبینی امنیت: همهٔ صفحات/endpointهای جدید `AdminOnly`/`OperatorOnly` + rate limit
+- [x] بازبینی امنیت: همهٔ صفحات/endpointهای جدید `AdminOnly`/`OperatorOnly` + rate limit
     (`RateLimitPolicies.Operator`) + AntiforgeryToken روی فرم‌ها + عدم نشت رمز/توکن در لاگ و UI.
-- [ ] بازبینی سبکی: کوئری‌ها صفحه‌بندی‌شده، بدون N+1 واضح، لاگ لایو سقف‌دار.
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.8] dashboard polish + security/perf review"`
+- [x] بازبینی سبکی: کوئری‌ها صفحه‌بندی‌شده، بدون N+1 واضح، لاگ لایو سقف‌دار.
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.8] dashboard polish + security/perf review"`
 
 ---
 
