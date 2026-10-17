@@ -369,9 +369,12 @@
   function bindChart() {
     var holder = document.getElementById('chartHolder');
     if (!holder) return;
-    var W = 500, H = 180, PAD_X = 6, TOP = 22, BOTTOM = 26, M = 48;
+    var W = 500, H = 180, PAD_X = 8, TOP = 16, BOTTOM = 18, M = 56;
     var lineEl = document.getElementById('chartLine');
     var areaEl = document.getElementById('chartArea');
+    var gridEl = document.getElementById('chartGrid');
+    var yAxis = document.getElementById('chartY');
+    var dotsEl = document.getElementById('chartDots');
     var xAxis = document.getElementById('chartX');
     var tip = document.getElementById('chartTip');
     var hLine = document.getElementById('hoverLine');
@@ -379,14 +382,23 @@
     var valEl = document.getElementById('pulseValue');
     var deltaEl = document.getElementById('pulseDelta');
     var current = null;
+    var GRID = 5; // ۵ فاصله → ۶ خط افقی (مثل محور ۰…۱۰۰ نمونه)
 
-    function pointsFor(vals) {
-      var n = vals.length;
+    // محدودهٔ عمودیِ داده را حساب می‌کند تا خطوط شبکه و نقاط هم‌تراز شوند.
+    function spanFor(vals) {
       var max = Math.max.apply(null, vals), min = Math.min.apply(null, vals);
-      var hi = max + (max - min) * 0.28 + 0.001, lo = min - (max - min) * 0.5;
+      var pad = (max - min) * 0.28 + 0.001;
+      var hi = max + pad, lo = min - (max - min) * 0.5;
+      return { hi: hi, lo: lo };
+    }
+    function yOf(v, sp) {
+      return TOP + (1 - (v - sp.lo) / (sp.hi - sp.lo)) * (H - TOP - BOTTOM);
+    }
+    function pointsFor(vals) {
+      var n = vals.length, sp = spanFor(vals);
       var step = (W - PAD_X * 2) / (n - 1);
       return vals.map(function (v, i) {
-        return [W - PAD_X - i * step, TOP + (1 - (v - lo) / (hi - lo)) * (H - TOP - BOTTOM)];
+        return [W - PAD_X - i * step, yOf(v, sp)];
       });
     }
     function resample(pts) {
@@ -406,11 +418,41 @@
       areaEl.setAttribute('d', d + ' L' + PAD_X + ',' + H + ' L' + (W - PAD_X) + ',' + H + ' Z');
     }
 
+    // خطوط شبکهٔ افقی یکدست + اعداد محور Y (هم‌تراز با محدودهٔ داده)
+    function drawGrid(sp, maxVal) {
+      var gl = '', ya = '';
+      for (var i = 0; i <= GRID; i++) {
+        var frac = i / GRID;                         // از پایین به بالا
+        var y = H - BOTTOM - frac * (H - TOP - BOTTOM);
+        gl += '<line x1="0" y1="' + y.toFixed(1) + '" x2="' + W + '" y2="' + y.toFixed(1) + '"/>';
+        // عدد محور بر مبنای درصدِ بیشینهٔ داده (۰…۱۰۰ وار)
+        var lbl = Math.round(frac * 100);
+        var topPct = ((y - TOP) / (H - TOP - BOTTOM) * 100);
+        ya += '<span style="top:' + topPct.toFixed(2) + '%">' + fa(lbl) + '</span>';
+      }
+      gridEl.innerHTML = gl;
+      if (yAxis) yAxis.innerHTML = ya;
+    }
+
+    // نقاط دایره‌ایِ توخالی روی هر داده (overlay HTML تا همیشه گرد بمانند)
+    function drawDots(pts) {
+      if (!dotsEl) return;
+      dotsEl.innerHTML = pts.map(function (p, i) {
+        var right = (W - p[0]) / W * 100;
+        var top = p[1] / H * 100;
+        return '<span class="cdot" data-i="' + i + '" style="right:' + right.toFixed(2) +
+               '%;top:' + top.toFixed(2) + '%"></span>';
+      }).join('');
+    }
+
     function renderRange(key, animateIt) {
       var r = RANGES[key];
       var pts = pointsFor(r.values);
+      var sp = spanFor(r.values);
       holder._pts = pts;
       holder._data = r;
+      drawGrid(sp, Math.max.apply(null, r.values));
+      drawDots(pts);
       var target = resample(pts);
       if (!current || !animateIt) {
         current = target.slice();
@@ -446,29 +488,37 @@
       });
     });
 
-    holder.addEventListener('pointermove', function (e) {
-      var r = holder.getBoundingClientRect();
+    var plot = holder.querySelector('.chart-plot') || holder;
+    function moveHover(clientX) {
+      var r = plot.getBoundingClientRect();
       var pts = holder._pts, data = holder._data;
-      if (!pts) return;
-      var px = (e.clientX - r.left) / r.width * W;
+      if (!pts || !r.width) return;
+      var px = (clientX - r.left) / r.width * W;
       var best = 0, bd = Infinity;
       pts.forEach(function (p, i) { var d = Math.abs(p[0] - px); if (d < bd) { bd = d; best = i; } });
       var p = pts[best];
       var leftPx = p[0] / W * r.width;
-      var topPx = p[1];
+      var topPx = p[1] / H * r.height;
       holder.classList.add('active');
       hLine.style.left = leftPx + 'px';
+      hLine.style.height = Math.max(0, (H - BOTTOM) / H * r.height - topPx) + 'px';
+      hLine.style.top = topPx + 'px';
       hDot.style.left = leftPx + 'px';
       hDot.style.top = topPx + 'px';
-      tip.style.right = (r.width - leftPx) + 'px';
-      tip.style.top = Math.max(0, topPx - 46) + 'px';
-      tip.innerHTML = '<span style="opacity:.7">' + data.labels[best] + '</span>' +
-        '<b class="num-fa">' + fa(String(data.values[best]).replace('.', '٫')) + ' م تومان</b>';
+      tip.style.left = leftPx + 'px';
+      tip.style.top = topPx + 'px';
+      tip.innerHTML =
+        '<span class="tip-lbl">' + data.labels[best] + '</span>' +
+        '<b class="tip-val num-fa">' + fa(String(data.values[best]).replace('.', '٫')) + ' م تومان</b>' +
+        '<i class="tip-caret"></i>';
       [].slice.call(xAxis.children).forEach(function (s, i) { s.classList.toggle('on', i === best); });
-    });
-    holder.addEventListener('pointerleave', function () {
+      if (dotsEl) [].slice.call(dotsEl.children).forEach(function (s, i) { s.classList.toggle('on', i === best); });
+    }
+    plot.addEventListener('pointermove', function (e) { moveHover(e.clientX); });
+    plot.addEventListener('pointerleave', function () {
       holder.classList.remove('active');
       [].slice.call(xAxis.children).forEach(function (s) { s.classList.remove('on'); });
+      if (dotsEl) [].slice.call(dotsEl.children).forEach(function (s) { s.classList.remove('on'); });
     });
   }
 

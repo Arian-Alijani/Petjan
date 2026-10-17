@@ -42,25 +42,42 @@
                 <button data-range="year">سال</button>
               </div>
             </div>
-            <div class="chart-holder" id="chartHolder" style="margin-top:8px">
-              <svg id="pulseChart" viewBox="0 0 500 180" width="100%" height="180" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="ga" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stop-color="#5B42F3" stop-opacity=".30"/>
-                    <stop offset="100%" stop-color="#5B42F3" stop-opacity="0"/>
-                  </linearGradient>
-                </defs>
-                <g stroke="#eef0f8" stroke-dasharray="3 4">
-                  <line x1="0" y1="40" x2="500" y2="40"/>
-                  <line x1="0" y1="80" x2="500" y2="80"/>
-                  <line x1="0" y1="120" x2="500" y2="120"/>
-                </g>
-                <path id="chartArea" d="" fill="url(#ga)"/>
-                <path id="chartLine" d="" fill="none" stroke="#5B42F3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <span class="hover-line" id="hoverLine"></span>
-              <span class="hover-dot" id="hoverDot"></span>
-              <div class="chart-tip" id="chartTip"></div>
+            <div class="chart-holder" id="chartHolder" style="margin-top:14px">
+              <div class="chart-yaxis" id="chartY" aria-hidden="true"></div>
+              <div class="chart-plot">
+                <svg id="pulseChart" viewBox="0 0 500 180" width="100%" height="180" preserveAspectRatio="none">
+                  <defs>
+                    <!-- گرادیان افقی خط: آبی → بنفش → مجنتا -->
+                    <linearGradient id="au-stroke" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%"   stop-color="#5CA9E9"/>
+                      <stop offset="42%"  stop-color="#9A7CF4"/>
+                      <stop offset="72%"  stop-color="#B169E8"/>
+                      <stop offset="100%" stop-color="#F46BD1"/>
+                    </linearGradient>
+                    <!-- ناحیهٔ زیر خط: گرادیان افقی رنگی که عمودی محو می‌شود -->
+                    <linearGradient id="au-fill-h" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%"   stop-color="#5CA9E9"/>
+                      <stop offset="50%"  stop-color="#9A7CF4"/>
+                      <stop offset="100%" stop-color="#F46BD1"/>
+                    </linearGradient>
+                    <linearGradient id="au-fade" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stop-color="#fff" stop-opacity="1"/>
+                      <stop offset="78%"  stop-color="#fff" stop-opacity="0"/>
+                    </linearGradient>
+                    <mask id="au-fade-mask">
+                      <rect x="0" y="0" width="500" height="180" fill="url(#au-fade)"/>
+                    </mask>
+                  </defs>
+                  <!-- خطوط شبکهٔ افقی (یکدست، بسیار کم‌رنگ) -->
+                  <g id="chartGrid" stroke="#F0F2F8" stroke-width="1" shape-rendering="crispEdges"></g>
+                  <path id="chartArea" d="" fill="url(#au-fill-h)" mask="url(#au-fade-mask)" opacity=".16"/>
+                  <path id="chartLine" d="" fill="none" stroke="url(#au-stroke)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+                </svg>
+                <span class="hover-line" id="hoverLine"></span>
+                <div class="chart-dots" id="chartDots" aria-hidden="true"></div>
+                <span class="hover-dot" id="hoverDot"></span>
+                <div class="chart-tip" id="chartTip"></div>
+              </div>
               <div class="chart-x" id="chartX"></div>
             </div>
           </div>

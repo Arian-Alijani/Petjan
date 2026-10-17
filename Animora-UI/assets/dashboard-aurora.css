@@ -167,21 +167,135 @@ body:has(#dash-root) .brand-logo {
   box-shadow: 0 8px 18px -6px rgba(91, 66, 243, .5);
 }
 
-/* خط و ناحیهٔ چارت به بنفش */
-#dash-root #chartLine { stroke: var(--au-primary); stroke-width: 3; }
-#dash-root #chartArea { fill: url(#ga); }
-#dash-root #pulseChart defs #ga stop:first-child { stop-color: var(--au-primary); }
+/* ---------- چارت خطی گرادیانی (ری‌دیزاین مطابق نمونه) ---------- */
+#dash-root .chart-holder {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 26px;   /* ناحیهٔ رسم + ستون اعداد محور (RTL: راست) */
+  column-gap: 10px;
+  margin-top: 14px;
+}
+#dash-root .chart-plot { position: relative; grid-column: 1; grid-row: 1; }
+#dash-root .chart-plot #pulseChart { display: block; overflow: visible; }
+
+/* اعداد محور عمودی (۰…۱۰۰) */
+#dash-root .chart-yaxis {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  height: 180px;
+}
+#dash-root .chart-yaxis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  font-size: 11px;
+  line-height: 1;
+  color: #9298AE;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+
+/* نقاط دایره‌ایِ توخالی روی داده‌ها */
+#dash-root .chart-dots { position: absolute; inset: 0; pointer-events: none; }
+#dash-root .chart-dots .cdot {
+  position: absolute;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #A275EE;
+  transform: translate(50%, -50%);   /* RTL: right محور */
+  box-shadow: 0 1px 3px rgba(80, 60, 160, .18);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+#dash-root .chart-dots .cdot.on {
+  transform: translate(50%, -50%) scale(1.18);
+  border-color: var(--au-primary);
+  box-shadow: 0 0 0 4px rgba(124, 92, 240, .16);
+}
+
+/* خط‌چین عمودیِ هاور */
+#dash-root .hover-line {
+  position: absolute;
+  width: 0;
+  border: 0;
+  border-inline-start: 1.4px dashed rgba(142, 148, 178, .6);
+  background: none !important;
+  opacity: 0;
+  transition: opacity .18s ease;
+  pointer-events: none;
+  transform: translateX(0);
+}
+
+/* نقطهٔ فعالِ هاور (روی خط‌چین) */
 #dash-root .hover-dot {
-  box-shadow: 0 0 0 4px #fff, 0 0 0 7px rgba(91, 66, 243, .35);
-  background: var(--au-primary) !important;
+  position: absolute;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #fff !important;
+  border: 2.4px solid var(--au-primary);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 5px rgba(124, 92, 240, .14);
+  opacity: 0;
+  transition: opacity .18s ease;
+  pointer-events: none;
 }
-#dash-root .hover-line { background: linear-gradient(to bottom, rgba(91,66,243,.45), rgba(91,66,243,0)) !important; }
+#dash-root .chart-holder.active .hover-line,
+#dash-root .chart-holder.active .hover-dot { opacity: 1; }
+
+/* تول‌تیپ تیرهٔ نمونه با مثلث اشاره‌گر */
 #dash-root .chart-tip {
-  border-radius: 12px;
-  box-shadow: var(--au-shadow-sm);
-  border: 1px solid var(--au-line);
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 16px));
+  background: #0C0E24;
+  color: #fff;
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 14px 8px;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 12px 28px -10px rgba(12, 14, 36, .55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 4;
 }
-#dash-root .chart-tip b { color: var(--au-ink); }
+#dash-root .chart-holder.active .chart-tip { opacity: 1; }
+#dash-root .chart-tip .tip-lbl {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #8E94B2;
+  margin-bottom: 2px;
+}
+#dash-root .chart-tip .tip-val {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .2px;
+}
+#dash-root .chart-tip .tip-caret {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 11px; height: 11px;
+  background: #0C0E24;
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 0 0 2px 0;
+}
+
+/* محور افقی زمان */
+#dash-root .chart-x {
+  grid-column: 1;
+  position: relative;
+  height: 26px;
+  margin-top: 6px;
+  color: #9298AE;
+  font-size: 11px;
+}
+#dash-root .chart-x span { color: #9298AE; }
+#dash-root .chart-x span.on { color: var(--au-primary); font-weight: 700; }
 
 /* ---------- 6) بار کاری پزشکان (نوارهای افقی سبک نمونه) ---------- */
 #dash-root .db-docload { padding: 6px 8px 14px; }
