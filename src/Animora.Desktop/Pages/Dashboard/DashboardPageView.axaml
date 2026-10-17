@@ -119,7 +119,9 @@
                                         Spark="{Binding Spark}"
                                         Delta="{Binding Delta}"
                                         IsDeltaPositive="{Binding IsDeltaPositive}"
-                                        IconTone="{Binding IconTone, Converter={StaticResource ToneConverter}}" />
+                                        IconTone="{Binding IconTone, Converter={StaticResource ToneConverter}}"
+                                        Command="{Binding $parent[UserControl].((dashboard:DashboardPageViewModel)DataContext).OpenStatCommand}"
+                                        CommandParameter="{Binding}" />
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>

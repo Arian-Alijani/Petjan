@@ -327,6 +327,31 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
     }
 
     /// <summary>
+    /// KPI card click: the visits card opens the appointments page, every other routed card opens the statistics
+    /// overview. A card without a <see cref="DashboardStat.NavTarget"/> (doctor / cashier KPIs, which have no matching
+    /// destination) is not clickable: <see cref="CanOpenStat"/> keeps the StatCard non-interactive.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanOpenStat))]
+    private void OpenStat(DashboardStat? stat)
+    {
+        if (stat?.NavTarget is null)
+        {
+            return;
+        }
+
+        if (stat.NavTarget == DashboardStatTargets.Appointments)
+        {
+            _navigation.NavigateTo<Animora.Desktop.Pages.Appointments.AppointmentsCalendarViewModel>();
+            return;
+        }
+
+        _navigation.NavigateTo<Animora.Desktop.Pages.Statistics.StatisticsPageViewModel>(
+            page => page.ShowSectionCommand.Execute(Animora.Desktop.Pages.Statistics.StatisticsSection.Overview));
+    }
+
+    private static bool CanOpenStat(DashboardStat? stat) => stat?.NavTarget is not null;
+
+    /// <summary>
     /// Focus a species slice (hover over the ring or its legend row): dims the
     /// other slices and swaps the center readout, mirroring the reference's
     /// <c>focus()</c> in Animora-UI/assets/dashboard.js.

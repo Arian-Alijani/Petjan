@@ -185,7 +185,7 @@ KPI ها از پایین به بالا این‌طور ساخته و رندر م
 
 ---
 
-### ⬜ تسک T6 — کلیک‌پذیر کردن KPI ها + سیم‌کشی ناوبری
+### ✅ تسک T6 — کلیک‌پذیر کردن KPI ها + سیم‌کشی ناوبری
 **فایل‌ها:** `DashboardPageView.axaml` (خطوط 100-123) + `DashboardPageViewModel.cs` + `StatCard`
 - در `DashboardPageViewModel` یک `[RelayCommand] private void OpenStat(DashboardStat? stat)` اضافه کن:
   - اگر `stat.NavTarget == "Appointments"` → `_navigation.NavigateTo<Animora.Desktop.Pages.Appointments.AppointmentsCalendarViewModel>();`
