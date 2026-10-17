@@ -170,7 +170,7 @@
 - پوش:
   `scripts/git/push.sh -b genspark_ai_developer "feat(tray): system tray icon, close-to-tray, hidden --startup boot"`
 
-### ⬜ تسک ۶ — بیلدِ هدفمند + رفعِ خطاها + پوش نهایی
+### ✅ تسک ۶ — بیلدِ هدفمند + رفعِ خطاها + پوش نهایی (انجام شد: CI desktop build-only run 39005843248 سبز)
 - فقط بیلدِ پروژه‌های تغییریافته (Desktop + Client.Services + Contracts). تستِ کامل
   نگیر. خطاهای کامپایل را رفع کن.
 - دستور:
@@ -178,7 +178,7 @@
 - پوش:
   `scripts/git/push.sh -b genspark_ai_developer "fix: resolve build issues for remember-me + startup/tray features"`
 
-### ⬜ تسک ۷ (پایانی) — حذفِ همین فایلِ Plan
+### ✅ تسک ۷ (پایانی) — حذفِ همین فایلِ Plan
 - فقط همین فایل (`Plan/remember-me-and-startup.md`) حذف شود. به فایل‌های دیگر و
   roadmap کاری نداشته باش.
 - پوش:
