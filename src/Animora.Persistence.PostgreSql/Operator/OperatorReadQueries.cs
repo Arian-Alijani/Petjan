@@ -1,4 +1,6 @@
 using Animora.Domain.Identity;
+using Animora.Domain.Inventory;
+using Animora.Domain.Time;
 using Animora.Domain.Subscriptions;
 using Animora.Persistence.PostgreSql.Licensing;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +8,12 @@ namespace Animora.Persistence.PostgreSql.Operator;
 
 public sealed record OperatorPage<T>(IReadOnlyList<T> Items,int Page,int Size,long Total,long Sequence=0);
 public sealed record OperatorTenantDetail(Tenant Tenant,Subscription? Subscription,int Seats,int Devices,int Licenses,long GrantSequence,IReadOnlyList<SubscriptionEvent> Events);
-public sealed class OperatorReadQueries(AnimoraOperatorDbContext db)
+public sealed record OperatorStaffRow(string MembershipId,string UserId,string Name,string UserName,StaffRole Role,bool Active,int Devices);
+public sealed record OperatorProductRow(string Id,string Sku,string Name,string CategoryId,string CategoryName,ProductKind Kind,bool Active,bool TrackStock,
+    long PriceMinor,string Currency,decimal OnHand,decimal ReorderLevel,string StockState);
+public sealed record OperatorCategoryRow(string Id,string Name);
+public sealed record OperatorProductFilter(string? Search,string? CategoryId,string? Stock,long? MinPrice,long? MaxPrice);
+public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock)
 {
     public Task<bool> SessionValidAsync(string id, string stamp, CancellationToken ct = default) => db.Accounts.AsNoTracking()
         .AnyAsync(x => x.Id == id && x.SecurityStamp == stamp && x.Status == OperatorAccountStatus.Active && !x.MustChangePassword, ct);
@@ -58,5 +65,59 @@ public sealed class OperatorReadQueries(AnimoraOperatorDbContext db)
             Count=db.Licenses.LongCount(l=>l.TenantId==tenantId),Sequence=db.LicenseGrants.Where(g=>g.TenantId==tenantId).Select(g=>(long?)g.Sequence).FirstOrDefault()??0 }).SingleOrDefaultAsync(ct).ConfigureAwait(false);
         var rows=await db.Licenses.AsNoTracking().Where(l=>l.TenantId==tenantId).OrderByDescending(l=>l.Id).Skip((page-1)*size).Take(size).ToListAsync(ct).ConfigureAwait(false);
         return new(rows,page,size,summary?.Count??0,summary?.Sequence??0);
+    }
+    /// <summary>Stock-state buckets accepted by <see cref="ProductsAsync"/>.</summary>
+    public static readonly string[] StockStates=["out","low","ok"];
+    /// <summary>One clinic's staff roster (memberships joined to users through a tenant-bound context), or <see langword="null"/> when the tenant does not exist.</summary>
+    public async Task<OperatorPage<OperatorStaffRow>?> StaffAsync(string tenantId,string? role,string? search,int page,int size,CancellationToken ct)
+    {
+        page=Math.Clamp(page,1,int.MaxValue/200);size=Math.Clamp(size,1,200);
+        if(!await db.Tenants.AsNoTracking().AnyAsync(t=>t.Id==tenantId&&!t.Deleted,ct).ConfigureAwait(false)) return null;
+        await using var tenant=TenantBoundContext.Create(db,tenantId,clock);
+        var query=from m in tenant.StaffMemberships.AsNoTracking()
+            join u in tenant.Users.AsNoTracking() on m.UserId equals u.Id
+            where m.TenantId==tenantId&&u.TenantId==tenantId select new { m,u };
+        if(Enum.TryParse<StaffRole>(role,true,out var wanted)&&Enum.IsDefined(wanted)) query=query.Where(x=>x.m.Role==wanted);
+        if(!string.IsNullOrWhiteSpace(search)) { string term=search.Trim().ToLowerInvariant(); query=query.Where(x=>x.u.DisplayName.ToLower().Contains(term)||x.u.UserName.Contains(term)); }
+        long total=await query.LongCountAsync(ct).ConfigureAwait(false);
+        var rows=await query.OrderBy(x=>x.m.JoinedUtc).ThenBy(x=>x.m.Id).Skip((page-1)*size).Take(size)
+            .Select(x=>new OperatorStaffRow(x.m.Id,x.u.Id,x.u.DisplayName,x.u.UserName,x.m.Role,
+                x.m.Status==MembershipStatus.Active&&x.m.EndedUtc==null&&x.u.Status!=UserStatus.Disabled,
+                tenant.Devices.Count(d=>d.UserId==x.u.Id))).ToListAsync(ct).ConfigureAwait(false);
+        return new(rows,page,size,total);
+    }
+    /// <summary>
+    /// One clinic's product catalogue with stock derived from the movement ledger (never stored, R-B23). Filters: name/SKU text,
+    /// category, stock state (<c>out</c>/<c>low</c>/<c>ok</c>) and a sale-price range in minor units. Returns <see langword="null"/> when the tenant does not exist.
+    /// </summary>
+    public async Task<(OperatorPage<OperatorProductRow> Page,IReadOnlyList<OperatorCategoryRow> Categories)?> ProductsAsync(
+        string tenantId,OperatorProductFilter filter,int page,int size,CancellationToken ct)
+    {
+        page=Math.Clamp(page,1,int.MaxValue/200);size=Math.Clamp(size,1,200);
+        if(!await db.Tenants.AsNoTracking().AnyAsync(t=>t.Id==tenantId&&!t.Deleted,ct).ConfigureAwait(false)) return null;
+        await using var tenant=TenantBoundContext.Create(db,tenantId,clock);
+        var products=tenant.ProductSet.AsNoTracking().Where(p=>p.TenantId==tenantId);
+        if(!string.IsNullOrWhiteSpace(filter.Search)) { string term=filter.Search.Trim(); products=products.Where(p=>EF.Functions.ILike(p.Name,"%"+term+"%")||EF.Functions.ILike(p.Sku,"%"+term+"%")); }
+        if(!string.IsNullOrWhiteSpace(filter.CategoryId)) products=products.Where(p=>p.CategoryId==filter.CategoryId);
+        if(filter.MinPrice is { } min) products=products.Where(p=>p.DefaultSalePrice.Minor>=min);
+        if(filter.MaxPrice is { } max) products=products.Where(p=>p.DefaultSalePrice.Minor<=max);
+        var projected=products.Select(p=>new { p.Id,p.Sku,p.Name,p.CategoryId,p.Kind,p.IsActive,p.TrackStock,
+            Price=p.DefaultSalePrice.Minor,Currency=p.DefaultSalePrice.Currency,Reorder=p.ReorderLevel.Value,
+            OnHand=tenant.StockMovementSet.Where(m=>m.ProductId==p.Id).Sum(m=>(decimal?)m.Quantity.Value)??0m });
+        projected=filter.Stock switch
+        {
+            "out"=>projected.Where(x=>x.TrackStock&&x.OnHand<=0m),
+            "low"=>projected.Where(x=>x.TrackStock&&x.OnHand>0m&&x.OnHand<=x.Reorder),
+            "ok"=>projected.Where(x=>!x.TrackStock||x.OnHand>x.Reorder),
+            _=>projected,
+        };
+        long total=await projected.LongCountAsync(ct).ConfigureAwait(false);
+        var items=await projected.OrderBy(x=>x.Name).ThenBy(x=>x.Id).Skip((page-1)*size).Take(size).ToListAsync(ct).ConfigureAwait(false);
+        var categories=await tenant.ProductCategorySet.AsNoTracking().Where(c=>c.TenantId==tenantId).OrderBy(c=>c.SortOrder).ThenBy(c=>c.DisplayName)
+            .Take(500).Select(c=>new OperatorCategoryRow(c.Id,c.DisplayName)).ToListAsync(ct).ConfigureAwait(false);
+        var names=categories.ToDictionary(c=>c.Id,c=>c.Name);
+        var rows=items.Select(x=>new OperatorProductRow(x.Id,x.Sku,x.Name,x.CategoryId,names.GetValueOrDefault(x.CategoryId,""),x.Kind,x.IsActive,x.TrackStock,x.Price,x.Currency,
+            x.OnHand,x.Reorder,!x.TrackStock?"untracked":x.OnHand<=0m?"out":x.OnHand<=x.Reorder?"low":"ok")).ToArray();
+        return (new OperatorPage<OperatorProductRow>(rows,page,size,total),categories);
     }
 }

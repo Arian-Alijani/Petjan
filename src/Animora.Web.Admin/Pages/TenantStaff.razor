@@ -1,0 +1,30 @@
+@page "/admin/tenants/{Id}/staff"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminStaffQueries Queries
+<h1>@Loc.T("staff.title")</h1><FormError Code="@Error" />
+<p><a href="@($"/admin/tenants/{Id}")">@Loc.T("staff.backToTenant")</a></p>
+<form method="get"><label>@Loc.T("staff.search") <input name="search" value="@Search" maxlength="100" /></label>
+<label>@Loc.T("staff.role") <select name="role"><option value="">@Loc.T("staff.allRoles")</option>
+@foreach (var r in Roles) { <option value="@r" selected="@(string.Equals(Role, r, StringComparison.OrdinalIgnoreCase))">@Loc.T("role." + r)</option> }
+</select></label><button type="submit">@Loc.T("common.filter")</button></form>
+@if (Rows is not null) {
+<table><caption>@Loc.T("staff.caption")</caption><thead><tr><th scope="col">@Loc.T("staff.name")</th><th scope="col">@Loc.T("staff.username")</th><th scope="col">@Loc.T("staff.role")</th>
+<th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("staff.devices")</th></tr></thead><tbody>
+@foreach (var row in Rows.Items) {
+<tr><td>@row.Name</td><td dir="ltr">@row.UserName</td><td>@Loc.T("role." + row.Role)</td>
+<td><StatusBadge Status="@(row.Active ? Loc.T("staff.active") : Loc.T("staff.inactive"))" /></td><td>@row.Devices</td></tr>
+}
+</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
+}
+@code {
+    [Parameter] public string Id { get; set; }="";
+    [SupplyParameterFromQuery] public string? Search { get; set; }
+    [SupplyParameterFromQuery] public string? Role { get; set; }
+    [SupplyParameterFromQuery] public int Page { get; set; }=1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; }=50;
+    private static readonly string[] Roles=["Manager","Doctor","Receptionist","Cashier","Accountant"];
+    private AdminPage<StaffAccountSummary>? Rows;
+    private string FilterUrl=>$"/admin/tenants/{Id}/staff?search={Uri.EscapeDataString(Search??"")}&role={Uri.EscapeDataString(Role??"")}";
+    protected override async Task OnParametersSetAsync() => Rows=Capture(await Queries.ListAsync(Id,new(Role,Search,Page,PageSize),Cancellation));
+}

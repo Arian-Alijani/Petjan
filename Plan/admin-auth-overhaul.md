@@ -220,20 +220,20 @@
 - [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.1] fa/en localization + RTL + css cleanup"`
 
 ### ۳.۲ — صفحهٔ کارکنان/اکانت‌های یک کلینیک (مشاهده)
-- [ ] **کوئری سرور.** در `OperatorReadQueries.cs` متد
+- [x] **کوئری سرور.** در `OperatorReadQueries.cs` متد
     `StaffAsync(string tenantId, int page, int size, CancellationToken ct)` اضافه کن که از
     `db.StaffMemberships` + join به `db.Users` (توجه: Users تحت فیلتر tenant است؛ الگوی tenant-bound
     context را از `OwnerCredentialAdministration.ResetAsync` خطوط ۳۱–۳۷ کپی کن) روستر را برگرداند:
     (UserId, MembershipId, DisplayName, UserName, Role, Active, DeviceCount). صفحه‌بندی مثل بقیه.
-- [ ] **Model + Port.** در `AdminModels.cs`: `record StaffAccountSummary(string MembershipId,string UserId,
+- [x] **Model + Port.** در `AdminModels.cs`: `record StaffAccountSummary(string MembershipId,string UserId,
     string Name,string UserName,string Role,bool Active,int Devices)`. در `AdminPorts.cs` اینترفیس
     `IAdminStaffQueries { Task<Result<AdminPage<StaffAccountSummary>>> ListAsync(string tenantId,int page,int pageSize,CancellationToken ct=default); }`.
-- [ ] **Adapter + DI.** `src/Animora.Server/Admin/AdminStaffAdapter.cs` که `IAdminStaffQueries` را روی
+- [x] **Adapter + DI.** `src/Animora.Server/Admin/AdminStaffAdapter.cs` که `IAdminStaffQueries` را روی
     `OperatorReadQueries` پیاده کند؛ ثبت در `AdminServiceCollectionExtensions.cs` (الگوی
     `AdminTenantQueries` را کپی کن).
-- [ ] **UI.** زیرصفحه/تب در `TenantDetail.razor` (یا صفحهٔ جدید `/admin/tenants/{id}/staff`) که جدول
+- [x] **UI.** زیرصفحه/تب در `TenantDetail.razor` (یا صفحهٔ جدید `/admin/tenants/{id}/staff`) که جدول
     کارکنان را با فیلتر نقش و جست‌وجوی نام نشان دهد + دکمهٔ هر ردیف برای «ریست رمز» (۳.۶) و وضعیت دستگاه.
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.2] per-clinic staff roster view"`
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.2] per-clinic staff roster view"`
 
 ### ۳.۳ — ساخت دستی کاربر برای یک کلینیک از پنل
 - [ ] **Endpoint سرور.** یک مسیر اپراتوری در `OperatorEndpoints.cs`:

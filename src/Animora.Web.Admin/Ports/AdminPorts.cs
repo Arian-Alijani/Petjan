@@ -9,6 +9,19 @@ public interface IAdminTenantQueries
     Task<Result<AdminPage<TenantSummary>>> ListAsync(TenantListQuery query,CancellationToken ct=default);
     Task<Result<TenantDetail>> GetAsync(string id,CancellationToken ct=default);
 }
+public interface IAdminStaffQueries
+{
+    Task<Result<AdminPage<StaffAccountSummary>>> ListAsync(string tenantId,StaffListQuery query,CancellationToken ct=default);
+}
+public interface IAdminStaffCommands
+{
+    Task<Result<MutationReceipt>> CreateStaffAsync(string tenantId,CreateStaffAdminForm form,CancellationToken ct=default);
+    Task<Result<MutationReceipt>> ResetStaffPasswordAsync(string tenantId,ResetStaffPasswordForm form,CancellationToken ct=default);
+}
+public interface IAdminProductQueries
+{
+    Task<Result<ProductCatalog>> ListAsync(string tenantId,ProductListQuery query,CancellationToken ct=default);
+}
 public interface IAdminSubscriptionCommands
 {
     Task<Result<MutationReceipt>> MutateAsync(string id,string operation,SubscriptionActionForm form,CancellationToken ct=default);

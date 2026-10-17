@@ -114,6 +114,32 @@ public static class AdminStrings
         // ── status panel ────────────────────────────────────────────────────────────────────────────────
         ["live.title"] = ("Live status (10-second cached refresh)", "وضعیت زنده (بازخوانی کش‌شده هر ۱۰ ثانیه)"),
         ["live.aria"] = ("Live server status", "وضعیت زندهٔ سرور"),
+
+        ["staff.title"] = ("Staff accounts", "کارکنان و حساب‌ها"),
+        ["staff.caption"] = ("Clinic staff roster", "فهرست کارکنان کلینیک"),
+        ["staff.name"] = ("Name", "نام"),
+        ["staff.username"] = ("Username", "نام کاربری"),
+        ["staff.role"] = ("Role", "نقش"),
+        ["staff.active"] = ("Active", "فعال"),
+        ["staff.inactive"] = ("Disabled", "غیرفعال"),
+        ["staff.devices"] = ("Devices", "دستگاه‌ها"),
+        ["staff.search"] = ("Search name or username", "جست‌وجوی نام یا نام کاربری"),
+        ["staff.allRoles"] = ("All roles", "همه نقش‌ها"),
+        ["staff.resetPassword"] = ("Reset password", "ریست رمز عبور"),
+        ["staff.resetHint"] = ("A new temporary password is generated and shown once. The user's active sessions end immediately.", "رمز موقت جدید ساخته و فقط یک‌بار نمایش داده می‌شود. نشست‌های فعال کاربر بلافاصله پایان می‌یابد."),
+        ["staff.create"] = ("Create staff account", "ساخت حساب کارمند"),
+        ["staff.createName"] = ("Full name", "نام و نام خانوادگی"),
+        ["staff.createUser"] = ("Username", "نام کاربری"),
+        ["staff.createRole"] = ("Role", "نقش"),
+        ["staff.createSubmit"] = ("Create account", "ساخت حساب"),
+        ["staff.created"] = ("Account created", "حساب ساخته شد"),
+        ["staff.tempPassword"] = ("Temporary password (shown once)", "رمز موقت (فقط یک‌بار نمایش داده می‌شود)"),
+        ["staff.backToTenant"] = ("Back to clinic", "بازگشت به کلینیک"),
+        ["role.Manager"] = ("Manager", "مدیر"),
+        ["role.Doctor"] = ("Doctor", "دامپزشک"),
+        ["role.Receptionist"] = ("Receptionist", "پذیرش"),
+        ["role.Cashier"] = ("Cashier", "صندوق‌دار"),
+        ["role.Accountant"] = ("Accountant", "حسابدار"),
     };
 
     /// <summary>Resolves <paramref name="key"/> for <paramref name="lang"/> (<c>fa</c>/<c>en</c>); unknown keys return the key.</summary>

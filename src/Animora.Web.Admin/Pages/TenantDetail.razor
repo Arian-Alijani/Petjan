@@ -8,7 +8,10 @@
 @if (Detail is not null) {
 <h2>@Detail.Core.Name (@Detail.Core.Code)</h2><StatusBadge Status="@Detail.Core.Status" />
 <p>@Loc.T("tenant.seatsUsed"): @Detail.SeatsUsed · @Loc.T("tenant.devices"): @Detail.DevicesCount · @Loc.T("tenant.licences"): @Detail.LicensesCount</p>
-<a href="@($"/admin/tenants/{Id}/licenses")">@Loc.T("tenant.manageLicences")</a>
+<nav class="quick" aria-label="@Loc.T("tenant.detail")"><a href="@($"/admin/tenants/{Id}/licenses")">@Loc.T("tenant.manageLicences")</a>
+<a href="@($"/admin/tenants/{Id}/staff")">@Loc.T("tenant.staffLink")</a>
+<a href="@($"/admin/tenants/{Id}/products")">@Loc.T("tenant.productsLink")</a>
+<a href="@($"/admin/audit?tab=tenant&tenantId={Id}")">@Loc.T("tenant.auditLink")</a></nav>
 @if (Detail.Subscription is { } subscription) {
 <h2>@Loc.T("tenant.subscription")</h2><p>@subscription.Status · @subscription.Seats @Loc.T("tenant.seats") · @Loc.T("tenant.ends") @subscription.PeriodEnd.ToString("u")</p>
 @foreach (var operation in Operations) {

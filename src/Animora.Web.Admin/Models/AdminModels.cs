@@ -19,6 +19,13 @@ public sealed record PlanSummary(string Id,string Code,string Name,int Seats,lon
 public sealed record LicenseSummary(string Id,string DeviceId,long Sequence,string Status,DateTimeOffset ExpiresUtc);
 public sealed record PublicLicenseKey(string Id,string Algorithm,string PublicKey,DateTimeOffset CreatedUtc,DateTimeOffset? NotAfterUtc);
 public sealed record LicenseKeySet(IReadOnlyList<PublicLicenseKey> Keys);
+public sealed record StaffAccountSummary(string MembershipId,string UserId,string Name,string UserName,string Role,bool Active,int Devices);
+public sealed record StaffListQuery(string? Role=null,string? Search=null,int Page=1,int PageSize=50);
+public sealed record ProductSummary(string Id,string Sku,string Name,string CategoryName,string Kind,bool Active,long PriceMinor,string Currency,
+    decimal OnHand,decimal ReorderLevel,string StockState);
+public sealed record CategoryOption(string Id,string Name);
+public sealed record ProductListQuery(string? Search=null,string? CategoryId=null,string? Stock=null,long? MinPrice=null,long? MaxPrice=null,int Page=1,int PageSize=50);
+public sealed record ProductCatalog(AdminPage<ProductSummary> Page,IReadOnlyList<CategoryOption> Categories);
 public sealed record MutationReceipt(string? TemporaryPassword=null,string? TenantId=null);
 public sealed class SubscriptionActionForm
 {
@@ -43,6 +50,13 @@ public sealed class LicenseActionForm
     public string LicenseId { get; set; }=""; public string Stamp { get; set; }=""; public string Reason { get; set; }="";
     public bool Confirmed { get; set; }
 }
+public sealed class CreateStaffAdminForm
+{
+    public string Name { get; set; }=""; public string UserName { get; set; }=""; public string Role { get; set; }="Receptionist";
+    public bool Confirmed { get; set; }
+    public string IdempotencyKey { get; set; }=Guid.NewGuid().ToString("N");
+}
+public sealed class ResetStaffPasswordForm { public string UserId { get; set; }=""; public bool Confirmed { get; set; } }
 public sealed class PlanActionForm { public string Id { get; set; }=""; public string Stamp { get; set; }=""; }
 public sealed class KeyActionForm { public string Stamp { get; set; }=""; public bool Confirmed { get; set; } }
 
