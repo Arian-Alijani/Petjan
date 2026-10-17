@@ -16,7 +16,7 @@ public static class SpeciesPresentation
     public static Look For(string? key, string? fallbackName = null) => key switch
     {
         "Dog" => new("سگ", "IconDog", "#6366F1"),
-        "Cat" => new("گربه", "IconCat", "#0D9488"),
+        "Cat" => new("گربه", "IconCat", "#06B6D4"),
         "Bird" => new("پرنده", "IconBird", "#F59E0B"),
         "Rabbit" => new("خرگوش", "IconRabbit", "#EC4899"),
         "Rodent" => new("جوندگان", "IconRabbit", "#8B5CF6"),

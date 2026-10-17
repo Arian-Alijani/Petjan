@@ -351,7 +351,7 @@ internal static class DashboardMapping
     };
     private static string SpeciesColor(string species) => species switch
     {
-        "Cat" => "#0D9488", "Dog" => "#6366F1", "Bird" => "#F59E0B", "Rabbit" => "#EC4899",
+        "Cat" => "#06B6D4", "Dog" => "#6366F1", "Bird" => "#F59E0B", "Rabbit" => "#EC4899",
         "Rodent" => "#8B5CF6", "Reptile" => "#16A34A", _ => "#64748B"
     };
 }

@@ -88,102 +88,9 @@
             <!-- Top sub-row: today summary + doctor workload + species donut -->
             <controls:AdaptiveGrid MinItemWidth="230" MaxColumns="3" ColumnSpacing="16" RowSpacing="16">
 
-                <!-- خلاصهٔ امروز (today summary — new box, built only from existing bindings) -->
-                <Border Grid.Column="0" Classes="card">
-                    <StackPanel>
-                        <StackPanel Classes="card-header">
-                            <TextBlock Classes="card-title" Text="خلاصهٔ امروز" />
-                        </StackPanel>
-                        <Border Classes="card-header-rule" />
-                        <StackPanel Margin="18,16,18,18" Spacing="14">
-                            <!-- metric 1: total patients (species total) -->
-                            <Grid ColumnDefinitions="40,*">
-                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
-                                        VerticalAlignment="Center" Background="{StaticResource Brand50Brush}">
-                                    <Path Classes="icon" Width="20" Height="20"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Stroke="{StaticResource Brand700Brush}"
-                                          Data="{StaticResource IconUsers}" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="{Binding SpeciesTotal}"
-                                               FontSize="{StaticResource FontSizeLg}" FontWeight="ExtraBold"
-                                               Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="{Binding SpeciesTotalLabel}"
-                                               FontSize="{StaticResource FontSizeXs}"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                            </Grid>
-                            <Border Height="1" Background="{StaticResource Line2Brush}" />
-                            <!-- metric 2: 14-day revenue trend (existing pulse summary string) -->
-                            <Grid ColumnDefinitions="40,*">
-                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
-                                        VerticalAlignment="Center" Background="{StaticResource Brand50Brush}">
-                                    <Path Classes="icon" Width="20" Height="20"
-                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                          Stroke="{StaticResource Brand700Brush}"
-                                          Data="{StaticResource IconTrendUp}" />
-                                </Border>
-                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="1">
-                                    <TextBlock Text="روند درآمد ۱۴ روز"
-                                               FontSize="{StaticResource FontSizeSm}" FontWeight="ExtraBold"
-                                               Foreground="{StaticResource InkBrush}" />
-                                    <TextBlock Text="{Binding RevenuePulse.Summary}" TextWrapping="Wrap"
-                                               FontSize="{StaticResource FontSizeXs}"
-                                               Foreground="{StaticResource MutedBrush}" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-            <!-- نوبت‌های امروز (today's appointments) — only the appointment list -->
-            <Border Grid.Column="1" Classes="card">
-                <StackPanel>
-                    <StackPanel Classes="card-header">
-                        <TextBlock Classes="card-title" Text="نوبت‌های امروز" />
-                    </StackPanel>
-                    <Border Classes="card-header-rule" />
-                    <TextBlock Margin="18,18,18,18" HorizontalAlignment="Center" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
-                               Foreground="{StaticResource MutedBrush}" />
-                    <ItemsControl Margin="14,12,14,6" ItemsSource="{Binding PrimaryList}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
-                                <Border Classes="dash-row">
-                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                    <Border Grid.Column="0"
-                                            Width="34"
-                                            Height="34"
-                                            CornerRadius="9"
-                                            Background="{Binding IconBgBrush}">
-                                        <Path Classes="icon"
-                                              Width="18"
-                                              Height="18"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"
-                                              Stroke="{Binding IconBrush}"
-                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
-                                                   FontSize="{StaticResource FontSizeSm}"
-                                                   FontWeight="Bold"
-                                                   Foreground="{StaticResource InkBrush}" />
-                                        <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
-                                                   FontSize="{StaticResource FontSizeXs}"
-                                                   Foreground="{StaticResource MutedBrush}" />
-                                    </StackPanel>
-                                    <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
-                                </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </Border>
-
-            <!-- بیماران بر اساس گونه (patients by species) — species density donut -->
-            <Border Grid.Column="2" Classes="card" IsVisible="{Binding HasSpecies}">
+            <!-- بیماران بر اساس گونه (patients by species) — species density donut.
+                 Placed first so in RTL it sits on the far-right of the top sub-row. -->
+            <Border Grid.Column="0" Classes="card" IsVisible="{Binding HasSpecies}">
                 <StackPanel>
                     <StackPanel Classes="card-header">
                         <TextBlock Classes="card-title" Text="بیماران بر اساس گونه" />
@@ -266,7 +173,7 @@
                                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                                             VerticalAlignment="Center">
                                                     <Path Classes="icon" Width="14" Height="14"
-                                                          Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
+                                                          Stroke="{Binding SwatchBrush}" VerticalAlignment="Center"
                                                           Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                                     <TextBlock Classes="lg-name" Text="{Binding Name}" />
                                                 </StackPanel>
@@ -283,7 +190,101 @@
                 </StackPanel>
             </Border>
 
-            </controls:AdaptiveGrid>
+                <!-- خلاصهٔ امروز (today summary — new box, built only from existing bindings) -->
+                <Border Grid.Column="1" Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header">
+                            <TextBlock Classes="card-title" Text="خلاصهٔ امروز" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <StackPanel Margin="18,16,18,18" Spacing="14">
+                            <!-- metric 1: total patients (species total) -->
+                            <Grid ColumnDefinitions="40,*">
+                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                                        VerticalAlignment="Center" Background="{StaticResource Brand50Brush}">
+                                    <Path Classes="icon" Width="20" Height="20"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stroke="{StaticResource Brand700Brush}"
+                                          Data="{StaticResource IconUsers}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="{Binding SpeciesTotal}"
+                                               FontSize="{StaticResource FontSizeLg}" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{Binding SpeciesTotalLabel}"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                            <Border Height="1" Background="{StaticResource Line2Brush}" />
+                            <!-- metric 2: 14-day revenue trend (existing pulse summary string) -->
+                            <Grid ColumnDefinitions="40,*">
+                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                                        VerticalAlignment="Center" Background="{StaticResource Brand50Brush}">
+                                    <Path Classes="icon" Width="20" Height="20"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          Stroke="{StaticResource Brand700Brush}"
+                                          Data="{StaticResource IconTrendUp}" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="1">
+                                    <TextBlock Text="روند درآمد ۱۴ روز"
+                                               FontSize="{StaticResource FontSizeSm}" FontWeight="ExtraBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{Binding RevenuePulse.Summary}" TextWrapping="Wrap"
+                                               FontSize="{StaticResource FontSizeXs}"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+            <!-- نوبت‌های امروز (today's appointments) — only the appointment list -->
+            <Border Grid.Column="2" Classes="card">
+                <StackPanel>
+                    <StackPanel Classes="card-header">
+                        <TextBlock Classes="card-title" Text="نوبت‌های امروز" />
+                    </StackPanel>
+                    <Border Classes="card-header-rule" />
+                    <TextBlock Margin="18,18,18,18" HorizontalAlignment="Center" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <ItemsControl Margin="14,12,14,6" ItemsSource="{Binding PrimaryList}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
+                                <Border Classes="dash-row">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                    <Border Grid.Column="0"
+                                            Width="34"
+                                            Height="34"
+                                            CornerRadius="9"
+                                            Background="{Binding IconBgBrush}">
+                                        <Path Classes="icon"
+                                              Width="18"
+                                              Height="18"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Stroke="{Binding IconBrush}"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                                        <TextBlock Text="{Binding Title}" TextWrapping="Wrap"
+                                                   FontSize="{StaticResource FontSizeSm}"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Subtitle}" TextWrapping="Wrap"
+                                                   FontSize="{StaticResource FontSizeXs}"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                    <controls:Badge Grid.Column="2" VerticalAlignment="Center" Text="{Binding TagText}" Tone="{Binding Tone}" />
+                                </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+                        </controls:AdaptiveGrid>
             <!-- end top sub-row -->
 
             <!-- روند درآمد ۱۴ روز اخیر (revenue pulse) — wide, bottom of the main area.
