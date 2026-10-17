@@ -126,8 +126,7 @@ internal static class DashboardMapping
                 Stat("IconReceipt", "فاکتورهای باز (شامل پیش‌نویس)", slice.OpenInvoices), Stat("IconWallet", "در انتظار پرداخت", slice.AwaitingPaymentCount),
                 Stat("IconCheque", "تغییر وضعیت چک امروز", totals.Cheques) },
             _ => new[] { Stat("IconArrowUpRight", "درآمد امروز", today),
-                Stat("IconUsers", "ویزیت امروز", visits), RemainingAppointments(slice),
-                Stat("IconBox", "هشدار موجودی", slice.LowStockCount) },
+                Stat("IconUsers", "ویزیت امروز", visits) },
         };
         if (slice.Access is { } allowed)
             stats = stats.Where(stat => stat.IconKey switch
@@ -256,22 +255,6 @@ internal static class DashboardMapping
         var name = string.IsNullOrWhiteSpace(x.Name) ? UnknownDoctorName : x.Name.Trim();
         return new(System.Globalization.StringInfo.GetNextTextElement(name), name, string.Empty,
             Math.Clamp(x.Done, 0, x.Total), x.Total, "#0D9488");
-    }
-
-    // Manager "today's pace" card: the live active queue (waiting / called / in-visit), with the completion rate from the workload rows
-    // already in the slice (no extra query). Gated like every other appointment stat (IconClock => Appointments).
-    private static DashboardStat RemainingAppointments(DashboardSlice slice)
-    {
-        var total = slice.Workloads.Sum(w => w.Total);
-        var done = slice.Workloads.Sum(w => Math.Clamp(w.Done, 0, w.Total));
-        var stat = Stat("IconClock", "صف فعال امروز", slice.QueueCount);
-        if (total <= 0) return stat;
-        var percent = (int)Math.Round(done * 100.0 / total, MidpointRounding.AwayFromZero);
-        return stat with
-        {
-            Delta = $"{percent.ToString(System.Globalization.CultureInfo.InvariantCulture)}% انجام‌شده",
-            Foot = $"{done.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} از {total.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} نوبت امروز انجام شده",
-        };
     }
 
     private static DashboardStat Stat(string icon, string label, long value) =>
