@@ -142,7 +142,7 @@ KPI ها از پایین به بالا این‌طور ساخته و رندر م
 
 ---
 
-### ⬜ تسک T3 — گسترش مدل `DashboardStat` برای sparkline + ناوبری
+### ✅ تسک T3 — گسترش مدل `DashboardStat` برای sparkline + ناوبری
 **فایل:** `src/Animora.Contracts/Dashboard/DashboardModels.cs` (رکورد `DashboardStat` خط 27-34)
 - فیلدهای اختیاری اضافه کن (همه با مقدار پیش‌فرض تا سازنده‌های موجود نشکنند):
   - `IReadOnlyList<double>? Spark = null` — سری نرمال‌شده 0..1 برای sparkline (یا `IReadOnlyList<long>? SparkRaw` و نرمال‌سازی در View).

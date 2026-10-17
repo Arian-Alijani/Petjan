@@ -22,7 +22,7 @@ public enum DashboardTone
 
 /// <summary>
 /// One KPI card, rendered by Phase 03's StatCard. Fields are limited to what
-/// StatCard actually displays (icon/value/label/delta) — no unrendered data.
+/// StatCard actually displays (icon/value/label/delta/secondary line/sparkline) — no unrendered data.
 /// </summary>
 public sealed record DashboardStat(
     string IconKey,
@@ -31,7 +31,33 @@ public sealed record DashboardStat(
     string? Delta,
     bool IsDeltaPositive,
     DashboardTone IconTone = DashboardTone.Brand,
-    string? Foot = null);
+    string? Foot = null)
+{
+    private IReadOnlyList<double>? _spark;
+
+    /// <summary>
+    /// Optional sparkline series normalized to 0..1 (oldest first). Copied into an immutable array on assignment so a
+    /// cached snapshot can never be mutated through the caller's list; <c>null</c> means the card has no chart.
+    /// </summary>
+    public IReadOnlyList<double>? Spark
+    {
+        get => _spark;
+        init => _spark = value is null ? null : DashboardCollections.Freeze(value);
+    }
+
+    /// <summary>Navigation target key opened when the card is clicked (see <see cref="DashboardStatTargets"/>); <c>null</c> = default (statistics).</summary>
+    public string? NavTarget { get; init; }
+
+    /// <summary>Second information line under the value (e.g. "N قلم · درآمد Z تومان"); <c>null</c> hides it.</summary>
+    public string? Secondary { get; init; }
+}
+
+/// <summary>Well-known <see cref="DashboardStat.NavTarget"/> keys (Contracts stays free of Desktop view-model types).</summary>
+public static class DashboardStatTargets
+{
+    public const string Appointments = "Appointments";
+    public const string Statistics = "Statistics";
+}
 
 /// <summary>
 /// One doctor's workload row in the manager dashboard's "بار کاری پزشکان
