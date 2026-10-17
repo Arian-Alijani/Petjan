@@ -228,8 +228,9 @@ public sealed class DashboardQueries(AnimoraLocalDbContext db, Animora.Applicati
         var appointmentsBooked = appointmentCounts.Sum(x => x.Total);
         var appointmentsDone = appointmentCounts.Sum(x => Math.Clamp(x.Done, 0, x.Total));
         // Items sold today = product lines on invoices issued today that are still standing (not void/refunded/draft)
-        // and are sales (not returns). One aggregate; absent from SQL entirely without the sales permission.
-        var salesItems = access.Sales ? await db.Set<Invoice>().AsNoTracking()
+        // and are sales (not returns). One aggregate; absent from SQL entirely without the sales permission, and only
+        // read for the roles whose KPI row shows the card (manager/receptionist) so the cashier/doctor budgets are unchanged.
+        var salesItems = access.Sales && role is not (UserRole.Cashier or UserRole.Doctor) ? await db.Set<Invoice>().AsNoTracking()
             .Where(i => i.TenantId == tenantId && i.Kind != InvoiceKind.SalesReturn
                 && i.PostedUtc != null && i.PostedUtc >= window.StartUtc && i.PostedUtc < window.EndUtc
                 && (i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid || i.State == InvoiceState.Paid))
