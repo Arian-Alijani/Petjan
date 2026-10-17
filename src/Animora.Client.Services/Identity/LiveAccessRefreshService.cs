@@ -33,7 +33,6 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
         // A bounded online probe must not keep an offline user's UI waiting for the sync request timeout.
         linked.CancelAfter(TimeSpan.FromSeconds(8));
         var entered = false;
-        var replacingAuthority = false;
         try
         {
             await _flight.WaitAsync(linked.Token).ConfigureAwait(false);
@@ -101,14 +100,19 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
             {
                 // Once the server has announced different authority, even an interrupted mirror must not
                 // fall back to an obsolete local grant. The next pass retries without requiring another login.
-                replacingAuthority = true;
                 gate.ClearOnlineAccess();
                 var applied = await mirror.RefreshLocalAccessAsync(access, currentSession, StillCurrent, linked.Token).ConfigureAwait(false);
                 if (applied.IsFailure)
                 {
-                    // The server explicitly removed grants: stale offline permissions must not remain usable
-                    // while the new snapshot is being retried (including concurrent edits during the fetch).
-                    gate.Clear();
+                    // Only wipe the still-valid signed offline snapshot when the server (or local store) tells us the
+                    // authority itself is gone/changed — a revoked device, an expired session, or grants that changed
+                    // during the fetch. A merely transient failure (network down/timeout/server busy) while running the
+                    // routine periodic renewal must NOT destroy a snapshot that is still inside its signed, self-expiring
+                    // window: doing so blanked the whole shell (every nav entry gated off ⇒ empty sidebar + read-only
+                    // banner) after the app sat idle past the 5-minute renewal, and a manual "Sync Now" could not recover
+                    // it because that path never re-warms the gate. Keep the offline authority and retry next pass.
+                    if (IsAuthorityRemoved(applied.Error)) gate.Clear();
+                    else gate.ClearOnlineAccess();
                     return applied;
                 }
                 if (!StillCurrent()) return Result.Fail(ErrorCodes.SessionExpired);
@@ -126,19 +130,38 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested && !_stop.IsCancellationRequested)
         {
-            if (replacingAuthority) gate.Clear();
-            else gate.ClearOnlineAccess();
+            // The 8-second online probe (or the mirror) timed out — transient by definition. Drop the live lease but
+            // keep the signed offline snapshot so the shell stays usable; never clear authority here even mid-replace.
+            gate.ClearOnlineAccess();
             return Result.Fail(ErrorCodes.NetworkUnavailable);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            if (replacingAuthority) gate.Clear();
-            else gate.ClearOnlineAccess();
+            // An unexpected transport/store fault is also transient; keep the offline snapshot and retry next pass.
+            gate.ClearOnlineAccess();
             logger.LogWarning(ex, "Active access refresh failed; no online authority was renewed.");
             return Result.Fail(ErrorCodes.StoreUnavailable);
         }
         finally { if (entered) _flight.Release(); }
     }
+
+    /// <summary>
+    /// True only when a refresh failure means the authority itself is gone/changed on the server side — the device
+    /// was revoked, the session expired, the user/tenant/device binding no longer matches, the server-signed snapshot
+    /// is untrusted, or the grants changed during the fetch. In those cases the stale offline snapshot must be dropped
+    /// so it cannot keep authorizing writes. Every other failure (network unavailable, server busy, local store
+    /// unavailable) is transient: the signed offline window is still valid and must be preserved so the shell keeps
+    /// working offline and recovers on the next successful pass — otherwise an idle app blanks to a read-only shell.
+    /// </summary>
+    private static bool IsAuthorityRemoved(ErrorCode error) =>
+        error == ErrorCodes.SessionExpired
+        || error == ErrorCodes.DeviceRevoked
+        || error == ErrorCodes.CapabilityNotGranted
+        || error == ErrorCodes.CapabilitySnapshotTampered
+        || error == ErrorCodes.ConcurrencyConflict
+        || error == ErrorCodes.TenantMismatch
+        || error == ErrorCodes.Unauthorized
+        || error == ErrorCodes.Forbidden;
 
     private async Task RunAsync(CancellationToken ct)
     {
