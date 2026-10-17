@@ -236,8 +236,21 @@ public partial class StatCard : UserControl
         return true;
     }
 
-    // Spark colour = the app's success green (the reference line colour); resolved from the tree, not hard-coded.
-    private void UpdateSparkBrush() => SparkChart.Stroke = ResolveBrush("OkBrush", Brushes.SeaGreen);
+    // Spark colour matches the card's icon tone, so the line in every KPI box reads as the same
+    // colour as its icon (not a single global green). Resolved from the tree, not hard-coded.
+    private void UpdateSparkBrush() => SparkChart.Stroke = ResolveBrush(ToneStrokeKey(IconTone), Brushes.SeaGreen);
+
+    // The accent-stroke resource key for a tone (shared by the icon glyph and the sparkline).
+    private static string ToneStrokeKey(Tone tone) => tone switch
+    {
+        Tone.Danger => "DangerBrush",
+        Tone.Warn => "WarnBrush",
+        Tone.Info => "InfoBrush",
+        Tone.Ok => "OkBrush",
+        Tone.Lilac => "LilacBrush",
+        Tone.Peach => "PeachBrush",
+        _ => "Brand600Brush",
+    };
 
     // Tints the icon tile (bg + border + stroke) per tone, mirroring the
     // reference .stat-icon.<tone> palette (teal/lilac/info/danger).
@@ -257,6 +270,8 @@ public partial class StatCard : UserControl
         IconTile.Background = ResolveBrush(bg, Brushes.Transparent);
         IconTile.BorderBrush = ResolveBrush(border, Brushes.Transparent);
         IconPath.Stroke = ResolveBrush(stroke, Brushes.Black);
+        // Keep the card's sparkline in step with the icon colour.
+        UpdateSparkBrush();
     }
 
     private void UpdateContent()

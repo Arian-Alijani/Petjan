@@ -289,13 +289,17 @@ internal static class DashboardMapping
     private static DashboardStat Stat(string icon, string label, long value) =>
         new(icon, label, value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), null, true, StatTone(icon));
 
-    // Each KPI family gets its own accent so the stat row reads at a glance (money = brand, people = info,
-    // queue/time = lilac, stock/pending = warn, cheques = peach).
+    // Each KPI family gets its own accent so the stat row reads at a glance, and every icon in a
+    // KPI row gets a DIFFERENT colour: money = success green, visits/people = info blue, sold items =
+    // lilac, queue/time = brand, stock = warn amber, cheques/vaccines = peach. The StatCard paints the
+    // card's sparkline with this same tone, so the line colour always matches its icon.
     private static DashboardTone StatTone(string icon) => icon switch
     {
+        "IconArrowUpRight" or "IconWallet" => DashboardTone.Ok,
         "IconUsers" or "IconCheck" or "IconCalendar" => DashboardTone.Info,
-        "IconClock" or "IconEdit" => DashboardTone.Lilac,
-        "IconBox" or "IconWallet" => DashboardTone.Warn,
+        "IconReceipt" => DashboardTone.Lilac,
+        "IconClock" or "IconEdit" => DashboardTone.Brand,
+        "IconBox" => DashboardTone.Warn,
         "IconCheque" or "IconSyringe" => DashboardTone.Peach,
         _ => DashboardTone.Brand,
     };
