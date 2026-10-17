@@ -26,14 +26,14 @@
                                 <Border Grid.Column="0"
                                         Width="34"
                                         Height="34"
-                                        CornerRadius="10"
-                                        Background="{StaticResource Brand50Brush}">
+                                        CornerRadius="9"
+                                        Background="{Binding IconBgBrush}">
                                     <Path Classes="icon"
                                               Width="18"
                                               Height="18"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
-                                              Stroke="{StaticResource Brand700Brush}"
+                                              Stroke="{Binding IconBrush}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
@@ -70,14 +70,14 @@
                                 <Border Grid.Column="0"
                                         Width="34"
                                         Height="34"
-                                        CornerRadius="10"
-                                        Background="{StaticResource Brand50Brush}">
+                                        CornerRadius="9"
+                                        Background="{Binding IconBgBrush}">
                                     <Path Classes="icon"
                                               Width="18"
                                               Height="18"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
-                                              Stroke="{StaticResource Brand700Brush}"
+                                              Stroke="{Binding IconBrush}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
