@@ -11,6 +11,12 @@ internal static class Program
 
     internal static LocalTestProfile? TestProfile { get; private set; }
 
+    /// <summary>
+    /// True when Windows launched the app at sign-in (<c>--startup</c>, registered by the «اجرای خودکار» setting).
+    /// Such a boot comes up hidden in the system tray and only shows a window if the user has to sign in.
+    /// </summary>
+    internal static bool IsStartupLaunch { get; private set; }
+
     [STAThread]
     public static void Main(string[] args)
     {
@@ -51,6 +57,17 @@ internal static class Program
             Console.WriteLine($"LOCAL TEST [{profile.Name}]: {profile.DataDirectory}");
             Console.WriteLine("Create your own Manager account on first run; normal clinic data is not used.");
         }
+        IsStartupLaunch = args.Contains(Animora.Client.Services.Device.WindowsStartupRegistration.StartupFlag, StringComparer.Ordinal);
+
+        // Tray-resident app: a second launch must not open a second process on the same store — it asks the
+        // running instance to show its window and exits. One guard per storage profile.
+        using var singleInstance = SingleInstanceGuard.TryAcquire(TestProfile?.Name ?? "clinic", out var isPrimary);
+        if (!isPrimary)
+        {
+            AppTrace.Info("another instance is already running; asked it to show its window", "boot");
+            return;
+        }
+        singleInstance?.StartListening(App.ShowMainWindow);
         StartupTimer.Start();
 
         try

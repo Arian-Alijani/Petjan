@@ -41,6 +41,34 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnShellKeyDown, RoutingStrategies.Tunnel);
     }
 
+    private bool _closeForReal;
+
+    /// <summary>
+    /// Closing the shell window (X / Alt+F4) hides it to the system tray instead of ending the app, so sync and
+    /// background work keep running; the tray menu «خروج» is the real exit. A real shutdown (tray exit, OS
+    /// shutdown) and a sign-out dispose still close the window normally.
+    /// </summary>
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (!_closeForReal
+            && !App.IsExiting
+            && e.CloseReason == WindowCloseReason.WindowClosing)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
+        base.OnClosing(e);
+    }
+
+    /// <summary>Really closes (and disposes) this window — used by sign-out, which rebuilds the whole shell.</summary>
+    internal void CloseForReal()
+    {
+        _closeForReal = true;
+        Close();
+    }
+
     private void OnShellKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainWindowViewModel vm)

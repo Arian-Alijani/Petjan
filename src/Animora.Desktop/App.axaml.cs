@@ -115,6 +115,12 @@ public partial class App : global::Avalonia.Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // Tray model: the app must outlive its windows (a hidden shell / Windows auto-start boot has no visible
+            // window at all), so it only exits through desktop.Shutdown() — the tray «خروج» item, closing the
+            // sign-in window, or the OS shutting down. See App.Tray.cs.
+            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
+            _hiddenStartPending = Program.IsStartupLaunch;
+
             // Startup gate: show the sign-in window first. Once credentials are
             // accepted, swap in the main shell (resolved lazily so no page/mock
             // is built until the user is in). The shell then owns the app
@@ -133,6 +139,7 @@ public partial class App : global::Avalonia.Application
             // already tearing down and the work being drained is background, not the UI thread's own work).
             desktop.ShutdownRequested += (_, _) =>
             {
+                _exiting = true;
                 switch (Services)
                 {
                     case IAsyncDisposable asyncDisposable:
@@ -149,11 +156,28 @@ public partial class App : global::Avalonia.Application
     }
 
     private bool _returningToLogin;
+    // Tray/startup lifecycle state (see App.Tray.cs).
+    private static bool _hiddenStartPending;
+    private static bool _exiting;
 
     private LoginWindow CreateLoginWindow(IClassicDesktopStyleApplicationLifetime desktop)
     {
         var login = Services.GetRequiredService<LoginWindow>();
         if (Program.TestProfile is { } profile) login.Title += profile.WindowSuffix;
+
+        // Windows auto-start boot (--startup): keep the sign-in window invisible while the store opens and a
+        // remembered session is resumed; it is revealed only if the user actually has to sign in (OnLoginOpened).
+        // Consumed once so a later sign-out returns to a normal, visible sign-in window.
+        var startHidden = _hiddenStartPending;
+        if (startHidden) HideForStartup(login);
+
+        // Closing the sign-in window (X) with nobody signed in quits the app — with OnExplicitShutdown nothing
+        // else would. The success / sign-out transitions swap desktop.MainWindow BEFORE closing this window.
+        login.Closed += (_, _) =>
+        {
+            if (!_exiting && ReferenceEquals(desktop.MainWindow, login)) desktop.Shutdown();
+        };
+
         if (login.DataContext is LoginViewModel vm)
         {
             async void OnSucceeded(object? sender, EventArgs args)
@@ -164,7 +188,12 @@ public partial class App : global::Avalonia.Application
                     if (Program.TestProfile is { } shellProfile) shell.Title += shellProfile.WindowSuffix;
                     Services.GetRequiredService<ProfilePageViewModel>().SignedOut += OnProfileSignedOut;
                     desktop.MainWindow = shell;
-                    shell.Show();
+                    // Auto-started with Windows and signed in via «مرا به خاطر بسپار»: stay in the tray (shell is
+                    // built and syncing, just not shown). The tray icon / second launch opens it.
+                    // Only while the hidden boot is still pending: once the sign-in form was revealed the user
+                    // signed in by hand and expects to see the shell.
+                    if (startHidden && _hiddenStartPending) _hiddenStartPending = false;
+                    else shell.Show();
                     vm.LoginSucceeded -= OnSucceeded;
                     login.Close();
                     await Services.GetRequiredService<LocalSyncStatusService>().RefreshAsync();
@@ -219,7 +248,9 @@ public partial class App : global::Avalonia.Application
             var login = CreateLoginWindow(desktop);
             desktop.MainWindow = login;
             login.Show();
-            shell?.Close();
+            // The shell normally hides instead of closing (close-to-tray); sign-out really disposes it.
+            if (shell is MainWindow mainShell) mainShell.CloseForReal();
+            else shell?.Close();
         }
         catch (Exception ex)
         {
@@ -254,6 +285,8 @@ public partial class App : global::Avalonia.Application
             Services.GetService<LiveAccessRefreshService>()?.Start(); // active-session access changes, independent of state-sync/backoff
             Services.GetRequiredService<SyncChangeBridge>().Start(); // D14: a completed pass refreshes the open page
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
+            // Hidden --startup boot that did NOT auto-sign-in: the user must authenticate, so show the form now.
+            await Dispatcher.UIThread.InvokeAsync(() => RevealPendingStartupLogin(login));
         }
         catch (Exception ex)
         {
@@ -262,6 +295,7 @@ public partial class App : global::Avalonia.Application
             try
             {
                 await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(storeReady: false));
+                await Dispatcher.UIThread.InvokeAsync(() => RevealPendingStartupLogin(login));
             }
             catch (Exception)
             {

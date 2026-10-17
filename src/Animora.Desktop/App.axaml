@@ -235,4 +235,24 @@
         <StyleInclude Source="avares://Animora.Desktop/Resources/Controls/HistoryRow.axaml" />
     </Application.Styles>
 
+    <!-- System tray (notification area) icon. The app keeps running in the tray when the main window is closed
+         (close-to-tray, see MainWindow) and when it was auto-started by Windows (--startup). Left-click or
+         «باز کردن وت‌پلاس» restores the window; «خروج» is the only way to fully quit. Handlers live in
+         App.Tray.cs. -->
+    <TrayIcon.Icons>
+        <TrayIcons>
+            <TrayIcon Icon="avares://Animora.Desktop/Assets/Brand/vetplus.ico"
+                      ToolTipText="وت‌پلاس — کلینیک هوشمند"
+                      Clicked="OnTrayClicked">
+                <TrayIcon.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="باز کردن وت‌پلاس" Click="OnTrayOpenClick" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="خروج" Click="OnTrayExitClick" />
+                    </NativeMenu>
+                </TrayIcon.Menu>
+            </TrayIcon>
+        </TrayIcons>
+    </TrayIcon.Icons>
+
 </Application>

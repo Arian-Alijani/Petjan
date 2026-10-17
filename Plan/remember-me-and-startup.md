@@ -150,7 +150,7 @@
 - پوش:
   `scripts/git/push.sh -b genspark_ai_developer "feat(settings): start-with-windows toggle wired to HKCU Run key"`
 
-### ⬜ تسک ۵ — TrayIcon + close-to-tray + بوتِ --startup مخفی
+### ✅ تسک ۵ — TrayIcon + close-to-tray + بوتِ --startup مخفی (انجام شد: `App.axaml` TrayIcon، `App.Tray.cs`، `SingleInstanceGuard.cs`، `MainWindow.OnClosing`، `Program.IsStartupLaunch`)
 فایل‌ها: `App.axaml` (+ `App.axaml.cs`), `Program.cs`, `MainWindow.axaml.cs`.
 - `TrayIcon` توکارِ Avalonia را در `App.axaml` تعریف کن (آیکون = همان
   `avares://Animora.Desktop/Assets/Brand/vetplus.ico`) با `NativeMenu` شاملِ:
