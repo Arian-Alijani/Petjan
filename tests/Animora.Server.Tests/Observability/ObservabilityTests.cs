@@ -114,15 +114,21 @@ public sealed class ObservabilityBehaviorTests
         Assert.Single(sink.Events); Assert.Equal(LogEventLevel.Warning, sink.Events[0].Level);
     }
     [Theory] [InlineData(false)] [InlineData(true)]
-    public void ConsoleDevelopmentOnly_FileAlwaysRedacted(bool development)
+    public void ConsoleAlwaysOn_FileAlwaysRedacted(bool development)
     {
+        // OBS-STARTUP-01: the console sink now fires in EVERY environment (previously Development
+        // only), so a Production boot is visible on the console / in journalctl instead of looking
+        // frozen. The sink still runs after the redaction pipeline, so secrets never reach it, and
+        // the file remains redacted regardless of environment.
         string root = Path.Combine(Path.GetTempPath(), "animora-logging-" + Guid.NewGuid().ToString("N"));
         var sink = new CapturingSink();
         try
         {
             using (var logger = LoggingSetup.CreateLogger(root, development, new HttpContextAccessor(), sink))
                 logger.Information("Safe marker {Password} {XAnimoraValet}", "password-never-visible", "valet-never-visible");
-            Assert.Equal(development ? 1 : 0, sink.Events.Count);
+            Assert.Single(sink.Events);
+            Assert.All(sink.Events, e => Assert.DoesNotContain("password-never-visible", string.Join(" ", e.Properties.Values)));
+            Assert.All(sink.Events, e => Assert.DoesNotContain("valet-never-visible", string.Join(" ", e.Properties.Values)));
             string written = string.Join("\n", Directory.GetFiles(Path.Combine(root, "logs")).Select(File.ReadAllText));
             Assert.Contains("Safe marker", written); Assert.DoesNotContain("password-never-visible", written); Assert.DoesNotContain("valet-never-visible", written);
         }

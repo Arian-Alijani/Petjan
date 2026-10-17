@@ -19,19 +19,29 @@ internal static class LoggingSetup
         });
         builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider>(sp=>new Serilog.Extensions.Logging.SerilogLoggerProvider(sp.GetRequiredService<Serilog.ILogger>(),dispose:true));
     }
-    internal static Logger CreateLogger(string root, bool development, IHttpContextAccessor accessor, ILogEventSink? developmentSink = null)
+    internal static Logger CreateLogger(string root, bool development, IHttpContextAccessor accessor, ILogEventSink? consoleSink = null)
     {
         var config = new LoggerConfiguration().MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            // OBS-STARTUP-01: the host lifetime category carries the "Now listening on …",
+            // "Application started" and "Hosting environment" banner. Keep it at Information
+            // (above the blanket Microsoft→Warning override) so an operator watching the
+            // console / journalctl sees a clear "the server is up and NOT stuck" signal — the
+            // absence of this line is exactly why a healthy Production boot looked frozen.
+            .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
             .Destructure.With(new SecretDestructuringPolicy())
             .Enrich.With(new RedactingEnricher(accessor))
             .WriteTo.File(Path.Combine(root, "logs", "server-.log"), rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: RetainedFiles, fileSizeLimitBytes: FileSizeLimit, rollOnFileSizeLimit: true,
                 shared: false, buffered: true, flushToDiskInterval: TimeSpan.FromSeconds(1));
-        if (development) config.WriteTo.Sink(developmentSink ?? new DevelopmentConsoleSink());
+        // OBS-STARTUP-01: write to the console in every environment (not just Development). The
+        // sink runs AFTER the secret-destructuring policy and redacting enricher, so nothing
+        // sensitive reaches stdout. systemd captures stdout into journalctl, and a manual
+        // `dotnet run` now prints lifecycle output instead of looking hung.
+        config.WriteTo.Sink(consoleSink ?? new ConsoleSink());
         return config.CreateLogger();
     }
-    private sealed class DevelopmentConsoleSink : ILogEventSink
+    private sealed class ConsoleSink : ILogEventSink
     {
         public void Emit(LogEvent logEvent)=>Console.WriteLine("{0:O} [{1}] {2}",logEvent.Timestamp,logEvent.Level,logEvent.RenderMessage());
     }
