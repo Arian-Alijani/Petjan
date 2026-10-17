@@ -236,7 +236,7 @@
     </Application.Styles>
 
     <!-- System tray (notification area) icon. The app keeps running in the tray when the main window is closed
-         (close-to-tray, see MainWindow) and when it was auto-started by Windows (--startup). Left-click or
+         (close-to-tray, see MainWindow) and when it was auto-started by Windows (startup flag). Left-click or
          «باز کردن وت‌پلاس» restores the window; «خروج» is the only way to fully quit. Handlers live in
          App.Tray.cs. -->
     <TrayIcon.Icons>
