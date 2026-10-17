@@ -139,6 +139,20 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         await SendStaffAsync(new SetStaffActiveCommand(membershipId, active, expectedChangeToken)).ConfigureAwait(false);
     }
 
+    public async Task SetStaffPasswordAsync(string membershipId, string newPassword, string? expectedChangeToken = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(membershipId);
+        ArgumentException.ThrowIfNullOrEmpty(newPassword);
+        if (await TryGetOnlineApiAsync().ConfigureAwait(false) is { } api)
+        {
+            await PostStaffAsync(api, $"auth/staff/{Uri.EscapeDataString(membershipId)}/password",
+                new SetStaffPasswordServerRequest(membershipId, newPassword, expectedChangeToken)).ConfigureAwait(false);
+            return;
+        }
+
+        await SendStaffAsync(new SetStaffPasswordCommand(membershipId, newPassword, expectedChangeToken)).ConfigureAwait(false);
+    }
+
     public async Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null)
     {
         if (await TryGetOnlineApiAsync().ConfigureAwait(false) is { } api)

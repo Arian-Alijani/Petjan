@@ -27,6 +27,10 @@ public interface IUserProfileService
     Task<StaffDirectory> GetStaffAsync();
     Task AddStaffAsync(CreateStaffRequest request);
     Task SetStaffActiveAsync(string membershipId, bool active, string? expectedChangeToken = null);
+
+    /// <summary>Replaces a staff member's password (needs users.manage; changing another manager's also needs roles.manage).</summary>
+    Task SetStaffPasswordAsync(string membershipId, string newPassword, string? expectedChangeToken = null);
+
     Task SaveStaffAccessAsync(string membershipId, IReadOnlyList<string> permissionCodes, string? expectedChangeToken = null);
 
     /// <summary>Approves a staff member's pending device (server-authoritative; needs the devices-manage permission).</summary>

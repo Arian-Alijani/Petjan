@@ -125,6 +125,7 @@ public static class ProfileRegistration
         .AddQuery<AppSettingsQuery, IReadOnlyDictionary<string, string>, AppSettingsQueryHandler>()
         .AddQuery<StaffDirectoryQuery, StaffDirectoryResult, StaffDirectoryQueryHandler>()
         .AddCommand<CreateStaffCommand, Unit, CreateStaffCommandHandler>()
+        .AddCommand<SetStaffPasswordCommand, Unit, SetStaffPasswordCommandHandler>()
         .AddCommand<SetStaffActiveCommand, Unit, SetStaffActiveCommandHandler>()
         .AddCommand<SaveStaffAccessCommand, Unit, SaveStaffAccessCommandHandler>()
         .AddCommand<SaveUserProfileCommand, Unit, SaveUserProfileCommandHandler>()

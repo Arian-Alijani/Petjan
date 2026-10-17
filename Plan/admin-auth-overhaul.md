@@ -179,19 +179,19 @@
 - [x] **پوش:** `scripts/git/push.sh "feat(auth): [T2a] server endpoint to set a staff member's password"`
 
 ### بخش B — کلاینت دسکتاپ: UI تغییر رمز کارمند (مدیر)
-- [ ] **افزودن متد به seam.** در `src/Animora.Contracts/Profile/IUserProfileService.cs` اضافه کن:
+- [x] **افزودن متد به seam.** در `src/Animora.Contracts/Profile/IUserProfileService.cs` اضافه کن:
     `Task SetStaffPasswordAsync(string membershipId, string newPassword, string? expectedChangeToken = null);`
     (کنار `SetStaffActiveAsync`).
-- [ ] **پیاده‌سازی.** در `src/Animora.Client.Services/Profile/UserProfileService.cs` این متد را پیاده
+- [x] **پیاده‌سازی.** در `src/Animora.Client.Services/Profile/UserProfileService.cs` این متد را پیاده
     کن تا endpoint جدید `/staff/{id}/password` را صدا بزند (الگوی `SetStaffActiveAsync` همان فایل را
     اول بخوان و کپی کن؛ اگر آنلاین‌کلاینت جدا دارد، همان مسیر). اگر پیاده‌سازی فعلاً صرفاً آفلاین/لوکال
     است، حداقل مسیر لوکال `ProvisionLocalMirrorUser`/`SetPasswordHash` را هم‌راستا کن (اول فایل را بخوان).
-- [ ] **UI.** در صفحهٔ Profile (`src/Animora.Desktop/Pages/Profile/ProfilePageView.axaml` +
+- [x] **UI.** در صفحهٔ Profile (`src/Animora.Desktop/Pages/Profile/ProfilePageView.axaml` +
     `ProfilePageViewModel.cs`) کنار هر عضو کارکنان (`Staff` / `SelectedStaff`) یک کنش «تغییر رمز»
     با دو فیلد رمز جدید + تأیید و دکمه اضافه کن. از `IToastService`/دیالوگ موجود برای نتیجه استفاده کن.
     اعتبارسنجی حداقلی سمت کلاینت (طول/تطابق) + نمایش خطای سرور از `ErrorMessages`. اول VM را بخوان تا
     الگوی `AddStaffAsync`/`NewMemberError` را دنبال کنی. فقط برای دارندهٔ پرمیشن `users.manage` نمایش بده.
-- [ ] **پوش:** `scripts/git/push.sh "feat(profile): [T2b] manager can change staff passwords"`
+- [x] **پوش:** `scripts/git/push.sh "feat(profile): [T2b] manager can change staff passwords"`
 
 ### بخش C — پنل ادمین/اپراتور: تغییر دستی رمز هر کاربر یک کلینیک
 > این بخش با تسک ۳.۶ یکی است و آنجا پیاده می‌شود (endpoint عمومی ریست رمزِ هر کاربر + UI). اینجا فقط

@@ -118,6 +118,43 @@ public sealed class SetStaffActiveCommandHandler(IIdentityRepository users, ISta
     }
 }
 
+[RequiresPermission(PermissionCodes.UsersManage)]
+[Auditable(AuditCategory.Configuration, "identity.staff.password")]
+public sealed record SetStaffPasswordCommand(string MembershipId, string NewPassword, string? ExpectedChangeToken = null) : ICommand<Unit>
+{
+    public override string ToString() => $"{nameof(SetStaffPasswordCommand)} {{ MembershipId = {MembershipId}, NewPassword = *** }}";
+}
+public sealed class SetStaffPasswordCommandHandler(IIdentityRepository users, IStaffMembershipRepository memberships,
+    IRoleDefinitionRepository roles, IPasswordHasher hasher)
+    : ICommandHandler<SetStaffPasswordCommand, Unit>
+{
+    public async Task<Result<Unit>> HandleAsync(SetStaffPasswordCommand command, CommandContext context, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(command.MembershipId) || command.NewPassword is null || command.NewPassword.Length > 256)
+            return Result<Unit>.Fail(ErrorCodes.ValidationFailed);
+        var policy = PasswordPolicy.Validate(command.NewPassword);
+        if (policy.IsFailure) return Result<Unit>.Fail(policy.Error, policy.Detail);
+        var member = await memberships.FindAsync(command.MembershipId, ct);
+        if (member is null || member.TenantId != context.TenantId || member.Status == MembershipStatus.Ended)
+            return Result<Unit>.Fail(ErrorCodes.NotFound);
+        // Replacing another administrator's credential is an authority grant: it also needs roles.manage.
+        if (member.Role == StaffRole.Manager && member.UserId != context.UserId)
+        {
+            var actor = await memberships.FindActiveAsync(context.TenantId, context.UserId, ct);
+            var role = actor is null ? null : await roles.FindByRoleAsync(context.TenantId, actor.Role, ct);
+            if (actor is null || role is null || actor.DeniedPermissionCodes.Contains(PermissionCodes.RolesManage)
+                || (!role.Has(PermissionCodes.RolesManage) && !actor.ExtraPermissionCodes.Contains(PermissionCodes.RolesManage)))
+                return Result<Unit>.Fail(ErrorCodes.PermissionDenied);
+        }
+        var user = await users.FindAsync(member.UserId, ct);
+        if (user is null || user.TenantId != context.TenantId) return Result<Unit>.Fail(ErrorCodes.NotFound);
+        if (command.ExpectedChangeToken is { } token && token != StaffChangeToken.For(user, member))
+            return Result<Unit>.Fail(ErrorCodes.ConcurrencyConflict);
+        user.SetPasswordHash(hasher.Hash(command.NewPassword)); // rotates the security stamp: the user's live sessions end.
+        return Result<Unit>.Ok(Unit.Value);
+    }
+}
+
 [RequiresPermission(Animora.Domain.Identity.PermissionCodes.RolesManage)]
 [Auditable(AuditCategory.Configuration, "identity.staff.permissions")]
 public sealed record SaveStaffAccessCommand(string MembershipId, IReadOnlyList<string> PermissionCodes, string? ExpectedChangeToken = null) : ICommand<Unit>;

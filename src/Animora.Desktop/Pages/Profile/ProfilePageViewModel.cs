@@ -462,6 +462,8 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
 
     [ObservableProperty] private string _newMemberUsername = string.Empty;
     [ObservableProperty] private string _newMemberPassword = string.Empty;
+    [ObservableProperty] private string _staffNewPassword = string.Empty;
+    [ObservableProperty] private string _staffNewPasswordConfirm = string.Empty;
     [ObservableProperty] private bool _canManageUsers;
     [ObservableProperty] private bool _canManageAccess;
     [ObservableProperty] private bool _canManageDevices;
@@ -489,6 +491,8 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     private bool _staffNeedsRefresh;
     public bool CanEditSelected => CanManageAccess && SelectedStaff is { IsProtected: false, IsActive: true } && !IsStaffBusy && !_staffNeedsRefresh;
     public bool CanChangeSelectedStatus => CanManageUsers && SelectedStaff is { IsProtected: false } && !IsStaffBusy && !_staffNeedsRefresh;
+    /// <summary>Changing a staff password needs <c>users.manage</c>; the server additionally guards other managers' accounts.</summary>
+    public bool CanChangeSelectedPassword => CanManageUsers && SelectedStaff is not null && !IsStaffBusy && !_staffNeedsRefresh;
     public string StaffSummary => $"{ProfilePresentation.Fa(Staff.Count.ToString())} کاربر · {ProfilePresentation.Fa(Staff.Count(m => m.IsActive).ToString())} فعال · {ProfilePresentation.Fa(Staff.Count(m => !m.IsActive).ToString())} غیرفعال";
 
     /// <summary>Clinic seat cap from the licence grant (<c>null</c> = unknown / unlimited); set by <see cref="RefreshAccountStatusAsync"/>.</summary>
@@ -521,10 +525,12 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
     {
         OnPropertyChanged(nameof(CanEditSelected));
         OnPropertyChanged(nameof(CanChangeSelectedStatus));
+        OnPropertyChanged(nameof(CanChangeSelectedPassword));
         OnPropertyChanged(nameof(SelectedStatusAction));
         OnPropertyChanged(nameof(SelectedAccessHint));
         AddStaffCommand.NotifyCanExecuteChanged();
         RemoveStaffCommand.NotifyCanExecuteChanged();
+        ChangeStaffPasswordCommand.NotifyCanExecuteChanged();
         SaveAccessCommand.NotifyCanExecuteChanged();
         GrantAllPermissionsCommand.NotifyCanExecuteChanged();
         ResetPermissionsCommand.NotifyCanExecuteChanged();
@@ -556,6 +562,7 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         // A new (or no) member: its persisted grants become the baseline and the editor starts clean. Switching
         // members intentionally drops any unsaved edits on the previous one — the Save button guards that case.
         BeginAccessTracking(value);
+        StaffNewPassword = StaffNewPasswordConfirm = string.Empty;
         NotifyAccessState();
     }
 
@@ -863,6 +870,28 @@ public sealed partial class ProfilePageViewModel : PageViewModelBase
         var active = !member.IsActive;
         await ChangeStaffAsync(() => _service.SetStaffActiveAsync(member.Id, active, member.ChangeToken),
             active ? "حساب کاربر فعال شد." : "حساب غیرفعال شد؛ سوابق کاربر محفوظ است.");
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeSelectedPassword))]
+    private async Task ChangeStaffPasswordAsync(StaffMemberViewModel? member)
+    {
+        member ??= SelectedStaff;
+        if (member is null) return;
+        var error = string.IsNullOrEmpty(StaffNewPassword) ? "رمز عبور جدید را وارد کنید."
+            : StaffNewPassword.Length < 8 ? "رمز عبور حداقل ۸ کاراکتر و شامل حرف و عدد باشد."
+            : StaffNewPassword != StaffNewPasswordConfirm ? "رمز عبور و تکرار آن یکسان نیست." : string.Empty;
+        if (error.Length > 0)
+        {
+            NewMemberError = error;
+            _toast.Show(error, Tone.Warn);
+            return;
+        }
+        var password = StaffNewPassword;
+        await ChangeStaffAsync(async () =>
+        {
+            await _service.SetStaffPasswordAsync(member.Id, password, member.ChangeToken);
+            StaffNewPassword = StaffNewPasswordConfirm = string.Empty;
+        }, "رمز عبور کاربر تغییر کرد؛ نشست‌های قبلی او باطل شد.");
     }
 
     [RelayCommand]

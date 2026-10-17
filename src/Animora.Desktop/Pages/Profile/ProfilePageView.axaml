@@ -1276,6 +1276,28 @@
                         </ItemsControl>
                         </ScrollViewer>
 
+                        <!-- change the selected member's password (users.manage) -->
+                        <Border Classes="pf-perm" Padding="12" Margin="0,0,0,10"
+                                IsVisible="{Binding CanChangeSelectedPassword}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="ps-label" Text="تغییر رمز عبور کاربر" />
+                                <TextBox Classes="ps-input" Text="{Binding StaffNewPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxLength="256" PasswordChar="●" PlaceholderText="رمز عبور جدید (حداقل ۸ کاراکتر، شامل حرف و عدد)"
+                                         FlowDirection="LeftToRight" AutomationProperties.Name="رمز عبور جدید کاربر" />
+                                <TextBox Classes="ps-input" Text="{Binding StaffNewPasswordConfirm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         MaxLength="256" PasswordChar="●" PlaceholderText="تکرار رمز عبور جدید"
+                                         FlowDirection="LeftToRight" AutomationProperties.Name="تکرار رمز عبور جدید" />
+                                <Button Classes="outline" HorizontalAlignment="Left" Command="{Binding ChangeStaffPasswordCommand}"
+                                        CommandParameter="{Binding SelectedStaff}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Muted2Brush}"
+                                              Data="{StaticResource IconShield}" VerticalAlignment="Center" />
+                                        <TextBlock Text="تغییر رمز عبور" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+
                         <!-- footer actions -->
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10"
                               IsVisible="{Binding SelectedStaff, Converter={x:Static ObjectConverters.IsNotNull}}">
