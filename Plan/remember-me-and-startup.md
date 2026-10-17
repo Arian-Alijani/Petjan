@@ -101,7 +101,7 @@
 - DI در `App.axaml.cs` ثبت شد (singleton هر دو).
 - **نکته:** این تسک قبلاً پوش شده؛ دوباره انجام نده.
 
-### ⬜ تسک ۲ — چک‌باکس «مرا بخاطر بسپار» + منطق VM
+### ✅ تسک ۲ — چک‌باکس «مرا بخاطر بسپار» + منطق VM (انجام و پوش شد؛ کامیت `ad051b6c`)
 فایل‌ها: `LoginViewModel.cs`, `LoginWindow.axaml`.
 - به `LoginViewModel` تزریقِ `IDevicePreferencesService` اضافه کن (پارامتر سازنده بعد از
   `IAuthenticationService` — این سرویس همیشه ثبت شده پس required است، نه optional).
@@ -114,7 +114,7 @@
 - پوش:
   `scripts/git/push.sh -b genspark_ai_developer "feat(login): add 'remember me' checkbox + device-pref persistence"`
 
-### ⬜ تسک ۳ — بازیابیِ نشست در استارت‌آپ (auto-login)
+### ✅ تسک ۳ — بازیابیِ نشست در استارت‌آپ (auto-login) (انجام و پوش شد؛ کامیت `3c83b6ec`)
 فایل‌ها: `App.axaml.cs` (و در صورت نیاز یک متد کمکی روی `IAuthenticationService` یا
 استفادهٔ مستقیم از `CurrentSessionQuery` از طریق سرویس موجود).
 - در `OnLoginOpened` بعد از `InitializeLocalStoreAsync` و قبل از نمایشِ فرم:
@@ -134,7 +134,7 @@
 - پوش:
   `scripts/git/push.sh -b genspark_ai_developer "feat(startup): restore session on launch when 'remember me' is on"`
 
-### ⬜ تسک ۴ — سرویس استارت‌آپ ویندوز + toggle در تنظیمات
+### ✅ تسک ۴ — سرویس استارت‌آپ ویندوز + toggle در تنظیمات (انجام و پوش شد؛ کامیت `2b87efe0`)
 فایل‌ها: `ProfilePageViewModel.cs`, `ProfilePageView.axaml` (تبِ «ظاهر و تم»/look).
 - `IStartupRegistration` + `IDevicePreferencesService` را به `ProfilePageViewModel`
   تزریق کن (optional تا تستِ VM نشکند).
