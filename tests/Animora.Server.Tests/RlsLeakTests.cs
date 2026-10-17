@@ -87,7 +87,14 @@ public sealed class RlsLeakTests(PgFixture pg) : IClassFixture<PgFixture>
             await using var admin = new NpgsqlConnection(_adminConnection);
             await admin.OpenAsync();
             await ExecAsync(admin, $"DROP TABLE IF EXISTS public.\"{Table}\"");
-            await ExecAsync(admin, $"DROP OWNED BY \"{Role}\"");
+            // The disposable role OWNS nothing — it only received GRANTs on the (now dropped)
+            // probe table plus USAGE on schema public. "DROP OWNED BY" needs the caller to be a
+            // superuser or an actual MEMBER of the target role; animora_owner (NOSUPERUSER,
+            // CREATEROLE) is neither, so it raised 42501 "permission denied to drop objects" and
+            // left the role undropped. Dropping the table clears the table-level ACL; revoking the
+            // schema grant clears the last residual privilege, so DROP ROLE then succeeds without
+            // the privileged DROP OWNED BY.
+            await ExecAsync(admin, $"REVOKE ALL ON SCHEMA public FROM \"{Role}\"");
             await ExecAsync(admin, $"DROP ROLE IF EXISTS \"{Role}\"");
         }
 
