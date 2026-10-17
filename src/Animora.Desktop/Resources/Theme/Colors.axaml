@@ -5,15 +5,15 @@
          Each token is exposed as a Color (…Color) and a matching SolidColorBrush
          (…Brush) so both fill scenarios and value binding are covered. -->
 
-    <!-- brand — calm, premium teal -->
-    <Color x:Key="Brand900Color">#0c3631</Color>
-    <Color x:Key="Brand800Color">#104a43</Color>
-    <Color x:Key="Brand700Color">#0e7566</Color>
-    <Color x:Key="Brand600Color">#0d9488</Color>
-    <Color x:Key="Brand500Color">#14b8a6</Color>
-    <Color x:Key="Brand400Color">#2dd4bf</Color>
-    <Color x:Key="Brand100Color">#ccfbf1</Color>
-    <Color x:Key="Brand50Color">#f0fdfa</Color>
+    <!-- brand — calm, minimal cornflower-blue / indigo (dashboard redesign) -->
+    <Color x:Key="Brand900Color">#1b2559</Color>
+    <Color x:Key="Brand800Color">#233072</Color>
+    <Color x:Key="Brand700Color">#3a56d4</Color>
+    <Color x:Key="Brand600Color">#4a6cf7</Color>
+    <Color x:Key="Brand500Color">#5b7cfa</Color>
+    <Color x:Key="Brand400Color">#8aa2fb</Color>
+    <Color x:Key="Brand100Color">#dbe4fe</Color>
+    <Color x:Key="Brand50Color">#eef2fe</Color>
 
     <SolidColorBrush x:Key="Brand900Brush" Color="{StaticResource Brand900Color}" />
     <SolidColorBrush x:Key="Brand800Brush" Color="{StaticResource Brand800Color}" />
@@ -24,12 +24,12 @@
     <SolidColorBrush x:Key="Brand100Brush" Color="{StaticResource Brand100Color}" />
     <SolidColorBrush x:Key="Brand50Brush" Color="{StaticResource Brand50Color}" />
 
-    <!-- surfaces & lines -->
-    <Color x:Key="BgColor">#f6f8f9</Color>
-    <Color x:Key="Bg2Color">#f1f5f6</Color>
+    <!-- surfaces & lines — neutral cool/blue-grey canvas matching the reference -->
+    <Color x:Key="BgColor">#f6f8fb</Color>
+    <Color x:Key="Bg2Color">#eef1f8</Color>
     <Color x:Key="PanelColor">#ffffff</Color>
-    <Color x:Key="LineColor">#e5eaee</Color>
-    <Color x:Key="Line2Color">#eef2f5</Color>
+    <Color x:Key="LineColor">#e6eaf2</Color>
+    <Color x:Key="Line2Color">#eef1f7</Color>
 
     <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}" />
     <SolidColorBrush x:Key="Bg2Brush" Color="{StaticResource Bg2Color}" />
@@ -112,12 +112,12 @@
 
     <!-- Dashboard semantic surfaces. Dashboard literals were promoted to tokens (D44);
          values are unchanged so the rendered look is identical. -->
-    <Color x:Key="RowActiveColor">#f9fbfa</Color>           <!-- active legend row fill -->
-    <Color x:Key="ChartTrackColor">#f0f4f2</Color>          <!-- donut empty track -->
-    <Color x:Key="MedallionLineColor">#e7ecea</Color>       <!-- donut centre medallion border -->
-    <Color x:Key="MedallionEdgeColor">#fbfdfc</Color>       <!-- donut centre medallion gradient edge -->
-    <Color x:Key="ChartAreaTopColor">#5914B8A6</Color>      <!-- revenue area fill: Brand500 @ 35% -->
-    <Color x:Key="ChartAreaBottomColor">#0014B8A6</Color>   <!-- revenue area fill: Brand500 @ 0% -->
+    <Color x:Key="RowActiveColor">#f7f9fe</Color>           <!-- active legend row fill -->
+    <Color x:Key="ChartTrackColor">#eef1f8</Color>          <!-- donut empty track -->
+    <Color x:Key="MedallionLineColor">#e7eaf3</Color>       <!-- donut centre medallion border -->
+    <Color x:Key="MedallionEdgeColor">#fbfcff</Color>       <!-- donut centre medallion gradient edge -->
+    <Color x:Key="ChartAreaTopColor">#594a6cf7</Color>      <!-- revenue area fill: Brand600 @ 35% -->
+    <Color x:Key="ChartAreaBottomColor">#004a6cf7</Color>   <!-- revenue area fill: Brand600 @ 0% -->
 
     <SolidColorBrush x:Key="RowActiveBrush" Color="{StaticResource RowActiveColor}" />
     <SolidColorBrush x:Key="ChartTrackBrush" Color="{StaticResource ChartTrackColor}" />
