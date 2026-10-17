@@ -193,6 +193,11 @@ public partial class App : global::Avalonia.Application
         var shell = desktop.MainWindow;
         try
         {
+            // An explicit sign-out must cancel «مرا به خاطر بسپار»: the next launch should land on the sign-in
+            // form, not silently resume. Clear the flag on the still-live provider before it is disposed below.
+            try { await Services.GetRequiredService<Animora.Contracts.Device.IDevicePreferencesService>().SetRememberMeAsync(false); }
+            catch (Exception ex) { Diagnostics.AppTrace.Warn($"clearing 'remember me' on sign-out failed: {ex.Message}", "auth"); }
+
             shell?.Hide();
             if (Services.GetService<INavigationService>()?.CurrentViewModel is { } leaving)
             {

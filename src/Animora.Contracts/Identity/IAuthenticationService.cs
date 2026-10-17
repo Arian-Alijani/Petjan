@@ -16,6 +16,16 @@ public interface IAuthenticationService
         string reason,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// «مرا به خاطر بسپار» startup path: restores the persisted local session WITHOUT a password. Returns a
+    /// successful outcome only when a usable session was resumed — i.e. signed in, not locked (an idle session
+    /// resumes locked and must NOT auto-open the shell), and not a fresh install. Side effects mirror a normal
+    /// sign-in (session-context cache populated, capability gate warmed) so the shell can be built immediately.
+    /// Any failure (no session, locked, expired, store error) returns an unsuccessful outcome and never throws.
+    /// </summary>
+    Task<AuthOutcome> TryResumeSessionAsync(
+        CancellationToken ct = default);
+
     Task<bool> IsFirstRunAsync(
         CancellationToken ct = default);
 

@@ -162,6 +162,38 @@ public sealed partial class LoginViewModel : ObservableObject
             return;
         }
 
+        // «مرا به خاطر بسپار» auto-login. Skipped for the isolated backup-preview profile (it runs its own
+        // throw-away sign-in just below). When the box was left checked on the last session we try to resume it
+        // WITHOUT a password; a live, unlocked session opens the shell directly. When it was unchecked we end any
+        // lingering session so a previously-remembered login can never silently return.
+        if (_localProfile?.ClinicBakPreviewPath is null)
+        {
+            if (RememberMe)
+            {
+                IsBusy = true;
+                try
+                {
+                    var resumed = await _authentication.TryResumeSessionAsync(ct);
+                    if (resumed.Succeeded)
+                    {
+                        Animora.Desktop.Diagnostics.AppTrace.Info("session auto-restored via 'remember me'", "auth");
+                        LoginSucceeded?.Invoke(this, EventArgs.Empty);
+                        return;
+                    }
+                }
+                finally { IsBusy = false; }
+            }
+            else
+            {
+                // Not remembered: proactively end any persisted session so the next restore cannot resume it.
+                try { await _authentication.SignOutAsync("remember_me_disabled", ct); }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    Animora.Desktop.Diagnostics.AppTrace.Warn($"clearing session for disabled 'remember me' failed: {ex.Message}", "auth");
+                }
+            }
+        }
+
         if (_localProfile?.ClinicBakPreviewPath is not null)
         {
             // Only a content-addressed isolated preview can automate credential entry.

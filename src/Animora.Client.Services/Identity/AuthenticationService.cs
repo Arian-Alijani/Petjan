@@ -68,6 +68,41 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
         }
     }
 
+    public async Task<AuthOutcome> TryResumeSessionAsync(CancellationToken ct = default)
+    {
+        gate.Clear(); // fence any stale authority before we decide whether a session can be resumed
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var (dispatcher, provider) = Resolve(scope);
+
+            // CurrentSessionQuery → ISessionService.RestoreAsync: an expired session is ended, an idle one resumes
+            // locked, and the shared SessionContextCache is updated as a side effect (see CurrentSessionQueryHandler).
+            var result = await dispatcher.QueryAsync(new CurrentSessionQuery(), provider.BuildAnonymousQueryContext(), ct);
+            if (!result.IsSuccess) return new AuthOutcome(false, result.Error.Code, null);
+
+            var snapshot = result.Value!;
+            // Only a live, unlocked, non-first-run session may silently open the shell. A locked (idle-timed-out)
+            // session still requires the user to re-authenticate, so it is NOT an auto-login.
+            if (snapshot.UserId is null || snapshot.IsLocked || snapshot.IsFirstRun)
+                return new AuthOutcome(false, null, null);
+
+            // Mirror the sign-in post-steps so the shell, which is built the instant this returns, has authority (B04c).
+            await gate.RefreshAsync(ct);
+            if (liveAccess is not null) await liveAccess.RefreshAsync(ct);
+            return new AuthOutcome(true, null, snapshot.DisplayName);
+        }
+        catch (OperationCanceledException)
+        {
+            return new AuthOutcome(false, null, null);
+        }
+        catch (Exception)
+        {
+            gate.Clear(); // fail closed on any unexpected store/dispatch error
+            return new AuthOutcome(false, null, null);
+        }
+    }
+
     public async Task<bool> IsFirstRunAsync(CancellationToken ct = default)
     {
         await using var scope = scopes.CreateAsyncScope();
