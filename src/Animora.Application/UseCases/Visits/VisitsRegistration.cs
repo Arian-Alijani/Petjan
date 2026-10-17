@@ -7,7 +7,6 @@ namespace Animora.Application.UseCases.Visits;
 public static class VisitsRegistration
 {
     public static ApplicationRegistrationBuilder AddVisitsUseCases(this ApplicationRegistrationBuilder builder) => builder
-        .AddCommand<RefreshVisitDoctorDirectoryCommand, Unit, RefreshVisitDoctorDirectoryCommandHandler>()
         .AddQuery<TriageDoctorRailQuery, IReadOnlyList<DoctorRailReadModel>, TriageDoctorRailQueryHandler>()
         .AddQuery<BookedForDoctorQuery, IReadOnlyList<BookedAppointmentReadModel>, BookedForDoctorQueryHandler>()
         .AddQuery<TriagePatientsQuery, IReadOnlyList<TriagePatientReadModel>, TriagePatientsQueryHandler>()
@@ -35,4 +34,15 @@ public static class VisitsRegistration
         .AddValidator<RemoveLabResultCommand, RemoveLabResultCommandValidator>()
         .AddCommand<CompleteVisitCommand, EncounterSummaryReadModel, CompleteVisitCommandHandler>()
         .AddValidator<CompleteVisitCommand, CompleteVisitCommandValidator>();
+
+    /// <summary>
+    /// Desktop-only visits use-cases. <see cref="RefreshVisitDoctorDirectoryCommand"/> materializes the
+    /// server doctor roster into the LOCAL clinical store (it is never journalled back to the server), so its
+    /// handler depends on <c>IVisitDoctorDirectoryWriter</c> which only the SQLite/local persistence layer
+    /// registers. Registering it server-side made <c>ValidateOnBuild</c> fail ("Unable to resolve service for
+    /// type 'IVisitDoctorDirectoryWriter'") and the server crashed on startup, so it lives here, called only by
+    /// the desktop host.
+    /// </summary>
+    public static ApplicationRegistrationBuilder AddVisitsLocalUseCases(this ApplicationRegistrationBuilder builder) => builder
+        .AddCommand<RefreshVisitDoctorDirectoryCommand, Unit, RefreshVisitDoctorDirectoryCommandHandler>();
 }

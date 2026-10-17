@@ -34,7 +34,7 @@ public sealed class TenantSwitchStashTests
 
     private static CommandEnvelope Envelope(string tenantId, string operationId) => CommandEnvelope.Create(
         operationId, tenantId, "U1", "D1", "sales.invoice.post", "Invoice", "INV-A", "{}", "fp-" + operationId,
-        DateTimeOffset.UnixEpoch, sequence: 1);
+        DateTimeOffset.UnixEpoch, localSequence: 1);
 
     private static async Task EnqueuePendingAsync(LocalStoreTestFixture fixture, string tenantId, string operationId)
     {
