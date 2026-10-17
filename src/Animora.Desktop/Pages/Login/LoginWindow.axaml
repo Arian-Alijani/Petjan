@@ -163,13 +163,21 @@
                          PlaceholderText="••••••"
                          Text="{Binding Password, Mode=TwoWay}" />
 
+                <!-- «مرا به خاطر بسپار»: when checked, the session is restored automatically on the next
+                     launch so the user skips the sign-in form. Device-level preference (readable before login). -->
+                <CheckBox Content="مرا به خاطر بسپار"
+                          FontSize="{StaticResource FontSizeSm}"
+                          Foreground="{StaticResource Ink2Brush}"
+                          Margin="0,18,0,0"
+                          IsChecked="{Binding RememberMe, Mode=TwoWay}" />
+
                 <Button Classes="primary"
                         Content="ورود"
                         Height="46"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
                         FontSize="{StaticResource FontSizeMd}"
-                        Margin="0,28,0,0"
+                        Margin="0,14,0,0"
                         Command="{Binding SignInCommand}"
                         IsDefault="True" />
 

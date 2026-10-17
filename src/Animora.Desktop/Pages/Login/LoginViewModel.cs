@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Animora.Client.Services.Identity;
+using Animora.Contracts.Device;
 using Animora.Contracts.Identity;
 using Animora.Domain.Results;
 using Animora.Desktop.Localization;
@@ -21,6 +22,7 @@ namespace Animora.Desktop.Pages.Login;
 public sealed partial class LoginViewModel : ObservableObject
 {
     private readonly IAuthenticationService _authentication;
+    private readonly IDevicePreferencesService _devicePreferences;
     private readonly IDialogService _dialogs;
     private readonly Func<FirstRunViewModel> _firstRunFactory;
     private FirstRunViewModel? _firstRun;
@@ -36,12 +38,13 @@ public sealed partial class LoginViewModel : ObservableObject
     /// </summary>
     private bool _confirmedClinicSwitch;
 
-    public LoginViewModel(IAuthenticationService authentication, IDialogService dialogs,
-        Func<FirstRunViewModel> firstRunFactory, IServerConnectivityService? connectivity = null,
+    public LoginViewModel(IAuthenticationService authentication, IDevicePreferencesService devicePreferences,
+        IDialogService dialogs, Func<FirstRunViewModel> firstRunFactory, IServerConnectivityService? connectivity = null,
         LocalTestProfile? localProfile = null, IOnlineAuthClient? onlineAuth = null,
         ServerEndpointOptions? serverOptions = null)
     {
         _authentication = authentication;
+        _devicePreferences = devicePreferences;
         _dialogs = dialogs;
         _firstRunFactory = firstRunFactory;
         _connectivity = connectivity;
@@ -72,6 +75,15 @@ public sealed partial class LoginViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SignInCommand))]
     private string _password = string.Empty;
+
+    /// <summary>
+    /// «مرا به خاطر بسپار» — when checked, the successful session is restored automatically on the next launch
+    /// (the user skips the sign-in form). Seeded from the device preferences in <see cref="InitializeAsync"/>
+    /// and persisted on every successful sign-in / first-run. A device-level flag (not the per-user profile),
+    /// so it is readable before any sign-in.
+    /// </summary>
+    [ObservableProperty]
+    private bool _rememberMe;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasError))]
@@ -134,6 +146,11 @@ public sealed partial class LoginViewModel : ObservableObject
     {
         IsStoreReady = storeReady;
         IsBusy = false;
+
+        // Seed the «مرا به خاطر بسپار» checkbox from the device preferences. The store is fail-safe (never throws)
+        // and this read must not block the first frame, so a failure simply leaves the box unchecked.
+        try { RememberMe = (await _devicePreferences.GetAsync(ct).ConfigureAwait(true)).RememberMe; }
+        catch (OperationCanceledException) { /* window closing */ }
 
         // Kick off a background server reachability probe so the login screen shows the connection
         // indicator without blocking startup; failures only update the indicator, never the form.
@@ -235,6 +252,7 @@ public sealed partial class LoginViewModel : ObservableObject
             if (outcome.Succeeded)
             {
                 Animora.Desktop.Diagnostics.AppTrace.Info($"local sign-in SUCCEEDED for '{user}'", "auth");
+                await PersistRememberMeAsync(ct).ConfigureAwait(true);
                 LoginSucceeded?.Invoke(this, EventArgs.Empty);
                 return;
             }
@@ -481,7 +499,7 @@ public sealed partial class LoginViewModel : ObservableObject
         _dialogs.ShowModal(firstRun, maxWidth: 520);
     }
 
-    private void OnFirstRunSucceeded(object? sender, EventArgs e)
+    private async void OnFirstRunSucceeded(object? sender, EventArgs e)
     {
         if (sender is FirstRunViewModel firstRun)
         {
@@ -491,6 +509,23 @@ public sealed partial class LoginViewModel : ObservableObject
 
         // Only reachable on builds without a server (see InitializeAsync). CompleteFirstRunAsync already started the
         // local session: open the shell.
+        await PersistRememberMeAsync(CancellationToken.None).ConfigureAwait(true);
         LoginSucceeded?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Records the current «مرا به خاطر بسپار» choice so the next launch can decide whether to auto-restore the
+    /// session. Device-level and fail-safe: a storage error is logged but never blocks opening the shell.
+    /// </summary>
+    private async Task PersistRememberMeAsync(CancellationToken ct)
+    {
+        try
+        {
+            await _devicePreferences.SetRememberMeAsync(RememberMe, ct).ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"persisting 'remember me' ({RememberMe}) failed: {ex.Message}", "auth");
+        }
     }
 }
