@@ -29,6 +29,7 @@ public static class SubscriptionServiceCollectionExtensions
         services.TryAddScoped<ITenantAdministration, TenantAdministration>();
         services.TryAddScoped<ProvisioningEngine>();
         services.TryAddScoped<OwnerCredentialAdministration>();
+        services.TryAddScoped<ClinicStaffAdministration>();
         services.TryAddScoped<ProvisioningReplayCredentials>();
         services.TryAddScoped<SubscriptionSweep>();
         services.TryAddScoped<SubscriptionExpiryProcessor>();

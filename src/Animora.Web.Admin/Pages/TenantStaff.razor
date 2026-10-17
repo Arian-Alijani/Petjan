@@ -2,8 +2,10 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminStaffQueries Queries
+@inject IAdminStaffCommands Commands
 <h1>@Loc.T("staff.title")</h1><FormError Code="@Error" />
 <p><a href="@($"/admin/tenants/{Id}")">@Loc.T("staff.backToTenant")</a></p>
+@if (Receipt?.TemporaryPassword is { } password) { <p class="secret">@Loc.T("staff.tempPassword"): <code>@password</code></p> }
 <form method="get"><label>@Loc.T("staff.search") <input name="search" value="@Search" maxlength="100" /></label>
 <label>@Loc.T("staff.role") <select name="role"><option value="">@Loc.T("staff.allRoles")</option>
 @foreach (var r in Roles) { <option value="@r" selected="@(string.Equals(Role, r, StringComparison.OrdinalIgnoreCase))">@Loc.T("role." + r)</option> }
@@ -17,14 +19,27 @@
 }
 </tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
 }
+<h2>@Loc.T("staff.create")</h2>
+<EditForm Model="CreateForm" FormName="create-staff" method="post" OnSubmit="Create">
+<label>@Loc.T("staff.createName") <InputText @bind-Value="CreateForm!.Name" maxlength="200" /></label>
+<label>@Loc.T("staff.createUser") <InputText @bind-Value="CreateForm.UserName" maxlength="64" dir="ltr" /></label>
+<label>@Loc.T("staff.createRole") <InputSelect @bind-Value="CreateForm.Role">@foreach (var r in Roles) { <option value="@r">@Loc.T("role." + r)</option> }</InputSelect></label>
+<ConfirmCheckbox Name="CreateForm.Confirmed" /><button type="submit">@Loc.T("staff.createSubmit")</button></EditForm>
 @code {
     [Parameter] public string Id { get; set; }="";
     [SupplyParameterFromQuery] public string? Search { get; set; }
     [SupplyParameterFromQuery] public string? Role { get; set; }
     [SupplyParameterFromQuery] public int Page { get; set; }=1;
     [SupplyParameterFromQuery] public int PageSize { get; set; }=50;
+    [SupplyParameterFromForm] public CreateStaffAdminForm? CreateForm { get; set; }
     private static readonly string[] Roles=["Manager","Doctor","Receptionist","Cashier","Accountant"];
-    private AdminPage<StaffAccountSummary>? Rows;
+    private AdminPage<StaffAccountSummary>? Rows; private MutationReceipt? Receipt;
     private string FilterUrl=>$"/admin/tenants/{Id}/staff?search={Uri.EscapeDataString(Search??"")}&role={Uri.EscapeDataString(Role??"")}";
-    protected override async Task OnParametersSetAsync() => Rows=Capture(await Queries.ListAsync(Id,new(Role,Search,Page,PageSize),Cancellation));
+    protected override async Task OnInitializedAsync() { CreateForm??=new(); await Load(); }
+    private async Task Load() { var captured=Error; Rows=Capture(await Queries.ListAsync(Id,new(Role,Search,Page,PageSize),Cancellation)); Error??=captured; }
+    private async Task Create(EditContext _)
+    {
+        Receipt=Capture(await Commands.CreateStaffAsync(Id,CreateForm!,Cancellation));
+        var failure=Error; await Load(); Error=failure??Error;
+    }
 }

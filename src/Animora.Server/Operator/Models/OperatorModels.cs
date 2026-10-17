@@ -3,6 +3,7 @@ using Animora.Domain.Subscriptions;
 
 namespace Animora.Server.Operator.Models;
 
+internal sealed record CreateClinicStaffRequest(string Name, string UserName, string Role);
 internal sealed record OperatorLoginRequest(string UserName, string Password);
 internal sealed record OperatorPasswordRequest(string OldPassword, string NewPassword);
 internal sealed record PlanRequest(string Code, string Name, int DefaultSeatLimit, long MonthlyAmountMinor, int TrialDays);

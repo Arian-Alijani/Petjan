@@ -54,7 +54,6 @@ public sealed class CreateStaffAdminForm
 {
     public string Name { get; set; }=""; public string UserName { get; set; }=""; public string Role { get; set; }="Receptionist";
     public bool Confirmed { get; set; }
-    public string IdempotencyKey { get; set; }=Guid.NewGuid().ToString("N");
 }
 public sealed class ResetStaffPasswordForm { public string UserId { get; set; }=""; public bool Confirmed { get; set; } }
 public sealed class PlanActionForm { public string Id { get; set; }=""; public string Stamp { get; set; }=""; }

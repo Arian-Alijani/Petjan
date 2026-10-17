@@ -16,7 +16,6 @@ public interface IAdminStaffQueries
 public interface IAdminStaffCommands
 {
     Task<Result<MutationReceipt>> CreateStaffAsync(string tenantId,CreateStaffAdminForm form,CancellationToken ct=default);
-    Task<Result<MutationReceipt>> ResetStaffPasswordAsync(string tenantId,ResetStaffPasswordForm form,CancellationToken ct=default);
 }
 public interface IAdminProductQueries
 {

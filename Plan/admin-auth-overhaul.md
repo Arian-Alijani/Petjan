@@ -236,19 +236,19 @@
 - [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.2] per-clinic staff roster view"`
 
 ### ۳.۳ — ساخت دستی کاربر برای یک کلینیک از پنل
-- [ ] **Endpoint سرور.** یک مسیر اپراتوری در `OperatorEndpoints.cs`:
+- [x] **Endpoint سرور.** یک مسیر اپراتوری در `OperatorEndpoints.cs`:
     `POST {Operator}/tenants/{id}/staff` که کاربر+عضویت در آن tenant بسازد. منطق را از
     `StaffProvisioningService.CreateAsync` بردار اما چون اینجا **actor اپراتور است نه کاربر کلینیک**،
     یک سرویس موازیِ ساده در persistence بساز (الگوی `OwnerCredentialAdministration` با tenant-bound
     context خطوط ۳۱–۳۷): ساخت `User.Create` + `SetPasswordHash` (رمز موقت تولیدشده با
     `ProvisioningEngine.GenerateTemporaryPassword()`) + `StaffMembership.Create(role)` + audit
     (`SecurityAuditEntry` + `OperatorAudit`). رمز موقت را **یک‌بار** در پاسخ برگردان.
-- [ ] **Port/Model/Adapter.** `IAdminStaffCommands { Task<Result<MutationReceipt>> CreateStaffAsync(string tenantId, CreateStaffAdminForm form, CancellationToken ct=default); }`
+- [x] **Port/Model/Adapter.** `IAdminStaffCommands { Task<Result<MutationReceipt>> CreateStaffAsync(string tenantId, CreateStaffAdminForm form, CancellationToken ct=default); }`
     با فرم `CreateStaffAdminForm(string Name,string UserName,string Role)`. `MutationReceipt.TemporaryPassword`
     از قبل وجود دارد. Adapter در `src/Animora.Server/Admin/`.
-- [ ] **UI.** فرم ساخت کاربر در صفحهٔ staff کلینیک (ConfirmCheckbox، FormError، نمایش رمز موقت یک‌بار
+- [x] **UI.** فرم ساخت کاربر در صفحهٔ staff کلینیک (ConfirmCheckbox، FormError، نمایش رمز موقت یک‌بار
     مثل `TenantDetail.razor` خط ۷).
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.3] create clinic staff from admin panel"`
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.3] create clinic staff from admin panel"`
 
 ### ۳.۴ — مشاهدهٔ محصولات یک کلینیک + فیلتر بر اساس شاخص‌ها
 - [ ] **اکتشاف محدود (همان‌موقع):** مدل محصول در سرور/PG کجاست؟ گرپ هدفمند:
