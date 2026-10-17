@@ -28,18 +28,16 @@
             </Grid>
         </Border>
 
-        <!-- KPI row: Phase 03 StatCard, matching .stats-grid (4 columns). -->
+        <!-- KPI row: Phase 03 StatCard, matching .stats-grid (4 columns).
+             Spacing comes from the grid's ColumnSpacing/RowSpacing (no per-item
+             margin) so the cards sit flush with the container edges and line up
+             exactly with the role content and quick-access card below. -->
         <ItemsControl ItemsSource="{Binding Stats}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <controls:AdaptiveGrid MinItemWidth="210" MaxColumns="4" />
+                    <controls:AdaptiveGrid MinItemWidth="210" MaxColumns="4" ColumnSpacing="16" RowSpacing="16" />
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
-            <ItemsControl.Styles>
-                <Style Selector="ContentPresenter">
-                    <Setter Property="Margin" Value="6,0" />
-                </Style>
-            </ItemsControl.Styles>
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="contracts:DashboardStat">
                     <controls:StatCard Icon="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
@@ -74,14 +72,9 @@
                 <ItemsControl Margin="18" ItemsSource="{Binding QuickActions}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <controls:AdaptiveGrid MinItemWidth="190" MaxColumns="4" />
+                            <controls:AdaptiveGrid MinItemWidth="190" MaxColumns="4" ColumnSpacing="12" RowSpacing="12" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    <ItemsControl.Styles>
-                        <Style Selector="ContentPresenter">
-                            <Setter Property="Margin" Value="6" />
-                        </Style>
-                    </ItemsControl.Styles>
 
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="dashboard:DashboardQuickAction">

@@ -7,10 +7,11 @@
          Spacing is a consistent 4px-based scale matching the reference's
          observed paddings/gaps (not a literal per-rule enumeration). -->
 
-    <!-- corner radii -->
-    <CornerRadius x:Key="RadiusSm">10</CornerRadius>
-    <CornerRadius x:Key="Radius">16</CornerRadius>
-    <CornerRadius x:Key="RadiusLg">20</CornerRadius>
+    <!-- corner radii — tightened a notch for a crisper, more squared card edge
+         (sharper corners per dashboard polish): sm 10→8, base 16→12, lg 20→16. -->
+    <CornerRadius x:Key="RadiusSm">8</CornerRadius>
+    <CornerRadius x:Key="Radius">12</CornerRadius>
+    <CornerRadius x:Key="RadiusLg">16</CornerRadius>
 
     <!-- 4px-based spacing scale.
          Doubles feed scalar properties: StackPanel.Spacing, Grid gaps, etc.

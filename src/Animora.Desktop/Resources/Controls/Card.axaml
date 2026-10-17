@@ -19,6 +19,21 @@
         <Setter Property="BoxShadow" Value="{StaticResource ShadowCard}" />
         <Setter Property="VerticalAlignment" Value="Stretch" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <!-- Minimal hover: only the shadow + border tint animate, so the lift reads
+             as a soft elevation change and never shifts/reflows the card content. -->
+        <Setter Property="Transitions">
+            <Transitions>
+                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.16" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.16" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <!-- Minimal, consistent hover for every dashboard card: a restrained shadow
+         lift and a slightly firmer border. No scale/translate so the layout is stable. -->
+    <Style Selector="Border.card:pointerover">
+        <Setter Property="BoxShadow" Value="{StaticResource ShadowCardHover}" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
     </Style>
 
     <!-- .card-header: header strip (title, optional right-aligned meta).
