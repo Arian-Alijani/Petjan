@@ -18,6 +18,16 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
     CapabilityMirrorWriter mirror, CapabilityGateService gate, DeviceLifecycleService devices,
     IServiceScopeFactory scopes, IClock clock, ILogger<LiveAccessRefreshService> logger) : IAsyncDisposable
 {
+    // The routine snapshot renewal cadence. The caller-only /auth/access poll runs every 4–6s; the heavier
+    // mirror (GET /auth/keys + POST /auth/capabilities) is a renewal, not a poll, so it runs at most this often.
+    private static readonly long MirrorIntervalTicks = (long)TimeSpan.FromMinutes(5).TotalMilliseconds;
+
+    // After a TRANSIENT mirror failure (server busy / rate-limited / local store blip) the signed offline snapshot
+    // is still valid, so there is nothing to renew right now. Backing the next attempt off — instead of retrying on
+    // every 4–6s pass — is what stops a rate-limit storm: three auth calls per pass against a 10-req/60s window
+    // (GET /auth/access + GET /auth/keys + POST /auth/capabilities) otherwise feeds on its own 429s indefinitely.
+    private static readonly long MirrorTransientBackoffTicks = (long)TimeSpan.FromSeconds(30).TotalMilliseconds;
+
     private readonly SemaphoreSlim _flight = new(1, 1);
     private readonly CancellationTokenSource _stop = new();
     private Task? _loop;
@@ -112,7 +122,16 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                     // banner) after the app sat idle past the 5-minute renewal, and a manual "Sync Now" could not recover
                     // it because that path never re-warms the gate. Keep the offline authority and retry next pass.
                     if (IsAuthorityRemoved(applied.Error)) gate.Clear();
-                    else gate.ClearOnlineAccess();
+                    else
+                    {
+                        // Transient renewal failure: back the NEXT mirror attempt off so the 4–6s loop does not keep
+                        // firing GET /auth/keys + POST /auth/capabilities on every pass. Left unthrottled, that burst
+                        // tips the 10-req/60s auth window into sustained 429s that never clear — a self-reinforcing
+                        // storm that leaves the live lease permanently un-renewed and the shell stuck read-only.
+                        // The signed offline snapshot is still valid; keep it and let the next window renew normally.
+                        gate.ClearOnlineAccess();
+                        _nextMirrorTick = Environment.TickCount64 + MirrorTransientBackoffTicks;
+                    }
                     return applied;
                 }
                 if (!StillCurrent()) return Result.Fail(ErrorCodes.SessionExpired);
@@ -120,10 +139,16 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                 // Gate refresh is deliberately non-throwing/fail-closed. Do not mark a failed warm-up as
                 // applied for five minutes: retry next pass, without another sign-in.
                 if (!StillCurrent() || !gate.HasCurrentView(expected.UserId))
+                {
+                    // Warm-up could not publish a view (local store blip) yet the snapshot write itself succeeded.
+                    // Back off too: hammering the mirror again every pass cannot fix a local-store problem and only
+                    // burns the auth rate-limit budget. The already-published offline view keeps the shell usable.
+                    _nextMirrorTick = Environment.TickCount64 + MirrorTransientBackoffTicks;
                     return Result.Fail(ErrorCodes.StoreUnavailable);
+                }
                 _revision = access.Revision;
                 _appliedGeneration = generation;
-                _nextMirrorTick = Environment.TickCount64 + (long)TimeSpan.FromMinutes(5).TotalMilliseconds;
+                _nextMirrorTick = Environment.TickCount64 + MirrorIntervalTicks;
             }
             if (StillCurrent()) gate.SetOnlineAccess(expected.UserId, access.Permissions, generation);
             return Result.Ok();
