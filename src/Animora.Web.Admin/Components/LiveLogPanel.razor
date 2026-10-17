@@ -1,0 +1,93 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IAsyncDisposable
+@inject IAdminLiveLog Log
+@inject TimeProvider Time
+<section class="live-log" aria-label="@AdminStrings.Get("logs.aria", Lang)">
+<FormError Code="@Error" />
+<div class="log-toolbar">
+<button type="button" @onclick="Toggle" aria-pressed="@Running">@AdminStrings.Get(Running ? "logs.stop" : "logs.start", Lang)</button>
+<label>@AdminStrings.Get("logs.level", Lang)
+<select @onchange="OnLevel"><option value="" selected="@(Level == "")">@AdminStrings.Get("logs.levelAll", Lang)</option>
+<option value="Warning" selected="@(Level == "Warning")">@AdminStrings.Get("logs.levelWarn", Lang)</option>
+<option value="Error" selected="@(Level == "Error")">@AdminStrings.Get("logs.levelError", Lang)</option></select></label>
+<label>@AdminStrings.Get("logs.search", Lang) <input type="search" maxlength="100" value="@Search" @onchange="OnSearch" /></label>
+<label><input type="checkbox" checked="@AutoScroll" @onchange="OnAutoScroll" /> @AdminStrings.Get("logs.autoscroll", Lang)</label>
+<button type="button" class="ghost" @onclick="Clear">@AdminStrings.Get("logs.clear", Lang)</button>
+<span class="badge @(Running ? "ok" : "warn")" role="status">@AdminStrings.Get(Running ? "logs.live" : "logs.paused", Lang)</span>
+</div>
+<div class="log-view @(AutoScroll ? "pin" : "")" dir="ltr" role="log" aria-live="off" tabindex="0"><div class="log-lines">
+@if (Lines.Count == 0) { <p dir="auto">@AdminStrings.Get("logs.empty", Lang)</p> }
+@foreach (var line in Lines) { <div class="log-line @(line.Level.ToLowerInvariant())"><time>@line.Ts.ToString("HH:mm:ss")</time> <strong>@line.Level</strong> <span class="src">@line.Source</span> <span>@line.Message</span></div> }
+</div></div>
+<p class="hint">@AdminStrings.Get("logs.hint", Lang)</p>
+</section>
+@code {
+    /// <summary>Hard cap of lines kept in the circuit so a long session never grows server memory.</summary>
+    internal const int MaxLines = 500;
+    /// <summary>Language code handed over by the SSR page; an island has no HttpContext/cookie of its own.</summary>
+    [Parameter] public string Lang { get; set; } = AdminCulture.Fa;
+    private readonly List<LogLineModel> Lines = [];
+    private string? Error;
+    private string Level = "";
+    private string Search = "";
+    private bool AutoScroll = true;
+    private bool Running;
+    private long Cursor;
+    private CancellationTokenSource? _stop;
+    private PeriodicTimer? _timer;
+    private Task? _loop;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync() => await Refresh(reset: true);
+
+    /// <summary>Nothing polls while stopped: the timer exists only between Start and Stop.</summary>
+    private async Task Toggle()
+    {
+        if (Running) { await StopLoop(); return; }
+        Running = true;
+        _stop = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(2), Time);
+        _loop = Poll(_timer, _stop.Token);
+        await Refresh(reset: false);
+    }
+    private async Task StopLoop()
+    {
+        Running = false;
+        var stop = _stop; var loop = _loop; var timer = _timer;
+        _stop = null; _loop = null; _timer = null;
+        if (stop is not null) await stop.CancelAsync();
+        timer?.Dispose();
+        if (loop is not null) await loop;
+        stop?.Dispose();
+    }
+    private async Task Poll(PeriodicTimer timer, CancellationToken token)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+                await InvokeAsync(async () => { if (!_disposed && Running) { await Refresh(reset: false); StateHasChanged(); } });
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+    }
+    private async Task Refresh(bool reset)
+    {
+        if (reset) { Cursor = 0; Lines.Clear(); }
+        var result = await Log.ReadAsync(new LogFilter(Level, Search, Cursor, MaxLines), _stop?.Token ?? CancellationToken.None);
+        Error = result.IsFailure ? result.Error.Code : null;
+        if (result.IsFailure) { if (Running) await StopLoop(); return; }
+        Cursor = result.Value.LastSequence;
+        Lines.AddRange(result.Value.Lines);
+        if (Lines.Count > MaxLines) Lines.RemoveRange(0, Lines.Count - MaxLines);
+    }
+    private async Task OnLevel(ChangeEventArgs e) { Level = e.Value?.ToString() ?? ""; await Refresh(reset: true); }
+    private async Task OnSearch(ChangeEventArgs e) { Search = (e.Value?.ToString() ?? "").Trim(); await Refresh(reset: true); }
+    private void OnAutoScroll(ChangeEventArgs e) => AutoScroll = e.Value is true;
+    private void Clear() => Lines.Clear();
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        await StopLoop();
+    }
+}

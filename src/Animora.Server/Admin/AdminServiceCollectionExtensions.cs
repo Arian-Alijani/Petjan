@@ -45,7 +45,7 @@ internal static class AdminServiceCollectionExtensions
         services.AddHttpContextAccessor();services.AddScoped<Animora.Web.Admin.Localization.AdminCulture>();
         services.AddScoped<AdminSession>();services.AddScoped<IAdminSession>(sp=>sp.GetRequiredService<AdminSession>());
         services.AddScoped<OperatorReadQueries>();services.AddScoped<OperatorPlanAdministration>();
-        services.AddScoped<IAdminStatusReader,AdminStatusReader>();services.AddScoped<IAdminTenantQueries,AdminTenantQueries>();
+        services.AddScoped<IAdminStatusReader,AdminStatusReader>();services.AddScoped<IAdminLiveLog,AdminLiveLogAdapter>();services.AddScoped<IAdminTenantQueries,AdminTenantQueries>();
         services.AddScoped<IAdminSubscriptionCommands,AdminSubscriptionAdapter>();services.AddScoped<IAdminPlanCommands,AdminPlanAdapter>();
         services.AddScoped<IAdminLicenseCommands,AdminLicenseAdapter>();
         services.AddScoped<IAdminStaffQueries,AdminStaffAdapter>();services.AddScoped<IAdminStaffCommands,AdminStaffCommandsAdapter>();services.AddScoped<IAdminProductQueries,AdminProductAdapter>();return services;

@@ -4,6 +4,8 @@ namespace Animora.Web.Admin.Ports;
 
 public interface IAdminSession { string OperatorId { get; } string Name { get; } }
 public interface IAdminStatusReader { Task<Result<AdminStatus>> GetStatusAsync(CancellationToken ct=default); }
+/// <summary>Operator-only tail of the server log. Pull-based: the island polls only while the operator has live mode switched on.</summary>
+public interface IAdminLiveLog { Task<Result<LogSnapshot>> ReadAsync(LogFilter filter,CancellationToken ct=default); }
 public interface IAdminTenantQueries
 {
     Task<Result<AdminPage<TenantSummary>>> ListAsync(TenantListQuery query,CancellationToken ct=default);

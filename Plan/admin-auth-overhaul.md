@@ -285,28 +285,28 @@
 > بزرگ‌ترین زیرتسک. امنیت/سبکی حیاتی است: **فقط اپراتور (`AdminOnly`/`OperatorOnly`) دسترسی داشته باشد؛
 > هیچ داده حساس (رمز/توکن/PII) نشت نکند** — Redaction موجود (`RedactingEnricher`, `SecretDestructuringPolicy`
 > در `LoggingSetup.cs`) باید در مسیر لاگ لایو هم اعمال شود.
-- [ ] **سینک حلقوی در‌حافظه.** یک Serilog sink جدید `src/Animora.Server/Observability/RingBufferLogSink.cs`
+- [x] **سینک حلقوی در‌حافظه.** یک Serilog sink جدید `src/Animora.Server/Observability/RingBufferLogSink.cs`
     که آخرین N رویداد (مثلاً ۱۰۰۰، سقف ثابت و سبک) را در یک ring buffer نگه دارد و یک رویداد/کانال
     (`System.Threading.Channels`) برای مشترکان لایو منتشر کند. **بعد از** `RedactingEnricher` و
     `SecretDestructuringPolicy` قرار بگیرد (در `LoggingSetup.CreateLogger` مثل `ConsoleSink` با
     `config.WriteTo.Sink(...)`). هر رکورد: timestamp, level, category/source, renderedMessage (بدون
     مسیر/هدر/بدنهٔ خام — همان سیاست موجود).
-- [ ] **سرویس + پورت.** سینک را singleton ثبت کن؛ یک `IAdminLiveLog` در `AdminPorts.cs`:
+- [x] **سرویس + پورت.** سینک را singleton ثبت کن؛ یک `IAdminLiveLog` در `AdminPorts.cs`:
     `IReadOnlyList<LogLineModel> Snapshot(LogFilter filter)` + یک روش subscribe برای جزیرهٔ تعاملی
     (مثلاً `IAsyncEnumerable<LogLineModel> Stream(CancellationToken)` یا الگوی `PeriodicTimer` مثل
     `LiveStatusPanel`). Model: `LogLineModel(DateTimeOffset Ts,string Level,string Source,string Message)`
     و `LogFilter(string? Level,string? Search)`.
-- [ ] **فعال/غیرفعال‌سازی لایو.** طبق خواسته «هنگام فعال کردن» → یک دکمه Start/Stop در UI؛ وقتی
+- [x] **فعال/غیرفعال‌سازی لایو.** طبق خواسته «هنگام فعال کردن» → یک دکمه Start/Stop در UI؛ وقتی
     غیرفعال است هیچ polling/stream نرود (سبکی سرور). ring buffer همیشه پر می‌شود (ارزان) اما stream فقط
     با فعال‌سازی وصل شود.
-- [ ] **UI (جزیرهٔ تعاملی).** `src/Animora.Web.Admin/Pages/Logs.razor` + کامپوننت تعاملی
+- [x] **UI (جزیرهٔ تعاملی).** `src/Animora.Web.Admin/Pages/Logs.razor` + کامپوننت تعاملی
     `Components/LiveLogPanel.razor` (الگوی `LiveStatusPanel.razor`: `@rendermode InteractiveServerRenderMode(prerender:false)`,
     `PeriodicTimer`, `IAsyncDisposable`). امکانات: سوییچ Start/Stop، فیلتر سطح (Info/Warn/Error)،
     باکس سرچ متن (client-side روی بافر یا server-side روی snapshot)، auto-scroll. چون `MaxIslands=1`،
     یا این را تنها جزیره کن (و LiveStatus را به polling SSR/حذف از island تبدیل کن) یا `MaxIslands` را
     به ۲ ببر با کامنت توجیهی. **تصمیم پیش‌فرض:** `MaxIslands=2` با کامنت «status + live log».
-- [ ] **ناوبری.** لینک «لاگ‌ها / Logs» در `NavMenu.razor` با `@T(...)`. صفحه `[Authorize(Policy="AdminOnly")]`.
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.7] live server log viewer with filter & search"`
+- [x] **ناوبری.** لینک «لاگ‌ها / Logs» در `NavMenu.razor` با `@T(...)`. صفحه `[Authorize(Policy="AdminOnly")]`.
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.7] live server log viewer with filter & search"`
 
 ### ۳.۸ — داشبورد تمیز + بازبینی نهایی UX/امنیت
 - [ ] داشبورد (`Pages/Dashboard.razor`) را مرتب کن: کارت‌های خلاصه (tenantها، expiring, past-due از

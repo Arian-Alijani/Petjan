@@ -62,3 +62,14 @@ a:focus-visible,input:focus-visible,button:focus-visible,select:focus-visible{ou
 .logbox .l-Warning{color:#ffcf66}.logbox .l-Error,.logbox .l-Fatal{color:#ff8a8a}.logbox .l-Debug,.logbox .l-Verbose{color:#8aa0b0}
 .toolbar{display:flex;flex-wrap:wrap;gap:.75rem;align-items:end}
 .toolbar label{margin:0}
+
+/* live log viewer */
+.log-toolbar{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-block:1rem}
+.log-view{max-block-size:60vh;overflow:auto;background:#0f1720;color:#e6edf3;border-radius:.4rem;padding:.6rem;font:.85rem/1.5 ui-monospace,Consolas,monospace;direction:ltr;text-align:left}
+.log-line{white-space:pre-wrap;overflow-wrap:anywhere}
+.log-line .src{color:#8aa0b4}
+.log-line.warning strong{color:#f0b429}
+.log-line.error strong,.log-line.fatal strong{color:#ff6b6b}
+.hint{color:#5b6b79;font-size:.85rem}
+/* auto-scroll without JS: a column-reverse flex container stays pinned to its newest (bottom) content */
+.log-view.pin{display:flex;flex-direction:column-reverse}

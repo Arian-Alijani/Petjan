@@ -12,14 +12,17 @@ internal static class LoggingSetup
     {
         builder.Services.AddHttpContextAccessor();
         builder.Logging.ClearProviders();
+        // The live-log ring buffer is shared: the logger writes to it, the operator console reads it.
+        var ring=new RingBufferLogSink();
+        builder.Services.AddSingleton(ring);
         builder.Services.AddSingleton<Serilog.ILogger>(sp=>
         {
             var root=sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ServerOptions>>().Value.DataRootPath;
-            return CreateLogger(root, builder.Environment.IsDevelopment(), sp.GetRequiredService<IHttpContextAccessor>());
+            return CreateLogger(root, builder.Environment.IsDevelopment(), sp.GetRequiredService<IHttpContextAccessor>(), ringSink: ring);
         });
         builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider>(sp=>new Serilog.Extensions.Logging.SerilogLoggerProvider(sp.GetRequiredService<Serilog.ILogger>(),dispose:true));
     }
-    internal static Logger CreateLogger(string root, bool development, IHttpContextAccessor accessor, ILogEventSink? consoleSink = null)
+    internal static Logger CreateLogger(string root, bool development, IHttpContextAccessor accessor, ILogEventSink? consoleSink = null, ILogEventSink? ringSink = null)
     {
         var config = new LoggerConfiguration().MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -39,6 +42,8 @@ internal static class LoggingSetup
         // sensitive reaches stdout. systemd captures stdout into journalctl, and a manual
         // `dotnet run` now prints lifecycle output instead of looking hung.
         config.WriteTo.Sink(consoleSink ?? new ConsoleSink());
+        // Operator live log: same position as the console sink (after redaction), bounded and in memory only.
+        if (ringSink is not null) config.WriteTo.Sink(ringSink);
         return config.CreateLogger();
     }
     private sealed class ConsoleSink : ILogEventSink

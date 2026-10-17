@@ -4,6 +4,11 @@ public sealed record AdminPage<T>(IReadOnlyList<T> Items,int Page,int PageSize,l
 {
     public static (int Page,int Size) Bounds(int page,int pageSize)=>(Math.Clamp(page,1,int.MaxValue/200),Math.Clamp(pageSize,1,200));
 }
+/// <summary>One live-log line (already redacted server-side). <c>Level</c> is Debug/Information/Warning/Error/Fatal/Verbose.</summary>
+public sealed record LogLineModel(long Sequence,DateTimeOffset Ts,string Level,string Source,string Message);
+/// <summary><c>Level</c> is a MINIMUM level (Information/Warning/Error); <c>AfterSequence</c> is the poll cursor (0 = from the buffer start).</summary>
+public sealed record LogFilter(string? Level=null,string? Search=null,long AfterSequence=0,int Take=200);
+public sealed record LogSnapshot(IReadOnlyList<LogLineModel> Lines,long LastSequence);
 public sealed record NamedStatus(string Name,string Status);
 public sealed record WorkerStatus(string Name,double LastSuccessAgeSeconds);
 public sealed record AdminCounters(long CommandsInProgress,long OutboxPending,long OutboxDeadLettered,long IntakeInProgress);

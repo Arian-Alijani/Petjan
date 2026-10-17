@@ -1,0 +1,5 @@
+@page "/admin/logs"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+<h1>@Loc.T("logs.title")</h1>
+<LiveLogPanel Lang="@Loc.Code" />

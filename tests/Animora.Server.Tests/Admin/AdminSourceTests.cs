@@ -12,11 +12,12 @@ public sealed class RenderModePolicyTests
 {
     [Fact] public void NoGlobalRenderMode_AndIslandCountWithinBudget()
     {
-        Assert.Equal(1, RenderModePolicy.MaxIslands);
+        Assert.Equal(2, RenderModePolicy.MaxIslands);
         var files = Directory.EnumerateFiles(Path.Combine(RepoRoot.Find(), "src/Animora.Web.Admin"), "*.razor", SearchOption.AllDirectories)
             .Where(f => File.ReadAllText(f).Contains("@rendermode", StringComparison.Ordinal)).ToArray();
-        Assert.Single(files); Assert.Equal("LiveStatusPanel.razor", Path.GetFileName(files[0]));
-        Assert.Contains("prerender: false", File.ReadAllText(files[0]));
+        Assert.Equal(RenderModePolicy.MaxIslands, files.Length);
+        Assert.Equal(new[] { "LiveLogPanel.razor", "LiveStatusPanel.razor" }, files.Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray());
+        Assert.All(files, f => Assert.Contains("prerender: false", File.ReadAllText(f)));
         foreach (string f in new[] { "App.razor", "Routes.razor", "Layout/MainLayout.razor" })
             Assert.DoesNotContain("@rendermode", File.ReadAllText(Path.Combine(RepoRoot.Find(), "src/Animora.Web.Admin", f)));
     }
