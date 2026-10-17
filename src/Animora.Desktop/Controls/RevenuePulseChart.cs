@@ -49,8 +49,9 @@ public sealed class RevenuePulseChart : Control
     public RevenuePulseChart()
     {
         // The whole surface must react to the pointer (including the gaps between
-        // points), so the control opts into hit-testing with a transparent bg.
-        Background = Brushes.Transparent;
+        // points). The base Control has no Background, so hit-testing across the
+        // full bounds is guaranteed by painting a transparent fill in Render
+        // (see the transparent rectangle at the top of the draw pass).
     }
 
     /// <summary>The normalized revenue series + labels + real amounts (from the snapshot).</summary>
@@ -102,6 +103,9 @@ public sealed class RevenuePulseChart : Control
     private static readonly Pen GridPen = new(GridBrush, 1);
     private static readonly Pen GuidePen = new(GuideBrush, 1.4, new DashStyle([2, 4], 0));
     private static readonly Typeface AxisTypeface = new(FontFamily.Default);
+    // Bold weight must be baked into the Typeface — Avalonia's FormattedText has no
+    // settable FontWeight; the weight is read from the typeface passed in.
+    private static readonly Typeface AxisTypefaceBold = new(FontFamily.Default, FontStyle.Normal, FontWeight.Bold);
 
     // Layout padding (device-independent px). Left gutter holds the value axis,
     // bottom holds the time labels, top gives the line + tooltip breathing room.
@@ -125,6 +129,11 @@ public sealed class RevenuePulseChart : Control
         {
             return;
         }
+
+        // Paint a transparent fill across the whole surface so the control is
+        // hit-testable everywhere (including the gaps between points) — the base
+        // Control type has no Background property to do this for us.
+        ctx.FillRectangle(Brushes.Transparent, new Rect(0, 0, w, h));
 
         var pulse = Pulse;
         var points = pulse?.Points;
@@ -230,10 +239,7 @@ public sealed class RevenuePulseChart : Control
             ? PersianNumberFormatter.ToPersianDigits(pulse.Values[index].ToString("N0", CultureInfo.InvariantCulture))
             : (index < pulse.DayLabels.Count ? pulse.DayLabels[index] : string.Empty);
         var value = new FormattedText(
-            valueText, CultureInfo.InvariantCulture, FlowDirection.RightToLeft, AxisTypeface, 14, TooltipValue)
-        {
-            FontWeight = FontWeight.Bold,
-        };
+            valueText, CultureInfo.InvariantCulture, FlowDirection.RightToLeft, AxisTypefaceBold, 14, TooltipValue);
 
         const double padX = 12, padY = 8, gap = 2, pointer = 5, markerGap = 10;
         var contentW = Math.Max(caption.Width, value.Width);
