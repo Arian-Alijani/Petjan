@@ -128,15 +128,11 @@ internal sealed class LoginService(
         bool deviceIsNew = device is null;
         if (device is null)
         {
-            // Unknown installation: bind it. Staff devices start Pending and need a manager's approval (S05);
-            // a tenant Manager's own device is auto-approved so the owner is never locked out of their own
-            // tenant — otherwise the first/only manager device stays Pending forever with no active device able
-            // to approve it, which blocks capability issuance and every entitlement-gated feature.
+            // Unknown installation: bind it. All devices are approved automatically — the manual manager
+            // approval step was removed so a freshly created user can sign in immediately. Revoke/Reinstate
+            // remain available to cut off a lost or stolen device.
             Device candidate = Device.Register(tenant.Id, user.Id, "Unnamed device", installationHash, "unknown", clock);
-            if (membership.Role == StaffRole.Manager)
-            {
-                candidate.Approve();
-            }
+            candidate.Approve();
 
             // Idempotent on (user, installation): two concurrent first logins converge on ONE row (the loser
             // adopts the winner's device) instead of duplicating it or failing on the unique index with a 500.
@@ -290,7 +286,7 @@ internal sealed class LoginService(
         return await AuditAsync(caller.TenantId, SecurityAuditActions.Logout, correlationId, caller.UserId, caller.DeviceId, null, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Registers (or re-reads) the caller's device installation; new devices start <c>Pending</c>.</summary>
+    /// <summary>Registers (or re-reads) the caller's device installation; every device is approved automatically.</summary>
     public async Task<Result<DeviceRegisterResponse>> RegisterDeviceAsync(
         AuthenticatedCaller caller,
         DeviceRegisterRequest? request,
@@ -321,12 +317,8 @@ internal sealed class LoginService(
             return Failure<DeviceRegisterResponse>(ErrorCodes.DeviceRevoked);
         }
 
-        // A tenant Manager's own device is auto-approved (owner bootstrap); staff devices stay Pending for a
-        // manager to approve. This also self-heals an already-Pending manager device so an owner whose tenant
-        // was provisioned before this fix is no longer locked out of their own tenant.
-        StaffMembership? membership = await repository.FindActiveMembershipAsync(caller.UserId, ct).ConfigureAwait(false);
-        bool isManager = membership is { Role: StaffRole.Manager };
-
+        // Every device is auto-approved (manual manager approval was removed). This also self-heals a device
+        // left Pending by an earlier release so its user is no longer blocked from signing in.
         if (existing is not null)
         {
             // The first contact for this installation is login, which can only store placeholder metadata
@@ -334,7 +326,7 @@ internal sealed class LoginService(
             // authenticated register call so the manager's device roster shows the real machine and platform.
             bool described = existing.DescribeInstallation(request.DeviceName, request.Platform.Trim());
             bool autoApproved = false;
-            if (isManager && existing.Status == DeviceStatus.Pending)
+            if (existing.Status == DeviceStatus.Pending)
             {
                 existing.Approve();
                 autoApproved = true;
@@ -349,7 +341,7 @@ internal sealed class LoginService(
                     correlationId,
                     caller.UserId,
                     existing.Id,
-                    autoApproved ? "owner_auto_approved" : "device_described",
+                    autoApproved ? "device_auto_approved" : "device_described",
                     ct).ConfigureAwait(false);
                 if (updated.IsFailure)
                 {
@@ -361,10 +353,7 @@ internal sealed class LoginService(
         }
 
         Device device = Device.Register(caller.TenantId, caller.UserId, request.DeviceName, installationHash, request.Platform.Trim(), clock);
-        if (isManager)
-        {
-            device.Approve();
-        }
+        device.Approve();
 
         repository.AddDevice(device);
 

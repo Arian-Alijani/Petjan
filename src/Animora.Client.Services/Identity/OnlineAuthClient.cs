@@ -56,15 +56,8 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
             return Result<OnlineLoginOutcome>.Fail(ErrorCodes.DeviceRevoked);
         }
 
-        // A never-approved device (non-manager staff; managers are auto-approved server-side) is NOT a login success: the capability
-        // endpoint would reject it with DEVICE_REVOKED, which the user must not see as "revoked" or as a credential error. Fail closed with a
-        // distinct, actionable state and drop the session so nothing downstream (sync, commands) runs on a pending device. The server keeps the
-        // registration, so the next sign-in after a manager approves it re-reads the status and proceeds.
-        if (IsPending(registered.Value))
-        {
-            await sessions.ClearAsync(ct).ConfigureAwait(false);
-            return Result<OnlineLoginOutcome>.Fail(ErrorCodes.DevicePendingApproval);
-        }
+        // Device approval was removed: the server registers every device as Active, so there is no "pending" state to
+        // gate on here. A revoked device is still rejected above.
 
         // Do not publish a bearer session until approval AND local tenant isolation are established.
         // The transition gate drains earlier pulls before the atomic wipe; new pulls have no session yet.
@@ -155,9 +148,6 @@ public sealed class OnlineAuthClient(OnlineApi api, ISessionStore sessions, IOff
 
         return Result.Ok();
     }
-
-    private static bool IsPending(DeviceRegisterResponse? device) =>
-        device is not null && string.Equals(device.Status, "Pending", StringComparison.OrdinalIgnoreCase);
 
     private ClientSession ToSession(LoginResponse r, string stamp) => new(r.AccessToken, clock.UtcNow.AddSeconds(Math.Max(0, r.ExpiresInSeconds)),
         r.RefreshToken, r.UserId, r.TenantId, r.DeviceId, r.Role, stamp);

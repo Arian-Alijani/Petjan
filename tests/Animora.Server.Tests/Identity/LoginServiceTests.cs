@@ -161,7 +161,7 @@ public sealed class LoginServiceTests
     }
 
     [Fact]
-    public async Task RegisterDevice_CreatesPending_AndIsIdempotent()
+    public async Task RegisterDevice_CreatesActive_AndIsIdempotent()
     {
         var h = new AuthHarness();
         var login = (await h.Service.LoginAsync(h.Login(), "c")).Value!;
@@ -172,7 +172,7 @@ public sealed class LoginServiceTests
         var second = await h.NewRequestScope().RegisterDeviceAsync(caller, request, "c");
 
         Assert.True(first.IsSuccess);
-        Assert.Equal(nameof(DeviceStatus.Pending), first.Value!.Status);
+        Assert.Equal(nameof(DeviceStatus.Active), first.Value!.Status);
         Assert.Equal(first.Value.DeviceId, second.Value!.DeviceId);
         Assert.Contains(h.Audit.Entries, e => e.Action == "auth.device.registered");
     }

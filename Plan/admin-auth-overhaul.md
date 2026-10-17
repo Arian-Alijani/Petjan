@@ -122,7 +122,7 @@
 باقی می‌ماند (امنیت حفظ می‌شود). این کمترین تغییر، امن‌ترین و سازگار با migrationهای موجود است.
 
 ### کارهای دقیق:
-- [ ] **سرور — ثبت دستگاه همیشه Active.** در `src/Animora.Server/Auth/LoginService.cs`:
+- [x] **سرور — ثبت دستگاه همیشه Active.** در `src/Animora.Server/Auth/LoginService.cs`:
   - در `LoginAsync` (حدود خط ۱۳۵–۱۳۹): به‌جای اینکه فقط Manager را `Approve()` کند، **همیشه**
     `candidate.Approve()` را صدا بزن (قبل از `AddDeviceIdempotentAsync`). کامنت auto-approve را
     به «همهٔ دستگاه‌ها به‌صورت خودکار تأیید می‌شوند؛ تأیید دستی مدیر حذف شد» به‌روز کن.
@@ -131,20 +131,20 @@
     و خط ۳۲۷ (`FindActiveMembershipAsync` فقط برای تشخیص مدیر) در صورت بی‌استفاده شدن پاک شود.
   - ⚠️ `Device.Register` را دست نزن (سایر فراخوانی‌ها/تست‌ها به Pningِ اولیه وابسته‌اند)؛ فقط بعد از
     ساخت، `Approve()` صدا بزن. (`Approve()` روی دستگاه Revoked استثنا می‌دهد — اینجا دستگاه تازه است، امن.)
-- [ ] **کلاینت — مسیر Pending را خنثی کن.** در
+- [x] **کلاینت — مسیر Pending را خنثی کن.** در
   `src/Animora.Client.Services/Identity/OnlineAuthClient.cs` خطوط ۵۹–۶۷: بلوک `if (IsPending(...))`
   را حذف کن (چون سرور دیگر Pending برنمی‌گرداند، این مسیر مرده می‌شود). کامنت را به‌روز کن که تأیید
   دستگاه حذف شده. متد `IsPending` اگر بی‌استفاده شد حذف شود.
-- [ ] **پیام‌های فارسی را به‌روز/بی‌اثر کن.** `DEVICE_PENDING_APPROVAL` دیگر صادر نمی‌شود اما کد خطا را
+- [x] **پیام‌های فارسی را به‌روز/بی‌اثر کن.** `DEVICE_PENDING_APPROVAL` دیگر صادر نمی‌شود اما کد خطا را
   **حذف نکن** (ممکن است تست‌ها یا جاهای دیگر ارجاع دهند)؛ فقط مطمئن شو مسیرهای تولیدش بسته‌اند.
   پیام‌های خطی `LoginViewModel.cs:503` و `ProfilePageViewModel.cs:974` را نگه‌دار (بی‌ضرر، مرده).
-- [ ] **UI تأیید دستگاه در دسکتاپ.** چون دیگر دستگاه Pending تولید نمی‌شود، بخش «تأیید دستگاه کارکنان»
+- [x] **UI تأیید دستگاه در دسکتاپ.** چون دیگر دستگاه Pending تولید نمی‌شود، بخش «تأیید دستگاه کارکنان»
     در Profile عملاً خالی می‌ماند؛ **لازم نیست حذف شود** (approve/revoke/reinstate برای امنیت مفیدند).
     فقط تأیید کن که با auto-approve تداخلی ایجاد نمی‌شود (approveِ یک دستگاهِ از قبل Active بی‌اثر است).
-- [ ] **بررسی هم‌خوانی تست‌ها.** فقط گرپ کن: `grep -rn "Pending" tests/ | grep -i device` — اگر تستی
+- [x] **بررسی هم‌خوانی تست‌ها.** فقط گرپ کن: `grep -rn "Pending" tests/ | grep -i device` — اگر تستی
     صراحتاً انتظار دارد کارمندِ non-manager دستگاهش Pending بماند، آن انتظار را به Active اصلاح کن
     (بدون اجرای تست؛ فقط هم‌راستاسازی assertion با رفتار جدید). فایل‌های تست مرتبط را فقط همان موقع باز کن.
-- [ ] **پوش:** `scripts/git/push.sh "feat(auth): [T1] auto-approve devices, remove manager login approval"`
+- [x] **پوش:** `scripts/git/push.sh "feat(auth): [T1] auto-approve devices, remove manager login approval"`
 
 ---
 

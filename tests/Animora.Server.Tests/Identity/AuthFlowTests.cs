@@ -35,7 +35,7 @@ public sealed class AuthFlowTests(PgFixture pg) : IClassFixture<PgFixture>
         var host = await IdentityPgHost.GetAsync(pg.ConnectionString);
         var tenant = await IdentityMigrationTests.Provision(host, "e2e-clinic", "alice");
 
-        // Wrong password never reveals anything; correct credentials sign in and bind a Pending device.
+        // Wrong password never reveals anything; correct credentials sign in and bind an auto-approved Active device.
         Assert.Equal("CREDENTIALS_INVALID", (await LoginAsync(host, "E2E-Clinic", "alice", "Wrong-pass-1")).Error.Code);
         var login = await LoginAsync(host, "E2E-Clinic", "ALICE", Password);
         Assert.True(login.IsSuccess, login.Error.Code);

@@ -197,25 +197,6 @@ public sealed class OnlineAuthClientTests
     }
 
     [Fact]
-    public async Task PendingDevice_OnRegister_FailsClosedWithDistinctCode_AndWritesNoOfflineAuthority()
-    {
-        using var stack = await OnlineStack.CreateAsync();
-        stack.Server.DeviceRegisterStatus = "Pending";
-
-        var login = await LoginAsync(stack);
-
-        Assert.Equal(ErrorCodes.DevicePendingApproval, login.Error);
-        Assert.NotEqual(ErrorCodes.DeviceRevoked, login.Error);
-        Assert.Null((await stack.Services.GetRequiredService<ISessionStore>().ReadAsync()).Value);
-        Assert.Null((await stack.Services.GetRequiredService<ISealedEntitlementStore>().ReadAsync()).Value);
-        Assert.Null((await stack.Services.GetRequiredService<IOfflineCredentialMirrorStore>().ReadAsync()).Value);
-
-        // Without ever having been approved there is nothing to start offline from either.
-        stack.Server.Handler.Unreachable = true;
-        Assert.True((await LoginAsync(stack)).IsFailure);
-    }
-
-    [Fact]
     public async Task Logout_ClearsSession_ButKeepsOfflineMirror()
     {
         using var stack = await OnlineStack.CreateAsync();
