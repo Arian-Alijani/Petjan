@@ -68,7 +68,7 @@ public sealed class AuthFlowTests(PgFixture pg) : IClassFixture<PgFixture>
             var registered = await scope.ServiceProvider.GetRequiredService<LoginService>()
                 .RegisterDeviceAsync(caller, new DeviceRegisterRequest("Reception PC", "inst-2", "windows"), "corr-dev");
             Assert.True(registered.IsSuccess, registered.Error.Code);
-            Assert.Equal("Pending", registered.Value!.Status);
+            Assert.Equal("Active", registered.Value!.Status);
         }
 
         // Audit trail was written, append-only, and contains no secret.

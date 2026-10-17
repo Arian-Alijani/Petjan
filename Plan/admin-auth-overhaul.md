@@ -155,7 +155,7 @@
 استفاده شود؛ رمز خام هرگز لاگ/ذخیره نشود).
 
 ### بخش A — سرور: endpoint تغییر رمز کارمند دلخواه (برای مدیر کلینیک)
-- [ ] **افزودن متد `SetPasswordAsync` به `StaffProvisioningService`**
+- [x] **افزودن متد `SetPasswordAsync` به `StaffProvisioningService`**
     (`src/Animora.Server/Auth/StaffProvisioningService.cs`). امضا مشابه `SetActiveAsync`:
     `SetPasswordAsync(ResolvedMembership actor, string membershipId, SetStaffPasswordServerRequest? request, string correlationId, CancellationToken ct)`.
     منطق (کپی الگوی `SetActiveAsync` خطوط ۱۱۰–۱۶۷):
@@ -169,14 +169,14 @@
     - نوشتن audit (اکشن جدید ثابت: `public const string StaffPasswordAction = "auth.staff.password"`).
     - `decisions.InvalidateUser(user.Id)` بعد از موفقیت.
     - **هرگز رمز خام در audit detail قرار نده.**
-- [ ] **Wire DTO.** در `src/Animora.Contracts.Wire/Auth/StaffWire.cs` رکورد اضافه کن:
+- [x] **Wire DTO.** در `src/Animora.Contracts.Wire/Auth/StaffWire.cs` رکورد اضافه کن:
     `SetStaffPasswordServerRequest(string MembershipId, string NewPassword, string? ExpectedChangeToken)`.
     (اول این فایل را بخوان تا سبک رکوردها را رعایت کنی.)
-- [ ] **Endpoint.** در `src/Animora.Server/Auth/StaffEndpoints.cs` یک
+- [x] **Endpoint.** در `src/Animora.Server/Auth/StaffEndpoints.cs` یک
     `group.MapPost("/staff/{id}/password", ...)` با `.RequireAuthorization(PermissionCodes.UsersManage)`
     و `.RequireAuthorization(CoarsePolicies.DeviceActive)` (مطابق بقیهٔ staff endpointها، خط ۳۴)
     اضافه کن که `SetPasswordAsync` را صدا بزند. (اول فایل را بخوان تا الگوی map/fail/ok را کپی کنی.)
-- [ ] **پوش:** `scripts/git/push.sh "feat(auth): [T2a] server endpoint to set a staff member's password"`
+- [x] **پوش:** `scripts/git/push.sh "feat(auth): [T2a] server endpoint to set a staff member's password"`
 
 ### بخش B — کلاینت دسکتاپ: UI تغییر رمز کارمند (مدیر)
 - [ ] **افزودن متد به seam.** در `src/Animora.Contracts/Profile/IUserProfileService.cs` اضافه کن:

@@ -35,6 +35,18 @@ public sealed record StaffActiveServerRequest(
     bool Active,
     string? ExpectedChangeToken);
 
+/// <summary>Body of <c>POST /auth/staff/{id}/password</c>: a manager replaces a staff member's password.</summary>
+/// <param name="MembershipId">Target membership ULID (the <c>{id}</c> route value echoes this).</param>
+/// <param name="NewPassword">New plaintext password (≤ 256 chars; policy-checked and hashed server-side, never logged).</param>
+/// <param name="ExpectedChangeToken">Optional optimistic-concurrency token from the last roster read.</param>
+public sealed record SetStaffPasswordServerRequest(
+    string MembershipId,
+    string NewPassword,
+    string? ExpectedChangeToken)
+{
+    public override string ToString() => $"{nameof(SetStaffPasswordServerRequest)} {{ MembershipId = {MembershipId}, NewPassword = *** }}";
+}
+
 /// <summary>Body of <c>POST /auth/staff/access</c>: replace a membership's effective permission set.</summary>
 /// <param name="MembershipId">Target membership ULID.</param>
 /// <param name="PermissionCodes">The full set of permission codes the membership should end up with.</param>

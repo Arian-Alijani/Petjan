@@ -42,6 +42,9 @@ internal sealed class StaffProvisioningService(
     /// <summary>Audit action: a staff membership's permission overrides changed.</summary>
     public const string StaffPermissionsAction = "auth.staff.permissions";
 
+    /// <summary>Audit action: a staff member's password was replaced by a manager.</summary>
+    public const string StaffPasswordAction = "auth.staff.password";
+
     private const int MaxName = 200;
     private const int MaxUserName = 128;
     private const int MaxPassword = 256;
@@ -164,6 +167,73 @@ internal sealed class StaffProvisioningService(
         Result statusSaved = await AuditAsync(actor, StaffStatusAction, correlationId, user.Id, ct).ConfigureAwait(false);
         if (statusSaved.IsSuccess) decisions.InvalidateUser(user.Id);
         return statusSaved;
+    }
+
+    /// <summary>
+    /// Replaces the password of a staff member in the actor's tenant. Requires <c>users.manage</c> (enforced by the
+    /// endpoint); changing a Manager's password additionally requires <c>roles.manage</c> unless the actor changes their
+    /// own. The new hash rotates the user's security stamp so every outstanding session of that user is invalidated.
+    /// The plaintext password is never audited or logged.
+    /// </summary>
+    public async Task<Result> SetPasswordAsync(
+        ResolvedMembership actor,
+        AuthorizationSubject subject,
+        string membershipId,
+        SetStaffPasswordServerRequest? request,
+        string correlationId,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        ArgumentNullException.ThrowIfNull(subject);
+
+        if (request is null
+            || string.IsNullOrWhiteSpace(membershipId)
+            || request.NewPassword is null || request.NewPassword.Length > MaxPassword
+            || (!string.IsNullOrEmpty(request.MembershipId) && request.MembershipId != membershipId))
+        {
+            return Result.Fail(ErrorCodes.ValidationFailed);
+        }
+
+        Result policy = PasswordPolicy.Validate(request.NewPassword);
+        if (policy.IsFailure)
+        {
+            return Result.Fail(policy.Error, policy.Detail);
+        }
+
+        StaffMembership? member = await repository.FindMembershipByIdAsync(membershipId, ct).ConfigureAwait(false);
+        if (member is null || member.TenantId != actor.TenantId || member.Status == MembershipStatus.Ended)
+        {
+            return Result.Fail(ErrorCodes.NotFound);
+        }
+
+        // Replacing another administrator's credential is an authority grant: it needs roles.manage too.
+        if (member.Role == StaffRole.Manager && member.UserId != actor.UserId)
+        {
+            AuthorizationDecision grant = await permissions
+                .EvaluateAsync(PermissionCodes.RolesManage, subject, null, ct).ConfigureAwait(false);
+            if (!grant.Allowed)
+            {
+                return Result.Fail(ErrorCodes.PermissionDenied);
+            }
+        }
+
+        User? user = await repository.FindUserByIdAsync(member.UserId, ct).ConfigureAwait(false);
+        if (user is null || user.TenantId != actor.TenantId)
+        {
+            return Result.Fail(ErrorCodes.NotFound);
+        }
+
+        if (request.ExpectedChangeToken is { } token && token != ChangeToken(user, member))
+        {
+            return Result.Fail(ErrorCodes.ConcurrencyConflict);
+        }
+
+        // SetPasswordHash also rotates the security stamp, so the target's live access/refresh sessions end.
+        user.SetPasswordHash(hasher.HashPassword(ServerUserStore.ToAdapter(user), request.NewPassword));
+
+        Result saved = await AuditAsync(actor, StaffPasswordAction, correlationId, user.Id, ct).ConfigureAwait(false);
+        if (saved.IsSuccess) decisions.InvalidateUser(user.Id);
+        return saved;
     }
 
     /// <summary>Replaces a membership's effective permission set by recording grant/deny overrides over the role.</summary>

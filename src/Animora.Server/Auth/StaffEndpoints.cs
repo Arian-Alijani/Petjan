@@ -10,7 +10,7 @@ namespace Animora.Server.Auth;
 
 /// <summary>
 /// Online staff-management endpoints under <see cref="ServerRoutes.Auth"/>: <c>GET /auth/staff</c> and
-/// <c>POST /auth/staff</c>, <c>POST /auth/staff/{id}/active</c> (policy <c>users.manage</c>) and
+/// <c>POST /auth/staff</c>, <c>POST /auth/staff/{id}/active</c> and <c>POST /auth/staff/{id}/password</c> (policy <c>users.manage</c>) and
 /// <c>POST /auth/staff/access</c> (policy <c>roles.manage</c>). The tenant is always the authenticated caller's.
 /// </summary>
 internal static class StaffEndpoints
@@ -29,6 +29,9 @@ internal static class StaffEndpoints
         group.MapGet("/staff", ListAsync).RequireAuthorization(CoarsePolicies.TenantMember);
         group.MapPost("/staff", CreateAsync).RequireAuthorization(PermissionCodes.UsersManage);
         group.MapPost("/staff/{id}/active", SetActiveAsync).RequireAuthorization(PermissionCodes.UsersManage);
+        group.MapPost("/staff/{id}/password", SetPasswordAsync)
+            .RequireAuthorization(PermissionCodes.UsersManage)
+            .RequireAuthorization(CoarsePolicies.DeviceActive);
         group.MapPost("/staff/access", SaveAccessAsync).RequireAuthorization(PermissionCodes.RolesManage);
         app.MapGet(ServerRoutes.Auth + "/access", CurrentAccessAsync)
             .RequireAuthorization(CoarsePolicies.DeviceActive).RequireRateLimiting(RateLimitPolicies.Sync);
@@ -137,6 +140,24 @@ internal static class StaffEndpoints
 
         Result result = await service
             .SetActiveAsync(actor, id, request, CorrelationHeader.Resolve(http), http.RequestAborted)
+            .ConfigureAwait(false);
+        return result.IsSuccess ? NoContent(http) : Fail(http, result.Error);
+    }
+
+    private static async Task<IResult> SetPasswordAsync(
+        HttpContext http,
+        string id,
+        SetStaffPasswordServerRequest? request,
+        IRequestAuthorizationState state,
+        StaffProvisioningService service)
+    {
+        if (state.Membership is not { } actor || state.Subject is not { } subject)
+        {
+            return Fail(http, ErrorCodes.SessionExpired);
+        }
+
+        Result result = await service
+            .SetPasswordAsync(actor, subject, id, request, CorrelationHeader.Resolve(http), http.RequestAborted)
             .ConfigureAwait(false);
         return result.IsSuccess ? NoContent(http) : Fail(http, result.Error);
     }
