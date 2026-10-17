@@ -1,9 +1,9 @@
 @page "/admin/login"
 @attribute [AllowAnonymous]
-<h1>Operator sign in</h1>
+<h1>@Loc.T("login.title")</h1>
 @if (Error is not null) { <FormError Code="@ErrorCodes.OperatorCredentialsInvalid.Code" /> }
 <form method="post" action="/admin/account/login"><AntiforgeryToken />
-<label>Username <input name="userName" autocomplete="username" required maxlength="64" /></label>
-<label>Password <input type="password" name="password" autocomplete="current-password" required maxlength="1024" /></label>
-<button type="submit">Sign in</button></form>
+<label>@Loc.T("login.username") <input name="userName" autocomplete="username" required maxlength="64" /></label>
+<label>@Loc.T("login.password") <input type="password" name="password" autocomplete="current-password" required maxlength="1024" /></label>
+<button type="submit">@Loc.T("login.submit")</button></form>
 @code { [SupplyParameterFromQuery(Name="error")] public string? Error { get; set; } }

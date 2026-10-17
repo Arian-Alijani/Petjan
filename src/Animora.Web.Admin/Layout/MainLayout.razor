@@ -1,5 +1,22 @@
 @inherits LayoutComponentBase
-<a class="skip" href="#main">Skip to content</a>
-<header><strong>Animora operator console</strong></header>
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor Accessor
+<a class="skip" href="#main">@Loc.T("app.skip")</a>
+<div class="shell">
+<header class="topbar"><strong>@Loc.T("app.title")</strong>
+<form class="lang-switch" method="post" action="/admin/account/lang"><AntiforgeryToken />
+<input type="hidden" name="lang" value="@Loc.OtherCode" /><input type="hidden" name="returnUrl" value="@ReturnUrl" />
+<button type="submit" class="ghost" lang="@Loc.OtherCode" aria-label="@Loc.T("lang.switchLabel")">@Loc.T("lang.switch")</button></form></header>
 <NavMenu />
 <main id="main" tabindex="-1">@Body</main>
+</div>
+@code {
+    /// <summary>Local path the language switch returns to (never an absolute URL; the endpoint re-validates it).</summary>
+    private string ReturnUrl
+    {
+        get
+        {
+            var request = Accessor.HttpContext?.Request;
+            return request is null ? "/admin" : request.Path + request.QueryString;
+        }
+    }
+}

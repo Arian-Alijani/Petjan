@@ -2,11 +2,11 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminTenantQueries Queries
-<h1>Tenants</h1><FormError Code="@Error" /><a href="/admin/tenants/new">Create tenant</a>
-<form method="get"><label>Search code or name <input name="search" value="@Search" maxlength="200" /></label>
-<label>Status <input name="status" value="@Status" maxlength="40" /></label><button type="submit">Filter</button></form>
+<h1>@Loc.T("tenants.title")</h1><FormError Code="@Error" /><a href="/admin/tenants/new">@Loc.T("tenants.create")</a>
+<form method="get"><label>@Loc.T("tenants.search") <input name="search" value="@Search" maxlength="200" /></label>
+<label>@Loc.T("common.status") <input name="status" value="@Status" maxlength="40" /></label><button type="submit">@Loc.T("common.filter")</button></form>
 @if (Rows is not null) {
-<table><caption>Tenant directory</caption><thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">Status</th></tr></thead><tbody>
+<table><caption>@Loc.T("tenants.directory")</caption><thead><tr><th scope="col">@Loc.T("common.code")</th><th scope="col">@Loc.T("common.name")</th><th scope="col">@Loc.T("common.status")</th></tr></thead><tbody>
 @foreach (var row in Rows.Items) { <tr><td><a href="@($"/admin/tenants/{row.Id}")">@row.Code</a></td><td>@row.Name</td><td><StatusBadge Status="@row.Status" /></td></tr> }
 </tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
 }

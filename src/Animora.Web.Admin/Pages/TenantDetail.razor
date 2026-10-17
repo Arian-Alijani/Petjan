@@ -3,14 +3,14 @@
 @inherits AdminPageComponent
 @inject IAdminTenantQueries Queries
 @inject IAdminSubscriptionCommands Commands
-<h1>Tenant detail</h1><FormError Code="@Error" />
-@if (Receipt?.TemporaryPassword is { } password) { <p class="secret">Temporary password (shown once): <code>@password</code></p> }
+<h1>@Loc.T("tenant.detail")</h1><FormError Code="@Error" />
+@if (Receipt?.TemporaryPassword is { } password) { <p class="secret">@Loc.T("tenant.tempPassword"): <code>@password</code></p> }
 @if (Detail is not null) {
 <h2>@Detail.Core.Name (@Detail.Core.Code)</h2><StatusBadge Status="@Detail.Core.Status" />
-<p>Seats used: @Detail.SeatsUsed · devices: @Detail.DevicesCount · licences: @Detail.LicensesCount</p>
-<a href="@($"/admin/tenants/{Id}/licenses")">Manage licences</a>
+<p>@Loc.T("tenant.seatsUsed"): @Detail.SeatsUsed · @Loc.T("tenant.devices"): @Detail.DevicesCount · @Loc.T("tenant.licences"): @Detail.LicensesCount</p>
+<a href="@($"/admin/tenants/{Id}/licenses")">@Loc.T("tenant.manageLicences")</a>
 @if (Detail.Subscription is { } subscription) {
-<h2>Subscription</h2><p>@subscription.Status · @subscription.Seats seats · ends @subscription.PeriodEnd.ToString("u")</p>
+<h2>@Loc.T("tenant.subscription")</h2><p>@subscription.Status · @subscription.Seats @Loc.T("tenant.seats") · @Loc.T("tenant.ends") @subscription.PeriodEnd.ToString("u")</p>
 @foreach (var operation in Operations) {
 <EditForm Model="Form" FormName="@operation" method="post" Enhance OnSubmit="async _=>await Submit(operation)">
 <input type="hidden" name="Form.Stamp" value="@Form!.Stamp" />
@@ -24,7 +24,7 @@
 <button type="submit">@operation</button></fieldset></EditForm>
 }
 }
-<table><caption>Last 20 subscription events</caption><thead><tr><th scope="col">Event</th><th scope="col">Time</th></tr></thead><tbody>
+<table><caption>@Loc.T("tenant.events")</caption><thead><tr><th scope="col">@Loc.T("tenant.event")</th><th scope="col">@Loc.T("tenant.time")</th></tr></thead><tbody>
 @foreach (var e in Detail.Events) { <tr><td>@e.Type</td><td>@e.OccurredUtc.ToString("u")</td></tr> }</tbody></table>
 }
 @code {

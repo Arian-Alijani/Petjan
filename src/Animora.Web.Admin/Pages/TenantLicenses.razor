@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminLicenseCommands Commands
-<h1>Tenant licences</h1><FormError Code="@Error" />
+<h1>@Loc.T("licences.title")</h1><FormError Code="@Error" />
 @if (Rows is not null) {
 <table><caption>Device licences</caption><thead><tr><th scope="col">Device</th><th scope="col">State</th><th scope="col">Expires</th><th scope="col">Revoke</th></tr></thead><tbody>
 @foreach (var row in Rows.Items) { <tr><td>@row.DeviceId</td><td>@row.Status</td><td>@row.ExpiresUtc.ToString("u")</td><td>

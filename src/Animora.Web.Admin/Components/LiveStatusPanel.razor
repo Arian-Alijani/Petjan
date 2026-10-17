@@ -2,15 +2,17 @@
 @implements IAsyncDisposable
 @inject IAdminStatusReader Reader
 @inject TimeProvider Time
-<section aria-label="Live server status" aria-live="polite"><h2>Live status (10-second cached refresh)</h2>
+<section aria-label="@AdminStrings.Get("live.aria", Lang)" aria-live="polite"><h2>@AdminStrings.Get("live.title", Lang)</h2>
 <FormError Code="@Error" />
 @if (Status is not null)
 {
-<p>Commands running: @Status.Counters.CommandsInProgress · pending outbox: @Status.Counters.OutboxPending · dead letters: @Status.Counters.OutboxDeadLettered</p>
-<p>PG active / max: @Status.Pg.PoolInUse / @Status.Pg.PoolMax · uptime: @Status.UptimeSeconds.ToString("F0") seconds</p>
+<p>@AdminStrings.Get("dash.commands", Lang): @Status.Counters.CommandsInProgress · @AdminStrings.Get("dash.outbox", Lang): @Status.Counters.OutboxPending · @AdminStrings.Get("dash.dead", Lang): @Status.Counters.OutboxDeadLettered</p>
+<p>@AdminStrings.Get("dash.pg", Lang): @Status.Pg.PoolInUse / @Status.Pg.PoolMax · @AdminStrings.Get("dash.uptime", Lang): @Status.UptimeSeconds.ToString("F0") @AdminStrings.Get("dash.seconds", Lang)</p>
 }
 </section>
 @code {
+    /// <summary>Language code handed over by the SSR page; an island has no HttpContext/cookie of its own.</summary>
+    [Parameter] public string Lang { get; set; } = AdminCulture.Fa;
     /// <summary>Single-instance island only, no backplane (A-RULE 031). Reads cached snapshots through its port.</summary>
     private AdminStatus? Status;
     private string? Error;

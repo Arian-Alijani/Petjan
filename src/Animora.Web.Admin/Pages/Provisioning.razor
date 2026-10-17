@@ -3,7 +3,7 @@
 @inherits AdminPageComponent
 @inject IAdminProvisioningQueries Queries
 @inject IAdminProvisioningCommands Commands
-<h1>Provisioning intents</h1><FormError Code="@Error" />
+<h1>@Loc.T("prov.title")</h1><FormError Code="@Error" />
 <form method="get"><label>Status <select name="status"><option value="">All</option>
 @foreach (var value in new[] { "Received", "Processing", "Completed", "Failed", "Dead" }) { <option value="@value" selected="@(Status == value)">@value</option> }
 </select></label><button type="submit">Filter</button></form>

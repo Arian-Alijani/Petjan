@@ -11,11 +11,26 @@ internal static class AdminAccountEndpoints
     {
         var group=app.MapGroup("/admin/account").RequireRateLimiting(RateLimitPolicies.Operator);
         group.MapPost("/login",Login).AllowAnonymous();
+        // Language switch is available before sign-in too (the login page shares the layout); it only sets a cookie.
+        group.MapPost("/lang",SetLanguage).AllowAnonymous().WithOrder(-1);
         group.MapPost("/logout",Logout).RequireAuthorization(OperatorCookie.Policy);
         // The change-password Razor page shares this route (it renders on GET); POST must win over the component
         // endpoint, which accepts every verb, or the request is rejected as an ambiguous match (HTTP 500).
         group.MapPost("/change-password",ChangePassword).RequireAuthorization(OperatorCookie.Policy).WithOrder(-1);
     }
+    private static async Task<IResult> SetLanguage(HttpContext http,IAntiforgery antiforgery,CancellationToken ct)
+    {
+        await antiforgery.ValidateRequestAsync(http).ConfigureAwait(false);
+        var form=await http.Request.ReadFormAsync(ct).ConfigureAwait(false);
+        string lang=Animora.Web.Admin.Localization.AdminCulture.Normalize(form["lang"].ToString());
+        http.Response.Cookies.Append(Animora.Web.Admin.Localization.AdminCulture.CookieName,lang,new CookieOptions
+            { HttpOnly=true,Secure=true,SameSite=SameSiteMode.Lax,Path="/",MaxAge=TimeSpan.FromDays(365),IsEssential=true });
+        return Results.Redirect(SafeReturnUrl(form["returnUrl"].ToString()));
+    }
+    /// <summary>Only same-site <c>/admin…</c> paths are honoured, so the switch can never become an open redirect.</summary>
+    internal static string SafeReturnUrl(string? value)=>
+        !string.IsNullOrEmpty(value)&&value.Length<=2048&&value.StartsWith("/admin",StringComparison.Ordinal)
+        &&(value.Length==6||value[6] is '/' or '?' or '#')&&!value.Contains('\\')&&!value.Contains('\r')&&!value.Contains('\n')?value:"/admin";
     private static async Task<IResult> Login(HttpContext http,OperatorAccountService service,IAntiforgery antiforgery,TimeProvider time,CancellationToken ct)
     {
         await antiforgery.ValidateRequestAsync(http).ConfigureAwait(false);

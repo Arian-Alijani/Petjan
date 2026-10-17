@@ -1,2 +1,2 @@
-@if (!string.IsNullOrEmpty(Code)) { <div class="error" role="alert"><strong>@Code</strong>: @AdminMessages.For(Code)</div> }
+@if (!string.IsNullOrEmpty(Code)) { <div class="error" role="alert"><strong>@Code</strong>: @AdminMessages.For(Code, Loc.Code)</div> }
 @code { [Parameter] public string? Code { get; set; } }

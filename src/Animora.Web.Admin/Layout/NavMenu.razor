@@ -1,6 +1,14 @@
-<nav aria-label="Main navigation"><a href="/admin">Dashboard</a> <a href="/admin/tenants">Tenants</a>
-<a href="/admin/tenants/new">New tenant</a> <a href="/admin/plans">Plans</a> <a href="/admin/licensing/keys">Licence keys</a>
-<a href="/admin/provisioning">Provisioning</a> <a href="/admin/website-clients">Website clients</a>
-<a href="/admin/files/mismatches">File mismatches</a> <a href="/admin/audit">Audit</a> <a href="/admin/system">System</a>
-<a href="/admin/account/change-password">Change password</a>
-<form method="post" action="/admin/account/logout"><AntiforgeryToken /><button type="submit">Sign out</button></form></nav>
+<nav class="sidebar" aria-label="@Loc.T("nav.main")">
+<a href="/admin">@Loc.T("nav.dashboard")</a>
+<a href="/admin/tenants">@Loc.T("nav.tenants")</a>
+<a href="/admin/tenants/new">@Loc.T("nav.newTenant")</a>
+<a href="/admin/plans">@Loc.T("nav.plans")</a>
+<a href="/admin/licensing/keys">@Loc.T("nav.keys")</a>
+<a href="/admin/provisioning">@Loc.T("nav.provisioning")</a>
+<a href="/admin/website-clients">@Loc.T("nav.websiteClients")</a>
+<a href="/admin/files/mismatches">@Loc.T("nav.mismatches")</a>
+<a href="/admin/audit">@Loc.T("nav.audit")</a>
+<a href="/admin/system">@Loc.T("nav.system")</a>
+<a href="/admin/logs">@Loc.T("nav.logs")</a>
+<a href="/admin/account/change-password">@Loc.T("nav.changePassword")</a>
+<form method="post" action="/admin/account/logout"><AntiforgeryToken /><button type="submit" class="ghost">@Loc.T("nav.signOut")</button></form></nav>

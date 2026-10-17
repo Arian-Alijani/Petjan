@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminWebsiteClients Clients
-<h1>Website clients</h1><FormError Code="@Error" />
+<h1>@Loc.T("web.title")</h1><FormError Code="@Error" />
 @if (Issued is not null)
 {
 <section role="status"><h2>Copy now — shown only in this POST response</h2><dl><dt>Key id</dt><dd>@Issued.KeyId</dd><dt>Secret</dt><dd><code>@Issued.Secret</code></dd></dl></section>

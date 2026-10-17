@@ -1,7 +1,7 @@
-<nav aria-label="Pagination">
-@if(Page>1) { <a href="@Url(Page-1)" rel="prev">Previous</a> }
-<span>Page @Page</span>
-@if((long)Page*PageSize<Total) { <a href="@Url(Page+1)" rel="next">Next</a> }
+<nav class="pager" aria-label="@Loc.T("common.pagination")">
+@if(Page>1) { <a href="@Url(Page-1)" rel="prev">@Loc.T("common.previous")</a> }
+<span>@Loc.T("common.page") @Page</span>
+@if((long)Page*PageSize<Total) { <a href="@Url(Page+1)" rel="next">@Loc.T("common.next")</a> }
 </nav>
 @code {
     [Parameter] public int Page { get; set; }=1;

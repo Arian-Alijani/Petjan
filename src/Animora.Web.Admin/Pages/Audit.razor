@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminAuditQueries Queries
-<h1>Audit viewer</h1><FormError Code="@Error" />
+<h1>@Loc.T("audit.title")</h1><FormError Code="@Error" />
 <nav aria-label="Audit source"><a href="/admin/audit?tab=operator">Operator audit</a> <a href="/admin/audit?tab=tenant">Tenant security audit</a></nav>
 <form method="get"><input type="hidden" name="tab" value="@Tab" />
 <label>Tenant id <input name="tenantId" value="@TenantId" maxlength="26" required="@(Tab == "tenant")" /></label>

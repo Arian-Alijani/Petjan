@@ -42,6 +42,7 @@ internal static class AdminServiceCollectionExtensions
         services.AddScoped<IAdminFileQueries>(sp => sp.GetRequiredService<AdminFilesAdapter>());
         services.AddScoped<IAdminFileCommands>(sp => sp.GetRequiredService<AdminFilesAdapter>());
         services.AddScoped<IAdminAuditQueries, AdminAuditAdapter>(); services.AddScoped<IAdminInsightStatus, AdminInsightStatusAdapter>();
+        services.AddHttpContextAccessor();services.AddScoped<Animora.Web.Admin.Localization.AdminCulture>();
         services.AddScoped<AdminSession>();services.AddScoped<IAdminSession>(sp=>sp.GetRequiredService<AdminSession>());
         services.AddScoped<OperatorReadQueries>();services.AddScoped<OperatorPlanAdministration>();
         services.AddScoped<IAdminStatusReader,AdminStatusReader>();services.AddScoped<IAdminTenantQueries,AdminTenantQueries>();

@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminPlanCommands Commands
-<h1>Plans</h1><FormError Code="@Error" />
+<h1>@Loc.T("plans.title")</h1><FormError Code="@Error" />
 @if (Rows is not null) {
 <table><caption>Commercial plans</caption><thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">Seats</th><th scope="col">Amount (minor)</th><th scope="col">Active</th><th scope="col">Action</th></tr></thead><tbody>
 @foreach (var row in Rows.Items) { <tr><td>@row.Code</td><td>@row.Name</td><td>@row.Seats</td><td>@row.MonthlyAmountMinor</td><td>@row.Active</td><td>

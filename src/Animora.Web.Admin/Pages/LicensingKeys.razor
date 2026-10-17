@@ -2,7 +2,7 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminLicenseCommands Commands
-<h1>Licence public keys</h1><FormError Code="@Error" />
+<h1>@Loc.T("keys.title")</h1><FormError Code="@Error" />
 @if (Keys is not null) {
 <table><caption>Public key set</caption><thead><tr><th scope="col">Key</th><th scope="col">Algorithm</th><th scope="col">Public data</th></tr></thead><tbody>
 @foreach(var key in Keys.Keys) { <tr><td>@key.Id</td><td>@key.Algorithm</td><td><pre>@key.PublicKey</pre></td></tr> }</tbody></table>

@@ -3,24 +3,24 @@
 @inherits AdminPageComponent
 @inject IAdminStatusReader Reader
 @inject IAdminInsightStatus Insight
-<h1>Dashboard</h1><a href="/admin">Refresh</a><FormError Code="@Error" />
+<h1>@Loc.T("dash.title")</h1><a href="/admin">@Loc.T("common.refresh")</a><FormError Code="@Error" />
 @if (Status is not null) {
-<p>Version @Status.Version · uptime @Status.UptimeSeconds.ToString("F0") seconds</p>
-<table><caption>Readiness</caption><thead><tr><th scope="col">Probe</th><th scope="col">Status</th></tr></thead><tbody>
+<p>@Loc.T("dash.version") @Status.Version · @Loc.T("dash.uptime") @Status.UptimeSeconds.ToString("F0") @Loc.T("dash.seconds")</p>
+<table><caption>@Loc.T("dash.readiness")</caption><thead><tr><th scope="col">@Loc.T("dash.probe")</th><th scope="col">@Loc.T("common.status")</th></tr></thead><tbody>
 @foreach (var probe in Status.Readiness) { <tr><td>@probe.Name</td><td><StatusBadge Status="@probe.Status" /></td></tr> }
 </tbody></table>
-<table><caption>Workers</caption><thead><tr><th scope="col">Worker</th><th scope="col">Last success age (s)</th></tr></thead><tbody>
+<table><caption>@Loc.T("dash.workers")</caption><thead><tr><th scope="col">@Loc.T("dash.worker")</th><th scope="col">@Loc.T("dash.lastSuccess")</th></tr></thead><tbody>
 @foreach (var worker in Status.Workers) { <tr><td>@worker.Name</td><td>@worker.LastSuccessAgeSeconds.ToString("F0")</td></tr> }</tbody></table>
-<dl><dt>Commands running</dt><dd>@Status.Counters.CommandsInProgress</dd><dt>Outbox pending</dt><dd>@Status.Counters.OutboxPending</dd>
-<dt>Dead letters</dt><dd><a href="/admin/tenants?status=dead-lettered">@Status.Counters.OutboxDeadLettered</a></dd>
-<dt>Expiring within 14 days</dt><dd><a href="/admin/tenants?status=expiring">@Status.ExpiringSoon</a></dd>
-<dt>Past due / grace</dt><dd><a href="/admin/tenants?status=past-due">@Status.PastDue</a></dd>
-<dt>PG active / pool max</dt><dd>@Status.Pg.PoolInUse / @Status.Pg.PoolMax</dd></dl>
+<dl><dt>@Loc.T("dash.commands")</dt><dd>@Status.Counters.CommandsInProgress</dd><dt>@Loc.T("dash.outbox")</dt><dd>@Status.Counters.OutboxPending</dd>
+<dt>@Loc.T("dash.dead")</dt><dd><a href="/admin/tenants?status=dead-lettered">@Status.Counters.OutboxDeadLettered</a></dd>
+<dt>@Loc.T("dash.expiring")</dt><dd><a href="/admin/tenants?status=expiring">@Status.ExpiringSoon</a></dd>
+<dt>@Loc.T("dash.pastDue")</dt><dd><a href="/admin/tenants?status=past-due">@Status.PastDue</a></dd>
+<dt>@Loc.T("dash.pg")</dt><dd>@Status.Pg.PoolInUse / @Status.Pg.PoolMax</dd></dl>
 }
-<LiveStatusPanel />
+<LiveStatusPanel Lang="@Loc.Code" />
 @if (InsightState is not null)
 {
-<p>Insight: @(InsightState.Enabled ? "enabled" : InsightState.HasConsentAdr ? "disabled" : "disabled (no consent ADR)")</p>
+<p>@Loc.T("dash.insight"): @Loc.T(InsightState.Enabled ? "dash.enabled" : InsightState.HasConsentAdr ? "dash.disabled" : "dash.disabledNoAdr")</p>
 }
 @code {
     private AdminStatus? Status;
