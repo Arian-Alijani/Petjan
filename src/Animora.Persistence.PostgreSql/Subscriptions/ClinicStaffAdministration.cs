@@ -22,6 +22,9 @@ public sealed class ClinicStaffAdministration(AnimoraOperatorDbContext db, ICloc
     /// <summary>Audit action: the operator created a clinic account.</summary>
     public const string CreatedAction = "staff.created";
 
+    /// <summary>Audit action: the operator reset a clinic account's password.</summary>
+    public const string PasswordResetAction = "staff.password_reset";
+
     private const int MaxName = 200;
     private const int MaxUserName = 64;
 
@@ -75,6 +78,44 @@ public sealed class ClinicStaffAdministration(AnimoraOperatorDbContext db, ICloc
         tenant.Users.Add(user);
         tenant.StaffMemberships.Add(StaffMembership.Create(tenantId, user.Id, staffRole, clock));
         AddAudits(tenant, tenantId, actor, CreatedAction, correlationId, user.Id, ("role", staffRole.ToString()));
+        await tenant.SaveChangesAsync(ct).ConfigureAwait(false);
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+        return Result<string>.Ok(password);
+    }
+
+    /// <summary>
+    /// Resets the password of ONE user of the clinic (owner or any staff member) to a freshly generated temporary password and
+    /// returns it exactly once. <see cref="User.SetPasswordHash"/> rotates the security stamp so the user's live sessions end.
+    /// The user must hold a non-deleted membership in the clinic; lookups run through the tenant-bound context, so a user id of
+    /// another clinic can never be touched.
+    /// </summary>
+    public async Task<Result<string>> ResetPasswordAsync(string tenantId, string userId, ActorRef actor, string correlationId,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        if (string.IsNullOrWhiteSpace(tenantId) || tenantId.Length > 26 || string.IsNullOrWhiteSpace(userId) || userId.Length > 26)
+        {
+            return Result<string>.Fail(ErrorCodes.ValidationFailed);
+        }
+
+        await using IDbContextTransaction tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        if (!await db.StaffMemberships.AsNoTracking().AnyAsync(m => m.TenantId == tenantId && m.UserId == userId && !m.Deleted, ct).ConfigureAwait(false))
+        {
+            return Result<string>.Fail(ErrorCodes.NotFound);
+        }
+
+        await using var tenant = TenantBoundContext.Create(db, tenantId, clock);
+        await tenant.Database.UseTransactionAsync(tx.GetDbTransaction(), ct).ConfigureAwait(false);
+        User? user = await tenant.Users.SingleOrDefaultAsync(u => u.Id == userId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            return Result<string>.Fail(ErrorCodes.NotFound);
+        }
+
+        string password = ProvisioningEngine.GenerateTemporaryPassword();
+        user.SetPasswordHash(hasher.HashPassword(ServerUserStore.ToAdapter(user), password));
+        AddAudits(tenant, tenantId, actor, PasswordResetAction, correlationId, user.Id, ("role", "-"));
         await tenant.SaveChangesAsync(ct).ConfigureAwait(false);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
         await tx.CommitAsync(ct).ConfigureAwait(false);

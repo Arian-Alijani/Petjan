@@ -139,6 +139,12 @@ internal static class OperatorEndpoints
             http.Response.Headers.CacheControl = "no-store";
             return result.IsSuccess ? Results.Ok(new { temporaryPassword = result.Value }) : Failure(result.Error, http);
         });
+        secured.MapPost("/tenants/{id}/staff/{userId}/reset-password", async (string id, string userId, ClinicStaffAdministration service, HttpContext http, CancellationToken ct) =>
+        {
+            var result = await service.ResetPasswordAsync(id, userId, Actor(http), CorrelationHeader.Resolve(http), ct).ConfigureAwait(false);
+            http.Response.Headers.CacheControl = "no-store";
+            return result.IsSuccess ? Results.Ok(new { temporaryPassword = result.Value }) : Failure(result.Error, http);
+        });
         return app;
     }
 

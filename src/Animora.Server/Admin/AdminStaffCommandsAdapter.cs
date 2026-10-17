@@ -17,4 +17,11 @@ internal sealed class AdminStaffCommandsAdapter(ClinicStaffAdministration staff,
             return Result<MutationReceipt>.Fail(ErrorCodes.ValidationFailed);
         return (await staff.CreateAsync(tenantId,form.Name,form.UserName,form.Role,actor,Correlation,ct).ConfigureAwait(false)).Map(p=>new MutationReceipt(p,tenantId));
     }
+    public async Task<Result<MutationReceipt>> ResetStaffPasswordAsync(string tenantId,ResetStaffPasswordForm form,CancellationToken ct=default)
+    {
+        var actor=session.Actor;
+        if(!form.Confirmed||string.IsNullOrWhiteSpace(form.UserId))
+            return Result<MutationReceipt>.Fail(ErrorCodes.ValidationFailed);
+        return (await staff.ResetPasswordAsync(tenantId,form.UserId,actor,Correlation,ct).ConfigureAwait(false)).Map(p=>new MutationReceipt(p,tenantId));
+    }
 }

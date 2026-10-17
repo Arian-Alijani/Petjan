@@ -16,6 +16,8 @@ public interface IAdminStaffQueries
 public interface IAdminStaffCommands
 {
     Task<Result<MutationReceipt>> CreateStaffAsync(string tenantId,CreateStaffAdminForm form,CancellationToken ct=default);
+    /// <summary>Resets one clinic user's password; the new temporary password is returned once in the receipt.</summary>
+    Task<Result<MutationReceipt>> ResetStaffPasswordAsync(string tenantId,ResetStaffPasswordForm form,CancellationToken ct=default);
 }
 public interface IAdminProductQueries
 {

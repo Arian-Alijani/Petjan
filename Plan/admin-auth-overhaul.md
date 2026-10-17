@@ -270,16 +270,16 @@
 - [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.5] clinic-scoped audit/data explorer with filters"`
 
 ### ۳.۶ — ریست/تغییر دستی رمز هر کاربر کلینیک (مالک و کارکنان) از پنل
-- [ ] **تعمیم `OwnerCredentialAdministration`.** یک متد عمومی‌تر اضافه کن (یا سرویس جدید
+- [x] **تعمیم `OwnerCredentialAdministration`.** یک متد عمومی‌تر اضافه کن (یا سرویس جدید
     `StaffCredentialAdministration`) `ResetUserAsync(string tenantId, string userId, ActorRef actor, ct)`
     که به‌جای «اولین Manager»، کاربرِ مشخص‌شده با `userId` را در آن tenant ریست کند (الگوی
     `ResetAsync` خطوط ۲۰–۴۹ را کپی و پارامتریک کن؛ `expectedStamp`/concurrency را برای کاربر مناسب
     تطبیق بده یا با قفل `FOR UPDATE` روی خود user ساده‌اش کن). رمز موقت تولید کن، `SetPasswordHash`،
     `RotateSecurityStamp`، audit امنیتی + اپراتور. رمز خام هرگز لاگ نشود.
-- [ ] **Endpoint.** `POST {Operator}/tenants/{id}/staff/{userId}/reset-password` در `OperatorEndpoints.cs`.
-- [ ] **Port/Adapter/UI.** به `IAdminStaffCommands` متد `ResetStaffPasswordAsync(tenantId,userId,...)`
+- [x] **Endpoint.** `POST {Operator}/tenants/{id}/staff/{userId}/reset-password` در `OperatorEndpoints.cs`.
+- [x] **Port/Adapter/UI.** به `IAdminStaffCommands` متد `ResetStaffPasswordAsync(tenantId,userId,...)`
     اضافه کن؛ در جدول کارکنان (۳.۲) دکمهٔ ریست هر ردیف → نمایش رمز موقت یک‌بار.
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.6] reset password for any clinic user"`
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.6] reset password for any clinic user"`
 
 ### ۳.۷ — لاگ زندهٔ سرور با فیلتر و سرچ
 > بزرگ‌ترین زیرتسک. امنیت/سبکی حیاتی است: **فقط اپراتور (`AdminOnly`/`OperatorOnly`) دسترسی داشته باشد؛
