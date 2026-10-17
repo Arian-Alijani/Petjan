@@ -140,6 +140,26 @@ public static class AdminStrings
         ["role.Receptionist"] = ("Receptionist", "پذیرش"),
         ["role.Cashier"] = ("Cashier", "صندوق‌دار"),
         ["role.Accountant"] = ("Accountant", "حسابدار"),
+
+        ["prod.title"] = ("Clinic products", "محصولات کلینیک"),
+        ["prod.caption"] = ("Product catalogue (stock derived from the movement ledger)", "فهرست محصولات (موجودی از دفتر حرکت انبار محاسبه می‌شود)"),
+        ["prod.search"] = ("Name or SKU", "نام یا کد"),
+        ["prod.category"] = ("Category", "دسته"),
+        ["prod.allCategories"] = ("All categories", "همه دسته‌ها"),
+        ["prod.stock"] = ("Stock level", "وضعیت موجودی"),
+        ["prod.stockAny"] = ("Any", "همه"),
+        ["prod.stock.out"] = ("Out of stock", "ناموجود"),
+        ["prod.stock.low"] = ("Low stock", "کم‌موجود"),
+        ["prod.stock.ok"] = ("In stock", "موجود"),
+        ["prod.stock.untracked"] = ("Not tracked", "بدون ردیابی موجودی"),
+        ["prod.minPrice"] = ("Min price", "حداقل قیمت"),
+        ["prod.maxPrice"] = ("Max price", "حداکثر قیمت"),
+        ["prod.sku"] = ("SKU", "کد"),
+        ["prod.kind"] = ("Kind", "نوع"),
+        ["prod.price"] = ("Sale price", "قیمت فروش"),
+        ["prod.onHand"] = ("On hand", "موجودی"),
+        ["prod.reorder"] = ("Reorder level", "نقطه سفارش"),
+        ["prod.inactive"] = ("Retired", "غیرفعال"),
     };
 
     /// <summary>Resolves <paramref name="key"/> for <paramref name="lang"/> (<c>fa</c>/<c>en</c>); unknown keys return the key.</summary>

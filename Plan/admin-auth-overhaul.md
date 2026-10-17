@@ -251,15 +251,17 @@
 - [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.3] create clinic staff from admin panel"`
 
 ### ۳.۴ — مشاهدهٔ محصولات یک کلینیک + فیلتر بر اساس شاخص‌ها
-- [ ] **اکتشاف محدود (همان‌موقع):** مدل محصول در سرور/PG کجاست؟ گرپ هدفمند:
+> **نتیجهٔ اکتشاف:** `Product`/`ProductCategory`/`StockMovement` در `SyncContractCatalog` replicate می‌شوند و جدول‌های
+> `Products`/`StockMovements` سمت سرور tenant-scoped هستند → دادهٔ کامل در دسترس است. موجودی از دفتر حرکت (ledger) محاسبه می‌شود (R-B23).
+- [x] **اکتشاف محدود (همان‌موقع):** مدل محصول در سرور/PG کجاست؟ گرپ هدفمند:
     `grep -rln "class Product\|Products\|Inventory" src/Animora.Persistence.PostgreSql/ src/Animora.Domain/Inventory/`.
     جدول محصولات tenant-scoped است؛ خواندنش را با tenant-bound context (الگوی ۳۱–۳۷ بالا) انجام بده.
     **اگر محصولات هنوز به سرور replicate نشده‌اند** (طبق roadmap ممکن است Track D/E ناتمام باشد)، آنگاه
     این زیرتسک را به «نمایش شمارش/خلاصهٔ موجود در snapshot/replica سرور» محدود کن و در پلن یادداشت بگذار
     که دادهٔ کامل محصولات سمت سرور در دسترس نیست. **قبل از پیاده‌سازی این را بررسی و تصمیم بگیر.**
-- [ ] کوئری + Model + Port + Adapter + UI مشابه ۳.۲، با فیلترهای: نام/کد، دسته، وضعیت موجودی
+- [x] کوئری + Model + Port + Adapter + UI مشابه ۳.۲، با فیلترهای: نام/کد، دسته، وضعیت موجودی
     (کم‌موجود/ناموجود)، بازهٔ قیمت. صفحه‌بندی.
-- [ ] **پوش:** `scripts/git/push.sh "feat(admin): [T3.4] per-clinic products view with filters"`
+- [x] **پوش:** `scripts/git/push.sh "feat(admin): [T3.4] per-clinic products view with filters"`
 
 ### ۳.۵ — مشاهدهٔ «تمام اطلاعات ثبت‌شدهٔ» کلینیک + فیلتر عمومی
 - [ ] با استفاده از صفحهٔ Audit موجود (`Pages/Audit.razor` + `IAdminAuditQueries.TenantAsync`) یک نمای
