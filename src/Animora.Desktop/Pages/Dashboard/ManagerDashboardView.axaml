@@ -83,36 +83,22 @@
             <Border Grid.Column="0" Classes="card" Padding="20,18"
                     IsVisible="{Binding RevenuePulse, Converter={x:Static ObjectConverters.IsNotNull}}">
                 <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="*">
-                        <StackPanel Grid.Column="0" Spacing="2">
-                            <TextBlock Text="روند درآمد ۱۴ روز اخیر"
-                                       FontSize="{StaticResource FontSizeMd}"
-                                       FontWeight="ExtraBold"
-                                       Foreground="{StaticResource InkBrush}" />
-                            <WrapPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-                                <TextBlock Text="{Binding RevenuePulse.Value}"
-                                           FontSize="{StaticResource FontSizeXl}"
-                                           FontWeight="ExtraBold"
-                                           Foreground="{StaticResource InkBrush}"
-                                           VerticalAlignment="Bottom" Margin="0,0,6,0" />
-                                <TextBlock Text="{Binding RevenuePulse.Caption}"
-                                           FontSize="{StaticResource FontSizeXs}"
-                                           FontWeight="Bold"
-                                           Foreground="{StaticResource OkBrush}"
-                                           VerticalAlignment="Bottom"
-                                           Margin="4,0,0,3" />
-                            </WrapPanel>
-                        </StackPanel>
-
-                    </Grid>
+                    <!-- Card title only (the reference "Reports" heading). The big
+                         "درآمد امروز" headline number was removed: the per-day value
+                         now lives only inside the chart's hover bubble. -->
+                    <TextBlock Text="روند درآمد ۱۴ روز اخیر"
+                               FontSize="{StaticResource FontSizeMd}"
+                               FontWeight="ExtraBold"
+                               Foreground="{StaticResource InkBrush}" />
 
                     <!-- Smooth area + line revenue chart, re-designed from the
                          reference "Reports" card: horizontal blue→magenta
                          gradient, hollow markers and a light hover tooltip.
                          Driven straight from the normalized pulse series — the
-                         control owns gridlines, axes, smoothing and hover. -->
+                         control owns gridlines, axes, smoothing and per-point
+                         hover (one day at a time). The old always-on ToolTip.Tip
+                         that listed every day at once was removed. -->
                     <Border CornerRadius="12" ClipToBounds="True" Height="196"
-                            ToolTip.Tip="{Binding RevenueTooltip}"
                             AutomationProperties.Name="{Binding RevenuePulse.Summary}">
                         <controls:RevenuePulseChart Pulse="{Binding RevenuePulse}"
                                                     HoverCaption="درآمد" />

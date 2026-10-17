@@ -67,6 +67,9 @@ public sealed class RevenuePulseChart : Control
         set => SetValue(HoverCaptionProperty, value);
     }
 
+    /// <summary>Currency word appended to the hovered day's amount in the bubble.</summary>
+    private const string CurrencyLabel = "تومان";
+
     // Hover state is a plain field (not a styled prop) because only this control
     // reads it; AffectsRender is wired through a private readonly styled prop so a
     // hover just invalidates the visual without any binding churn.
@@ -216,8 +219,11 @@ public sealed class RevenuePulseChart : Control
                     continue;
                 }
 
+                // Day labels are Jalali dates (YYYY/MM/DD) — numeric, so they
+                // render left-to-right to keep the slash-separated parts in
+                // their natural order (RTL was flipping them).
                 var t = new FormattedText(
-                    text, CultureInfo.InvariantCulture, FlowDirection.RightToLeft, AxisTypeface, 10, AxisBrush);
+                    text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, AxisTypeface, 10, AxisBrush);
                 var cx = Math.Clamp(px[i] - (t.Width / 2), PadL, w - PadR - t.Width);
                 ctx.DrawText(t, new Point(cx, h - PadB + 6));
             }
@@ -232,14 +238,18 @@ public sealed class RevenuePulseChart : Control
 
     private void DrawTooltip(DrawingContext ctx, DashboardRevenuePulse pulse, int index, double anchorX, double anchorY, double w)
     {
+        // Caption is a Persian word ("درآمد") → RTL. The value is a grouped
+        // number (optionally with a currency word); numbers must render
+        // left-to-right so the digits and thousands separators keep their
+        // natural order (RTL was reversing them in the old all-days tooltip).
         var caption = new FormattedText(
             HoverCaption, CultureInfo.InvariantCulture, FlowDirection.RightToLeft, AxisTypeface, 10.5, TooltipCaption);
 
         var valueText = index < pulse.Values.Count
-            ? PersianNumberFormatter.ToPersianDigits(pulse.Values[index].ToString("N0", CultureInfo.InvariantCulture))
+            ? PersianNumberFormatter.ToPersianDigits(pulse.Values[index].ToString("N0", CultureInfo.InvariantCulture)) + " " + CurrencyLabel
             : (index < pulse.DayLabels.Count ? pulse.DayLabels[index] : string.Empty);
         var value = new FormattedText(
-            valueText, CultureInfo.InvariantCulture, FlowDirection.RightToLeft, AxisTypefaceBold, 14, TooltipValue);
+            valueText, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, AxisTypefaceBold, 14, TooltipValue);
 
         const double padX = 12, padY = 8, gap = 2, pointer = 5, markerGap = 10;
         var contentW = Math.Max(caption.Width, value.Width);
@@ -311,13 +321,25 @@ public sealed class RevenuePulseChart : Control
         var bottom = h - PadB;
         var ih = bottom - top;
 
+        // Vertical headroom (reference "Reports" card): the series floats inside
+        // the band instead of hugging the top gridline and the floor, so flat
+        // low/zero days no longer look like they sit "below" the chart. The
+        // relative shape (and therefore the data) is preserved exactly — only a
+        // uniform inset is applied. Revenue is a non-negative daily sum, so the
+        // domain is already 0..1 positive (ZeroLevel is 0); nothing is clamped
+        // to a false negative.
+        const double headroom = 0.12; // 12% inset top & bottom
+        var bandTop = top + (ih * headroom);
+        var bandH = ih * (1 - (2 * headroom));
+
         var px = new double[n];
         var py = new double[n];
         for (var i = 0; i < n; i++)
         {
             px[i] = PadL + (n <= 1 ? iw / 2 : iw * i / (n - 1));
-            // Points are already normalized 0..1 in the signed pulse domain.
-            py[i] = bottom - (Math.Clamp(points[i], 0, 1) * ih);
+            // Points are already normalized 0..1 in the (non-negative) pulse
+            // domain; map them into the inset band so the line floats cleanly.
+            py[i] = bandTop + bandH - (Math.Clamp(points[i], 0, 1) * bandH);
         }
 
         _px = px;
