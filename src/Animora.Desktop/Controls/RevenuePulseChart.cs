@@ -70,6 +70,21 @@ public sealed class RevenuePulseChart : Control
     /// <summary>Currency word appended to the hovered day's amount in the bubble.</summary>
     private const string CurrencyLabel = "تومان";
 
+    // Unicode bidi isolate controls. Wrapping a numeric / date string in a
+    // LEFT-TO-RIGHT ISOLATE (U+2066) … POP DIRECTIONAL ISOLATE (U+2069) pair is
+    // the W3C-standard way to pin its visual order to left-to-right regardless of
+    // the surrounding (RTL) bidi context. This is what finally fixes the reversed
+    // Jalali dates / grouped amounts: FlowDirection.LeftToRight alone sets only
+    // the paragraph base direction, but strong-RTL characters inside the string
+    // (the Arabic thousands separator U+066C, and digits picking up the inherited
+    // RTL run) were still reordered. The controls are zero-width format chars, so
+    // they never affect measured width or layout.
+    private const char Lri = '\u2066';
+    private const char Pdi = '\u2069';
+
+    /// <summary>Pins a numeric/date string to a strict left-to-right visual order.</summary>
+    private static string Ltr(string s) => string.Concat(Lri, s, Pdi);
+
     // Hover state is a plain field (not a styled prop) because only this control
     // reads it; AffectsRender is wired through a private readonly styled prop so a
     // hover just invalidates the visual without any binding churn.
@@ -120,6 +135,7 @@ public sealed class RevenuePulseChart : Control
     private StreamGeometry? _areaGeometry, _lineGeometry;
     private IBrush? _areaBrush;
     private Pen? _linePen, _dotPen;
+    private Pen? _shadowPen;
     private double[]? _px, _py;
     private double _cacheW, _cacheH;
     private DashboardRevenuePulse? _cacheSource;
@@ -164,7 +180,7 @@ public sealed class RevenuePulseChart : Control
 
             var value = 100 - (i * 20);
             var label = new FormattedText(
-                PersianNumberFormatter.ToPersianDigits(value.ToString(CultureInfo.InvariantCulture)),
+                Ltr(PersianNumberFormatter.ToPersianDigits(value.ToString(CultureInfo.InvariantCulture))),
                 CultureInfo.InvariantCulture, FlowDirection.LeftToRight, AxisTypeface, 10.5, AxisBrush);
             ctx.DrawText(label, new Point(PadL - 8 - label.Width, y - (label.Height / 2)));
         }
@@ -173,6 +189,19 @@ public sealed class RevenuePulseChart : Control
         if (_areaGeometry is not null && _areaBrush is not null)
         {
             ctx.DrawGeometry(_areaBrush, null, _areaGeometry);
+        }
+
+        // ── dense drop shadow cast by the line ──
+        // The same smooth path is stroked a few px lower with a soft, translucent
+        // brand-tinted pen (slightly wider than the line) before the real line is
+        // painted on top, giving a compact, grounded shadow without needing a
+        // bitmap blur effect.
+        if (_lineGeometry is not null && _shadowPen is not null)
+        {
+            using (ctx.PushTransform(Matrix.CreateTranslation(0, 5)))
+            {
+                ctx.DrawGeometry(null, _shadowPen, _lineGeometry);
+            }
         }
 
         // ── the smooth, horizontally-gradient line ──
@@ -220,10 +249,10 @@ public sealed class RevenuePulseChart : Control
                 }
 
                 // Day labels are Jalali dates (YYYY/MM/DD) — numeric, so they
-                // render left-to-right to keep the slash-separated parts in
-                // their natural order (RTL was flipping them).
+                // render left-to-right (wrapped in an LTR isolate) to keep the
+                // slash-separated parts in their natural order (RTL was flipping them).
                 var t = new FormattedText(
-                    text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, AxisTypeface, 10, AxisBrush);
+                    Ltr(text), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, AxisTypeface, 10, AxisBrush);
                 var cx = Math.Clamp(px[i] - (t.Width / 2), PadL, w - PadR - t.Width);
                 ctx.DrawText(t, new Point(cx, h - PadB + 6));
             }
@@ -248,8 +277,10 @@ public sealed class RevenuePulseChart : Control
         var valueText = index < pulse.Values.Count
             ? PersianNumberFormatter.ToPersianDigits(pulse.Values[index].ToString("N0", CultureInfo.InvariantCulture)) + " " + CurrencyLabel
             : (index < pulse.DayLabels.Count ? pulse.DayLabels[index] : string.Empty);
+        // Wrap in an LTR isolate so the amount reads "<number> تومان" in its
+        // natural order (the trailing RTL currency word was reversing the digits).
         var value = new FormattedText(
-            valueText, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, AxisTypefaceBold, 14, TooltipValue);
+            Ltr(valueText), CultureInfo.InvariantCulture, FlowDirection.LeftToRight, AxisTypefaceBold, 14, TooltipValue);
 
         const double padX = 12, padY = 8, gap = 2, pointer = 5, markerGap = 10;
         var contentW = Math.Max(caption.Width, value.Width);
@@ -367,27 +398,36 @@ public sealed class RevenuePulseChart : Control
             lineGradient.GradientStops.Add(new GradientStop(s.Color, s.Offset));
         }
 
-        // Area: same horizontal hue sweep, but faded vertically (soft near the
-        // line, transparent at the baseline). Avalonia brushes take a single
-        // gradient axis, so the vertical fade is applied as a low overall opacity
-        // on a horizontal gradient whose stops carry the vertical alpha ramp via a
-        // stacked opacity mask would be overkill here — instead we use a horizontal
-        // gradient at reduced alpha, which matches the reference's soft wash.
+        // Area: a true VERTICAL fade (top→bottom). It is tinted with the brand's
+        // mid purple and kept deliberately light — a faint wash just under the
+        // peak that melts to fully transparent at the baseline, so the lower part
+        // of the band reads as clean white. The top stop is already a low alpha
+        // (lighter than before) and the bottom stop is fully transparent, giving
+        // the requested "stronger at the top, see-through at the bottom" ramp.
+        var areaTint = Color.Parse("#A878E8");
         var areaGradient = new LinearGradientBrush
         {
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-            EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-            Opacity = 0.16,
+            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+            GradientStops =
+            {
+                new GradientStop(Color.FromArgb(0x24, areaTint.R, areaTint.G, areaTint.B), 0.0),
+                new GradientStop(Color.FromArgb(0x12, areaTint.R, areaTint.G, areaTint.B), 0.55),
+                new GradientStop(Color.FromArgb(0x00, areaTint.R, areaTint.G, areaTint.B), 1.0),
+            },
         };
-        foreach (var s in LineStops)
-        {
-            areaGradient.GradientStops.Add(new GradientStop(s.Color, s.Offset));
-        }
 
         _areaBrush = areaGradient;
         _linePen = new Pen(lineGradient, 3.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         // The dot ring picks up the mid-line colour so markers blend with the gradient.
         _dotPen = new Pen(lineGradient, 2);
+
+        // Dense drop shadow pen: a soft, translucent brand-tinted stroke slightly
+        // wider than the line, painted one pass below it (see Render). Kept as a
+        // solid low-alpha colour so it reads as a compact, grounded shadow.
+        _shadowPen = new Pen(
+            new SolidColorBrush(Color.FromArgb(0x33, 0x7A, 0x4A, 0xD6)),
+            5.4, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
     }
 
     /// <summary>
