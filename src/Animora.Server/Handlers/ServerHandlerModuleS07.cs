@@ -29,6 +29,7 @@ internal static class ServerHandlerModuleS07
         catalog.Add<ToggleTicketUrgentCommand>(CommandTypes.ReceptionTicketUrgent, "ReceptionQueueEntry");
         catalog.Add<CreateWalkInCommand>(CommandTypes.ReceptionWalkInCreate, "ReceptionQueueEntry");
         catalog.Add<MarkVaccinationDoneCommand>(CommandTypes.VaccinationRecordAdminister, "VaccinationRecord");
+        catalog.Add<RegisterVaccinationCommand>(CommandTypes.VaccinationRecordRegister, "VaccinationRecord");
         catalog.Add<RecordVaccinationReminderCommand>(CommandTypes.VaccinationRecordReminder, "VaccinationRecord");
         catalog.Add<AddPrescriptionLineCommand>(CommandTypes.VisitsRxAdd, "Visit");
         catalog.Add<RemovePrescriptionLineCommand>(CommandTypes.VisitsRxRemove, "Visit");

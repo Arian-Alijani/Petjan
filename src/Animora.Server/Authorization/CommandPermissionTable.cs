@@ -87,6 +87,7 @@ internal static class CommandPermissionTable
             [CommandTypes.SchedulingBookingPatientCreate] = PermissionCodes.AppointmentsBook,
             [CommandTypes.VaccinationCatalogAdd] = PermissionCodes.VaccinationWrite,
             [CommandTypes.VaccinationRecordAdminister] = PermissionCodes.VaccinationWrite,
+            [CommandTypes.VaccinationRecordRegister] = PermissionCodes.VaccinationWrite,
             [CommandTypes.VaccinationRecordReminder] = PermissionCodes.VaccinationWrite,
             [CommandTypes.VaccinationTreatmentCancel] = PermissionCodes.VaccinationWrite,
             [CommandTypes.VaccinationTreatmentCreate] = PermissionCodes.VaccinationWrite,

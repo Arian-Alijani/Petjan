@@ -26,6 +26,8 @@ public static class VaccinationRegistration
         .AddValidator<AddVaccineCatalogItemCommand, AddVaccineCatalogItemCommandValidator>()
         .AddCommand<MarkVaccinationDoneCommand, string, MarkVaccinationDoneCommandHandler>()
         .AddValidator<MarkVaccinationDoneCommand, MarkVaccinationDoneCommandValidator>()
+        .AddCommand<RegisterVaccinationCommand, string, RegisterVaccinationCommandHandler>()
+        .AddValidator<RegisterVaccinationCommand, RegisterVaccinationCommandValidator>()
         .AddCommand<RecordVaccinationReminderCommand, string, RecordVaccinationReminderCommandHandler>()
         .AddValidator<RecordVaccinationReminderCommand, RecordVaccinationReminderCommandValidator>();
 }

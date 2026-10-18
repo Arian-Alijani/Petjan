@@ -23,6 +23,27 @@ public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdF
     public async Task<IReadOnlyList<SmsTemplate>> GetSmsTemplatesAsync() =>
         (await QueryAsync(new SmsTemplatesQuery())).Select(r => r.ToContract()).ToArray();
 
+    public async Task<string> RegisterDoseAsync(VaccinationDoseInput input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentException.ThrowIfNullOrWhiteSpace(input.PetId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(input.VaccineName);
+
+        var name = input.VaccineName.Trim();
+        // The vial's commercial name is the display value; the protocol code drives the dose schedule.
+        // A free-text name with no explicit code falls back to the name itself (unknown codes get the
+        // annual-booster interval, which is the domain's documented behaviour).
+        var code = string.IsNullOrWhiteSpace(input.VaccineCode) ? name : input.VaccineCode!.Trim();
+        var administeredUtc = new DateTimeOffset(
+            DateTime.SpecifyKind(input.AdministeredDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified),
+            TimeSpan.Zero);
+        var doseNumber = input.DoseNumber < 1 ? 1 : input.DoseNumber;
+
+        return await SendAsync(new RegisterVaccinationCommand(input.PetId, code, name, doseNumber,
+            administeredUtc, input.TotalDoses, input.Lot, null, input.Notes),
+            ids.Deterministic($"vaccination-register:{input.PetId}:{code}:{doseNumber}:{administeredUtc:yyyyMMdd}"));
+    }
+
     public async Task<ContractRecord> MarkDoneAsync(string recordId)
     {
         await SendAsync(new MarkVaccinationDoneCommand(recordId),

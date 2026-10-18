@@ -253,7 +253,7 @@ manual `WeightEntry` rows AND weights recorded during a visit — consistently.
 **Done when:** a weight added manually and a weight taken in a visit both show in the chart + history
 table, consistently. **Push.**
 
-### ☐ Task 9 — Vaccination history: real history + manual add, integrated with Vaccination module
+### ☑ Task 9 — Vaccination history: real history + manual add, integrated with Vaccination module
 **Current:** `Vaccinations` always `[]` (ToDetail hardcode). Vax tab (axaml L1020-1081) + `AddVax`
 (VM L671) stub. Source exists: `VaccinationRecord` table; query `GetOwnerClinicalActivityAsync`
 already joins it; there's `MarkVaccinationDoneCommand` + a `VaccinationHistoryQuery`

@@ -27,6 +27,13 @@ public interface IVaccinationService
     Task<IReadOnlyList<SmsTemplate>> GetSmsTemplatesAsync();
 
     /// <summary>
+    /// Records one administered vaccine dose for a patient directly (the pet file's «ثبت واکسن»). The dose is
+    /// written as a <c>VaccinationRecord</c> plus its «Dose administered» ledger entry, so it appears in this
+    /// module's history and due list exactly like a dose recorded here. Returns the new record id.
+    /// </summary>
+    Task<string> RegisterDoseAsync(VaccinationDoseInput input);
+
+    /// <summary>
     /// Marks a record as administered (<c>status = done</c>), mirroring the
     /// reference's <c>vaxMarkDone</c>. Returns the updated record.
     /// </summary>

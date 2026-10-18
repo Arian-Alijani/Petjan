@@ -109,3 +109,18 @@ public sealed record SmsPreview(
     string Body,
     int CharacterCount,
     int SegmentCount);
+
+/// <summary>
+/// One manually registered vaccine dose (pet file «ثبت واکسن», Task 9). <paramref name="AdministeredDate"/> is a
+/// clinic-local calendar date; the seam converts it to the stored UTC instant. <paramref name="TotalDoses"/> is
+/// optional — when omitted the domain dose protocol decides, and <paramref name="Code"/> falls back to the name.
+/// </summary>
+public sealed record VaccinationDoseInput(
+    string PetId,
+    string VaccineName,
+    DateOnly AdministeredDate,
+    int DoseNumber = 1,
+    int? TotalDoses = null,
+    string? VaccineCode = null,
+    string? Lot = null,
+    string? Notes = null);

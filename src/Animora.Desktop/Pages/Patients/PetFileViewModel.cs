@@ -89,8 +89,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private readonly IDataChangeNotifier _changes;
     private readonly IVisitsTriageService _triage;
     private readonly INavigationService _navigation;
-
-    private PetDetail? _pet;
+    private readonly Animora.Contracts.Vaccination.IVaccinationService _vaccination;
     private OwnerDetail? _owner;
 
     [ObservableProperty] private PetTabViewModel? _selectedTab;
@@ -133,7 +132,8 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         IToastService toast,
         IDataChangeNotifier changes,
         IVisitsTriageService triage,
-        INavigationService navigation)
+        INavigationService navigation,
+        Animora.Contracts.Vaccination.IVaccinationService vaccination)
     {
         _patients = patients;
         _changes = changes;
@@ -142,6 +142,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         _toast = toast;
         _triage = triage;
         _navigation = navigation;
+        _vaccination = vaccination;
         Title = "پرونده بیمار";
         Eyebrow = "بیماران و سرپرستان";
         Breadcrumbs.Add("مدیریت کلینیک");
@@ -843,8 +844,36 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         await picker.LoadAsync();
     }
 
+    /// <summary>
+    /// «ثبت واکسن» entry point (Task 9): opens the dose modal, which writes through the Vaccination module's own
+    /// seam so the dose immediately appears in the vax tab, the next-vaccine KPI and the Vaccination page.
+    /// </summary>
     [RelayCommand]
-    private void AddVax() => _toast.Show("فرم ثبت واکسن جدید (نمونه طراحی)", Controls.Tone.Info);
+    private void AddVax()
+    {
+        if (_pet is not { } pet)
+        {
+            return;
+        }
+
+        var modal = new RegisterVaxModalViewModel(
+            _vaccination,
+            _dialogs,
+            _toast,
+            pet.Id,
+            pet.Name,
+            async () =>
+            {
+                _changes.Notify(DataDomain.Patients, DataDomain.Vaccination, DataDomain.Dashboard, DataDomain.History);
+                var refreshed = await _patients.GetPetAsync(pet.Id);
+                if (refreshed is not null)
+                {
+                    Apply(refreshed);
+                }
+            });
+
+        _dialogs.ShowModal(modal, 520);
+    }
 
     [RelayCommand]
     private void CopyMicrochip()

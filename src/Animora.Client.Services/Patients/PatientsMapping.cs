@@ -53,9 +53,24 @@ internal static class PatientsMapping
             new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, m.MicrochipVendor, m.MicrochipLocation),
             vitals,
             m.Weights.Select(w => new WeightEntry(w.MeasuredUtc.UtcDateTime, (double)w.WeightKg)).ToList(),
-            Visits: (m.Visits ?? []).Select(ToVisitRef).ToList(), Vaccinations: [], Labs: [], Documents: [], Surgeries: [],
+            Visits: (m.Visits ?? []).Select(ToVisitRef).ToList(),
+            // Task 9: the real dose history from VaccinationRecord (was hardcoded []).
+            Vaccinations: (m.Vaccinations ?? []).Select(ToVaccinationRef).ToList(),
+            Labs: [], Documents: [], Surgeries: [],
             Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null);
     }
+
+    /// <summary>
+    /// One dose → the pet-file row. The stored <c>NextDueUtc</c> is null once a course ends, but the model
+    /// still wants a reminder date: fall back to the administered date so "next due" never renders a fake 0001 date.
+    /// </summary>
+    private static VaccinationSummaryRef ToVaccinationRef(PetVaccinationReadModel v) => new(
+        v.VaccineName,
+        v.AdministeredUtc.UtcDateTime,
+        (v.NextDueUtc ?? v.AdministeredUtc).UtcDateTime,
+        string.IsNullOrWhiteSpace(v.LotNumber) ? "—" : v.LotNumber!,
+        string.IsNullOrWhiteSpace(v.VetName) ? "—" : v.VetName,
+        string.IsNullOrWhiteSpace(v.Site) ? "—" : v.Site!);
 
     private static VisitSummaryRef ToVisitRef(PetVisitReadModel v)
     {

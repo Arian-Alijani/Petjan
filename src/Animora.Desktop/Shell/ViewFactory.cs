@@ -98,6 +98,7 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Patients.PatientsPageViewModel, global::Animora.Desktop.Pages.Patients.PatientsPageView>(factories);
         Register<global::Animora.Desktop.Pages.Patients.PetFileViewModel, global::Animora.Desktop.Pages.Patients.PetFileView>(factories);
         Register<global::Animora.Desktop.Pages.Patients.PickDoctorModalViewModel, global::Animora.Desktop.Pages.Patients.PickDoctorModalView>(factories);
+        Register<global::Animora.Desktop.Pages.Patients.RegisterVaxModalViewModel, global::Animora.Desktop.Pages.Patients.RegisterVaxModalView>(factories);
         Register<global::Animora.Desktop.Pages.Patients.PetFormViewModel, global::Animora.Desktop.Pages.Patients.PetFormView>(factories);
 
         // Profile.

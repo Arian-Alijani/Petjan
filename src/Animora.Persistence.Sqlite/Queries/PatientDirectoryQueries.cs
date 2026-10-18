@@ -229,14 +229,41 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .Select(w => new PetWeightReadModel(w.MeasuredUtc, w.WeightKg)).ToListAsync(ct);
 
         var visits = await GetPetVisitsAsync(petId, ct);
+        var vaccinations = await GetPetVaccinationsAsync(petId, ct);
 
-        TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}.", "sql.patients");
+        TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}, vaccinations={vaccinations.Count}.", "sql.patients");
         return new PetDetailReadModel(pet.Id, pet.Name, pet.Species, pet.Breed, pet.Color, pet.Gender,
             pet.Status, pet.OwnerId, pet.BirthDateUtc, pet.IsNeutered, pet.MicrochipCode,
             pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits,
+            Vaccinations: vaccinations,
             Habitat: pet.Habitat, Behavior: pet.Behavior, Diet: pet.Diet, BloodType: pet.BloodType,
             Insurance: pet.Insurance, MicrochipVendor: pet.MicrochipVendor,
             MicrochipLocation: pet.MicrochipLocation, NeuteredUtc: pet.NeuteredUtc);
+    }
+
+    private const int PetVaccinationTake = 100;
+
+    /// <summary>
+    /// Every recorded dose of the pet, newest injection first (Task 9). The administering clinician's display
+    /// name is resolved in one bounded follow-up query instead of a per-row join, mirroring the visit path.
+    /// </summary>
+    private async Task<IReadOnlyList<PetVaccinationReadModel>> GetPetVaccinationsAsync(string petId, CancellationToken ct)
+    {
+        var rows = await db.Set<VaccinationRecord>().AsNoTracking()
+            .Where(v => v.PetId == petId && v.State != VaccinationState.Skipped)
+            .OrderByDescending(v => v.AdministeredUtc).ThenBy(v => v.Id)
+            .Take(PetVaccinationTake).ToListAsync(ct);
+        if (rows.Count == 0) return [];
+
+        var vetIds = rows.Select(v => v.AdministeredByUserId).Distinct().ToList();
+        var vets = await db.Set<User>().AsNoTracking().Where(u => vetIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName }).ToListAsync(ct);
+        var names = vets.ToDictionary(d => d.Id, d => d.DisplayName);
+
+        return rows.Select(v => new PetVaccinationReadModel(
+            v.Id, v.VaccineName, v.AdministeredUtc, v.NextDueUtc, v.DoseNumber,
+            v.TotalDoses ?? v.DoseNumber, v.BatchNumber, null,
+            names.GetValueOrDefault(v.AdministeredByUserId, string.Empty))).ToList();
     }
 
     private const int PetVisitTake = 50;

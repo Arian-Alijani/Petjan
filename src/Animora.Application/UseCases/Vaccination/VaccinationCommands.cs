@@ -99,3 +99,59 @@ public sealed class RecordVaccinationReminderCommandHandler(IVaccinationReposito
         return Result<string>.Ok(record.Id);
     }
 }
+
+[RequiresPermission(PermissionCodes.VaccinationWrite)]
+[Auditable(AuditCategory.Clinical, CommandTypes.VaccinationRecordRegister)]
+public sealed record RegisterVaccinationCommand(string PetId, string VaccineCode, string VaccineName,
+    int DoseNumber, DateTimeOffset AdministeredUtc, int? TotalDoses = null, string? BatchNumber = null,
+    string? VisitId = null, string? Notes = null) : ICommand<string>, IJournaledCommand
+{
+    public string CommandTypeName => CommandTypes.VaccinationRecordRegister;
+    public string AggregateTypeName => "VaccinationRecord";
+    public string? AggregateIdOrNull => null;
+}
+
+public sealed class RegisterVaccinationCommandValidator : IValidator<RegisterVaccinationCommand>
+{
+    public ValueTask<IReadOnlyList<ValidationFailure>> ValidateAsync(RegisterVaccinationCommand c, CancellationToken ct)
+    {
+        var errors = new List<ValidationFailure>();
+        if (Rules.Required(c.PetId, nameof(c.PetId)) is { } pet) errors.Add(pet);
+        if (Rules.Required(c.VaccineCode, nameof(c.VaccineCode)) is { } code) errors.Add(code);
+        if (Rules.Required(c.VaccineName, nameof(c.VaccineName)) is { } name) errors.Add(name);
+        else if (Rules.MaxLength(c.VaccineName, 120, nameof(c.VaccineName)) is { } tooLong) errors.Add(tooLong);
+        return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(errors);
+    }
+}
+
+/// <summary>
+/// Records one administered dose from the pet file (Task 9). Mirrors <see cref="MarkVaccinationDoneCommand"/>'s
+/// write shape — a <see cref="VaccinationRecord"/> plus its «Dose administered» ledger entry — but binds the
+/// dose to an explicit pet, dose number and administration instant, so a dose entered from the pet file is
+/// indistinguishable (in the Vaccination module) from one entered there.
+/// </summary>
+public sealed class RegisterVaccinationCommandHandler(IPetRepository pets, IVaccinationRepository records,
+    IMedicalHistoryRepository history, IClock clock)
+    : ICommandHandler<RegisterVaccinationCommand, string>
+{
+    public async Task<Result<string>> HandleAsync(RegisterVaccinationCommand c,
+        CommandContext context, CancellationToken ct)
+    {
+        var pet = await pets.FindAsync(c.PetId, ct);
+        if (pet is null) return Result<string>.Fail(ErrorCodes.PetNotFound);
+
+        var record = VaccinationRecord.Administer(context.TenantId, c.PetId, c.VaccineCode, c.VaccineName,
+            c.DoseNumber, c.AdministeredUtc, context.UserId, clock, c.TotalDoses, c.BatchNumber, c.VisitId,
+            c.Notes, id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
+        if (record.IsFailure) return Result<string>.Fail(record.Error);
+        records.Add(record.Value!);
+
+        // The ledger entry is what the Vaccination module's history reads, and it marks this dose as given
+        // in the due list (same contract as MarkVaccinationDoneCommand).
+        history.Add(new MedicalHistoryEntry(context.TenantId, c.PetId, MedicalHistoryKind.Vaccination,
+            VaccinationHistoryTitles.DoseAdministered, c.AdministeredUtc, context.UserId, clock,
+            record.Value!.VaccineName, record.Value!.Id, "VaccinationRecord",
+            id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow)));
+        return Result<string>.Ok(record.Value!.Id);
+    }
+}

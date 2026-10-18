@@ -114,6 +114,7 @@ public static class CommandTypes
     public const string VisitsLabAdd = "visits.lab.add";
     public const string VisitsLabRemove = "visits.lab.remove";
     public const string VaccinationRecordAdminister = "vaccination.record.administer";
+    public const string VaccinationRecordRegister = "vaccination.record.register";
     public const string VaccinationRecordReminder = "vaccination.record.reminder";
     public const string VaccinationTreatmentCreate = "vaccination.treatment.create";
     public const string VaccinationTreatmentUpdate = "vaccination.treatment.update";
@@ -150,7 +151,7 @@ public static class CommandTypes
         ReceptionTicketUrgent, ReceptionWalkInCreate, VisitsVisitStart,
         VisitsVisitVitals, VisitsVisitNote, VisitsRxAdd, VisitsRxRemove, VisitsVisitComplete,
         VisitsRadiologyAdd, VisitsRadiologyRemove, VisitsLabAdd, VisitsLabRemove,
-        VaccinationRecordAdminister, VaccinationRecordReminder,
+        VaccinationRecordAdminister, VaccinationRecordRegister, VaccinationRecordReminder,
         VaccinationTreatmentCreate, VaccinationTreatmentUpdate, VaccinationTreatmentCancel,
         VaccinationTreatmentOccurrenceDone, VaccinationCatalogAdd,
     ];

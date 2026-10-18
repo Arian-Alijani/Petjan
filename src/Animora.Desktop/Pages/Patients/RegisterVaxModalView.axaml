@@ -1,0 +1,103 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             x:Class="Animora.Desktop.Pages.Patients.RegisterVaxModalView"
+             x:DataType="patients:RegisterVaxModalViewModel"
+             Width="520" MaxWidth="520" FlowDirection="RightToLeft">
+
+    <!-- «ثبت واکسن» for one pet (Task 9) — writes the same VaccinationRecord the Vaccination module reads. -->
+    <StackPanel>
+        <Grid Margin="22,18,22,6" ColumnDefinitions="40,*,36" ColumnSpacing="12">
+            <Border Grid.Column="0" Width="40" Height="40" CornerRadius="12"
+                    Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconSyringe}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                <TextBlock Text="واکسیناسیون" FontSize="11" FontWeight="Bold"
+                           Foreground="{StaticResource Brand600Brush}" />
+                <TextBlock Text="ثبت واکسن" FontSize="18" FontWeight="ExtraBold" />
+            </StackPanel>
+            <Button Grid.Column="2" Classes="ghost" Width="36" Height="36" Padding="8"
+                    Command="{Binding CancelCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+
+        <StackPanel Margin="22,8,22,18" Spacing="12">
+            <TextBlock FontSize="12" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap">
+                <Run Text="ثبت دوز تزریق‌شده برای پرونده " />
+                <Run Text="{Binding PetName}" FontWeight="Bold" />
+                <Run Text=". این دوز در ماژول واکسیناسیون هم دیده می‌شود." />
+            </TextBlock>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="نام واکسن" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding VaccineName}" MaxLength="120"
+                             PlaceholderText="مثلاً هاری" Padding="12,10" CornerRadius="10" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="کد پروتکل (اختیاری)" FontSize="12"
+                               Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding VaccineCode}" MaxLength="32" PlaceholderText="RABIES"
+                             Padding="12,10" CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="تاریخ تزریق" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <controls:JalaliDatePicker DateValue="{Binding AdministeredDate, Mode=TwoWay}"
+                                               Placeholder="۱۴۰۴/۰۵/۱۱"
+                                               HorizontalAlignment="Stretch" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="نوبت" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding DoseNumber}" MaxLength="2" Padding="12,10"
+                             CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="6">
+                    <TextBlock Text="کل نوبت‌ها (اختیاری)" FontSize="12"
+                               Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding TotalDoses}" MaxLength="2" Padding="12,10"
+                             CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <StackPanel Grid.Column="0" Spacing="6">
+                    <TextBlock Text="شماره بچ (اختیاری)" FontSize="12"
+                               Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding Lot}" MaxLength="60" Padding="12,10"
+                             CornerRadius="10" FlowDirection="LeftToRight" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="6">
+                    <TextBlock Text="یادداشت (اختیاری)" FontSize="12"
+                               Foreground="{StaticResource Ink2Brush}" />
+                    <TextBox Text="{Binding Notes}" MaxLength="300" Padding="12,10" CornerRadius="10" />
+                </StackPanel>
+            </Grid>
+
+            <Border IsVisible="{Binding HasError}" Background="#fef3f2" BorderBrush="#f6cfc9"
+                    BorderThickness="1" CornerRadius="10" Padding="12,9">
+                <TextBlock Text="{Binding ErrorText}" FontSize="12" Foreground="#8f2b21"
+                           TextWrapping="Wrap" />
+            </Border>
+
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,4,0,0">
+                <Button Grid.Column="1" Classes="ghost" Padding="16,9" CornerRadius="10"
+                        FontSize="12.5" FontWeight="ExtraBold"
+                        Content="انصراف" Command="{Binding CancelCommand}" />
+                <Button Grid.Column="2" Classes="primary" Padding="18,9" CornerRadius="10"
+                        FontSize="12.5" FontWeight="ExtraBold"
+                        Content="{Binding SubmitText}"
+                        IsEnabled="{Binding CanSubmit}"
+                        Command="{Binding SubmitCommand}" />
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
