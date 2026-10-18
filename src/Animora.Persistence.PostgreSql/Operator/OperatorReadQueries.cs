@@ -21,13 +21,15 @@ public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock
     {
         page=Math.Clamp(page,1,int.MaxValue/200);size=Math.Clamp(size,1,200); var now=DateTimeOffset.UtcNow;
         var query=db.Tenants.AsNoTracking().Where(t=>!t.Deleted);
-        if(!string.IsNullOrWhiteSpace(search)) { string term=search.Trim(); query=query.Where(t=>(t.Code!=null&&t.Code.Contains(term))||t.DisplayName.Contains(term)); }
+        // Case-insensitive match on clinic name OR code (Postgres ILIKE): the operator can type the clinic name as it appears in the UI and still find it.
+        if(!string.IsNullOrWhiteSpace(search)) { string term="%"+search.Trim()+"%"; query=query.Where(t=>EF.Functions.ILike(t.DisplayName,term)||(t.Code!=null&&EF.Functions.ILike(t.Code,term))); }
         if(status=="expiring") query=query.Where(t=>db.Subscriptions.Any(s=>s.TenantId==t.Id&&s.CurrentPeriodEndUtc>=now&&s.CurrentPeriodEndUtc<=now.AddDays(14)));
         else if(status=="past-due") query=query.Where(t=>db.Subscriptions.Any(s=>s.TenantId==t.Id&&(s.Status==SubscriptionStatus.GracePeriod||s.Status==SubscriptionStatus.Expired)));
         else if(status=="dead-lettered") query=query.Where(t=>db.Messages.Any(m=>m.TenantId==t.Id&&m.Status==Animora.Persistence.PostgreSql.Outbox.OutboxStatus.DeadLettered));
         else if(Enum.TryParse<TenantStatus>(status,true,out var state)) query=query.Where(t=>t.Status==state);
         long total=await query.LongCountAsync(ct).ConfigureAwait(false);
-        var rows=await query.OrderBy(t=>t.Code).ThenBy(t=>t.Id).Skip((page-1)*size).Take(size).ToListAsync(ct).ConfigureAwait(false);
+        // Order by the clinic name first (what the operator reads), then code, then id for a stable paging key.
+        var rows=await query.OrderBy(t=>t.DisplayName).ThenBy(t=>t.Code).ThenBy(t=>t.Id).Skip((page-1)*size).Take(size).ToListAsync(ct).ConfigureAwait(false);
         return new(rows,page,size,total);
     }
     public async Task<OperatorTenantDetail?> TenantAsync(string id,CancellationToken ct)
