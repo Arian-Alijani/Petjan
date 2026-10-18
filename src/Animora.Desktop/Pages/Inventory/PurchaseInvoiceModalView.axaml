@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:pur="using:Animora.Contracts.Purchasing"
              x:Class="Animora.Desktop.Pages.Inventory.PurchaseInvoiceModalView"
              x:Name="Root"
@@ -107,13 +108,25 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                         </StackPanel>
-                        <StackPanel Grid.Column="0" IsVisible="{Binding IsNewSupplier}">
-                            <TextBlock Classes="fld" Text="نام تأمین‌کنندهٔ جدید" />
-                            <TextBox Classes="inp" Text="{Binding NewSupplierName}" PlaceholderText="مثلاً: دارو پخش البرز" />
+                        <StackPanel Grid.Column="0" IsVisible="{Binding IsNewSupplier}" Spacing="8">
+                            <StackPanel>
+                                <TextBlock Classes="fld" Text="نام تأمین‌کنندهٔ جدید" />
+                                <TextBox Classes="inp" Text="{Binding NewSupplierName}"
+                                         PlaceholderText="مثلاً: دارو پخش البرز"
+                                         controls:InputGuard.MaxLength="128" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Classes="fld" Text="شمارهٔ تماس تأمین‌کننده (اختیاری)" />
+                                <TextBox Classes="inp" Text="{Binding NewSupplierPhone}"
+                                         PlaceholderText="مثلاً: ۰۲۱۱۲۳۴۵۶۷۸"
+                                         controls:InputGuard.Kind="Phone"
+                                         controls:InputGuard.MaxLength="20" />
+                            </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                             <TextBlock Classes="fld" Text="شمارهٔ فاکتور تأمین‌کننده (اختیاری)" />
-                            <TextBox Classes="inp" Text="{Binding InvoiceReference}" FontFamily="monospace" />
+                            <TextBox Classes="inp" Text="{Binding InvoiceReference}" FontFamily="monospace"
+                                     controls:InputGuard.MaxLength="40" />
                         </StackPanel>
                     </Grid>
                 </StackPanel>

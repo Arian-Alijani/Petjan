@@ -242,6 +242,13 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         await LoadPurchasesAsync();
         BuildPurchases();
         BuildSubnavCounts();
+
+        // The register is a second view of the same purchases — refresh it too when it has been opened and is
+        // the one on screen.
+        if (IsSupplierRegisterView && _suppliersLoaded)
+        {
+            await LoadSupplierRegisterAsync();
+        }
     }
 
     /// <summary>
@@ -254,6 +261,267 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     {
         _dialogs.ShowModal(
             new PurchaseInvoiceModalViewModel(_purchasing, _service, _toast, _dialogs, _changes), 860);
+    }
+
+    /// <summary>
+    /// «ثبت فاکتور خرید» from a supplier's profile: the same modal, opened with that supplier already selected
+    /// (so the operator never re-picks the supplier they are looking at).
+    /// </summary>
+    [RelayCommand]
+    private void OpenPurchaseInvoiceForSelectedSupplier()
+    {
+        if (string.IsNullOrEmpty(_selectedSupplierId))
+        {
+            return;
+        }
+
+        _dialogs.ShowModal(
+            new PurchaseInvoiceModalViewModel(_purchasing, _service, _toast, _dialogs, _changes,
+                supplierId: _selectedSupplierId), 860);
+    }
+
+    // ── «تأمین‌کنندگان» sub-view (inside خرید و تأمین) ────────────────────────
+
+    /// <summary>The active purchases sub-view: <c>invoices</c> (recorded purchase invoices) or <c>suppliers</c>.</summary>
+    [ObservableProperty]
+    private string _purchaseView = "invoices";
+
+    public bool IsPurchaseInvoicesView => _purchaseView == "invoices";
+
+    public bool IsSupplierRegisterView => _purchaseView == "suppliers";
+
+    partial void OnPurchaseViewChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsPurchaseInvoicesView));
+        OnPropertyChanged(nameof(IsSupplierRegisterView));
+    }
+
+    /// <summary>Switches the purchases sub-view; the supplier register loads on its first activation.</summary>
+    [RelayCommand]
+    private void SetPurchaseView(string? key)
+    {
+        var next = key == "suppliers" ? "suppliers" : "invoices";
+        if (next == _purchaseView)
+        {
+            return;
+        }
+
+        PurchaseView = next;
+        if (IsSupplierRegisterView)
+        {
+            // A purchase recorded elsewhere changes the register, so re-read it on every activation.
+            _ = LoadSupplierRegisterAsync();
+        }
+    }
+
+    public RangeObservableCollection<SupplierRegisterRowViewModel> SupplierRows { get; } = [];
+
+    public RangeObservableCollection<SupplierPurchaseRowViewModel> SupplierPurchases { get; } = [];
+
+    [ObservableProperty] private bool _hasSuppliers;
+    [ObservableProperty] private bool _hasNoSuppliers;
+    [ObservableProperty] private string _supplierSearchText = string.Empty;
+    [ObservableProperty] private bool _hasSupplierSearchValue;
+
+    // ── selected supplier profile ───────────────────────────────────────────
+    [ObservableProperty] private bool _hasSelectedSupplier;
+    [ObservableProperty] private string _selectedSupplierName = string.Empty;
+    [ObservableProperty] private string _selectedSupplierCode = string.Empty;
+    [ObservableProperty] private string _selectedSupplierPhone = string.Empty;
+    [ObservableProperty] private bool _selectedSupplierHasPhone;
+    [ObservableProperty] private string _selectedSupplierTerm = string.Empty;
+    [ObservableProperty] private string _selectedSupplierReceipts = "۰";
+    [ObservableProperty] private string _selectedSupplierTotal = "۰";
+    [ObservableProperty] private string _selectedSupplierLastPurchase = "—";
+    [ObservableProperty] private bool _hasSupplierPurchases;
+    [ObservableProperty] private string _supplierHistoryEmptyText = "برای این تأمین‌کننده هنوز خریدی ثبت نشده است";
+
+    // ── add-supplier form ───────────────────────────────────────────────────
+    [ObservableProperty] private string _newSupplierName = string.Empty;
+    [ObservableProperty] private string _newSupplierPhone = string.Empty;
+    [ObservableProperty] private string _supplierError = string.Empty;
+    [ObservableProperty] private bool _isSupplierSaving;
+
+    public bool HasSupplierError => SupplierError.Length > 0;
+
+    partial void OnSupplierErrorChanged(string value) => OnPropertyChanged(nameof(HasSupplierError));
+
+    private bool _suppliersLoaded;
+    private string _selectedSupplierId = string.Empty;
+    private readonly Debouncer _supplierSearchDebounce = new(System.TimeSpan.FromMilliseconds(180));
+
+    partial void OnSupplierSearchTextChanged(string value)
+    {
+        HasSupplierSearchValue = !string.IsNullOrWhiteSpace(value);
+        _supplierSearchDebounce.Debounce(() => _ = LoadSupplierRegisterAsync());
+    }
+
+    [RelayCommand]
+    private void ClearSupplierSearch() => SupplierSearchText = string.Empty;
+
+    /// <summary>
+    /// Reads the supplier register (each supplier with its purchase statistics). A role without purchasing access
+    /// (or a transient failure) must never take the page down, so a business failure just leaves the list empty.
+    /// </summary>
+    private async Task LoadSupplierRegisterAsync()
+    {
+        _suppliersLoaded = true;
+        try
+        {
+            var search = string.IsNullOrWhiteSpace(SupplierSearchText) ? null : SupplierSearchText.Trim();
+            var rows = await _purchasing.GetSuppliersAsync(search);
+            SupplierRows.ReplaceAll(rows.Select(r => new SupplierRegisterRowViewModel(r)));
+            HasSuppliers = SupplierRows.Count > 0;
+            HasNoSuppliers = SupplierRows.Count == 0;
+
+            // Keep the open profile on the same supplier when it is still in the filtered list.
+            var keep = SupplierRows.FirstOrDefault(r => r.Id == _selectedSupplierId);
+            if (keep is not null)
+            {
+                keep.IsActive = true;
+            }
+            else if (SupplierRows.Count > 0)
+            {
+                await SelectSupplierAsync(SupplierRows[0].Id);
+            }
+            else
+            {
+                ClearSupplierProfile();
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            SupplierRows.Clear();
+            HasSuppliers = false;
+            HasNoSuppliers = true;
+            ClearSupplierProfile();
+        }
+    }
+
+    /// <summary>Opens one supplier's profile: its identity + purchase statistics and its completed-purchase history.</summary>
+    [RelayCommand]
+    private async Task SelectSupplier(string? id) => await SelectSupplierAsync(id);
+
+    private async Task SelectSupplierAsync(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return;
+        }
+
+        _selectedSupplierId = id;
+        foreach (var row in SupplierRows)
+        {
+            row.IsActive = row.Id == id;
+        }
+
+        SupplierProfile? profile;
+        try
+        {
+            profile = await _purchasing.GetSupplierProfileAsync(id);
+        }
+        catch (InvalidOperationException)
+        {
+            profile = null;
+        }
+
+        if (profile is null)
+        {
+            ClearSupplierProfile();
+            return;
+        }
+
+        var summary = profile.Summary;
+        HasSelectedSupplier = true;
+        SelectedSupplierName = summary.Name;
+        SelectedSupplierCode = string.IsNullOrWhiteSpace(summary.Code) ? "—" : summary.Code;
+        SelectedSupplierPhone = string.IsNullOrWhiteSpace(summary.Phone) ? "شماره‌ای ثبت نشده" : summary.Phone;
+        SelectedSupplierHasPhone = !string.IsNullOrWhiteSpace(summary.Phone);
+        SelectedSupplierTerm = summary.PaymentTermDays <= 0
+            ? "نقدی"
+            : PersianNumberFormatter.ToPersianDigits(summary.PaymentTermDays) + " روز";
+        SelectedSupplierReceipts = PersianNumberFormatter.ToPersianDigits(summary.ReceiptCount);
+        SelectedSupplierTotal = InventoryPresentation.Money(summary.TotalPurchased);
+        SelectedSupplierLastPurchase = string.IsNullOrWhiteSpace(summary.LastPurchaseJalali)
+            ? "بدون خرید"
+            : JalaliCalendar.Short(summary.LastPurchaseJalali);
+
+        SupplierPurchases.ReplaceAll(profile.Purchases.Select(p => new SupplierPurchaseRowViewModel(p)));
+        HasSupplierPurchases = SupplierPurchases.Count > 0;
+        SupplierHistoryEmptyText = "برای این تأمین‌کننده هنوز خریدی ثبت نشده است";
+    }
+
+    private void ClearSupplierProfile()
+    {
+        _selectedSupplierId = string.Empty;
+        HasSelectedSupplier = false;
+        SelectedSupplierName = string.Empty;
+        SelectedSupplierCode = string.Empty;
+        SelectedSupplierPhone = string.Empty;
+        SelectedSupplierHasPhone = false;
+        SelectedSupplierTerm = string.Empty;
+        SelectedSupplierReceipts = "۰";
+        SelectedSupplierTotal = "۰";
+        SelectedSupplierLastPurchase = "—";
+        SupplierPurchases.ReplaceAll([]);
+        HasSupplierPurchases = false;
+    }
+
+    /// <summary>
+    /// Adds a supplier (name + optional phone) straight from the register, so the phone can be recorded without
+    /// going through a purchase invoice. Duplicate names resolve to the existing supplier (the backend is
+    /// get-or-create), and the new supplier is selected at once.
+    /// </summary>
+    [RelayCommand]
+    private async Task AddSupplierAsync()
+    {
+        if (IsSupplierSaving)
+        {
+            return;
+        }
+
+        var name = NewSupplierName.Trim();
+        if (name.Length == 0)
+        {
+            SupplierError = "نام تأمین‌کننده را وارد کنید.";
+            return;
+        }
+
+        if (name.Length > 128)
+        {
+            SupplierError = "نام تأمین‌کننده نباید بیشتر از ۱۲۸ نویسه باشد.";
+            return;
+        }
+
+        var phone = PersianNumberFormatter.ToAsciiDigits(NewSupplierPhone).Trim();
+        if (phone.Length is > 0 and < 4)
+        {
+            SupplierError = "شمارهٔ تماس معتبر نیست.";
+            return;
+        }
+
+        IsSupplierSaving = true;
+        SupplierError = string.Empty;
+        try
+        {
+            var created = await _purchasing.CreateSupplierAsync(name, phone.Length == 0 ? null : phone);
+            NewSupplierName = string.Empty;
+            NewSupplierPhone = string.Empty;
+            _selectedSupplierId = created.Id;
+            await LoadSupplierRegisterAsync();
+            await SelectSupplierAsync(created.Id);
+            _toast.Show($"تأمین‌کننده «{name}» ثبت شد", Tone.Ok);
+            _changes.Notify(DataDomain.Purchasing);
+        }
+        catch (InvalidOperationException ex)
+        {
+            SupplierError = InventoryPresentation.MutationFailureMessage(
+                ex, "ثبت تأمین‌کننده ناموفق بود؛ دوباره تلاش کنید.");
+        }
+        finally
+        {
+            IsSupplierSaving = false;
+        }
     }
 
 
@@ -270,6 +538,9 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
         FilteredProducts.Clear();
         CategoryRows.Clear();
         PurchaseRows.Clear();
+        SupplierRows.Clear();
+        SupplierPurchases.Clear();
+        _suppliersLoaded = false;
     }
 
     private Task ReloadPageAsync() => TrackLoadAsync(LoadAsync);

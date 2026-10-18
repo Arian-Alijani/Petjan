@@ -55,7 +55,8 @@ public sealed partial class PurchaseInvoiceModalViewModel : ObservableObject
         IToastService toast,
         IDialogService dialogs,
         IDataChangeNotifier changes,
-        Action? onRecorded = null)
+        Action? onRecorded = null,
+        string? supplierId = null)
     {
         _purchasing = purchasing;
         _inventory = inventory;
@@ -63,9 +64,13 @@ public sealed partial class PurchaseInvoiceModalViewModel : ObservableObject
         _dialogs = dialogs;
         _changes = changes;
         _onRecorded = onRecorded;
+        _preselectSupplierId = supplierId;
 
         _ = LoadSafeAsync();
     }
+
+    // Set when the modal was opened from a supplier's profile: that supplier starts selected.
+    private readonly string? _preselectSupplierId;
 
     // ── supplier ────────────────────────────────────────────────────────────
     public ObservableCollection<SupplierRef> Suppliers { get; } = [];
@@ -77,6 +82,10 @@ public sealed partial class PurchaseInvoiceModalViewModel : ObservableObject
     private bool _isNewSupplier;
 
     [ObservableProperty] private string _newSupplierName = string.Empty;
+
+    /// <summary>The new supplier's phone number (optional) — stored with the supplier the receipt creates.</summary>
+    [ObservableProperty] private string _newSupplierPhone = string.Empty;
+
     [ObservableProperty] private string _invoiceReference = string.Empty;
 
     public bool IsExistingSupplier => !IsNewSupplier;
@@ -248,7 +257,18 @@ public sealed partial class PurchaseInvoiceModalViewModel : ObservableObject
 
             NewCategory = CategoryOptions.FirstOrDefault();
             await ReloadSuppliersAsync(null);
-            IsNewSupplier = Suppliers.Count == 0;
+
+            // Opened from a supplier's profile: keep that supplier selected instead of switching to «new».
+            if (!string.IsNullOrEmpty(_preselectSupplierId)
+                && Suppliers.FirstOrDefault(s => s.Id == _preselectSupplierId) is { } preselected)
+            {
+                SelectedSupplier = preselected;
+                IsNewSupplier = false;
+            }
+            else
+            {
+                IsNewSupplier = Suppliers.Count == 0;
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -294,6 +314,13 @@ public sealed partial class PurchaseInvoiceModalViewModel : ObservableObject
             return;
         }
 
+        var newSupplierPhone = IsNewSupplier ? PersianNumberFormatter.ToAsciiDigits(NewSupplierPhone).Trim() : null;
+        if (newSupplierPhone is { Length: > 0 and < 4 })
+        {
+            Error = "شمارهٔ تماس تأمین‌کننده معتبر نیست.";
+            return;
+        }
+
         if (Lines.Count == 0)
         {
             Error = "حداقل یک کالا به فاکتور اضافه کنید.";
@@ -322,7 +349,8 @@ public sealed partial class PurchaseInvoiceModalViewModel : ObservableObject
                 supplierId,
                 newSupplier,
                 Lines.Select(l => new PurchaseLineInput(l.ProductId, l.VariantId, l.Quantity, l.UnitCost)).ToList(),
-                string.IsNullOrWhiteSpace(InvoiceReference) ? null : InvoiceReference.Trim());
+                string.IsNullOrWhiteSpace(InvoiceReference) ? null : InvoiceReference.Trim(),
+                string.IsNullOrWhiteSpace(newSupplierPhone) ? null : newSupplierPhone);
 
             var result = await _purchasing.RecordPurchaseAsync(request);
             if (!result.Ok)

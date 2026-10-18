@@ -1,14 +1,18 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             xmlns:controls="using:Animora.Desktop.Controls"
              x:Class="Animora.Desktop.Pages.Inventory.PurchasesTabView"
              x:DataType="inv:InventoryPageViewModel"
              x:CompileBindings="True"
              FlowDirection="RightToLeft">
 
-    <!-- «خرید و تأمین» tab: KPI strip + the recorded supplier purchase invoices. Opening an invoice
-         (ثبت فاکتور خرید) is a modal; every recorded receipt raises stock, sets the purchase price and
-         lands in the main History + the per-product history. -->
+    <!-- «خرید و تأمین» tab. Two sub-views behind one switch:
+         • «فاکتورهای خرید» — the KPI strip + the recorded supplier purchase invoices.
+         • «تأمین‌کنندگان» — the supplier register (each supplier with its purchase statistics) and, beside it,
+           the selected supplier's profile + completed-purchase history, plus an add-supplier form that records
+           the phone number. Opening an invoice (ثبت فاکتور خرید) is a modal; every recorded receipt raises
+           stock, sets the purchase price and lands in the main History + the per-product history. -->
     <UserControl.Styles>
         <Style Selector="Border.kpi">
             <Setter Property="Background" Value="{StaticResource PanelBrush}" />
@@ -41,93 +45,441 @@
             <Setter Property="Margin" Value="12,13" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
+
+        <!-- supplier register row: whole row selects the supplier on the right -->
+        <Style Selector="Button.sup-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.sup-row /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.sup-row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+        <Style Selector="Button.sup-row.on /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+
+        <!-- virtualized register: a max height keeps the inner panel from realizing every row -->
+        <Style Selector="ListBox.sup-list">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="430" />
+        </Style>
+        <Style Selector="ListBox.sup-list ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.sup-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.sup-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <!-- profile statistic tile -->
+        <Style Selector="Border.sup-stat">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+        <Style Selector="TextBlock.sup-stat-l">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+        </Style>
+        <Style Selector="TextBlock.sup-stat-v">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+        </Style>
     </UserControl.Styles>
 
     <StackPanel Spacing="14" Margin="0,14,0,0">
 
-        <!-- KPI strip -->
-        <UniformGrid Rows="1" Columns="4">
-            <Border Classes="kpi" Margin="0,0,0,0">
-                <StackPanel>
-                    <TextBlock Classes="kpi-l" Text="خرید این ماه (تومان)" />
-                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseMonthSpendText}" />
-                </StackPanel>
-            </Border>
-            <Border Classes="kpi" Margin="10,0,0,0">
-                <StackPanel>
-                    <TextBlock Classes="kpi-l" Text="بدهی به تأمین‌کنندگان (تومان)" />
-                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseSupplierDebtText}" />
-                </StackPanel>
-            </Border>
-            <Border Classes="kpi" Margin="10,0,0,0">
-                <StackPanel>
-                    <TextBlock Classes="kpi-l" Text="فاکتورهای ثبت‌شده" />
-                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseReceiptCountText}" />
-                </StackPanel>
-            </Border>
-            <Border Classes="kpi" Margin="10,0,0,0">
-                <StackPanel>
-                    <TextBlock Classes="kpi-l" Text="تأمین‌کنندگان" />
-                    <TextBlock Classes="kpi-v" Text="{Binding PurchaseSupplierCountText}" />
-                </StackPanel>
-            </Border>
-        </UniformGrid>
-
-        <!-- invoices table -->
-        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
-                BorderThickness="1" CornerRadius="{StaticResource RadiusLg}" ClipToBounds="True">
-            <StackPanel>
-                <Grid ColumnDefinitions="1*,2*,1.2*,0.8*,1.4*,1.4*,1*" Background="{StaticResource TableHeadBrush}"
-                      IsVisible="{Binding HasPurchases}">
-                    <TextBlock Grid.Column="0" Classes="th" Text="شمارهٔ رسید" />
-                    <TextBlock Grid.Column="1" Classes="th" Text="تأمین‌کننده" />
-                    <TextBlock Grid.Column="2" Classes="th" Text="تاریخ" />
-                    <TextBlock Grid.Column="3" Classes="th" Text="اقلام" />
-                    <TextBlock Grid.Column="4" Classes="th" Text="جمع فاکتور (تومان)" />
-                    <TextBlock Grid.Column="5" Classes="th" Text="شمارهٔ فاکتور تأمین‌کننده" />
-                    <TextBlock Grid.Column="6" Classes="th" Text="وضعیت" />
-                </Grid>
-
-                <!-- empty state -->
-                <StackPanel IsVisible="{Binding !HasPurchases}" Margin="20,56">
-                    <Border Width="64" Height="64" CornerRadius="20" Background="{StaticResource Brand50Brush}"
-                            HorizontalAlignment="Center">
-                        <Path Classes="icon" Width="28" Height="28" Stroke="{StaticResource Brand700Brush}"
-                              Data="{StaticResource IconTruck}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock Text="هنوز فاکتور خریدی ثبت نشده است" FontSize="15" FontWeight="Bold"
-                               Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" Margin="0,14,0,0" />
-                    <TextBlock Text="با «ثبت فاکتور خرید»، خرید از تأمین‌کننده را ثبت کنید تا موجودی و قیمت خرید کالاها به‌روز شود."
-                               FontSize="12.5" Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center"
-                               Margin="0,6,0,0" TextWrapping="Wrap" TextAlignment="Center" />
-                    <Button Classes="primary" HorizontalAlignment="Center" Margin="0,16,0,0"
-                            Command="{Binding OpenPurchaseInvoiceCommand}" Content="ثبت فاکتور خرید" />
-                </StackPanel>
-
-                <ItemsControl ItemsSource="{Binding PurchaseRows}" IsVisible="{Binding HasPurchases}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="inv:PurchaseRowViewModel">
-                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
-                                <Grid ColumnDefinitions="1*,2*,1.2*,0.8*,1.4*,1.4*,1*">
-                                    <TextBlock Grid.Column="0" Classes="td" Text="{Binding Number}" />
-                                    <TextBlock Grid.Column="1" Classes="td" Text="{Binding SupplierName}"
-                                               TextWrapping="Wrap" FontWeight="Bold" />
-                                    <TextBlock Grid.Column="2" Classes="td" Text="{Binding DateText}" />
-                                    <TextBlock Grid.Column="3" Classes="td" Text="{Binding LineCountText}" />
-                                    <TextBlock Grid.Column="4" Classes="td" Text="{Binding TotalText}" FontWeight="ExtraBold" />
-                                    <TextBlock Grid.Column="5" Classes="td" Text="{Binding ReferenceText}" />
-                                    <Border Grid.Column="6" Margin="12,10" CornerRadius="8" Padding="10,4"
-                                            Background="{StaticResource Brand50Brush}" HorizontalAlignment="Left"
-                                            VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding StateLabel}" FontSize="11.5" FontWeight="Bold"
-                                                   Foreground="{StaticResource Brand700Brush}" />
-                                    </Border>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+        <!-- ═══ purchases sub-view switch ═══ -->
+        <Border Classes="seg" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <Button Classes="inv-seg" Classes.is-active="{Binding IsPurchaseInvoicesView}"
+                        Command="{Binding SetPurchaseViewCommand}" CommandParameter="invoices">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="15" Height="15"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconReceipt}" VerticalAlignment="Center" />
+                        <TextBlock Text="فاکتورهای خرید" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Button Classes="inv-seg" Classes.is-active="{Binding IsSupplierRegisterView}"
+                        Command="{Binding SetPurchaseViewCommand}" CommandParameter="suppliers">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                        <Path Classes="icon" Width="15" Height="15"
+                              Stroke="{Binding $parent[Button].Foreground}"
+                              Data="{StaticResource IconUsers}" VerticalAlignment="Center" />
+                        <TextBlock Text="تأمین‌کنندگان" VerticalAlignment="Center" />
+                        <Border Classes="seg-n" VerticalAlignment="Center">
+                            <TextBlock Classes="seg-num" Text="{Binding PurchaseSupplierCountText}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Border>
+
+        <!-- ═══════════ invoices view ═══════════ -->
+        <StackPanel Spacing="14" IsVisible="{Binding IsPurchaseInvoicesView}">
+
+            <!-- KPI strip -->
+            <UniformGrid Rows="1" Columns="4">
+                <Border Classes="kpi" Margin="0,0,0,0">
+                    <StackPanel>
+                        <TextBlock Classes="kpi-l" Text="خرید این ماه (تومان)" />
+                        <TextBlock Classes="kpi-v" Text="{Binding PurchaseMonthSpendText}" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="kpi" Margin="10,0,0,0">
+                    <StackPanel>
+                        <TextBlock Classes="kpi-l" Text="بدهی به تأمین‌کنندگان (تومان)" />
+                        <TextBlock Classes="kpi-v" Text="{Binding PurchaseSupplierDebtText}" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="kpi" Margin="10,0,0,0">
+                    <StackPanel>
+                        <TextBlock Classes="kpi-l" Text="فاکتورهای ثبت‌شده" />
+                        <TextBlock Classes="kpi-v" Text="{Binding PurchaseReceiptCountText}" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="kpi" Margin="10,0,0,0">
+                    <StackPanel>
+                        <TextBlock Classes="kpi-l" Text="تأمین‌کنندگان" />
+                        <TextBlock Classes="kpi-v" Text="{Binding PurchaseSupplierCountText}" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- invoices table -->
+            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                    BorderThickness="1" CornerRadius="{StaticResource RadiusLg}" ClipToBounds="True">
+                <StackPanel>
+                    <Grid ColumnDefinitions="1*,2*,1.2*,0.8*,1.4*,1.4*,1*" Background="{StaticResource TableHeadBrush}"
+                          IsVisible="{Binding HasPurchases}">
+                        <TextBlock Grid.Column="0" Classes="th" Text="شمارهٔ رسید" />
+                        <TextBlock Grid.Column="1" Classes="th" Text="تأمین‌کننده" />
+                        <TextBlock Grid.Column="2" Classes="th" Text="تاریخ" />
+                        <TextBlock Grid.Column="3" Classes="th" Text="اقلام" />
+                        <TextBlock Grid.Column="4" Classes="th" Text="جمع فاکتور (تومان)" />
+                        <TextBlock Grid.Column="5" Classes="th" Text="شمارهٔ فاکتور تأمین‌کننده" />
+                        <TextBlock Grid.Column="6" Classes="th" Text="وضعیت" />
+                    </Grid>
+
+                    <!-- empty state -->
+                    <StackPanel IsVisible="{Binding !HasPurchases}" Margin="20,56">
+                        <Border Width="64" Height="64" CornerRadius="20" Background="{StaticResource Brand50Brush}"
+                                HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="28" Height="28" Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconTruck}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="هنوز فاکتور خریدی ثبت نشده است" FontSize="15" FontWeight="Bold"
+                                   Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" Margin="0,14,0,0" />
+                        <TextBlock Text="با «ثبت فاکتور خرید»، خرید از تأمین‌کننده را ثبت کنید تا موجودی و قیمت خرید کالاها به‌روز شود."
+                                   FontSize="12.5" Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center"
+                                   Margin="0,6,0,0" TextWrapping="Wrap" TextAlignment="Center" />
+                        <Button Classes="primary" HorizontalAlignment="Center" Margin="0,16,0,0"
+                                Command="{Binding OpenPurchaseInvoiceCommand}" Content="ثبت فاکتور خرید" />
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{Binding PurchaseRows}" IsVisible="{Binding HasPurchases}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="inv:PurchaseRowViewModel">
+                                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+                                    <Grid ColumnDefinitions="1*,2*,1.2*,0.8*,1.4*,1.4*,1*">
+                                        <TextBlock Grid.Column="0" Classes="td" Text="{Binding Number}" />
+                                        <TextBlock Grid.Column="1" Classes="td" Text="{Binding SupplierName}"
+                                                   TextWrapping="Wrap" FontWeight="Bold" />
+                                        <TextBlock Grid.Column="2" Classes="td" Text="{Binding DateText}" />
+                                        <TextBlock Grid.Column="3" Classes="td" Text="{Binding LineCountText}" />
+                                        <TextBlock Grid.Column="4" Classes="td" Text="{Binding TotalText}" FontWeight="ExtraBold" />
+                                        <TextBlock Grid.Column="5" Classes="td" Text="{Binding ReferenceText}" />
+                                        <Border Grid.Column="6" Margin="12,10" CornerRadius="8" Padding="10,4"
+                                                Background="{StaticResource Brand50Brush}" HorizontalAlignment="Left"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding StateLabel}" FontSize="11.5" FontWeight="Bold"
+                                                       Foreground="{StaticResource Brand700Brush}" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- ═══════════ suppliers view ═══════════ -->
+        <Grid ColumnDefinitions="*,360" ColumnSpacing="14" IsVisible="{Binding IsSupplierRegisterView}">
+
+            <!-- ── register (master) ── -->
+            <StackPanel Grid.Column="0" Spacing="14">
+
+                <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" CornerRadius="{StaticResource RadiusLg}" ClipToBounds="True">
+                    <StackPanel>
+
+                        <!-- search -->
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="14,12">
+                            <Border Grid.Column="0" Background="{StaticResource Bg2Brush}"
+                                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                    CornerRadius="10" Padding="10,0" MaxWidth="340"
+                                    HorizontalAlignment="Left">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                    <Path Grid.Column="0" Classes="icon" Width="14" Height="14"
+                                          VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}"
+                                          Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                                    <TextBox Grid.Column="1" Text="{Binding SupplierSearchText}"
+                                             MaxLength="60" BorderThickness="0" Background="Transparent"
+                                             Padding="0,9" MinHeight="0" FontSize="12.5"
+                                             PlaceholderText="جستجوی نام، کد یا شمارهٔ تماس…" />
+                                    <Button Grid.Column="2" Width="18" Height="18" Padding="0"
+                                            CornerRadius="99" Background="{StaticResource Brand50Brush}"
+                                            BorderThickness="0" VerticalAlignment="Center"
+                                            IsVisible="{Binding HasSupplierSearchValue}"
+                                            Command="{Binding ClearSupplierSearchCommand}">
+                                        <Path Classes="icon" Width="10" Height="10"
+                                              Stroke="{StaticResource Brand700Brush}"
+                                              Data="{StaticResource IconX}" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="{StaticResource MutedBrush}"
+                                       Text="{Binding PurchaseSupplierCountText, StringFormat='{}{0} تأمین‌کننده'}" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="2.2*,1.1*,1.3*,0.9*,1.2*,1.1*,0.9*"
+                              Background="{StaticResource TableHeadBrush}" IsVisible="{Binding HasSuppliers}">
+                            <TextBlock Grid.Column="0" Classes="th" Text="تأمین‌کننده" />
+                            <TextBlock Grid.Column="1" Classes="th" Text="کد" />
+                            <TextBlock Grid.Column="2" Classes="th" Text="شمارهٔ تماس" />
+                            <TextBlock Grid.Column="3" Classes="th" Text="فاکتورها" />
+                            <TextBlock Grid.Column="4" Classes="th" Text="جمع خرید (تومان)" />
+                            <TextBlock Grid.Column="5" Classes="th" Text="آخرین خرید" />
+                            <TextBlock Grid.Column="6" Classes="th" Text="سفارش باز" />
+                        </Grid>
+
+                        <StackPanel IsVisible="{Binding HasNoSuppliers}" Spacing="8" Margin="20,40">
+                            <Border Width="56" Height="56" CornerRadius="18" Background="{StaticResource Brand50Brush}"
+                                    HorizontalAlignment="Center">
+                                <Path Classes="icon" Width="24" Height="24" Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="تأمین‌کننده‌ای یافت نشد" FontSize="14" FontWeight="Bold"
+                                       Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="از فرم پایین همین صفحه تأمین‌کننده را با شمارهٔ تماس اضافه کنید."
+                                       FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+
+                        <ListBox Classes="sup-list" ItemsSource="{Binding SupplierRows}"
+                                 IsVisible="{Binding HasSuppliers}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="inv:SupplierRegisterRowViewModel">
+                                    <Button Classes="sup-row" Classes.on="{Binding IsActive}"
+                                            Command="{Binding $parent[UserControl].((inv:InventoryPageViewModel)DataContext).SelectSupplierCommand}"
+                                            CommandParameter="{Binding Id}"
+                                            ToolTip.Tip="مشاهدهٔ پروفایل و تاریخچهٔ خرید">
+                                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+                                            <Grid ColumnDefinitions="2.2*,1.1*,1.3*,0.9*,1.2*,1.1*,0.9*">
+                                                <StackPanel Grid.Column="0" Spacing="2" Margin="12,10">
+                                                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold"
+                                                               Foreground="{StaticResource InkBrush}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding TermText}" FontSize="10.5"
+                                                               Foreground="{StaticResource Muted2Brush}" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Classes="td" Text="{Binding CodeText}"
+                                                           FontSize="11.5" Foreground="{StaticResource MutedBrush}" />
+                                                <TextBlock Grid.Column="2" Classes="td" Text="{Binding PhoneText}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Grid.Column="3" Classes="td" Text="{Binding ReceiptsText}" />
+                                                <TextBlock Grid.Column="4" Classes="td" Text="{Binding TotalText}"
+                                                           FontWeight="ExtraBold" />
+                                                <TextBlock Grid.Column="5" Classes="td" Text="{Binding LastPurchaseText}" />
+                                                <Border Grid.Column="6" Margin="12,10" CornerRadius="8" Padding="8,3"
+                                                        HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                        Background="{StaticResource Bg2Brush}"
+                                                        IsVisible="{Binding HasOpenOrders}">
+                                                    <TextBlock Text="{Binding OpenOrderCountText}" FontSize="11"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource WarnBrush}" />
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+
+                <!-- add supplier (name + phone) -->
+                <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}"
+                        BorderThickness="1" CornerRadius="{StaticResource RadiusLg}" Padding="16,14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="افزودن تأمین‌کننده" FontSize="13" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <Grid ColumnDefinitions="1.4*,1*,Auto" ColumnSpacing="8">
+                            <TextBox Grid.Column="0" Padding="10,8" FontSize="12.5" CornerRadius="10"
+                                     Text="{Binding NewSupplierName}"
+                                     PlaceholderText="نام تأمین‌کننده"
+                                     controls:InputGuard.MaxLength="128" />
+                            <TextBox Grid.Column="1" Padding="10,8" FontSize="12.5" CornerRadius="10"
+                                     Text="{Binding NewSupplierPhone}"
+                                     PlaceholderText="شمارهٔ تماس (اختیاری)"
+                                     controls:InputGuard.Kind="Phone"
+                                     controls:InputGuard.MaxLength="20" />
+                            <Button Grid.Column="2" Classes="primary" Padding="16,8"
+                                    Command="{Binding AddSupplierCommand}"
+                                    IsEnabled="{Binding !IsSupplierSaving}"
+                                    Content="افزودن" />
+                        </Grid>
+                        <TextBlock Text="{Binding SupplierError}" IsVisible="{Binding HasSupplierError}"
+                                   FontSize="11.5" Foreground="{StaticResource DangerBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- ── selected supplier profile (detail) ── -->
+            <Border Grid.Column="1" Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                    CornerRadius="{StaticResource RadiusLg}" Padding="16,14" VerticalAlignment="Top">
+                <StackPanel Spacing="12">
+
+                    <StackPanel IsVisible="{Binding !HasSelectedSupplier}" Spacing="8" Margin="0,30">
+                        <Border Width="52" Height="52" CornerRadius="16" Background="{StaticResource Bg2Brush}"
+                                HorizontalAlignment="Center">
+                            <Path Classes="icon" Width="22" Height="22" Stroke="{StaticResource Muted2Brush}"
+                                  Data="{StaticResource IconTruck}" HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                        </Border>
+                        <TextBlock Text="یک تأمین‌کننده را انتخاب کنید" FontSize="12.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center"
+                                   TextAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="12" IsVisible="{Binding HasSelectedSupplier}">
+                        <StackPanel Spacing="3">
+                            <TextBlock Text="{Binding SelectedSupplierName}" FontSize="15" FontWeight="ExtraBold"
+                                       Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding SelectedSupplierCode}" FontSize="11.5"
+                                       Foreground="{StaticResource Muted2Brush}" />
+                        </StackPanel>
+
+                        <!-- phone + payment term -->
+                        <StackPanel Spacing="7">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconPhone}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedSupplierPhone}" FontSize="12.5"
+                                           FontWeight="SemiBold" Foreground="{StaticResource Ink2Brush}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                                <Path Classes="icon" Width="13" Height="13"
+                                      Stroke="{StaticResource MutedBrush}"
+                                      Data="{StaticResource IconCalendar}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding SelectedSupplierTerm}" FontSize="12"
+                                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <UniformGrid Rows="1" Columns="3">
+                            <Border Classes="sup-stat" Margin="0,0,4,0">
+                                <StackPanel>
+                                    <TextBlock Classes="sup-stat-l" Text="فاکتورها" />
+                                    <TextBlock Classes="sup-stat-v" Text="{Binding SelectedSupplierReceipts}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="sup-stat" Margin="4,0">
+                                <StackPanel>
+                                    <TextBlock Classes="sup-stat-l" Text="جمع خرید" />
+                                    <TextBlock Classes="sup-stat-v" Text="{Binding SelectedSupplierTotal}" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="sup-stat" Margin="4,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Classes="sup-stat-l" Text="آخرین خرید" />
+                                    <TextBlock Classes="sup-stat-v" FontSize="11.5"
+                                               Text="{Binding SelectedSupplierLastPurchase}" />
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <Border Height="1" Background="{StaticResource Line2Brush}" Margin="0,2" />
+
+                        <TextBlock Text="تاریخچهٔ خریدها" FontSize="12" FontWeight="ExtraBold"
+                                   Foreground="{StaticResource Ink2Brush}" />
+
+                        <TextBlock Text="{Binding SupplierHistoryEmptyText}"
+                                   IsVisible="{Binding !HasSupplierPurchases}"
+                                   FontSize="11.5" Foreground="{StaticResource MutedBrush}"
+                                   TextWrapping="Wrap" />
+
+                        <StackPanel Spacing="6" IsVisible="{Binding HasSupplierPurchases}">
+                            <Grid ColumnDefinitions="1.1*,1*,0.6*,1.3*">
+                                <TextBlock Grid.Column="0" Text="رسید" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="6,0" />
+                                <TextBlock Grid.Column="1" Text="تاریخ" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="6,0" />
+                                <TextBlock Grid.Column="2" Text="اقلام" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="6,0" />
+                                <TextBlock Grid.Column="3" Text="مبلغ (تومان)" FontSize="10.5" FontWeight="Bold"
+                                           Foreground="{StaticResource MutedBrush}" Margin="6,0" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding SupplierPurchases}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="inv:SupplierPurchaseRowViewModel">
+                                        <Border Background="{StaticResource Bg2Brush}" CornerRadius="8"
+                                                Padding="6,7" Margin="0,0,0,5">
+                                            <Grid ColumnDefinitions="1.1*,1*,0.6*,1.3*">
+                                                <TextBlock Grid.Column="0" Text="{Binding Number}" FontSize="11.5"
+                                                           FontWeight="Bold" Margin="6,0"
+                                                           Foreground="{StaticResource Brand700Brush}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding DateText}" FontSize="11.5"
+                                                           Margin="6,0" Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding LineCountText}"
+                                                           FontSize="11.5" Margin="6,0"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                                <TextBlock Grid.Column="3" Text="{Binding TotalText}"
+                                                           FontSize="11.5" FontWeight="ExtraBold" Margin="6,0"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <Button Classes="outline" HorizontalAlignment="Stretch" Margin="0,4,0,0"
+                                Command="{Binding OpenPurchaseInvoiceForSelectedSupplierCommand}"
+                                Content="ثبت فاکتور خرید برای این تأمین‌کننده" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
     </StackPanel>
 </UserControl>
