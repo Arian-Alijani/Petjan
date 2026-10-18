@@ -22,6 +22,7 @@ public sealed class PurchasingService(IServiceScopeFactory scopes) : IPurchasing
 {
     private const int ListSize = 100;
     private const int PickerSize = 50;
+    private const int RegisterSize = 300;
 
     public async Task<PurchasingOverview> GetOverviewAsync()
     {
@@ -63,11 +64,50 @@ public sealed class PurchasingService(IServiceScopeFactory scopes) : IPurchasing
         return list;
     }
 
-    public async Task<SupplierRef> CreateSupplierAsync(string name)
+    public async Task<IReadOnlyList<SupplierSummary>> GetSuppliersAsync(string? search)
     {
-        var id = await SendAsync(new CreateSupplierCommand(name ?? string.Empty));
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, zones) = Resolve(scope);
+        var context = provider.BuildQueryContext();
+        if (context.IsFailure) throw new ServiceException(context.Error);
+
+        var term = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
+        var result = await dispatcher.QueryAsync(new SupplierRegisterQuery(term, RegisterSize), context.Value!);
+        if (result.IsFailure) throw new ServiceException(result.Error);
+
+        var zone = zones.GetClinicTimeZone();
+        var rows = result.Value!;
+        var list = new List<SupplierSummary>(rows.Count);
+        for (var i = 0; i < rows.Count; i++) list.Add(ToSummary(rows[i], zone));
+        return list;
+    }
+
+    public async Task<SupplierProfile?> GetSupplierProfileAsync(string supplierId)
+    {
+        if (string.IsNullOrWhiteSpace(supplierId)) return null;
+
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider, zones) = Resolve(scope);
+        var context = provider.BuildQueryContext();
+        if (context.IsFailure) throw new ServiceException(context.Error);
+
+        var result = await dispatcher.QueryAsync(new SupplierProfileQuery(supplierId), context.Value!);
+        if (result.IsFailure) throw new ServiceException(result.Error);
+        if (result.Value is null) return null;
+
+        var zone = zones.GetClinicTimeZone();
+        var profile = result.Value!;
+        var summary = ToSummary(profile.Summary, zone);
+        var purchases = new SupplierPurchaseRecord[profile.Purchases.Count];
+        for (var i = 0; i < purchases.Length; i++) purchases[i] = ToPurchase(profile.Purchases[i], zone);
+        return new SupplierProfile(summary, purchases);
+    }
+
+    public async Task<SupplierRef> CreateSupplierAsync(string name, string? phone = null)
+    {
+        var id = await SendAsync(new CreateSupplierCommand(name ?? string.Empty, Phone: CleanPhone(phone)));
         var found = await FindSuppliersAsync(name);
-        return found.FirstOrDefault(s => s.Id == id) ?? new SupplierRef(id, string.Empty, (name ?? string.Empty).Trim(), null, 0);
+        return found.FirstOrDefault(s => s.Id == id) ?? new SupplierRef(id, string.Empty, (name ?? string.Empty).Trim(), CleanPhone(phone), 0);
     }
 
     public async Task<PurchaseRecordResult> RecordPurchaseAsync(RecordPurchaseRequest request)
@@ -127,11 +167,29 @@ public sealed class PurchasingService(IServiceScopeFactory scopes) : IPurchasing
     private static SupplierRef ToRef(SupplierRowReadModel row) =>
         new(row.Id, row.Code, row.Name, row.Phone, row.PaymentTermDays);
 
+    private static SupplierSummary ToSummary(SupplierSummaryReadModel row, TimeZoneInfo zone) =>
+        new(row.Id, row.Code, row.Name, row.Phone ?? string.Empty, row.PaymentTermDays,
+            row.ReceiptCount, row.TotalPurchasedMinor,
+            row.LastPurchaseUtc is { } last ? JalaliDate(last, zone) : string.Empty, row.OpenOrderCount);
+
+    private static SupplierPurchaseRecord ToPurchase(SupplierPurchaseRecordReadModel row, TimeZoneInfo zone) =>
+        new(row.ReceiptId, row.Number, JalaliDate(row.ReceivedUtc, zone), row.LineCount, row.TotalMinor,
+            row.InvoiceReference ?? string.Empty);
+
+    /// <summary>Clinic-local Jalali <c>yyyy/MM/dd</c> for a UTC instant (same rendering as the purchases table).</summary>
+    private static string JalaliDate(DateTimeOffset utc, TimeZoneInfo zone)
+    {
+        var local = TimeZoneInfo.ConvertTimeFromUtc(utc.UtcDateTime, zone);
+        var calendar = new PersianCalendar();
+        return $"{calendar.GetYear(local):0000}/{calendar.GetMonth(local):00}/{calendar.GetDayOfMonth(local):00}";
+    }
+
+    private static string? CleanPhone(string? phone) =>
+        string.IsNullOrWhiteSpace(phone) ? null : PersianText.NormalizeDigits(phone.Trim());
+
     private static PurchaseListItem ToItem(GoodsReceiptRowReadModel row, TimeZoneInfo zone)
     {
-        var local = TimeZoneInfo.ConvertTimeFromUtc(row.ReceivedUtc.UtcDateTime, zone);
-        var calendar = new PersianCalendar();
-        var date = $"{calendar.GetYear(local):0000}/{calendar.GetMonth(local):00}/{calendar.GetDayOfMonth(local):00}";
+        var date = JalaliDate(row.ReceivedUtc, zone);
         var state = row.State switch
         {
             1 => "ثبت‌شده",
