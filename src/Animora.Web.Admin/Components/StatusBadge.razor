@@ -1,2 +1,16 @@
-<span class="badge" data-s="@Status">@Status</span>
-@code { [Parameter] public string Status { get; set; }=""; }
+<span class="badge" data-s="@Status" data-tone="@ResolvedTone">@Label</span>
+@code {
+    /// <summary>Raw status value (enum name / probe state) or an already translated label.</summary>
+    [Parameter] public string Status { get; set; }="";
+    /// <summary>Optional explicit tone (<c>ok</c>/<c>warn</c>/<c>bad</c>) for callers that pass an already translated label.</summary>
+    [Parameter] public string? Tone { get; set; }
+    // Raw status → Persian label through the string table (key <c>status.&lt;value&gt;</c>); unknown values degrade to the raw text.
+    private string Label=>AdminStrings.Pair("status."+Status) is not null?Loc.T("status."+Status):Status;
+    private string ResolvedTone=>Tone??Status switch
+    {
+        "Active" or "healthy" or "Completed" or "success" or "Superseded"=>"ok",
+        "Trial" or "GracePeriod" or "Suspended" or "Received" or "Processing" or "degraded" or "Flagged"=>"warn",
+        "Expired" or "Cancelled" or "Closed" or "Revoked" or "Failed" or "Dead" or "unhealthy" or "failure"=>"bad",
+        _=>"",
+    };
+}

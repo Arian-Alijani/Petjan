@@ -5,7 +5,7 @@
 @inject IAdminInsightStatus Insight
 <h1>@Loc.T("dash.title")</h1><a href="/admin">@Loc.T("common.refresh")</a><FormError Code="@Error" />
 <nav class="quick" aria-label="@Loc.T("dash.quick")"><a href="/admin/tenants">@Loc.T("nav.tenants")</a><a href="/admin/tenants/new">@Loc.T("nav.newTenant")</a>
-<a href="/admin/audit">@Loc.T("nav.audit")</a><a href="/admin/logs">@Loc.T("nav.logs")</a><a href="/admin/system">@Loc.T("nav.system")</a></nav>
+<a href="/admin/audit">@Loc.T("nav.audit")</a><a href="/admin/logs">@Loc.T("nav.logs")</a><a href="/admin/system">@Loc.T("nav.system")</a><a href="/admin/backup">@Loc.T("nav.backup")</a></nav>
 @if (Status is not null) {
 <p>@Loc.T("dash.version") @Status.Version · @Loc.T("dash.uptime") @Status.UptimeSeconds.ToString("F0") @Loc.T("dash.seconds")</p>
 <table><caption>@Loc.T("dash.readiness")</caption><thead><tr><th scope="col">@Loc.T("dash.probe")</th><th scope="col">@Loc.T("common.status")</th></tr></thead><tbody>
@@ -14,9 +14,9 @@
 <table><caption>@Loc.T("dash.workers")</caption><thead><tr><th scope="col">@Loc.T("dash.worker")</th><th scope="col">@Loc.T("dash.lastSuccess")</th></tr></thead><tbody>
 @foreach (var worker in Status.Workers) { <tr><td>@worker.Name</td><td>@worker.LastSuccessAgeSeconds.ToString("F0")</td></tr> }</tbody></table>
 <div class="cards" role="list">
-<a class="card" role="listitem" href="/admin/tenants?status=expiring"><strong>@Status.ExpiringSoon</strong><span>@Loc.T("dash.expiring")</span></a>
-<a class="card" role="listitem" href="/admin/tenants?status=past-due"><strong>@Status.PastDue</strong><span>@Loc.T("dash.pastDue")</span></a>
-<a class="card" role="listitem" href="/admin/tenants?status=dead-lettered"><strong>@Status.Counters.OutboxDeadLettered</strong><span>@Loc.T("dash.dead")</span></a>
+<a class="card@(Status.ExpiringSoon > 0 ? " warn" : "")" role="listitem" href="/admin/tenants?status=expiring"><strong>@Status.ExpiringSoon</strong><span>@Loc.T("dash.expiring")</span></a>
+<a class="card@(Status.PastDue > 0 ? " warn" : "")" role="listitem" href="/admin/tenants?status=past-due"><strong>@Status.PastDue</strong><span>@Loc.T("dash.pastDue")</span></a>
+<a class="card@(Status.Counters.OutboxDeadLettered > 0 ? " bad" : "")" role="listitem" href="/admin/tenants?status=dead-lettered"><strong>@Status.Counters.OutboxDeadLettered</strong><span>@Loc.T("dash.dead")</span></a>
 <div class="card" role="listitem"><strong>@Status.Counters.CommandsInProgress</strong><span>@Loc.T("dash.commands")</span></div>
 <div class="card" role="listitem"><strong>@Status.Counters.OutboxPending</strong><span>@Loc.T("dash.outbox")</span></div>
 <div class="card" role="listitem"><strong>@Status.Pg.PoolInUse / @Status.Pg.PoolMax</strong><span>@Loc.T("dash.pg")</span></div>

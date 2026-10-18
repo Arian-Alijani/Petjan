@@ -6,29 +6,35 @@
 <h1>@Loc.T("tenant.detail")</h1><FormError Code="@Error" />
 @if (Receipt?.TemporaryPassword is { } password) { <p class="secret">@Loc.T("tenant.tempPassword"): <code>@password</code></p> }
 @if (Detail is not null) {
-<h2>@Detail.Core.Name (@Detail.Core.Code)</h2><StatusBadge Status="@Detail.Core.Status" />
-<p>@Loc.T("tenant.seatsUsed"): @Detail.SeatsUsed · @Loc.T("tenant.devices"): @Detail.DevicesCount · @Loc.T("tenant.licences"): @Detail.LicensesCount</p>
+<h2>@Detail.Core.Name (<span dir="ltr">@Detail.Core.Code</span>) <StatusBadge Status="@Detail.Core.Status" /></h2>
+<div class="cards"><div class="card"><strong>@SeatsText</strong><span>@Loc.T("tenant.seatsUsed")</span></div>
+<div class="card"><strong>@Detail.DevicesCount</strong><span>@Loc.T("tenant.devices")</span></div>
+<div class="card"><strong>@Detail.LicensesCount</strong><span>@Loc.T("tenant.licences")</span></div></div>
 <nav class="quick" aria-label="@Loc.T("tenant.detail")"><a href="@($"/admin/tenants/{Id}/licenses")">@Loc.T("tenant.manageLicences")</a>
 <a href="@($"/admin/tenants/{Id}/staff")">@Loc.T("tenant.staffLink")</a>
 <a href="@($"/admin/tenants/{Id}/products")">@Loc.T("tenant.productsLink")</a>
 <a href="@AuditUrl">@Loc.T("tenant.auditLink")</a></nav>
 @if (Detail.Subscription is { } subscription) {
-<h2>@Loc.T("tenant.subscription")</h2><p>@subscription.Status · @subscription.Seats @Loc.T("tenant.seats") · @Loc.T("tenant.ends") @subscription.PeriodEnd.ToString("u")</p>
+<h2>@Loc.T("tenant.subscription")</h2>
+<dl><dt>@Loc.T("common.status")</dt><dd><StatusBadge Status="@subscription.Status" /></dd>
+<dt>@Loc.T("tenant.seats")</dt><dd>@subscription.Seats</dd>
+<dt>@Loc.T("tenant.ends")</dt><dd dir="ltr">@subscription.PeriodEnd.ToString("yyyy-MM-dd HH:mm") UTC · @RemainingText(subscription.PeriodEnd)</dd></dl>
 @foreach (var operation in Operations) {
 <EditForm Model="Form" FormName="@operation" method="post" Enhance OnSubmit="async _=>await Submit(operation)">
 <input type="hidden" name="Form.Stamp" value="@Form!.Stamp" />
-<fieldset><legend>@operation</legend>
-@if (operation=="extend") { <label>Days <InputNumber @bind-Value="Form.Days" /></label> }
-@if (operation=="reduce") { <label>New end (UTC) <InputDate @bind-Value="Form.Until" /></label> }
-@if (operation=="suspend") { <label>Reason <InputText @bind-Value="Form.Reason" maxlength="200" /></label> }
-@if (operation=="seats") { <label>Seats <InputNumber @bind-Value="Form.Seats" /></label> }
-@if (operation=="plan") { <label>Plan code <InputText @bind-Value="Form.PlanCode" maxlength="32" /></label> }
+<fieldset><legend>@Loc.T("op." + operation)</legend>
+@if (operation=="extend") { <label>@Loc.T("op.days") <InputNumber @bind-Value="Form.Days" /></label> }
+@if (operation=="reduce") { <label>@Loc.T("op.until") <InputDate @bind-Value="Form.Until" /></label> }
+@if (operation=="suspend") { <label>@Loc.T("op.reason") <InputText @bind-Value="Form.Reason" maxlength="200" /></label> }
+@if (operation=="seats") { <label>@Loc.T("op.seats") <InputNumber @bind-Value="Form.Seats" /></label> }
+@if (operation=="plan") { <label>@Loc.T("op.planCode") <InputText @bind-Value="Form.PlanCode" maxlength="32" dir="ltr" /></label> }
 @if (operation is "suspend" or "cancel" or "reduce") { <ConfirmCheckbox Name="Form.Confirmed" /> }
-<button type="submit">@operation</button></fieldset></EditForm>
+<button type="submit" class="@(operation is "suspend" or "cancel" ? "danger" : "")">@Loc.T("op." + operation)</button></fieldset></EditForm>
 }
 }
-<table><caption>@Loc.T("tenant.events")</caption><thead><tr><th scope="col">@Loc.T("tenant.event")</th><th scope="col">@Loc.T("tenant.time")</th></tr></thead><tbody>
-@foreach (var e in Detail.Events) { <tr><td>@e.Type</td><td>@e.OccurredUtc.ToString("u")</td></tr> }</tbody></table>
+<div class="table-wrap"><table><caption>@Loc.T("tenant.events")</caption><thead><tr><th scope="col">@Loc.T("tenant.event")</th><th scope="col">@Loc.T("tenant.time")</th></tr></thead><tbody>
+@if (Detail.Events.Count == 0) { <tr><td colspan="2" class="empty">@Loc.T("common.none")</td></tr> }
+@foreach (var e in Detail.Events) { <tr><td>@EventLabel(e.Type)</td><td dir="ltr">@e.OccurredUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC</td></tr> }</tbody></table></div>
 }
 @code {
     [Parameter] public string Id { get; set; }="";
@@ -38,5 +44,12 @@
     private Models.TenantDetail? Detail; private MutationReceipt? Receipt;
     private static readonly string[] Operations=["extend","reduce","suspend","reinstate","cancel","renew","seats","plan","reset-owner-password"];
     protected override async Task OnParametersSetAsync() { Detail=Capture(await Queries.GetAsync(Id,Cancellation)); Form??=new() { Stamp=Detail?.Subscription?.ConcurrencyStamp??"" }; }
+    private string SeatsText=>Detail?.Subscription is { } sub?$"{Detail.SeatsUsed} / {sub.Seats}":Detail?.SeatsUsed.ToString()??"";
+    private string EventLabel(string type)=>AdminStrings.Pair("event."+type) is not null?Loc.T("event."+type):type;
+    private string RemainingText(DateTimeOffset end)
+    {
+        var days=(int)Math.Ceiling((end-DateTimeOffset.UtcNow).TotalDays);
+        return days>=0?$"{days} {Loc.T("tenant.daysLeft")}":$"{-days} {Loc.T("tenant.daysOver")}";
+    }
     private async Task Submit(string operation) { Receipt=Capture(await Commands.MutateAsync(Id,operation,Form!,Cancellation)); }
 }

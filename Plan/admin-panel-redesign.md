@@ -183,7 +183,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T7 — بهبود منطق نمایش در صفحات (هماهنگی UI با داده) `[ ]`
+### T7 — بهبود منطق نمایش در صفحات (هماهنگی UI با داده) `[x]`
 **هدف:** رفع مشکلات «برگردوندن کاربران و نام کلینیک‌ها» در سطح UI.
 **فایل‌ها:** `Pages/Tenants.razor`, `TenantDetail.razor`, `TenantStaff.razor`, `TenantProducts.razor`, `TenantLicenses.razor`, `Dashboard.razor`, `Audit.razor`.
 **کار دقیق:**

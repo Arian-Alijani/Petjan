@@ -4,14 +4,18 @@
 @inject IAdminLicenseCommands Commands
 <h1>@Loc.T("licences.title")</h1><FormError Code="@Error" />
 @if (Rows is not null) {
-<table><caption>Device licences</caption><thead><tr><th scope="col">Device</th><th scope="col">State</th><th scope="col">Expires</th><th scope="col">Revoke</th></tr></thead><tbody>
-@foreach (var row in Rows.Items) { <tr><td>@row.DeviceId</td><td>@row.Status</td><td>@row.ExpiresUtc.ToString("u")</td><td>
+<p><a href="@($"/admin/tenants/{Id}")">@Loc.T("staff.backToTenant")</a></p>
+@if (Rows.Items.Count == 0) { <p class="empty">@Loc.T("common.none")</p> } else {
+<div class="table-wrap"><table><caption>@Loc.T("licences.caption")</caption><thead><tr><th scope="col">@Loc.T("licences.device")</th><th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("licences.expires")</th><th scope="col">@Loc.T("licences.revoke")</th></tr></thead><tbody>
+@foreach (var row in Rows.Items) { <tr><td dir="ltr">@row.DeviceId</td><td><StatusBadge Status="@row.Status" /></td><td dir="ltr">@row.ExpiresUtc.ToString("yyyy-MM-dd HH:mm") UTC</td><td>
 <EditForm Model="Form" FormName="@($"revoke-{row.Id}")" method="post" OnSubmit="Revoke">
 <input type="hidden" name="Form.LicenseId" value="@row.Id" /><input type="hidden" name="Form.Stamp" value="@row.Sequence" />
-<label>Reason <InputText @bind-Value="Form!.Reason" maxlength="200" /></label><ConfirmCheckbox Name="Form.Confirmed" /><button type="submit">Revoke</button></EditForm>
-</td></tr> }</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@($"/admin/tenants/{Id}/licenses")" />
+<label>@Loc.T("op.reason") <InputText @bind-Value="Form!.Reason" maxlength="200" /></label><ConfirmCheckbox Name="Form.Confirmed" /><button type="submit" class="danger">@Loc.T("licences.revoke")</button></EditForm>
+</td></tr> }</tbody></table></div>
+}
+<Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@($"/admin/tenants/{Id}/licenses")" />
 <EditForm Model="Form" FormName="recheck" method="post" OnSubmit="Recheck">
-<input type="hidden" name="Form.Stamp" value="@Rows.Stamp" /><button type="submit">Recheck licence grants</button></EditForm>
+<input type="hidden" name="Form.Stamp" value="@Rows.Stamp" /><button type="submit" class="secondary">@Loc.T("licences.recheck")</button></EditForm>
 }
 @code {
     [Parameter] public string Id { get; set; }="";
