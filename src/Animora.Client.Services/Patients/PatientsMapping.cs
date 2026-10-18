@@ -56,9 +56,21 @@ internal static class PatientsMapping
             Visits: (m.Visits ?? []).Select(ToVisitRef).ToList(),
             // Task 9: the real dose history from VaccinationRecord (was hardcoded []).
             Vaccinations: (m.Vaccinations ?? []).Select(ToVaccinationRef).ToList(),
-            Labs: [], Documents: [], Surgeries: [],
-            Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null);
+            // Task 10: paraclinic read path — labs + radiology flattened from the pet's visits (was [] and dropped).
+            Labs: (m.Labs ?? []).Select(ToLabSummary).ToList(),
+            Documents: [], Surgeries: [],
+            Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null,
+            Radiology: (m.Radiology ?? []).Select(ToRadiologySummary).ToList());
     }
+
+    /// <summary>One visit-flattened lab sheet → the pet-file documents row (title = description, detail = joined test values).</summary>
+    private static LabSummary ToLabSummary(LabSummaryReadModel l) => new(
+        l.Id, l.VisitId, l.DateJalali, l.Description ?? string.Empty,
+        string.Join("\n", l.Items), l.Items.Count);
+
+    /// <summary>One visit-flattened radiology study → the pet-file documents row (previously dropped entirely).</summary>
+    private static RadiologySummary ToRadiologySummary(RadiologySummaryReadModel r) => new(
+        r.Id, r.VisitId, r.DateJalali, r.BodyPart, r.Result ?? string.Empty, r.AttachmentCount);
 
     /// <summary>
     /// One dose → the pet-file row. The stored <c>NextDueUtc</c> is null once a course ends, but the model

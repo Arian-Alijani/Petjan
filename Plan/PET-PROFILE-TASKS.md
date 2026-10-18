@@ -3,8 +3,19 @@
 > Self-contained execution plan. A fresh model should implement **without re-investigating** the files
 > already distilled here. Only open the exact files/line-ranges named per task.
 > **LOCKED RULE:** after finishing EACH task below, run `scripts/git/push.sh "msg"` (commit+sync+push).
+> **The commit subject MUST carry the task id** (e.g. `feat(patients): T10b …`) — required.
 > If a big fix/refactor happens mid-task, push that too. No push = failure.
 > Main app = the **.NET** solution under `src/`. **Never** open `Animora-UI/`.
+
+---
+
+## 0.1 Status & branch sync (updated 2026-10-18)
+- **Branches:** `main` and `genspark_ai_developer` were **identical** at commit `7b864a40`
+  (`git log origin/main..origin/genspark_ai_developer` and the reverse were both empty). No divergence,
+  no progress at risk → **no PR** (per instruction); work is committed **directly on `main`** via `scripts/git/push.sh`.
+- **Task number in every commit subject is REQUIRED** (`… : T<n> …`).
+- **Local sandbox build/test is FORBIDDEN** → all builds/tests run on GitHub Actions via `scripts/ci/gh-ci.sh`.
+- **Progress:** T1–T9 ☑ (committed). **T10a ☑ done + pushed.** Remaining: **T10b, T11, T12**.
 
 ---
 
@@ -32,6 +43,10 @@ PatientsService dispatches `PetDetailQuery` → `PatientDirectoryQueries.GetPetA
 `Habitat:"",Behavior:"",Diet:"",BloodType:null,NeuteredDate:null,Insurance:null,Notes:null`,
 and **drops `m.Radiology`** entirely (read model has it, map ignores it). So today the UI shows
 empty vitals/vax/labs/docs/radiology regardless of DB. Several tasks must widen this chain.
+
+> **Update (after T1/T9/T10a):** `ToDetail` no longer hardcodes `Vitals` (T1), `Vaccinations` (T9), or
+> `Labs`/`Radiology` (T10a) — all read real data now. Still hardcoded: **`Documents`** (→ T10b) and
+> `Surgeries` (no source anywhere yet — out of scope).
 
 **PetDetailReadModel** (`PatientReadModels.cs` L54-61) ALREADY carries: `Weights`, `Visits`,
 `Labs`, `Radiology` (optional). But `PatientDirectoryQueries.GetPetAsync` (L212-235) only fills
@@ -278,63 +293,127 @@ already joins it; there's `MarkVaccinationDoneCommand` + a `VaccinationHistoryQu
 calendar), fully consistent with the Vaccination module. This also unblocks tasks 5. **Push** (split:
 read path, then add path).
 
-### ☐ Task 10 — Documents tab: labs + radiology + files visible and addable (multi-format)
-**Current:** `Labs`/`Radiology`/`Documents` all `[]` in ToDetail; `Radiology` from read model is dropped;
-`GetPetAsync` doesn't query labs/radiology. Docs tab axaml L1083-1248 (radiology L1085, labs L1128, files
-L1171 + upload button L1217). `UploadDoc`/`DownloadDoc` are stubs.
-**Fix:**
-1. **Read path (labs + radiology from visits):** `PetDetailReadModel` already has `Labs`/`Radiology`
-   fields + `LabSummaryReadModel`/`RadiologySummaryReadModel`. Fill them in
-   `PatientDirectoryQueries.GetPetAsync` by flattening the pet's visits' JSON `LabResults` / `Radiology`
-   columns (Visit entity has these per the read-model comments). Then in `ToDetail`, map
-   `m.Labs`→`LabSummary`/`LabRowViewModel` source + **pass `m.Radiology`** (currently dropped) →
-   `RadiologySummary`/`RadiologyRowViewModel`. So anything uploaded during a visit's paraclinic step
-   shows here automatically.
-2. **Stored documents + manual add:** there is no `Document` table yet → decide: (a) if a document/
-   attachment store exists (grep `Attachment`/`Document` in Domain/Persistence), wire it; (b) else add a
-   minimal pet-document store (new `PetDocument` entity + migration + add/list/download commands) OR scope
-   manual add to launching a file and attaching to a visit's paraclinic. **Confirm existing attachment
-   infra first** (the visit paraclinic LabSheet/RadiologySheet already handle file attachments — open
-   `Pages/Visits/LabSheetViewModel.cs`/`RadiologySheetViewModel.cs` + their services to see the storage
-   seam) and reuse it.
-3. `UploadDoc`: open a file picker (`IFileLauncher` is registered — App L376; also check a file-open
-   service), accept image/PDF/lab-result formats, store via the reused seam, refresh. `DownloadDoc`:
-   open/save the stored file via `IFileLauncher`.
-**Done when:** labs/radiology uploaded in a visit appear in the docs tab, and you can manually add
-radiology/lab/other documents in various formats + open them. **Push** (split: read-path wiring, then
-manual add/upload).
+### ☑ Task 10a — Documents READ path: labs + radiology from visits
+**Status: DONE + pushed.** Edits (both verified in-tree):
+- `PatientDirectoryQueries.cs`: `using System.Globalization;`; `GetPetAsync` now calls new
+  `GetPetParaclinicAsync(petId, ct)` which loads the pet's non-cancelled visits (bounded `PetVisitTake`),
+  flattens each visit's JSON `LabResults` → `LabSummaryReadModel` (Description as title, items formatted
+  `«TypeName: Value Unit»`) and `Radiology` → `RadiologySummaryReadModel` (BodyPart/Result/AttachmentCount),
+  newest first; returns them via `Labs: labs, Radiology: radiology`. Jalali date via local
+  `JalaliDay(DateTimeOffset)` (`PersianCalendar`, `Asia/Tehran` tz with custom-offset fallback).
+- `PatientsMapping.ToDetail`: `Labs: (m.Labs ?? []).Select(ToLabSummary)`, `Radiology:` ctor-arg now
+  `(m.Radiology ?? []).Select(ToRadiologySummary)` (was dropped). `Documents` still `[]` → T10b.
+**Done:** anything recorded in a visit's paraclinic step now shows in the docs tab. **Pushed.**
 
-### ☐ Task 11 — Build, fix warnings/errors, final verification
-- Build each touched project: `dotnet build src/Animora.Desktop/Animora.Desktop.csproj` (+ Contracts,
-  Application, Persistence.Sqlite, Client.Services as touched). **No full-solution test run.**
-- Resolve ALL new errors + warnings.
-- Spot-check: open a pet with visits/vax/weights → vitals, next-vax, charts, vax history, docs all real.
-- **Push.**
+### ☐ Task 10b — Documents tab: stored files list + manual add/upload + download
+**VERIFIED infra already exists — reuse it, do NOT invent a store:**
+- **Metadata table + entity already exist:** `Animora.Domain.Patients.DocumentReference` (fields `OwnerId?`,
+  `PetId?`, `VisitId?`, `Title`, `Kind`=enum `DocumentKind{Lab,Imaging,Prescription,Consent,Invoice,Other}`,
+  `FileId`, `SizeBytes`, `ContentHashSha256`, `UploadedUtc`, `UploadedByUserId`) with factory
+  `DocumentReference.Attach(tenantId, title, kind, fileId, sizeBytes, contentHashSha256, uploadedByUserId,
+  clock, ownerId?, petId?, visitId?)`. Mapped in SQLite (`Configurations/Patients/DocumentReferenceConfiguration.cs`,
+  table `DocumentReferences`) since migration 001 — **no migration needed**. Replicated
+  (`SyncContractCatalog` lists `DocumentReference`; wire `DocumentReferenceSyncContract`).
+- **Bytes store already exists:** `ILocalFileStore` (`PutAsync(stream)→sha256`, `OpenAsync(hash)`, `DeleteAsync`),
+  registered `TryAddSingleton<ILocalFileStore, LocalFileStore>` in `LocalInfrastructureServiceCollectionExtensions.cs`
+  (App wires local infra). The visit paraclinic path already uses it: `VisitEncounterService.StoreAttachmentAsync/
+  OpenAttachmentAsync` (`src/Animora.Client.Services/Visits/VisitEncounterService.cs` L99-118) — **reuse this
+  pattern** (open a DI scope → `ILocalFileStore.PutAsync`).
+- **UI seams already exist:** `IDialogService.PickFilesAsync(title, patterns, allowMultiple)` → `PickedFile(Name,
+  Size, OpenReadAsync)` (`DialogService.cs` L94-122); `IFileLauncher.Open(path)` (App L376). View already has
+  `UploadDocCommand`/`DownloadDocCommand` bindings (`PetFileView.axaml` docs tab ~L1489-1564) and rows
+  `DocRowViewModel(Name, Meta)`.
+
+**NOTE — `DocumentRef` contract (`PatientDocuments`) is `(string Name, string Size, DateTime Date)` — NO id/hash.**
+So download-by-row cannot resolve the payload from the contract today. Two clean options (pick **A**, it is
+self-contained and matches the existing seed path):
+- **A (chosen): extend the doc contract with a resolvable handle.** Add `string? Id` (and keep Name/Size/Date)
+  to `DocumentRef`; thread `DocumentReference.Id` (+ `ContentHashSha256`) through the read model →
+  `ToDetail` → row VM → `DownloadDoc`. Add a seam method to fetch the payload by ref id. Requires read-model
+  field + mapper + VM row change. (No schema change; entity already stores hash.)
+- B: keep contract, add a `GetPetDocumentsAsync(petId)` seam that returns rows already hydrated with the
+  openable handle — same effect, one seam call, no read-model change. Use if A causes churn in mappers.
+
+**Implementation steps (A):**
+1. **Read model:** add `IReadOnlyList<PetDocumentReadModel>? Documents = null` to `PetDetailReadModel`
+   (`PatientReadModels.cs`); define `PetDocumentReadModel(string Id, string Title, int Kind, long SizeBytes,
+   DateTimeOffset UploadedUtc, string ContentHashSha256)`. Fill in `PatientDirectoryQueries.GetPetAsync`
+   via `db.Set<DocumentReference>().Where(d => d.PetId == petId).OrderByDescending(d => d.UploadedUtc)`
+   (soft-delete filter is automatic) — bound with a `const int PetDocumentTake` like the others.
+2. **Contract:** extend `DocumentRef` → `record DocumentRef(string Name, string Size, DateTime Date, string? Id = null,
+   string? Hash = null)` (append optional params so existing positional callers still compile). Map in
+   `PatientsMapping.ToDetail`: `Documents: (m.Documents ?? []).Select(ToDocumentRef)`.
+3. **Payload seam:** add `Task<Stream?> OpenDocumentAsync(string documentId)` to `IPatientsQueryService`
+   (+ impl in `PatientsService`): look up the `DocumentReference` row by id (new tiny query, e.g.
+   `PetDocumentContentQuery` → returns `{ContentHashSha256}`) then `ILocalFileStore.OpenAsync(hash)`. Put the
+   `ILocalFileStore` usage in `PatientsService` (Client.Services) via `scopes.CreateAsyncScope()` — mirror
+   `VisitEncounterService` (the Application/Contracts layers must not reference the store).
+4. **Upload seam:** add `Task<PetDetail> AddPetDocumentAsync(string petId, DocumentKind kind, string title,
+   string fileName, Stream content, string contentType)` to `IPatientsQueryService`. Impl: `ILocalFileStore.PutAsync`
+   → `IdGenerator`/`CommandContext` for ids/size/hash → dispatch a **new journaled command**
+   `AddPetDocumentCommand` (Application/UseCases/Patients) that calls `DocumentReference.Attach(...)`, adds it
+   via a new `IDocumentReferenceRepository` (port + Sqlite repo + DI reg, mirror `IWeightEntryRepository`).
+   Add `CommandTypes.PatientsPetDocumentAdd = "patients.pet.document.add"` + append to `All`.
+   Register in `PatientsRegistration` (`.AddCommand<…>()` + validator). Return `(await GetPetAsync(petId))!`.
+   **Wire (sync/journaled) so a peer sees it; bytes are local-only (`ILocalFileStore`), consistent with the
+   visit attachment design.**
+5. **VM:** `PetFileViewModel` — inject nothing new except the seams above (already has `IPatientsQueryService`,
+   `IDialogService`, `IFileLauncher`, `IDataChangeNotifier`, `IToastService`). Replace `UploadDoc` stub with
+   `async Task UploadDocAsync()`: `PickFilesAsync("انتخاب مدرک", ParaclinicPresentation.AttachmentPatterns)`
+   → for each, `OpenReadAsync()` → `AddPetDocumentAsync(...)` → `_changes.Notify(DataDomain.Patients, …)` →
+   reload pet. Replace `DownloadDoc` stub with real open: temp-file copy from `OpenDocumentAsync(hash/id)` then
+   `_files.Open(path)` (mirror `VisitEncounterViewModel.OpenAttachmentAsync` L449-486; guard
+   `ParaclinicPresentation.IsViewable`). Extend `DocRowViewModel` with `Id`/`Hash` (+ a nicer size text) and
+   pass them from `BuildDocuments`. Add `IFileLauncher` to the VM ctor (DI auto-resolves; Registered at App L376).
+6. **VM built docs:** `BuildDocuments` — `Documents.ReplaceAll(pet.Documents.Select(d => new DocRowViewModel(
+   d.Name, $"{HumanSize(d.Size)} · {JalaliDate.FromDateTime(d.Date).ToString("short")}", d.Id, d.Hash)))`.
+   Emit a Persian size ("۱۲ KB"/"۱٫۲ MB") — small local helper; do NOT depend on `d.Size` being a label.
+7. **Reuse constants:** file patterns/type policy live in `ParaclinicPresentation` (Desktop.Pages.Visits) —
+   reuse `AttachmentPatterns`, `ContentTypeFor`, `IsViewable`, `SafeFileName`, `MaxAttachmentBytes`. Enforce
+   `MaxAttachmentBytes` before upload.
+**Guarded-command + toast:** wrap awaited seam calls; `InvalidOperationException` →
+   `PatientsPresentation.CommandFailureMessage(ex, fallback)` → `_toast.Show(…, Tone.Danger)`.
+**Done when:** a file uploaded here persists as a `DocumentReference` (+ bytes in the local store), shows in
+the docs list, opens via the OS viewer, and the read path surfaces it after reload. Lab/radiology rows
+(uploaded in a visit) already show via T10a. **Push** (scope: `--scope core` build to catch Contracts/App/Persistence;
+then `--scope desktop`).
+
+### ☐ Task 11 — Build/verify via GitHub Actions (local build FORBIDDEN)
+- **Run all builds/tests ONLY on GitHub Actions:** `scripts/ci/gh-ci.sh` (writes `ci.params`, pushes to a
+  scratch `ci/**` branch, workflow `animora-ci.yml` runs it). Desktop Avalonia XAML errors only surface on a
+  real build, so this IS the check.
+- After T10b: `scripts/ci/gh-ci.sh --scope core --action build-only` (Contracts/Application/Persistence/Client.Services),
+  then `scripts/ci/gh-ci.sh --scope desktop --action build-only` (Avalonia/XAML + VM), then
+  `scripts/ci/gh-ci.sh --scope all --action build-and-test --filter Patients` for the patient tests.
+  Light + fast where possible; skip the PostgreSQL lane unless a test needs it (`--postgres false`).
+- Resolve ALL new errors + warnings the run reports; re-run until green. **No full-solution local test.**
+- `scripts/git/push.sh "fix(patients): T11 …"` for each fix round.
+**Done when:** CI green for the touched scopes. **Push.**
 
 ### ☐ Task 12 (FINAL) — Delete this plan file
 - `rm Plan/PET-PROFILE-TASKS.md` (leave the `Plan/.gitkeep`). Touch nothing else, no roadmap edits.
-- **Push.**
+- `scripts/git/push.sh "chore(plan): T12 remove completed pet-profile plan"`. **Push.**
 
 ---
 
 ## Push cheatsheet (LOCKED)
 ```
-scripts/git/push.sh "feat(patients): <task summary>"
+scripts/git/push.sh "feat(patients): T<N> <task summary>"
 ```
 If exit code 3 → call `setup_github_environment` tool once, re-run. One push per completed task minimum;
-extra push for any large mid-task fix.
+extra push for any large mid-task fix. **Task id in the subject is REQUIRED.** No PR (branches identical;
+work lands directly on `main`). **No local build/test** — CI only (`scripts/ci/gh-ci.sh`).
 
-## Multi-agent / parallelization note
-Independent, parallelizable work units (safe to split across sub-agents, minimal file overlap):
-- **Lane A (data/back-end chain):** tasks 1, 5-read, 9-read, 10-read — all edit
-  `PatientReadModels.cs` + `PatientDirectoryQueries.GetPetAsync` + `PatientsMapping.ToDetail`. These SHARE
-  those 3 files → do them as ONE coordinated batch (one agent) to avoid merge churn, then push once.
-- **Lane B (visit integration):** task 2 (+ task 4's visit/vitals affordance) — touches
-  `PetFileViewModel`, new doctor-picker modal, `NewVisitRequest`, `VisitsTriageService`.
-- **Lane C (info/alerts/registration):** tasks 3 + 6 — `PetFormViewModel`, `NewPetRequest`,
-  `CreatePetCommand`, `UpdatePetInfoCommand`, `Pet` domain + migration, info-edit UI.
-- **Lane D (weight/calendar):** tasks 7 + 8 — weight add form + calendar control reuse + visit→weight sync.
-- **Lane E (docs add/upload):** task 10 manual-add/upload (after Lane A read-path lands).
-Sequence: Lane A first (unblocks 5/9/10 reads), then B/C/D/E in parallel, then task 11, then 12.
-Keep each lane's commits scoped; push after each task. `PetFileViewModel.cs` is touched by B, C, D, 4 →
-coordinate edits to avoid clobbering (prefer sequential VM edits or well-separated regions).
+## Remaining-work map (post T1–T10a)
+- **DONE + pushed:** T1–T9 (see git log), T10a read path (`PatientDirectoryQueries` + `PatientsMapping`).
+- **T10b (only real code left):** docs list + upload/download. Files:
+  `PatientReadModels.cs` (add `PetDocumentReadModel` + `Documents` field) ·
+  `PatientDirectoryQueries.cs` (fill docs) · `PatientDetailModels.cs` (`DocumentRef` +Id/+Hash) ·
+  `PatientsMapping.cs` (map docs) · `IPatientsQueryService.cs` + `PatientsService.cs` (upload/download seams) ·
+  new `AddPetDocumentCommand` + `IDocumentReferenceRepository` (port + Sqlite repo + DI) ·
+  `CommandTypes.cs` (add `patients.pet.document.add`) · `PatientsRegistration.cs` ·
+  `PetFileViewModel.cs` (upload/download + row Id/Hash) · `PetFileView.axaml` (bindings already exist).
+  Reuse: `DocumentReference.Attach`, `ILocalFileStore`, `IDialogService.PickFilesAsync`, `IFileLauncher`,
+  `ParaclinicPresentation` (patterns/type/size caps). **No migration** (table 001).
+- **T11:** CI-only build/test (`gh-ci.sh --scope core` → `--scope desktop` → `--scope all --filter Patients`).
+- **T12:** `rm Plan/PET-PROFILE-TASKS.md`, push.

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
 using Animora.Application.Text;
@@ -230,15 +231,88 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
 
         var visits = await GetPetVisitsAsync(petId, ct);
         var vaccinations = await GetPetVaccinationsAsync(petId, ct);
+        var (labs, radiology) = await GetPetParaclinicAsync(petId, ct);
 
-        TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}, vaccinations={vaccinations.Count}.", "sql.patients");
+        TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}, vaccinations={vaccinations.Count}, labs={labs.Count}, radiology={radiology.Count}.", "sql.patients");
         return new PetDetailReadModel(pet.Id, pet.Name, pet.Species, pet.Breed, pet.Color, pet.Gender,
             pet.Status, pet.OwnerId, pet.BirthDateUtc, pet.IsNeutered, pet.MicrochipCode,
             pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits,
+            Labs: labs, Radiology: radiology,
             Vaccinations: vaccinations,
             Habitat: pet.Habitat, Behavior: pet.Behavior, Diet: pet.Diet, BloodType: pet.BloodType,
             Insurance: pet.Insurance, MicrochipVendor: pet.MicrochipVendor,
             MicrochipLocation: pet.MicrochipLocation, NeuteredUtc: pet.NeuteredUtc);
+    }
+
+    /// <summary>
+    /// Flattens the pet's visits' JSON <c>LabResults</c>/<c>Radiology</c> columns into pet-level paraclinic
+    /// read models (Task 10), newest first. Anything recorded during a visit's paraclinic step therefore
+    /// surfaces in the pet file's documents tab automatically — the visit row is the single source.
+    /// </summary>
+    private async Task<(IReadOnlyList<LabSummaryReadModel> Labs, IReadOnlyList<RadiologySummaryReadModel> Radiology)>
+        GetPetParaclinicAsync(string petId, CancellationToken ct)
+    {
+        var visits = await db.Set<Visit>().AsNoTracking()
+            .Where(v => v.PetId == petId && v.State != VisitState.Cancelled)
+            .OrderByDescending(v => v.StartedUtc).ThenBy(v => v.Id)
+            .Take(PetVisitTake).ToListAsync(ct);
+        if (visits.Count == 0) return ([], []);
+
+        var labs = new List<(DateTimeOffset Sort, LabSummaryReadModel Row)>();
+        var radiology = new List<(DateTimeOffset Sort, RadiologySummaryReadModel Row)>();
+        foreach (var v in visits)
+        {
+            foreach (var l in v.LabResults)
+            {
+                var items = l.Items.Select(FormatLabItem).ToList();
+                labs.Add((l.TakenUtc, new LabSummaryReadModel(
+                    l.Id, v.Id, JalaliDay(l.TakenUtc), l.Description, items)));
+            }
+
+            foreach (var r in v.Radiology)
+            {
+                radiology.Add((r.TakenUtc, new RadiologySummaryReadModel(
+                    r.Id, v.Id, JalaliDay(r.TakenUtc), r.BodyPart, r.Result, r.Attachments.Count)));
+            }
+        }
+
+        var labRows = labs.OrderByDescending(x => x.Sort).ThenBy(x => x.Row.Id).Select(x => x.Row).ToList();
+        var radRows = radiology.OrderByDescending(x => x.Sort).ThenBy(x => x.Row.Id).Select(x => x.Row).ToList();
+        TraceLog.Info($"SQL GetPetParaclinicAsync ← labs={labRows.Count}, radiology={radRows.Count}", "sql.patients");
+        return (labRows, radRows);
+    }
+
+    /// <summary>One lab test value rendered for display: «<c>TypeName: Value Unit</c>» (unit omitted when absent).</summary>
+    private static string FormatLabItem(LabResultItem item)
+    {
+        var value = string.IsNullOrWhiteSpace(item.Unit) ? item.Value : $"{item.Value} {item.Unit}";
+        return $"{item.TypeName}: {value}";
+    }
+
+    private static readonly TimeZoneInfo ClinicZone = ResolveClinicZone();
+
+    private static TimeZoneInfo ResolveClinicZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Tehran");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.CreateCustomTimeZone("Iran", TimeSpan.FromHours(3.5), "Iran", "Iran");
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.CreateCustomTimeZone("Iran", TimeSpan.FromHours(3.5), "Iran", "Iran");
+        }
+    }
+
+    /// <summary>Clinic-local Jalali date of a UTC instant as <c>yyyy/MM/dd</c> (matches the contract's <c>DateJalali</c>).</summary>
+    private static string JalaliDay(DateTimeOffset utc)
+    {
+        var local = TimeZoneInfo.ConvertTime(utc, ClinicZone).DateTime;
+        var pc = new PersianCalendar();
+        return $"{pc.GetYear(local):0000}/{pc.GetMonth(local):00}/{pc.GetDayOfMonth(local):00}";
     }
 
     private const int PetVaccinationTake = 100;
