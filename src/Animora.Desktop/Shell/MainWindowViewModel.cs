@@ -77,8 +77,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     public TopbarViewModel Topbar { get; }
 
-    private void OnCurrentViewModelChanged(object? sender, EventArgs e) =>
-        CurrentPage = _navigation.CurrentViewModel;
+    private void OnCurrentViewModelChanged(object? sender, EventArgs e)
+    {
+        var next = _navigation.CurrentViewModel;
+        var pageName = next is null ? "(NULL — the main content area is now EMPTY)" : next.GetType().Name;
+        var navKey = _navigation.CurrentNavigationKey ?? "(none)";
+        Diagnostics.AppTrace.Info($"[shell] CurrentPage → {pageName} (navKey='{navKey}').", "shell");
+        CurrentPage = next;
+    }
 
     /// <summary>True while the dashboard is the active page (shows the floating refresh button).</summary>
     public bool IsDashboardPage => CurrentPage is DashboardPageViewModel;

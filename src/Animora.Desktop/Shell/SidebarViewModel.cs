@@ -4,6 +4,7 @@ using System.Linq;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Navigation;
 using Animora.Desktop.Controls;
+using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Services;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -58,6 +59,8 @@ public sealed partial class SidebarViewModel : ObservableObject
         _groups = BuildGroups();
         // The first layout is the baseline, not an "opened" event — record it without announcing anything.
         _permittedKeys = CurrentPermittedKeys();
+        AppTrace.Info($"[sidebar] INITIAL build: groups={_groups.Count} entries={CountEntries(_groups)} permittedKeys={_permittedKeys.Count} " +
+            $"(keys: {string.Join(",", _permittedKeys)}).", "sidebar");
 
         _gate.CapabilitiesChanged += OnCapabilitiesChanged;
         // The highlight is derived from the navigation state - the one place every entry point passes through.
@@ -124,7 +127,14 @@ public sealed partial class SidebarViewModel : ObservableObject
     /// <summary>Rebuilds the visible groups, announces newly-opened sections, and drops an active entry that lost permission.</summary>
     private void ApplyCapabilitiesChanged()
     {
+        var before = CountEntries(Groups);
         Groups = BuildGroups();
+        var after = CountEntries(Groups);
+        var emptyNote = after == 0
+            ? " ⇒ SIDEBAR IS NOW EMPTY (every nav entry gated off — the read-only shell symptom)."
+            : string.Empty;
+        AppTrace.Info($"[sidebar] ApplyCapabilitiesChanged: entries {before}→{after}, groups={Groups.Count}, " +
+            $"permittedKeys={CurrentPermittedKeys().Count}{emptyNote}", "sidebar");
         AnnounceNewlyOpened();
         if (ActiveEntry is not { } active || IsPermitted(active.Item))
         {
@@ -139,6 +149,13 @@ public sealed partial class SidebarViewModel : ObservableObject
 
         active.IsActive = false;
         ActiveEntry = null;
+    }
+
+    private static int CountEntries(IReadOnlyList<NavGroupViewModel> groups)
+    {
+        var n = 0;
+        foreach (var g in groups) n += g.Entries.Count;
+        return n;
     }
 
     private IReadOnlyList<NavGroupViewModel> BuildGroups() =>

@@ -6,6 +6,7 @@ using System.Text.Json;
 using Animora.Application.Security;
 using Animora.Application.Abstractions;
 using Animora.Application.Ports;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Identity;
 using Animora.Contracts.Wire.Auth;
 using Animora.Domain.Primitives;
@@ -27,17 +28,36 @@ public sealed class CapabilityMirrorWriter(OnlineApi api, ICapabilitySnapshotSig
     public async Task<Result<StoredCapabilitySnapshot>> MirrorAsync(string? bearer, CancellationToken ct = default)
     {
         var keys = await FetchAsync<PublicKeySet>(HttpMethod.Get, "auth/keys", null, null, ct).ConfigureAwait(false);
-        if (keys.IsFailure) return Result<StoredCapabilitySnapshot>.Fail(keys.Error, keys.Detail);
+        if (keys.IsFailure)
+        {
+            TraceLog.Warn($"[mirror] MirrorAsync → GET auth/keys FAILED ({keys.Error} '{keys.Detail}').", "mirror");
+            return Result<StoredCapabilitySnapshot>.Fail(keys.Error, keys.Detail);
+        }
         var response = await FetchAsync<CapabilitySnapshotResponse>(HttpMethod.Post, "auth/capabilities", new { }, bearer, ct).ConfigureAwait(false);
-        if (response.IsFailure) return Result<StoredCapabilitySnapshot>.Fail(response.Error, response.Detail);
+        if (response.IsFailure)
+        {
+            TraceLog.Warn($"[mirror] MirrorAsync → POST auth/capabilities FAILED ({response.Error} '{response.Detail}') keys={keys.Value!.Keys.Count}.", "mirror");
+            return Result<StoredCapabilitySnapshot>.Fail(response.Error, response.Detail);
+        }
 
         var stored = Convert(response.Value!, keys.Value!);
-        if (stored.IsFailure) return stored;
+        if (stored.IsFailure)
+        {
+            TraceLog.Error($"[mirror] MirrorAsync → snapshot CONVERT/VERIFY FAILED ({stored.Error} '{stored.Detail}') keyId='{response.Value!.KeyId}'. Not stored.", null, "mirror");
+            return stored;
+        }
 
         using var di = scopes.CreateScope();
         var store = di.ServiceProvider.GetRequiredService<ICapabilityStore>();
         var replaced = await store.ReplaceAsync(stored.Value!, ct).ConfigureAwait(false);
-        return replaced.IsFailure ? Result<StoredCapabilitySnapshot>.Fail(replaced.Error, replaced.Detail) : stored;
+        if (replaced.IsFailure)
+        {
+            TraceLog.Error($"[mirror] MirrorAsync → capability store REPLACE FAILED ({replaced.Error} '{replaced.Detail}').", null, "mirror");
+            return Result<StoredCapabilitySnapshot>.Fail(replaced.Error, replaced.Detail);
+        }
+        TraceLog.Info($"[mirror] MirrorAsync ← STORED snapshot id={stored.Value!.Id} tenant={stored.Value.TenantId} user={stored.Value.UserId} " +
+            $"device={stored.Value.DeviceId} issued={stored.Value.IssuedAtUtc:O} absExpiry={stored.Value.AbsoluteExpiryUtc:O}.", "mirror");
+        return stored;
     }
 
     /// <summary>
@@ -49,16 +69,36 @@ public sealed class CapabilityMirrorWriter(OnlineApi api, ICapabilitySnapshotSig
         Func<bool> stillCurrent, CancellationToken ct)
     {
         var mirrored = await MirrorAsync(bearer: null, ct).ConfigureAwait(false);
-        if (mirrored.IsFailure) return mirrored.ToResult();
+        if (mirrored.IsFailure)
+        {
+            TraceLog.Warn($"[mirror] RefreshLocalAccessAsync → inner MirrorAsync FAILED ({mirrored.Error} '{mirrored.Detail}').", "mirror");
+            return mirrored.ToResult();
+        }
         var snapshot = mirrored.Value!;
         if (snapshot.TenantId != expected.TenantId || snapshot.UserId != expected.UserId || snapshot.DeviceId != expected.DeviceId)
+        {
+            TraceLog.Error($"[mirror] RefreshLocalAccessAsync → BINDING MISMATCH: snapshot(tenant={snapshot.TenantId} user={snapshot.UserId} device={snapshot.DeviceId}) " +
+                $"vs expected(tenant={expected.TenantId} user={expected.UserId} device={expected.DeviceId}) ⇒ CapabilityNotGranted.", null, "mirror");
             return Result.Fail(ErrorCodes.CapabilityNotGranted, "server_snapshot_binding_mismatch");
+        }
         var parsed = CapabilitySnapshotCodec.Parse(snapshot.PermissionsJson, snapshot.PerCapabilityExpiryJson);
-        if (parsed.IsFailure) return parsed.ToResult();
+        if (parsed.IsFailure)
+        {
+            TraceLog.Error($"[mirror] RefreshLocalAccessAsync → snapshot payload UNPARSEABLE ({parsed.Error}) ⇒ abort.", null, "mirror");
+            return parsed.ToResult();
+        }
         var offline = access.Permissions.Where(code => OfflineCapabilityPolicy.WindowForCode(code) > TimeSpan.Zero);
         if (!new HashSet<string>(offline, StringComparer.Ordinal).SetEquals(parsed.Value!.Permissions))
+        {
+            TraceLog.Error("[mirror] RefreshLocalAccessAsync → ACCESS CHANGED DURING REFRESH: the online permission set and the signed offline snapshot disagree " +
+                "⇒ ConcurrencyConflict (retried next pass; never applied).", null, "mirror");
             return Result.Fail(ErrorCodes.ConcurrencyConflict, "access_changed_during_refresh");
-        if (!stillCurrent()) return Result.Fail(ErrorCodes.SessionExpired);
+        }
+        if (!stillCurrent())
+        {
+            TraceLog.Warn("[mirror] RefreshLocalAccessAsync → session no longer current after mirror ⇒ SessionExpired.", "mirror");
+            return Result.Fail(ErrorCodes.SessionExpired);
+        }
 
         await using var scope = scopes.CreateAsyncScope();
         var services = scope.ServiceProvider;
@@ -68,19 +108,30 @@ public sealed class CapabilityMirrorWriter(OnlineApi api, ICapabilitySnapshotSig
         var roles = services.GetRequiredService<IRoleDefinitionRepository>();
         if (installation.TenantId != expected.TenantId
             || !Enum.TryParse<StaffRole>(access.Role, out var staffRole) || !Enum.IsDefined(staffRole))
+        {
+            TraceLog.Error($"[mirror] RefreshLocalAccessAsync → TENANT/ROLE MISMATCH (installTenant={installation.TenantId} expectedTenant={expected.TenantId} role='{access.Role}') ⇒ TenantMismatch.", null, "mirror");
             return Result.Fail(ErrorCodes.TenantMismatch);
+        }
         var user = await users.FindAsync(expected.UserId, ct).ConfigureAwait(false);
         var active = await memberships.FindActiveAsync(expected.TenantId, expected.UserId, ct).ConfigureAwait(false);
         var member = active is null ? null : await memberships.FindAsync(active.Id, ct).ConfigureAwait(false);
         var role = await roles.FindByRoleAsync(expected.TenantId, staffRole, ct).ConfigureAwait(false);
         if (user is null || user.TenantId != expected.TenantId || member is null || role is null || !stillCurrent())
+        {
+            TraceLog.Error($"[mirror] RefreshLocalAccessAsync → local identity incomplete (userNull={user is null} userTenant={user?.TenantId} " +
+                $"memberNull={member is null} roleNull={role is null} stillCurrent={stillCurrent()}) ⇒ SessionExpired.", null, "mirror");
             return Result.Fail(ErrorCodes.SessionExpired);
+        }
 
         // Rebind only AFTER verification, preserving every server-issued time bound, never extending a window.
         var local = snapshot with { Id = IdGenerator.NewId(clock.UtcNow), DeviceId = installation.DeviceId,
             SecurityStamp = user.SecurityStamp, SnapshotSignature = string.Empty };
         var signed = signer.Sign(local);
-        if (signed.IsFailure) return signed.ToResult();
+        if (signed.IsFailure)
+        {
+            TraceLog.Error($"[mirror] RefreshLocalAccessAsync → local re-sign FAILED ({signed.Error}) ⇒ abort.", null, "mirror");
+            return signed.ToResult();
+        }
         local = local with { SnapshotSignature = signed.Value! };
         var granted = new HashSet<string>(access.Permissions, StringComparer.Ordinal);
         var saved = await services.GetRequiredService<IUnitOfWork>().ExecuteAsync(async token =>
@@ -102,6 +153,8 @@ public sealed class CapabilityMirrorWriter(OnlineApi api, ICapabilitySnapshotSig
             if (cache.Current is { } current && current.UserId == expected.UserId)
                 cache.TryUpdate(current, current with { Role = staffRole });
         }
+        TraceLog.Info($"[mirror] RefreshLocalAccessAsync ← saved={saved.IsSuccess} error={saved.Error} role={staffRole} granted={granted.Count} " +
+            $"snapshotId={local.Id} absExpiry={local.AbsoluteExpiryUtc:O}.", "mirror");
         return saved.ToResult();
     }
 

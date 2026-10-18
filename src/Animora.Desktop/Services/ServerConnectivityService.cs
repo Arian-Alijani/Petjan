@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Animora.Desktop.Diagnostics;
 using Animora.Sync.Custom;
 
 namespace Animora.Desktop.Services;
@@ -34,6 +35,7 @@ public sealed class ServerConnectivityService(IHttpClientFactory httpFactory, Se
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token)
                 .ConfigureAwait(false);
             // Any definitive HTTP answer proves the server is reachable; liveness returns 200 when healthy.
+            AppTrace.Debug($"[connectivity] GET /health/live → {(int)response.StatusCode}; online={response.IsSuccessStatusCode}.", "connectivity");
             return response.IsSuccessStatusCode ? ServerConnectivityState.Online : ServerConnectivityState.Offline;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -42,6 +44,7 @@ public sealed class ServerConnectivityService(IHttpClientFactory httpFactory, Se
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or InvalidOperationException)
         {
+            AppTrace.Debug($"[connectivity] GET /health/live probe failed ({ex.GetType().Name}: {ex.Message}) ⇒ Offline.", "connectivity");
             return ServerConnectivityState.Offline;
         }
     }

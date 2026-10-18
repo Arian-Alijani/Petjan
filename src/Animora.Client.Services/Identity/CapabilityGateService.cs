@@ -1,5 +1,6 @@
 using Animora.Application.Ports;
 using Animora.Application.Security;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
 using Animora.Domain.Identity;
 using Animora.Domain.Time;
@@ -51,15 +52,25 @@ public sealed class CapabilityGateService : ICapabilityGate
     internal void SetOnlineAccess(string userId, IEnumerable<string> codes, long generation)
     {
         bool changed;
+        int count;
         lock (_publicationLock)
         {
-            if (generation != _generation || _view?.UserId != userId) return;
+            if (generation != _generation || _view?.UserId != userId)
+            {
+                // A stale lease (generation moved, or the view belongs to another user) must not be applied — a
+                // silent no-op here was previously invisible; it is now the first thing to look for when a live
+                // lease never seems to take effect after a re-auth.
+                TraceLog.Debug($"[gate] SetOnlineAccess IGNORED (stale): gen={generation} current={_generation} viewUser={_view?.UserId ?? "(none)"} reqUser={userId}", "gate");
+                return;
+            }
             var granted = new HashSet<string>(codes, StringComparer.Ordinal);
+            count = granted.Count;
             var previous = _onlineAccess;
             changed = previous is null || previous.UntilTick <= Environment.TickCount64
                 || previous.UserId != userId || !granted.SetEquals(previous.Codes);
             _onlineAccess = new OnlineAccessView(userId, granted, Environment.TickCount64 + 15000);
         }
+        TraceLog.Debug($"[gate] SetOnlineAccess user={userId} codes={count} changed={changed} leaseTtl=15000ms gen={generation}", "gate");
         if (changed) RaiseChanged();
     }
 
@@ -71,6 +82,7 @@ public sealed class CapabilityGateService : ICapabilityGate
             changed = _onlineAccess is not null;
             _onlineAccess = null;
         }
+        TraceLog.Debug($"[gate] ClearOnlineAccess (had lease={changed})", "gate");
         if (changed) RaiseChanged();
     }
 
@@ -135,6 +147,8 @@ public sealed class CapabilityGateService : ICapabilityGate
     internal async Task RefreshAsync(CancellationToken ct = default)
     {
         var generation = Generation;
+        var startedTicks = Environment.TickCount64;
+        TraceLog.Info($"[gate] RefreshAsync BEGIN gen={generation} ctCancelled={ct.IsCancellationRequested}", "gate");
         try
         {
             await using var scope = _scopes.CreateAsyncScope();
@@ -151,6 +165,12 @@ public sealed class CapabilityGateService : ICapabilityGate
             if (restored.IsFailure || restored.Value is not { } session
                 || session.UserId is not { Length: > 0 } userId || session.IsLocked)
             {
+                var userIdEmpty = string.IsNullOrEmpty(restored.Value?.UserId);
+                var locked = restored.Value?.IsLocked ?? false;
+                TraceLog.Warn($"[gate] RefreshAsync → DENY-ALL: no usable session " +
+                    $"(restoreFailed={restored.IsFailure}, sessionNull={restored.Value is null}, " +
+                    $"userIdEmpty={userIdEmpty}, locked={locked}). " +
+                    "Gate publishes null ⇒ every nav entry + write is gated OFF (empty sidebar + read-only banner).", "gate");
                 Publish(null, generation); // no active session ⇒ deny everything.
                 return;
             }
@@ -161,6 +181,7 @@ public sealed class CapabilityGateService : ICapabilityGate
             var securityStamp = user?.SecurityStamp ?? string.Empty;
             if (string.IsNullOrEmpty(securityStamp))
             {
+                TraceLog.Warn($"[gate] RefreshAsync → DENY-ALL: no security stamp (userFound={user is not null}) user={userId} tenant={tenantId} device={deviceId}.", "gate");
                 Publish(null, generation); // cannot prove binding ⇒ deny.
                 return;
             }
@@ -168,6 +189,7 @@ public sealed class CapabilityGateService : ICapabilityGate
             var loaded = await store.GetAsync(tenantId, userId, deviceId, ct).ConfigureAwait(false);
             if (loaded.IsFailure)
             {
+                TraceLog.Warn($"[gate] RefreshAsync → DENY-ALL: capability store read FAILED ({loaded.Error}) user={userId} tenant={tenantId} device={deviceId}.", "gate");
                 Publish(null, generation);
                 return;
             }
@@ -175,6 +197,7 @@ public sealed class CapabilityGateService : ICapabilityGate
             var snapshot = loaded.Value;
             if (snapshot is null)
             {
+                TraceLog.Warn($"[gate] RefreshAsync → DENY-ALL: NO capability snapshot stored for user={userId} tenant={tenantId} device={deviceId}.", "gate");
                 Publish(null, generation); // missing snapshot ⇒ deny.
                 return;
             }
@@ -191,6 +214,9 @@ public sealed class CapabilityGateService : ICapabilityGate
                 var evaluation = evaluator.Evaluate(snapshot, code, tenantId, userId, deviceId, securityStamp, now, highWater);
                 if (evaluation.DiscardSnapshot)
                 {
+                    TraceLog.Error($"[gate] RefreshAsync → TAMPERED snapshot discarded on code='{code}': {evaluation.Result.Error} " +
+                        $"('{evaluation.Result.Detail}'). snapshotId={snapshot.Id} issued={snapshot.IssuedAtUtc:O} absExpiry={snapshot.AbsoluteExpiryUtc:O} " +
+                        $"revokedAt={snapshot.RevokedAtUtc?.ToString("O") ?? "(none)"}. Gate becomes read-only until a fresh mirror.", null, "gate");
                     tampered = true; // malformed/tampered row: drop the whole snapshot, never re-sign it.
                     break;
                 }
@@ -199,7 +225,11 @@ public sealed class CapabilityGateService : ICapabilityGate
                 if (state == CapabilityState.Allowed)
                 {
                     var decision = await permissions.EvaluateAsync(code, subject, resource: null, ct).ConfigureAwait(false);
-                    if (!decision.Allowed) state = CapabilityState.Denied; // B04a RBAC/policy/overlay.
+                    if (!decision.Allowed)
+                    {
+                        TraceLog.Debug($"[gate] code='{code}' offline-Allowed but RBAC/policy DENIED ({decision.Error}) ⇒ Denied.", "gate");
+                        state = CapabilityState.Denied; // B04a RBAC/policy/overlay.
+                    }
                 }
 
                 results[code] = state;
@@ -212,22 +242,90 @@ public sealed class CapabilityGateService : ICapabilityGate
             }
 
             var view = CapabilitySnapshotView.Allowed(snapshot, session.ExpiresAtUtc, highWater, results);
+            TraceLog.Info($"[gate] RefreshAsync ← PUBLISH view: snapshotId={snapshot.Id} tenant={tenantId} user={userId} device={deviceId} " +
+                $"issued={snapshot.IssuedAtUtc:O} absExpiry={snapshot.AbsoluteExpiryUtc:O} sessionExpiry={session.ExpiresAtUtc?.ToString("O") ?? "(none)"} " +
+                $"highWater={highWater:O} now={now:O} allowed={Count(results, CapabilityState.Allowed)}/{results.Count} " +
+                $"expiredOffline={Count(results, CapabilityState.ExpiredOffline)} requiresOnline={Count(results, CapabilityState.RequiresOnline)} " +
+                $"denied={Count(results, CapabilityState.Denied)}.", "gate");
             Publish(view, generation);
         }
         catch (OperationCanceledException)
         {
+            TraceLog.Warn($"[gate] RefreshAsync CANCELLED (ct={ct.IsCancellationRequested}) → DENY-ALL. A warm-up cancelled mid-flight blanks the shell.", "gate");
             Publish(null, generation);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Never let a warm-up failure escape into the auth path; the gate simply stays denied.
+            TraceLog.Error("[gate] RefreshAsync THREW → DENY-ALL (warm-up failure blanks the shell until the next successful refresh).", ex, "gate");
             Publish(null, generation);
         }
+        finally
+        {
+            TraceLog.Debug($"[gate] RefreshAsync END gen={generation} elapsedMs={Environment.TickCount64 - startedTicks}", "gate");
+        }
+    }
+
+    /// <summary>Counts the decisions in <paramref name="results"/> matching <paramref name="state"/> (diagnostics only).</summary>
+    private static int Count(IReadOnlyDictionary<string, CapabilityState> results, CapabilityState state)
+    {
+        var n = 0;
+        foreach (var pair in results)
+        {
+            if (pair.Value == state) n++;
+        }
+
+        return n;
+    }
+
+    /// <summary>
+    /// Full, human-readable snapshot of the gate's current authority for the read-only-banner investigation. This is
+    /// the single call that answers "why is the shell blank / read-only right now?" — it reports the published view
+    /// (or its absence), the live online lease, the cache size, the generation, and the per-code decision map. Safe
+    /// to call from any thread; reads only the atomically published state.
+    /// </summary>
+    public string DescribeState()
+    {
+        var view = _view;
+        var online = _onlineAccess;
+        var sb = new System.Text.StringBuilder();
+        sb.Append("gen=").Append(Generation);
+        if (view is null)
+        {
+            sb.Append(" view=(NONE)  ⇒ fail-closed: every nav entry + write is denied (empty sidebar + read-only banner).");
+        }
+        else
+        {
+            sb.Append(" view{snapshotId=").Append(view.SnapshotId)
+              .Append(" tenant=").Append(view.TenantId)
+              .Append(" user=").Append(view.UserId)
+              .Append(" device=").Append(view.DeviceId)
+              .Append(" tampered=").Append(view.Tampered)
+              .Append(" issued=").Append(view.IssuedAtUtc.ToString("O"))
+              .Append(" absExpiry=").Append(view.AbsoluteExpiryUtc.ToString("O"))
+              .Append(" sessionExpiry=").Append(view.SessionExpiresAtUtc?.ToString("O") ?? "(none)")
+              .Append(" highWater=").Append(view.HighWaterUtc.ToString("O"))
+              .Append(" allowed=").Append(Count(view.Results, CapabilityState.Allowed))
+              .Append(" expiredOffline=").Append(Count(view.Results, CapabilityState.ExpiredOffline))
+              .Append(" requiresOnline=").Append(Count(view.Results, CapabilityState.RequiresOnline))
+              .Append(" denied=").Append(Count(view.Results, CapabilityState.Denied))
+              .Append("}");
+        }
+
+        sb.Append(" onlineLease=");
+        if (online is null) sb.Append("(none)");
+        else sb.Append("{user=").Append(online.UserId)
+                 .Append(" codes=").Append(online.Codes.Count)
+                 .Append(" expiresInMs=").Append(online.UntilTick - Environment.TickCount64)
+                 .Append("}");
+        return sb.ToString();
     }
 
     /// <summary>Invalidates all authority (sign-out). The gate denies every code until a successful refresh.</summary>
     internal void Clear()
     {
+        var previousGen = Generation;
+        var hadView = _view is not null;
         lock (_publicationLock)
         {
             Interlocked.Increment(ref _generation);
@@ -235,26 +333,35 @@ public sealed class CapabilityGateService : ICapabilityGate
             _cache.Clear();
             _view = null;
         }
+        TraceLog.Warn($"[gate] Clear() ⇒ gen {previousGen}→{Generation}: ALL authority dropped (hadView={hadView}). " +
+            "Everything the gate guards is now denied until the next successful RefreshAsync.", "gate");
         RaiseChanged();
     }
 
     /// <summary>Publishes a new immutable view atomically and raises <see cref="CapabilitiesChanged"/>.</summary>
     private void Publish(CapabilitySnapshotView? view, long generation)
     {
+        var published = false;
         lock (_publicationLock)
         {
             // A refresh that started before sign-out must never restore authority afterwards.
-            if (generation != _generation) return;
-            _cache.Clear();
-            if (view is { } published && !published.Tampered)
+            if (generation != _generation)
             {
-                foreach (var pair in published.Results)
-                    _cache.Put(new CapabilityCacheKey(view.TenantId, view.UserId, view.DeviceId, pair.Key, view.SnapshotId), pair.Value);
+                TraceLog.Warn($"[gate] Publish SKIPPED: refresh gen={generation} is stale (current={_generation}) — a sign-out/in raced it; authority NOT restored.", "gate");
+                return;
+            }
+            _cache.Clear();
+            if (view is { } v && !v.Tampered)
+            {
+                foreach (var pair in v.Results)
+                    _cache.Put(new CapabilityCacheKey(v.TenantId, v.UserId, v.DeviceId, pair.Key, v.SnapshotId), pair.Value);
             }
             if (view is null || view.UserId != _view?.UserId || view.Tampered) _onlineAccess = null;
             _view = view;
+            published = true;
         }
-        RaiseChanged();
+        TraceLog.Info($"[gate] Publish → {DescribeState()}", "gate");
+        if (published) RaiseChanged();
     }
 
     private void RaiseChanged()

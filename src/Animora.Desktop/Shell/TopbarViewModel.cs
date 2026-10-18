@@ -193,6 +193,9 @@ public sealed partial class TopbarViewModel : ObservableObject
     private async Task SyncNowAsync()
     {
         var pendingBefore = _sync.PendingChangeCount;
+        Diagnostics.AppTrace.Info(
+            $"[topbar] SyncNow CLICKED — before: state={_sync.State} pending={pendingBefore} terminal={_sync.TerminalFailureCount} " +
+            $"readOnly={IsReadOnlyMode} gate={DescribeGate()}", "topbar");
         await _sync.SyncNowAsync();
 
         var message = _sync.State switch
@@ -208,11 +211,16 @@ public sealed partial class TopbarViewModel : ObservableObject
             SyncState.Error => "خطا در همگام‌سازی؛ بعداً دوباره تلاش می‌شود",
             _ => "همگام‌سازی انجام شد",
         };
+        Diagnostics.AppTrace.Info(
+            $"[topbar] SyncNow RETURNED — after: state={_sync.State} pending={_sync.PendingChangeCount} terminal={_sync.TerminalFailureCount} " +
+            $"readOnly={IsReadOnlyMode} toast='{message}'. NOTE: a manual sync NEVER re-warms the capability gate — if the shell is read-only " +
+            "because the gate is empty, this click cannot clear it (only a successful LiveAccessRefresh/mirror can).", "topbar");
         _toast.Show(message);
     }
 
     private void OnSyncStateChanged(object? sender, EventArgs e)
     {
+        Diagnostics.AppTrace.Debug($"[topbar] OnSyncStateChanged → state={_sync.State} pending={_sync.PendingChangeCount} readOnly={IsReadOnlyMode}.", "topbar");
         // Raised from a background thread by the (future) engine — marshal the
         // property updates back to the UI thread.
         if (Dispatcher.UIThread.CheckAccess())
@@ -228,18 +236,21 @@ public sealed partial class TopbarViewModel : ObservableObject
     private void OnCapabilitiesChanged(object? sender, EventArgs e)
     {
         // The gate may raise this from a background thread; marshal to the UI thread.
-        if (Dispatcher.UIThread.CheckAccess())
+        var wasReadOnly = IsReadOnlyMode;
+        void Apply()
         {
             UpdateReadOnlyMode();
             RefreshSyncPresentation();
+            Diagnostics.AppTrace.Info(
+                $"[topbar] OnCapabilitiesChanged — readOnly {wasReadOnly}→{IsReadOnlyMode}; gate={DescribeGate()}.", "topbar");
+        }
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            Apply();
         }
         else
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                UpdateReadOnlyMode();
-                RefreshSyncPresentation();
-            });
+            Dispatcher.UIThread.Post(Apply);
         }
     }
 
@@ -261,6 +272,10 @@ public sealed partial class TopbarViewModel : ObservableObject
             SyncToolTip = "بدون دسترسی آفلاین: تغییرات غیرفعال است تا اتصال و نشست دوباره برقرار شود.";
             SyncStateBrush = Controls.BrushCache.Solid("#b54708");
             ApplyBoxTint(SyncState.Pending); // amber banner surface
+            Diagnostics.AppTrace.Warn(
+                $"[topbar] READ-ONLY banner ACTIVE — no nav capability is permitted. gate={DescribeGate()} syncState={_sync.State} " +
+                $"pending={_sync.PendingChangeCount} terminal={_sync.TerminalFailureCount} lastSynced={_sync.LastSyncedAt?.ToString("O") ?? "(none)"}. " +
+                "This is the state where the sidebar + content are expected to be empty.", "topbar");
             return;
         }
 
@@ -291,6 +306,12 @@ public sealed partial class TopbarViewModel : ObservableObject
         ApplyBoxTint(_sync.State);
         UpdateSyncRelativeText();
     }
+
+    /// <summary>Formats the capability gate's current authority for the read-only diagnosis (best-effort).</summary>
+    private string DescribeGate() =>
+        _gate is Animora.Client.Services.Identity.CapabilityGateService concrete
+            ? concrete.DescribeState()
+            : "(gate is not the concrete CapabilityGateService)";
 
     /// <summary>
     /// Tints the whole sync button so unsent changes / failures are noticeable at a glance:
