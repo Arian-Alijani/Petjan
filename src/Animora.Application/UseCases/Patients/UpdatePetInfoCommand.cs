@@ -15,7 +15,10 @@ namespace Animora.Application.UseCases.Patients;
 [RequiresPermission(PermissionCodes.PatientsPetEdit)]
 [Auditable(AuditCategory.Clinical, "patients.pet.update")]
 public sealed record UpdatePetInfoCommand(string PetId, string Name, string? Breed, string? Color,
-    PetGender Gender, DateTimeOffset? BirthUtc, bool Neutered, string? AllergyNotes, string? ChronicNotes)
+    PetGender Gender, DateTimeOffset? BirthUtc, bool Neutered, string? AllergyNotes, string? ChronicNotes,
+    string? Habitat = null, string? Behavior = null, string? Diet = null, string? BloodType = null,
+    string? Insurance = null, string? MicrochipCode = null, DateTimeOffset? MicrochipUtc = null,
+    string? MicrochipVendor = null, string? MicrochipLocation = null, DateTimeOffset? NeuteredUtc = null)
     : ICommand<Unit>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.PatientsPetUpdate;
@@ -41,7 +44,9 @@ public sealed class UpdatePetInfoCommandHandler(IPetRepository pets) : ICommandH
     {
         var pet = await pets.FindAsync(c.PetId, ct);
         if (pet is null) return Result<Unit>.Fail(ErrorCodes.PetNotFound);
-        pet.UpdateProfile(c.Name, c.Breed, c.Gender, c.BirthUtc, c.Neutered, c.Color);
+        pet.UpdateDetails(c.Name, c.Breed, c.Gender, c.BirthUtc, c.Neutered, c.Color,
+            c.Habitat, c.Behavior, c.Diet, c.BloodType, c.Insurance, c.NeuteredUtc);
+        pet.SetMicrochip(c.MicrochipCode, c.MicrochipUtc, c.MicrochipVendor, c.MicrochipLocation);
         pet.SetClinicalFlags(c.AllergyNotes, c.ChronicNotes);
         return Result<Unit>.Ok(Unit.Value);
     }

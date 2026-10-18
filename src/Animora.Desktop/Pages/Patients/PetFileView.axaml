@@ -65,6 +65,68 @@
         <Style Selector="Button.kpiadd:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
         </Style>
+        <!-- radio pills (.rpill) — gender picker in the info edit pane (Task 6) -->
+        <Style Selector="Button.rpill">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.rpill:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+            <Setter Property="Background" Value="White" />
+        </Style>
+        <Style Selector="Button.rpill.on">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="Button.rpill.on:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+        </Style>
+        <!-- neutered switch row (.swrow) — info edit pane (Task 6) -->
+        <Style Selector="Button.swrow">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Padding" Value="13,0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.swrow:pointerover">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="Border.swtrack">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+        </Style>
+        <Style Selector="Border.swtrack.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+        </Style>
+        <Style Selector="Border.swknob">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,3,0" />
+        </Style>
+        <Style Selector="Border.swtrack.on Border.swknob">
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Margin" Value="3,0,0,0" />
+        </Style>
         <Style Selector="TextBlock.dt">
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
@@ -662,7 +724,8 @@
                         </Border>
                         <Border Padding="16">
                             <StackPanel>
-                                <ItemsControl ItemsSource="{Binding InfoItems}">
+                                <ItemsControl ItemsSource="{Binding InfoItems}"
+                                              IsVisible="{Binding !IsEditingInfo}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <UniformGrid Columns="2" />
@@ -687,6 +750,135 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+
+                                <!-- full attribute editor (Task 6): every registration attribute, row-wise -->
+                                <StackPanel IsVisible="{Binding IsEditingInfo}">
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+                                        <StackPanel Grid.Column="0" Spacing="6">
+                                            <TextBlock Classes="dt" Text="نام حیوان" />
+                                            <TextBox Text="{Binding EditName}" Padding="12,10"
+                                                     CornerRadius="10" PlaceholderText="مثال: پشمک" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="6">
+                                            <TextBlock Classes="dt" Text="نژاد" />
+                                            <TextBox Text="{Binding EditBreed}" Padding="12,10"
+                                                     CornerRadius="10" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="6">
+                                            <TextBlock Classes="dt" Text="رنگ" />
+                                            <TextBox Text="{Binding EditColor}" Padding="12,10"
+                                                     CornerRadius="10" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+                                        <StackPanel Grid.Column="0" Spacing="6">
+                                            <TextBlock Classes="dt" Text="تاریخ تولد" />
+                                            <controls:JalaliDatePicker DateValue="{Binding EditBirth, Mode=TwoWay}"
+                                                                       Placeholder="۱۴۰۲/۰۴/۲۱"
+                                                                       HorizontalAlignment="Stretch" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="6">
+                                            <TextBlock Classes="dt" Text="جنسیت" />
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                                <Button Classes="rpill" Classes.on="{Binding IsEditFemale}"
+                                                        Content="ماده" Margin="0"
+                                                        Command="{Binding SetEditGenderCommand}" CommandParameter="female" />
+                                                <Button Classes="rpill" Classes.on="{Binding IsEditMale}"
+                                                        Content="نر" Margin="0"
+                                                        Command="{Binding SetEditGenderCommand}" CommandParameter="male" />
+                                                <Button Classes="rpill" Classes.on="{Binding IsEditUnknown}"
+                                                        Content="نامشخص" Margin="0"
+                                                        Command="{Binding SetEditGenderCommand}" CommandParameter="unknown" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="6">
+                                            <TextBlock Classes="dt" Text="گروه خونی" />
+                                            <ComboBox ItemsSource="{Binding BloodTypes}"
+                                                      SelectedItem="{Binding EditBloodType}"
+                                                      HorizontalAlignment="Stretch" Padding="12,8"
+                                                      CornerRadius="10" MinHeight="40" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+                                        <StackPanel Grid.Column="0" Spacing="6">
+                                            <TextBlock Classes="dt" Text="محل زندگی" />
+                                            <ComboBox ItemsSource="{Binding Habitats}"
+                                                      SelectedItem="{Binding EditHabitat}"
+                                                      HorizontalAlignment="Stretch" Padding="12,8"
+                                                      CornerRadius="10" MinHeight="40" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="6">
+                                            <TextBlock Classes="dt" Text="رفتار" />
+                                            <ComboBox ItemsSource="{Binding Behaviors}"
+                                                      SelectedItem="{Binding EditBehavior}"
+                                                      HorizontalAlignment="Stretch" Padding="12,8"
+                                                      CornerRadius="10" MinHeight="40" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="6">
+                                            <TextBlock Classes="dt" Text="جیره غذایی" />
+                                            <ComboBox ItemsSource="{Binding Diets}"
+                                                      SelectedItem="{Binding EditDiet}"
+                                                      HorizontalAlignment="Stretch" Padding="12,8"
+                                                      CornerRadius="10" MinHeight="40" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,0,0,12">
+                                        <StackPanel Grid.Column="0" Spacing="6">
+                                            <TextBlock Classes="dt" Text="بیمه" />
+                                            <TextBox Text="{Binding EditInsurance}" Padding="12,10"
+                                                     CornerRadius="10" PlaceholderText="مثال: بیمه دانا" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="6">
+                                            <TextBlock Classes="dt" Text="وضعیت عقیم‌سازی" />
+                                            <Button Classes="swrow" Command="{Binding ToggleEditNeuteredCommand}">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="عقیم شده است"
+                                                               FontSize="12.5" FontWeight="Bold"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{StaticResource InkBrush}" />
+                                                    <Border Grid.Column="1" Classes="swtrack"
+                                                            Classes.on="{Binding EditNeutered}">
+                                                        <Border Classes="swknob" />
+                                                    </Border>
+                                                </Grid>
+                                            </Button>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="6"
+                                                    IsVisible="{Binding EditNeutered}">
+                                            <TextBlock Classes="dt" Text="تاریخ عقیم‌سازی" />
+                                            <controls:JalaliDatePicker DateValue="{Binding EditNeuteredDate, Mode=TwoWay}"
+                                                                       Placeholder="۱۴۰۲/۰۶/۱۰"
+                                                                       HorizontalAlignment="Stretch" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12" Margin="0,0,0,6">
+                                        <StackPanel Grid.Column="0" Spacing="6">
+                                            <TextBlock Classes="dt" Text="کد میکروچیپ" />
+                                            <TextBox Text="{Binding EditMicrochipCode}" Padding="12,10"
+                                                     CornerRadius="10" PlaceholderText="۹۸۵۱۴۱…" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="6">
+                                            <TextBlock Classes="dt" Text="تاریخ کاشت" />
+                                            <controls:JalaliDatePicker DateValue="{Binding EditMicrochipDate, Mode=TwoWay}"
+                                                                       Placeholder="۱۴۰۲/۰۹/۰۲"
+                                                                       HorizontalAlignment="Stretch" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="6">
+                                            <TextBlock Classes="dt" Text="سازنده میکروچیپ" />
+                                            <TextBox Text="{Binding EditMicrochipVendor}" Padding="12,10"
+                                                     CornerRadius="10" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3" Spacing="6">
+                                            <TextBlock Classes="dt" Text="محل کاشت" />
+                                            <TextBox Text="{Binding EditMicrochipLocation}" Padding="12,10"
+                                                     CornerRadius="10" />
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
 
                                 <!-- clinical-alert rows (allergies + chronic), edit mode only (Task 3) -->
                                 <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,6,0,0"

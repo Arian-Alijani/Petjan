@@ -22,7 +22,9 @@ public sealed record CreateOwnerCommand(
     // optional first pet (mirrors NewOwnerRequest.Pet); null when no pet is created with the owner:
     string? PetName, PetSpecies? PetSpecies, string? PetBreed, string? PetColor, PetGender? PetGender,
     DateTimeOffset? PetBirthUtc, string? PetMicrochip, DateTimeOffset? PetMicrochipUtc, bool PetNeutered,
-    string? PetAllergyNotes = null, string? PetChronicNotes = null)
+    string? PetAllergyNotes = null, string? PetChronicNotes = null, string? PetHabitat = null,
+    string? PetBehavior = null, string? PetDiet = null, string? PetBloodType = null, string? PetInsurance = null,
+    string? PetMicrochipVendor = null, string? PetMicrochipLocation = null, DateTimeOffset? PetNeuteredUtc = null)
     : ICommand<string>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.PatientsOwnerCreate;
@@ -59,10 +61,11 @@ public sealed class CreateOwnerCommandHandler(IOwnerRepository owners, IPetRepos
             var pet = Pet.Register(context.TenantId, owner.Id, c.PetName, species, clock,
                 c.PetGender ?? PetGender.Unknown, c.PetBirthUtc, c.PetBreed,
                 id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
-            pet.UpdateProfile(c.PetName, c.PetBreed, c.PetGender, c.PetBirthUtc, c.PetNeutered, c.PetColor);
+            pet.UpdateDetails(c.PetName, c.PetBreed, c.PetGender, c.PetBirthUtc, c.PetNeutered, c.PetColor,
+                c.PetHabitat, c.PetBehavior, c.PetDiet, c.PetBloodType, c.PetInsurance, c.PetNeuteredUtc);
             pet.SetClinicalFlags(c.PetAllergyNotes, c.PetChronicNotes);
             if (!string.IsNullOrWhiteSpace(c.PetMicrochip))
-                pet.SetMicrochip(c.PetMicrochip, c.PetMicrochipUtc ?? clock.UtcNow);
+                pet.SetMicrochip(c.PetMicrochip, c.PetMicrochipUtc ?? clock.UtcNow, c.PetMicrochipVendor, c.PetMicrochipLocation);
             pets.Add(pet);
         }
         return Task.FromResult(Result<string>.Ok(owner.Id));

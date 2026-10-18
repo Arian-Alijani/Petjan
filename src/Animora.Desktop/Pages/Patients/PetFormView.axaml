@@ -296,6 +296,39 @@
             </StackPanel>
         </Grid>
 
+        <!-- row 5: microchip vendor / location / neutered date -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,12,0,0">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Classes="flabel" Text="سازنده میکروچیپ" />
+                <TextBox Classes="pf" Text="{Binding MicrochipVendor}" PlaceholderText="مثال: Datamars" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="flabel" Text="محل کاشت" />
+                <TextBox Classes="pf" Text="{Binding MicrochipLocation}" PlaceholderText="مثال: بین دو کتف" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6" IsVisible="{Binding Neutered}">
+                <TextBlock Classes="flabel" Text="تاریخ عقیم‌سازی" />
+                <controls:JalaliDatePicker DateValue="{Binding NeuteredDate, Mode=TwoWay}"
+                                           Placeholder="۱۴۰۲/۰۶/۱۰" HorizontalAlignment="Stretch" />
+            </StackPanel>
+        </Grid>
+
+        <!-- row 6: blood type / insurance -->
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12" Margin="0,12,0,0">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <TextBlock Classes="flabel" Text="گروه خونی" />
+                <ComboBox Classes="pf" ItemsSource="{Binding BloodTypes}"
+                          SelectedItem="{Binding BloodType}" HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <TextBlock Classes="flabel" Text="بیمه" />
+                <TextBox Classes="pf" Text="{Binding Insurance}" PlaceholderText="مثال: بیمه دانا" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6">
+                <TextBlock Classes="flabel" Text=" " />
+            </StackPanel>
+        </Grid>
+
         <!-- ◂ هشدارهای بالینی (allergies + chronic conditions, row-wise) -->
         <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,16,0,12">
             <Path Grid.Column="0" Classes="icon" Width="16" Height="16"

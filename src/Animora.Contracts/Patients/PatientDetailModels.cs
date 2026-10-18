@@ -182,7 +182,6 @@ public sealed record PetDetail(
     IReadOnlyList<string> ChronicConditions,
     string? Notes,
     IReadOnlyList<RadiologySummary> Radiology = null!);
-
 /// <summary>
 /// Full owner record backing the Owner Sheet: the directory-level
 /// <see cref="OwnerSummary"/> identity plus the owner's live pet roster.
@@ -223,7 +222,12 @@ public sealed record NewPetRequest(
     DateTime? MicrochipDate,
     bool Neutered,
     IReadOnlyList<string>? Allergies = null,
-    IReadOnlyList<string>? ChronicConditions = null);
+    IReadOnlyList<string>? ChronicConditions = null,
+    string? BloodType = null,
+    string? Insurance = null,
+    string? MicrochipVendor = null,
+    string? MicrochipLocation = null,
+    DateTime? NeuteredDate = null);
 
 /// <summary>
 /// Registration payload for a brand-new owner (and, when present, their first

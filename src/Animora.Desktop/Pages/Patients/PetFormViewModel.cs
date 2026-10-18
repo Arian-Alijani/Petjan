@@ -40,6 +40,11 @@ public sealed partial class PetFormViewModel : ObservableObject
     [ObservableProperty] private string _surgeryHistory = string.Empty;
     [ObservableProperty] private string _microchipCode = string.Empty;
     [ObservableProperty] private string _microchipDate = string.Empty;
+    [ObservableProperty] private string _microchipVendor = string.Empty;
+    [ObservableProperty] private string _microchipLocation = string.Empty;
+    [ObservableProperty] private string _bloodType = string.Empty;
+    [ObservableProperty] private string _insurance = string.Empty;
+    [ObservableProperty] private string _neuteredDate = string.Empty;
     [ObservableProperty] private bool _neutered;
 
     /// <summary>
@@ -68,6 +73,7 @@ public sealed partial class PetFormViewModel : ObservableObject
     public IReadOnlyList<string> Habitats => PatientsPresentation.Habitats;
     public IReadOnlyList<string> Behaviors => PatientsPresentation.Behaviors;
     public IReadOnlyList<string> Diets => PatientsPresentation.Diets;
+    public IReadOnlyList<string> BloodTypes => PatientsPresentation.BloodTypes;
 
     /// <param name="defaultFemale">
     /// Which gender pill starts selected, matching each reference form: the
@@ -157,7 +163,12 @@ public sealed partial class PetFormViewModel : ObservableObject
             TryParseJalali(MicrochipDate, out var chip) ? chip : null,
             Neutered,
             AlertTexts(Allergies),
-            AlertTexts(ChronicConditions));
+            AlertTexts(ChronicConditions),
+            string.IsNullOrWhiteSpace(BloodType) ? null : BloodType.Trim(),
+            string.IsNullOrWhiteSpace(Insurance) ? null : Insurance.Trim(),
+            string.IsNullOrWhiteSpace(MicrochipVendor) ? null : MicrochipVendor.Trim(),
+            string.IsNullOrWhiteSpace(MicrochipLocation) ? null : MicrochipLocation.Trim(),
+            Neutered && TryParseJalali(NeuteredDate, out var nd) ? nd : null);
     }
 
     /// <summary>Adds an empty allergy row to the registration form.</summary>

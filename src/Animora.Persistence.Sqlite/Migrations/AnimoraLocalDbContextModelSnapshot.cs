@@ -2436,8 +2436,16 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Behavior")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("BirthDateUtc")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("BloodType")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Breed")
                         .HasMaxLength(400)
@@ -2454,8 +2462,20 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.Property<bool>("Deleted")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Diet")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Gender")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Habitat")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Insurance")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsNeutered")
                         .HasColumnType("INTEGER");
@@ -2467,10 +2487,21 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.Property<long?>("MicrochipImplantUtc")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("MicrochipLocation")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MicrochipVendor")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
+
+                    b.Property<long?>("NeuteredUtc")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("OwnerId")
                         .IsRequired()

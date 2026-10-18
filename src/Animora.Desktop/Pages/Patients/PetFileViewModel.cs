@@ -108,6 +108,19 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     [ObservableProperty] private string _editHabitat = string.Empty;
     [ObservableProperty] private string _editBehavior = string.Empty;
     [ObservableProperty] private string _editDiet = string.Empty;
+    [ObservableProperty] private string _editBloodType = string.Empty;
+    [ObservableProperty] private string _editInsurance = string.Empty;
+    [ObservableProperty] private bool _editNeutered;
+    [ObservableProperty] private string _editNeuteredDate = string.Empty;
+    [ObservableProperty] private string _editMicrochipCode = string.Empty;
+    [ObservableProperty] private string _editMicrochipDate = string.Empty;
+    [ObservableProperty] private string _editMicrochipVendor = string.Empty;
+    [ObservableProperty] private string _editMicrochipLocation = string.Empty;
+
+    // gender pill state (radio: male / female / unknown) — Task 6
+    [ObservableProperty] private bool _isEditMale;
+    [ObservableProperty] private bool _isEditFemale;
+    [ObservableProperty] private bool _isEditUnknown;
 
     // ---- clinical-alert edit rows (Task 3) ----
     public ObservableCollection<AlertRowEditViewModel> EditAllergies { get; } = [];
@@ -148,6 +161,13 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     }
 
     public IReadOnlyList<PetTabViewModel> Tabs { get; }
+
+    /// <summary>Selectable options for the info-tab edit combos (free text also allowed — combos are editable).</summary>
+    public IReadOnlyList<string> Habitats => PatientsPresentation.Habitats;
+    public IReadOnlyList<string> Behaviors => PatientsPresentation.Behaviors;
+    public IReadOnlyList<string> Diets => PatientsPresentation.Diets;
+    public IReadOnlyList<string> BloodTypes => PatientsPresentation.BloodTypes;
+    public IReadOnlyList<string> Genders { get; } = ["ماده", "نر", "نامشخص"];
 
     // ---- hero ----
     public string Name { get; private set; } = string.Empty;
@@ -576,14 +596,9 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         }
         else
         {
-            // The edit pane shows the same labels; the View swaps value text for inputs.
-            InfoItems.Add(new("نام حیوان", EditName, "IconPaw", false, false));
-            InfoItems.Add(new("نژاد", EditBreed, "IconTag", false, false));
-            InfoItems.Add(new("رنگ", EditColor, "IconPalette", false, false));
-            InfoItems.Add(new("تاریخ تولد", EditBirth, "IconCake", false, false));
-            InfoItems.Add(new("محل زندگی", EditHabitat, "IconHome2", false, false));
-            InfoItems.Add(new("رفتار", EditBehavior, "IconSmile", false, false));
-            InfoItems.Add(new("جیره غذایی", EditDiet, "IconBowl", false, false));
+            // The edit pane renders its own input grid in the View (name/breed/color/species/gender/
+            // birth/habitat/behavior/diet/blood/insurance/neutered/microchip). The legacy InfoItems list
+            // is unused in edit mode (Task 6).
         }
     }
 
@@ -596,6 +611,17 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         EditHabitat = pet.Habitat;
         EditBehavior = pet.Behavior;
         EditDiet = pet.Diet;
+        EditBloodType = pet.BloodType ?? string.Empty;
+        EditInsurance = pet.Insurance ?? string.Empty;
+        EditNeutered = pet.Neutered;
+        EditNeuteredDate = pet.NeuteredDate is { } nd ? JalaliDate.FromDateTime(nd).ToString("short") : string.Empty;
+        EditMicrochipCode = pet.Microchip.Code ?? string.Empty;
+        EditMicrochipDate = pet.Microchip.ImplantDate is { } md ? JalaliDate.FromDateTime(md).ToString("short") : string.Empty;
+        EditMicrochipVendor = pet.Microchip.Vendor ?? string.Empty;
+        EditMicrochipLocation = pet.Microchip.Location ?? string.Empty;
+        IsEditFemale = pet.Gender == PetGender.Female;
+        IsEditMale = pet.Gender == PetGender.Male;
+        IsEditUnknown = pet.Gender == PetGender.Unknown;
         FillAlertRows(EditAllergies, pet.Allergies);
         FillAlertRows(EditChronic, pet.ChronicConditions);
     }
@@ -640,6 +666,19 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     [RelayCommand]
     private void AddEditChronic() => EditChronic.Add(new AlertRowEditViewModel(string.Empty, EditChronic.Remove));
 
+    /// <summary>Radio-pill gender picker for the info edit pane: "female" | "male" | "unknown" (Task 6).</summary>
+    [RelayCommand]
+    private void SetEditGender(string? gender)
+    {
+        IsEditFemale = gender == "female";
+        IsEditMale = gender == "male";
+        IsEditUnknown = gender == "unknown";
+    }
+
+    /// <summary>Toggles the neutered switch in the info edit pane (Task 6).</summary>
+    [RelayCommand]
+    private void ToggleEditNeutered() => EditNeutered = !EditNeutered;
+
     [RelayCommand]
     private void CancelInfoEdit()
     {
@@ -665,24 +704,56 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             birth = parsed;
         }
 
+        DateTime? neuteredDate = _pet.NeuteredDate;
+        if (EditNeutered && TryParseJalali(EditNeuteredDate, out var nd)) neuteredDate = nd;
+        if (!EditNeutered) neuteredDate = null;
+
+        DateTime? chipDate = _pet.Microchip.ImplantDate;
+        if (TryParseJalali(EditMicrochipDate, out var cd)) chipDate = cd;
+
+        var gender = IsEditFemale ? PetGender.Female : IsEditUnknown ? PetGender.Unknown : PetGender.Male;
+
         var updated = _pet with
         {
             Name = Trim(EditName),
             Breed = Trim(EditBreed),
             Color = Trim(EditColor),
+            Gender = gender,
             BirthDate = birth,
             Habitat = Trim(EditHabitat),
             Behavior = Trim(EditBehavior),
             Diet = Trim(EditDiet),
+            BloodType = TrimOrNull(EditBloodType),
+            Insurance = TrimOrNull(EditInsurance),
+            Neutered = EditNeutered,
+            NeuteredDate = neuteredDate,
+            Microchip = new MicrochipInfo(
+                TrimOrNull(EditMicrochipCode),
+                chipDate,
+                TrimOrNull(EditMicrochipVendor),
+                TrimOrNull(EditMicrochipLocation)),
             Allergies = PetFormViewModel.AlertTexts(EditAllergies),
             ChronicConditions = PetFormViewModel.AlertTexts(EditChronic),
         };
 
-        var saved = await _patients.SavePetInfoAsync(updated);
-        _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
-        Apply(saved);
-        IsEditingInfo = false;
-        _toast.Show("مشخصات بیمار به‌روزرسانی شد", Controls.Tone.Ok);
+        try
+        {
+            var saved = await _patients.SavePetInfoAsync(updated);
+            _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
+            Apply(saved);
+            IsEditingInfo = false;
+            _toast.Show("مشخصات بیمار به‌روزرسانی شد", Controls.Tone.Ok);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                PatientsPresentation.CommandFailureMessage(ex, "ذخیره مشخصات بیمار انجام نشد؛ دوباره تلاش کنید"),
+                Controls.Tone.Danger);
+        }
+        catch (Exception)
+        {
+            _toast.Show("ذخیره مشخصات بیمار انجام نشد؛ دوباره تلاش کنید", Controls.Tone.Danger);
+        }
     }
 
     [RelayCommand]
@@ -926,6 +997,10 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     }
 
     private static string Trim(string value) => value.Trim();
+
+    /// <summary>Trims a free-text buffer, mapping a blank value to null (the DB's "not recorded").</summary>
+    private static string? TrimOrNull(string value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string WeightValue(WeightEntry[] ordered) =>
         ordered.Length == 0 ? "—" : Fa(Number(ordered[^1].WeightKg));

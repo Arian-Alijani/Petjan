@@ -200,7 +200,7 @@ buttons). **Done when:** each actionable KPI has a working entry affordance tied
   overdue pick the most overdue). Fix `BuildAlerts` overdue logic too (L418-428).
 **Done when:** next-vaccine reflects the real nearest due dose with correct overdue state. **Push.**
 
-### ☐ Task 6 — Info tab: ALL attributes editable (everything captured at registration)
+### ☑ Task 6 — Info tab: ALL attributes editable (everything captured at registration)
 **Current:** read view shows 13 fields (axaml L535-556 / VM BuildInfoItems L535-556); edit exposes only 7
 (Name, Breed, Color, Birth, Habitat, Behavior, Diet — VM L560-567). Missing editable: Gender, Species,
 BloodType, Neutered(+date), Insurance, Microchip (code/date/vendor/location).

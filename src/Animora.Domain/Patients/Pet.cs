@@ -101,6 +101,30 @@ public sealed class Pet : AggregateRoot
     /// <summary>When the microchip was implanted, UTC.</summary>
     public DateTimeOffset? MicrochipImplantUtc { get; private set; }
 
+    /// <summary>Microchip vendor/manufacturer (free text), when known.</summary>
+    public string? MicrochipVendor { get; private set; }
+
+    /// <summary>Anatomical implant location of the microchip (free text), when known.</summary>
+    public string? MicrochipLocation { get; private set; }
+
+    /// <summary>Living habitat (indoor/outdoor/…), free text.</summary>
+    public string? Habitat { get; private set; }
+
+    /// <summary>Behaviour notes (temperament), free text.</summary>
+    public string? Behavior { get; private set; }
+
+    /// <summary>Diet / feeding regime, free text.</summary>
+    public string? Diet { get; private set; }
+
+    /// <summary>Blood type, free text (species-specific notation).</summary>
+    public string? BloodType { get; private set; }
+
+    /// <summary>Insurance provider/policy reference, free text.</summary>
+    public string? Insurance { get; private set; }
+
+    /// <summary>When the patient was neutered/spayed, UTC; null when not neutered or unknown.</summary>
+    public DateTimeOffset? NeuteredUtc { get; private set; }
+
     /// <summary>Lifecycle state.</summary>
     public PetStatus Status { get; private set; } = PetStatus.Active;
 
@@ -198,10 +222,56 @@ public sealed class Pet : AggregateRoot
 
     /// <summary>Records or replaces the microchip identification.</summary>
     public void SetMicrochip(string code, DateTimeOffset implantedUtc)
+        => SetMicrochip(code, implantedUtc, vendor: null, location: null);
+
+    /// <summary>
+    /// Records or replaces the full microchip identification block (code, implant date and the
+    /// optional vendor/location). A blank code clears the whole block — the info tab then omits it.
+    /// </summary>
+    public void SetMicrochip(string? code, DateTimeOffset? implantedUtc, string? vendor, string? location)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            MicrochipCode = null;
+            MicrochipImplantUtc = null;
+            MicrochipVendor = null;
+            MicrochipLocation = null;
+            return;
+        }
+
         MicrochipCode = code.Trim();
         MicrochipImplantUtc = implantedUtc;
+        MicrochipVendor = Clean(vendor);
+        MicrochipLocation = Clean(location);
+    }
+
+    /// <summary>
+    /// Updates the descriptive profile block in full: the base profile (<see cref="UpdateProfile"/>)
+    /// plus the pet-file extras that are captured at registration (habitat/behavior/diet/blood type/
+    /// insurance) and the neutering date. <see cref="Species"/> stays immutable and is deliberately absent.
+    /// </summary>
+    public void UpdateDetails(
+        string name,
+        string? breed,
+        PetGender? gender,
+        DateTimeOffset? birthDateUtc,
+        bool? isNeutered,
+        string? color,
+        string? habitat,
+        string? behavior,
+        string? diet,
+        string? bloodType,
+        string? insurance,
+        DateTimeOffset? neuteredUtc)
+    {
+        UpdateProfile(name, breed, gender, birthDateUtc, isNeutered, color);
+        Habitat = Clean(habitat);
+        Behavior = Clean(behavior);
+        Diet = Clean(diet);
+        BloodType = Clean(bloodType);
+        Insurance = Clean(insurance);
+        // The neutering date is only meaningful while the patient is neutered.
+        NeuteredUtc = IsNeutered ? neuteredUtc : null;
     }
 
     /// <summary>Replaces the allergy / chronic-condition banners.</summary>

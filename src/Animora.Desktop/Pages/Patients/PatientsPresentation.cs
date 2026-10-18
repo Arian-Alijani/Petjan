@@ -191,6 +191,10 @@ public static class PatientsPresentation
     public static IReadOnlyList<string> Diets { get; } =
         ["غذای خشک تجاری", "غذای کنسروی", "غذای خانگی", "رژیم درمانی (رنال)", "رژیم درمانی (گوارشی)", "مخلوط خشک و تر", "دانه و میوه"];
 
+    /// <summary>Blood-type presets offered in the info-tab editor (free text is also accepted).</summary>
+    public static IReadOnlyList<string> BloodTypes { get; } =
+        ["DEA 1.1 مثبت", "DEA 1.1 منفی", "DEA 1.2", "DEA 3", "DEA 4", "DEA 5", "DEA 7", "A", "B", "AB", "نامشخص"];
+
     /// <summary>Species display order for the wizard's type tiles (patients-data.js SPECIES order).</summary>
     public static IReadOnlyList<PetSpecies> SpeciesOrder { get; } =
         [PetSpecies.Cat, PetSpecies.Dog, PetSpecies.Bird, PetSpecies.Rabbit, PetSpecies.Rodent, PetSpecies.Reptile, PetSpecies.Other];

@@ -48,9 +48,9 @@ internal static class PatientsMapping
         return new(
             m.Id, m.Id, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "", MapGender(m.Gender),
             Tone(m.Id), MapStatus(m.Status), m.OwnerId, m.BirthDateUtc?.UtcDateTime,
-            Habitat: "", Behavior: "", Diet: "", BloodType: null, Neutered: m.IsNeutered, NeuteredDate: null,
-            Insurance: null,
-            new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, null, null),
+            m.Habitat ?? "", m.Behavior ?? "", m.Diet ?? "", m.BloodType, Neutered: m.IsNeutered,
+            NeuteredDate: m.NeuteredUtc?.UtcDateTime, Insurance: m.Insurance,
+            new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, m.MicrochipVendor, m.MicrochipLocation),
             vitals,
             m.Weights.Select(w => new WeightEntry(w.MeasuredUtc.UtcDateTime, (double)w.WeightKg)).ToList(),
             Visits: (m.Visits ?? []).Select(ToVisitRef).ToList(), Vaccinations: [], Labs: [], Documents: [], Surgeries: [],

@@ -58,7 +58,11 @@ public sealed record PetDetailReadModel(
     IReadOnlyList<PetWeightReadModel> Weights,
     IReadOnlyList<PetVisitReadModel>? Visits = null,
     IReadOnlyList<LabSummaryReadModel>? Labs = null,
-    IReadOnlyList<RadiologySummaryReadModel>? Radiology = null);
+    IReadOnlyList<RadiologySummaryReadModel>? Radiology = null,
+    IReadOnlyList<PetVaccinationReadModel>? Vaccinations = null,
+    string? Habitat = null, string? Behavior = null, string? Diet = null, string? BloodType = null,
+    string? Insurance = null, string? MicrochipVendor = null, string? MicrochipLocation = null,
+    DateTimeOffset? NeuteredUtc = null);
 
 /// <summary>
 /// One laboratory result sheet flattened from a visit's JSON <c>LabResults</c> column for the
@@ -88,3 +92,12 @@ public sealed record PetVisitReadModel(
 
 /// <summary>One appended weight reading for the pet-file chart/rows.</summary>
 public sealed record PetWeightReadModel(DateTimeOffset MeasuredUtc, decimal WeightKg);
+
+/// <summary>
+/// One recorded vaccine dose of a pet for the pet-file vaccinations tab (Task 9). <paramref name="AdministeredUtc"/>
+/// is the injection time, <paramref name="NextDueUtc"/> the scheduled next dose (null when the course is complete
+/// or undated), <paramref name="VetName"/> the administering clinician's display name (empty when unknown).
+/// </summary>
+public sealed record PetVaccinationReadModel(
+    string Id, string VaccineName, DateTimeOffset AdministeredUtc, DateTimeOffset? NextDueUtc,
+    int DoseNumber, int TotalDoses, string? LotNumber, string? Site, string VetName);

@@ -214,7 +214,9 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         TraceLog.Info($"SQL GetPetAsync — petId={petId}", "sql.patients");
         var pet = await db.Set<Pet>().AsNoTracking().Where(p => p.Id == petId)
             .Select(p => new { p.Id, p.Name, p.Species, p.Breed, p.Color, p.Gender, p.Status, p.OwnerId,
-                p.BirthDateUtc, p.IsNeutered, p.MicrochipCode, p.MicrochipImplantUtc, p.AllergyNotes, p.ChronicNotes })
+                p.BirthDateUtc, p.IsNeutered, p.MicrochipCode, p.MicrochipImplantUtc, p.AllergyNotes, p.ChronicNotes,
+                p.Habitat, p.Behavior, p.Diet, p.BloodType, p.Insurance, p.MicrochipVendor, p.MicrochipLocation,
+                p.NeuteredUtc })
             .FirstOrDefaultAsync(ct);
         if (pet is null)
         {
@@ -231,7 +233,10 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}.", "sql.patients");
         return new PetDetailReadModel(pet.Id, pet.Name, pet.Species, pet.Breed, pet.Color, pet.Gender,
             pet.Status, pet.OwnerId, pet.BirthDateUtc, pet.IsNeutered, pet.MicrochipCode,
-            pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits);
+            pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits,
+            Habitat: pet.Habitat, Behavior: pet.Behavior, Diet: pet.Diet, BloodType: pet.BloodType,
+            Insurance: pet.Insurance, MicrochipVendor: pet.MicrochipVendor,
+            MicrochipLocation: pet.MicrochipLocation, NeuteredUtc: pet.NeuteredUtc);
     }
 
     private const int PetVisitTake = 50;

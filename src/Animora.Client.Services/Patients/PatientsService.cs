@@ -273,7 +273,11 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
             p?.Name, p?.Species.ToDomain(), p?.Breed, p?.Color, p?.Gender.ToDomain(),
             ToUtc(p?.BirthDate), p?.MicrochipCode, ToUtc(p?.MicrochipDate), p?.Neutered ?? false,
             p is null ? null : PatientsMapping.JoinList(p.Allergies ?? []),
-            p is null ? null : PatientsMapping.JoinList(p.ChronicConditions ?? []));
+            p is null ? null : PatientsMapping.JoinList(p.ChronicConditions ?? []),
+            PetHabitat: NullIfBlank(p?.Habitat), PetBehavior: NullIfBlank(p?.Behavior), PetDiet: NullIfBlank(p?.Diet),
+            PetBloodType: NullIfBlank(p?.BloodType), PetInsurance: NullIfBlank(p?.Insurance),
+            PetMicrochipVendor: NullIfBlank(p?.MicrochipVendor), PetMicrochipLocation: NullIfBlank(p?.MicrochipLocation),
+            PetNeuteredUtc: ToUtc(p?.NeuteredDate));
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetOwnerAsync(r.Value!))!;
@@ -289,7 +293,11 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var cmd = new CreatePetCommand(ownerId, request.Name, request.Species.ToDomain(), request.Breed,
             request.Color, request.Gender.ToDomain(), ToUtc(request.BirthDate), request.MicrochipCode,
             ToUtc(request.MicrochipDate), request.Neutered,
-            PatientsMapping.JoinList(request.Allergies ?? []), PatientsMapping.JoinList(request.ChronicConditions ?? []));
+            PatientsMapping.JoinList(request.Allergies ?? []), PatientsMapping.JoinList(request.ChronicConditions ?? []),
+            Habitat: NullIfBlank(request.Habitat), Behavior: NullIfBlank(request.Behavior), Diet: NullIfBlank(request.Diet),
+            BloodType: NullIfBlank(request.BloodType), Insurance: NullIfBlank(request.Insurance),
+            MicrochipVendor: NullIfBlank(request.MicrochipVendor), MicrochipLocation: NullIfBlank(request.MicrochipLocation),
+            NeuteredUtc: ToUtc(request.NeuteredDate));
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(r.Value!))!;
@@ -318,7 +326,14 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (cc.IsFailure) throw new ServiceException(cc.Error);
         var cmd = new UpdatePetInfoCommand(pet.Id, pet.Name, pet.Breed, pet.Color, pet.Gender.ToDomain(),
             pet.BirthDate is { } bd ? ToUtc(bd) : null, pet.Neutered,
-            PatientsMapping.JoinList(pet.Allergies), PatientsMapping.JoinList(pet.ChronicConditions));
+            PatientsMapping.JoinList(pet.Allergies), PatientsMapping.JoinList(pet.ChronicConditions),
+            Habitat: NullIfBlank(pet.Habitat), Behavior: NullIfBlank(pet.Behavior), Diet: NullIfBlank(pet.Diet),
+            BloodType: NullIfBlank(pet.BloodType), Insurance: NullIfBlank(pet.Insurance),
+            MicrochipCode: NullIfBlank(pet.Microchip.Code),
+            MicrochipUtc: pet.Microchip.ImplantDate is { } chip ? ToUtc(chip) : null,
+            MicrochipVendor: NullIfBlank(pet.Microchip.Vendor),
+            MicrochipLocation: NullIfBlank(pet.Microchip.Location),
+            NeuteredUtc: pet.NeuteredDate is { } nd ? ToUtc(nd) : null);
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(pet.Id))!;
@@ -389,6 +404,9 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
     private static DateTimeOffset? ToUtc(DateTime? d) => d is { } v
         ? new DateTimeOffset(DateTime.SpecifyKind(v, DateTimeKind.Unspecified), TimeSpan.Zero)
         : null;
+
+    /// <summary>Trims a free-text field, mapping a blank string to null so the DB stores "not recorded".</summary>
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider) Resolve(AsyncServiceScope scope) =>
         (scope.ServiceProvider.GetRequiredService<IDispatcher>(),
