@@ -360,7 +360,9 @@
             <Border Grid.Row="1" Classes="card">
                 <StackPanel>
                     <Grid Classes="card-header" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="10">
-                        <Path Grid.Column="0" Classes="icon" Width="18" Height="18" VerticalAlignment="Center"
+                        <!-- Siren, not a bell: «هشدارهای فوری» is an alarm, and the glyph stays legible at
+                             20px where a bell's skirt and clapper merge into a blob. -->
+                        <Path Grid.Column="0" Classes="icon" Width="20" Height="20" VerticalAlignment="Center"
                               Stroke="{StaticResource WarnBrush}"
                               Data="{StaticResource IconSiren}" />
                         <TextBlock Grid.Column="1" Classes="card-title" VerticalAlignment="Center" Text="هشدارهای فوری" />
