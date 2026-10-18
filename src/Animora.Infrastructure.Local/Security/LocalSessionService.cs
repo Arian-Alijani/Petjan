@@ -15,11 +15,25 @@ namespace Animora.Infrastructure.Local.Security;
 /// App-wide local session over the durable <see cref="LocalSession"/> row (R-B09). Singleton: each
 /// operation runs in its own DI scope; operations are serialized so lock/unlock/end never race.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="RestoreAsync"/> is the authoritative session read used by the capability gate's warm-up
+/// (<c>CapabilityGateService.RefreshAsync</c>). It is <b>not</b> a pure read: an idle-timed-out session is
+/// <b>locked as a side effect</b> and an expired/disabled one is ended. Those mutations must not stay invisible
+/// to the rest of the app. The shared <see cref="SessionContextCache"/> is the single source of truth the live
+/// access loop (<c>LiveAccessRefreshService</c>) reads to decide whether to keep renewing. If this service locked
+/// the durable row but left the cache showing <c>IsLocked=false</c>, the two diverged permanently: the gate read
+/// <c>locked=true</c> and failed closed (blank/read-only shell) while the live loop kept seeing <c>locked=false</c>,
+/// re-triggered mirrors that each fail-closed, and the shell could never recover without a restart. Keeping the
+/// cache in lock-step with every authoritative restore removes that split-brain.
+/// </para>
+/// </remarks>
 public sealed class LocalSessionService(
     IServiceScopeFactory scopes,
     IClock clock,
     Application.Security.IPasswordHasher hasher,
-    IOptions<LocalSessionOptions> options) : ISessionService, IDisposable
+    IOptions<LocalSessionOptions> options,
+    SessionContextCache sessionCache) : ISessionService, IDisposable
 {
     public const string ReasonSignOut = "SIGN_OUT";
     public const string ReasonReplaced = "REPLACED";
@@ -37,13 +51,19 @@ public sealed class LocalSessionService(
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var session = await FindActiveAsync(db, ct).ConfigureAwait(false);
-            if (session is null) return Result<SessionSnapshot>.Ok(await SignedOutAsync(db, ct).ConfigureAwait(false));
+            if (session is null)
+            {
+                var signedOut = await SignedOutAsync(db, ct).ConfigureAwait(false);
+                PublishToCache(signedOut);
+                return Result<SessionSnapshot>.Ok(signedOut);
+            }
 
             var now = clock.UtcNow;
             if (now >= session.ExpiresAtUtc)
             {
                 session.End(ErrorCodes.SessionExpired.Code, now);
                 await db.SaveChangesAsync(ct).ConfigureAwait(false);
+                PublishToCache(SessionSnapshot.SignedOut(isFirstRun: false));
                 return Result<SessionSnapshot>.Fail(ErrorCodes.SessionExpired);
             }
 
@@ -52,6 +72,7 @@ public sealed class LocalSessionService(
             {
                 session.End(ReasonUserUnavailable, now);
                 await db.SaveChangesAsync(ct).ConfigureAwait(false);
+                PublishToCache(SessionSnapshot.SignedOut(isFirstRun: false));
                 return Result<SessionSnapshot>.Fail(ErrorCodes.UserDisabled);
             }
 
@@ -63,7 +84,12 @@ public sealed class LocalSessionService(
             }
 
             _lastTouchWriteUtc = session.LastActivityUtc;
-            return Result<SessionSnapshot>.Ok(await SnapshotAsync(db, session, user, ct).ConfigureAwait(false));
+            var snapshot = await SnapshotAsync(db, session, user, ct).ConfigureAwait(false);
+            // The gate's warm-up calls RestoreAsync directly; publishing the resolved lock/sign-out state here keeps
+            // the shared cache (read by the live-access loop) from ever disagreeing with the gate — the split-brain
+            // that otherwise strands the shell read-only after an idle-timeout lock.
+            PublishToCache(snapshot);
+            return Result<SessionSnapshot>.Ok(snapshot);
         }
         finally
         {
@@ -95,7 +121,9 @@ public sealed class LocalSessionService(
             db.Add(session);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
             _lastTouchWriteUtc = now;
-            return Result<SessionSnapshot>.Ok(await SnapshotAsync(db, session, user, ct).ConfigureAwait(false));
+            var snapshot = await SnapshotAsync(db, session, user, ct).ConfigureAwait(false);
+            PublishToCache(snapshot);
+            return Result<SessionSnapshot>.Ok(snapshot);
         }
         finally
         {
@@ -139,10 +167,17 @@ public sealed class LocalSessionService(
             var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var session = await FindActiveAsync(db, ct).ConfigureAwait(false);
             if (session is null) return Result.Fail(ErrorCodes.NotFound, "No active session.");
-            if (session.IsLocked) return Result.Ok();
+            if (session.IsLocked)
+            {
+                sessionCache.MarkLocked();
+                return Result.Ok();
+            }
 
             session.Lock();
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            // Mirror the lock into the shared cache so the live-access loop stops renewing authority at once,
+            // rather than discovering the lock only on the next full restore.
+            sessionCache.MarkLocked();
             return Result.Ok();
         }
         finally
@@ -195,7 +230,9 @@ public sealed class LocalSessionService(
             session.Unlock(now);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
             _lastTouchWriteUtc = now;
-            return Result<SessionSnapshot>.Ok(await SnapshotAsync(db, session, user, ct).ConfigureAwait(false));
+            var snapshot = await SnapshotAsync(db, session, user, ct).ConfigureAwait(false);
+            PublishToCache(snapshot);
+            return Result<SessionSnapshot>.Ok(snapshot);
         }
         finally
         {
@@ -211,11 +248,16 @@ public sealed class LocalSessionService(
             await using var scope = scopes.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
             var session = await FindActiveAsync(db, ct).ConfigureAwait(false);
-            if (session is null) return Result.Ok(); // idempotent
+            if (session is null)
+            {
+                PublishToCache(SessionSnapshot.SignedOut(isFirstRun: false));
+                return Result.Ok(); // idempotent
+            }
 
             session.End(string.IsNullOrWhiteSpace(reason) ? ReasonSignOut : reason, clock.UtcNow);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
             _lastTouchWriteUtc = null;
+            PublishToCache(SessionSnapshot.SignedOut(isFirstRun: false));
             return Result.Ok();
         }
         finally
@@ -225,6 +267,13 @@ public sealed class LocalSessionService(
     }
 
     public void Dispose() => _gate.Dispose();
+
+    /// <summary>
+    /// Keeps the shared <see cref="SessionContextCache"/> in lock-step with the authoritative durable session an
+    /// operation just resolved. This is what prevents the live-access loop and the capability gate from reading two
+    /// different lock states: whoever restored the session last (the gate's warm-up included) publishes the truth.
+    /// </summary>
+    private void PublishToCache(SessionSnapshot snapshot) => sessionCache.Set(snapshot);
 
     private static Task<LocalSession?> FindActiveAsync(AnimoraLocalDbContext db, CancellationToken ct) =>
         db.Set<LocalSession>().AsTracking().FirstOrDefaultAsync(s => s.EndedAtUtc == null, ct);
