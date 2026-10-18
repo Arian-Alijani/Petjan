@@ -196,7 +196,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T8 — تکمیل جدول ترجمه فارسی + یکدست‌سازی زبان `[ ]`
+### T8 — تکمیل جدول ترجمه فارسی + یکدست‌سازی زبان `[x]`
 **فایل:** `src/Animora.Web.Admin/Localization/AdminStrings.cs`.
 **کار دقیق:**
 - کل جدول را مرور کن؛ هر کلیدی که در صفحات/کامپوننت‌های تغییریافته استفاده شده باید مدخل fa داشته باشد.

@@ -5,26 +5,26 @@
 <h1>@Loc.T("web.title")</h1><FormError Code="@Error" />
 @if (Issued is not null)
 {
-<section role="status"><h2>Copy now — shown only in this POST response</h2><dl><dt>Key id</dt><dd>@Issued.KeyId</dd><dt>Secret</dt><dd><code>@Issued.Secret</code></dd></dl></section>
+<section role="status"><h2>@Loc.T("web.copyNow")</h2><dl><dt>@Loc.T("web.keyId")</dt><dd dir="ltr">@Issued.KeyId</dd><dt>@Loc.T("web.secret")</dt><dd><code>@Issued.Secret</code></dd></dl></section>
 }
 @if (Rows is not null)
 {
-<table><caption>Website credentials (metadata only)</caption><thead><tr><th scope="col">Label</th><th scope="col">Key id</th><th scope="col">Status</th><th scope="col">Created UTC</th><th scope="col">Last used UTC</th><th scope="col">Action</th></tr></thead><tbody>
+<div class="table-wrap"><table><caption>@Loc.T("web.caption")</caption><thead><tr><th scope="col">@Loc.T("web.label")</th><th scope="col">@Loc.T("web.keyId")</th><th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("web.created")</th><th scope="col">@Loc.T("web.lastUsed")</th><th scope="col">@Loc.T("common.action")</th></tr></thead><tbody>
 @foreach (var row in Rows.Items)
 {
 <tr><td>@row.Label</td><td>@row.KeyId</td><td><StatusBadge Status="@row.Status" /></td><td>@row.CreatedUtc</td><td>@row.LastUsedUtc</td><td>
 @if (row.Status == "Active")
 {
 <form method="post" @formname="@($"revoke-client-{row.Id}")" @onsubmit="Revoke"><AntiforgeryToken /><input type="hidden" name="RevokeForm.Id" value="@row.Id" />
-<ConfirmCheckbox Name="RevokeForm.Confirmed" /><button type="submit">Revoke</button></form>
+<ConfirmCheckbox Name="RevokeForm.Confirmed" /><button type="submit" class="danger">@Loc.T("licences.revoke")</button></form>
 }
 </td></tr>
 }
-</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/website-clients" />
+</tbody></table></div><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/website-clients" />
 }
-<h2>Create client</h2><p>At most three active clients are allowed.</p>
+<h2>@Loc.T("web.create")</h2><p class="hint">@Loc.T("web.limit")</p>
 <form method="post" @formname="create-website-client" @onsubmit="Create"><AntiforgeryToken />
-<label>Label <input name="CreateForm.Label" maxlength="100" required /></label><ConfirmCheckbox Name="CreateForm.Confirmed" /><button type="submit">Create</button></form>
+<label>@Loc.T("web.label") <input name="CreateForm.Label" maxlength="100" required /></label><ConfirmCheckbox Name="CreateForm.Confirmed" /><button type="submit">@Loc.T("common.create")</button></form>
 @code {
     [SupplyParameterFromQuery] public int Page { get; set; } = 1;
     [SupplyParameterFromQuery] public int PageSize { get; set; } = 50;

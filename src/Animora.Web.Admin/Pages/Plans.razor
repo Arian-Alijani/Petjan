@@ -4,16 +4,16 @@
 @inject IAdminPlanCommands Commands
 <h1>@Loc.T("plans.title")</h1><FormError Code="@Error" />
 @if (Rows is not null) {
-<table><caption>Commercial plans</caption><thead><tr><th scope="col">Code</th><th scope="col">Name</th><th scope="col">Seats</th><th scope="col">Amount (minor)</th><th scope="col">Active</th><th scope="col">Action</th></tr></thead><tbody>
-@foreach (var row in Rows.Items) { <tr><td>@row.Code</td><td>@row.Name</td><td>@row.Seats</td><td>@row.MonthlyAmountMinor</td><td>@row.Active</td><td>
+<div class="table-wrap"><table><caption>@Loc.T("plans.caption")</caption><thead><tr><th scope="col">@Loc.T("common.code")</th><th scope="col">@Loc.T("common.name")</th><th scope="col">@Loc.T("plans.seats")</th><th scope="col">@Loc.T("plans.amount")</th><th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("common.action")</th></tr></thead><tbody>
+@foreach (var row in Rows.Items) { <tr><td dir="ltr">@row.Code</td><td>@row.Name</td><td>@row.Seats</td><td dir="ltr">@row.MonthlyAmountMinor.ToString("N0")</td><td><StatusBadge Status="@Loc.T(row.Active ? "staff.active" : "staff.inactive")" Tone="@(row.Active ? "ok" : "bad")" /></td><td>
 @if(row.Active) { <EditForm Model="Action" FormName="@($"deactivate-{row.Id}")" method="post" OnSubmit="Deactivate">
-<input type="hidden" name="Action.Id" value="@row.Id" /><input type="hidden" name="Action.Stamp" value="@row.Stamp" /><button type="submit">Deactivate</button></EditForm> }</td></tr> }
-</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/plans" />
+<input type="hidden" name="Action.Id" value="@row.Id" /><input type="hidden" name="Action.Stamp" value="@row.Stamp" /><button type="submit" class="danger">@Loc.T("plans.deactivate")</button></EditForm> }</td></tr> }
+</tbody></table></div><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/plans" />
 }
-<h2>New plan</h2><EditForm Model="Form" FormName="create-plan" method="post" Enhance OnSubmit="Create">
-<label>Code <InputText @bind-Value="Form!.Code" maxlength="32" /></label><label>Name <InputText @bind-Value="Form.Name" maxlength="100" /></label>
-<label>Seats <InputNumber @bind-Value="Form.Seats" /></label><label>Monthly amount (IRT minor) <InputNumber @bind-Value="Form.AmountMinor" /></label>
-<label>Trial days <InputNumber @bind-Value="Form.TrialDays" /></label><button type="submit">Create plan</button></EditForm>
+<h2>@Loc.T("plans.new")</h2><EditForm Model="Form" FormName="create-plan" method="post" Enhance OnSubmit="Create">
+<label>@Loc.T("common.code") <InputText @bind-Value="Form!.Code" maxlength="32" dir="ltr" /></label><label>@Loc.T("common.name") <InputText @bind-Value="Form.Name" maxlength="100" /></label>
+<label>@Loc.T("plans.seats") <InputNumber @bind-Value="Form.Seats" /></label><label>@Loc.T("plans.amountInput") <InputNumber @bind-Value="Form.AmountMinor" /></label>
+<label>@Loc.T("plans.trialDays") <InputNumber @bind-Value="Form.TrialDays" /></label><button type="submit">@Loc.T("plans.create")</button></EditForm>
 @code {
     [SupplyParameterFromQuery] public int Page { get; set; }=1;
     [SupplyParameterFromForm] public CreatePlanForm? Form { get; set; }

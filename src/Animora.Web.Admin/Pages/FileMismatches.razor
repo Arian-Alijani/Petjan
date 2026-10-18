@@ -6,7 +6,7 @@
 <h1>@Loc.T("files.title")</h1><FormError Code="@Error" />
 @if (Rows is not null)
 {
-<table><caption>Mismatch metadata</caption><thead><tr><th scope="col">Tenant code</th><th scope="col">File id</th><th scope="col">Size (bytes)</th><th scope="col">SHA prefix</th><th scope="col">Updated UTC</th><th scope="col">Actions</th></tr></thead><tbody>
+<div class="table-wrap"><table><caption>@Loc.T("files.caption")</caption><thead><tr><th scope="col">@Loc.T("files.tenantCode")</th><th scope="col">@Loc.T("files.id")</th><th scope="col">@Loc.T("files.size")</th><th scope="col">@Loc.T("files.sha")</th><th scope="col">@Loc.T("files.updated")</th><th scope="col">@Loc.T("common.action")</th></tr></thead><tbody>
 @foreach (var row in Rows.Items)
 {
 <tr><td>@row.TenantCode</td><td>@row.FileId</td><td>@row.SizeBytes</td><td>@row.ShaPrefix</td><td>@row.UpdatedUtc</td><td>
@@ -14,11 +14,11 @@
 {
 <form method="post" @formname="@($"{operation}-{row.TenantId}-{row.FileId}")" @onsubmit="Change"><AntiforgeryToken />
 <input type="hidden" name="Action.TenantId" value="@row.TenantId" /><input type="hidden" name="Action.FileId" value="@row.FileId" />
-<input type="hidden" name="Action.Operation" value="@operation" /><ConfirmCheckbox Name="Action.Confirmed" /><button type="submit">@operation</button></form>
+<input type="hidden" name="Action.Operation" value="@operation" /><ConfirmCheckbox Name="Action.Confirmed" /><button type="submit" class="@(operation == "abandon" ? "danger" : "")">@Loc.T("files." + operation)</button></form>
 }
 </td></tr>
 }
-</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/files/mismatches" />
+</tbody></table></div><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="/admin/files/mismatches" />
 }
 @code {
     [SupplyParameterFromQuery] public int Page { get; set; } = 1;

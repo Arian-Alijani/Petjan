@@ -3,23 +3,26 @@
 @inherits AdminPageComponent
 @inject IAdminAuditQueries Queries
 <h1>@Loc.T("audit.title")</h1><FormError Code="@Error" />
-<nav aria-label="Audit source"><a href="/admin/audit?tab=operator">Operator audit</a> <a href="/admin/audit?tab=tenant">Tenant security audit</a></nav>
-<form method="get"><input type="hidden" name="tab" value="@Tab" />
-<label>Tenant id <input name="tenantId" value="@TenantId" maxlength="26" required="@(Tab == "tenant")" /></label>
-<label>Action <input name="action" value="@Action" maxlength="64" /></label>
-@if (Tab == "tenant") { <label>Actor (user id) <input name="actorId" value="@ActorId" maxlength="26" dir="ltr" /></label> }
-<label>From UTC (inclusive) <input type="date" name="from" value="@From?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
-<label>To UTC (exclusive) <input type="date" name="to" value="@To?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
-<button type="submit">Filter</button></form>
-@if (Tab == "tenant") { <p>Select a tenant and a date range of at most 90 days.</p> }
+<nav class="quick" aria-label="@Loc.T("audit.source")"><a href="/admin/audit?tab=operator">@Loc.T("audit.operator")</a> <a href="/admin/audit?tab=tenant">@Loc.T("audit.tenant")</a></nav>
+<form method="get" class="filters"><input type="hidden" name="tab" value="@Tab" />
+<label>@Loc.T("audit.tenantId") <input name="tenantId" value="@TenantId" maxlength="26" required="@(Tab == "tenant")" /></label>
+<label>@Loc.T("common.action") <input name="action" value="@Action" maxlength="64" /></label>
+@if (Tab == "tenant") { <label>@Loc.T("audit.actorId") <input name="actorId" value="@ActorId" maxlength="26" dir="ltr" /></label> }
+<label>@Loc.T("audit.from") <input type="date" name="from" value="@From?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
+<label>@Loc.T("audit.to") <input type="date" name="to" value="@To?.ToString("yyyy-MM-dd")" required="@(Tab == "tenant")" /></label>
+<button type="submit">@Loc.T("common.filter")</button></form>
+@if (Tab == "tenant") { <p class="hint">@Loc.T("audit.tenantHint")</p> }
 @if (Rows is not null)
 {
-<table><caption>@(Tab == "tenant" ? "Tenant security audit" : "Operator audit")</caption><thead><tr><th scope="col">UTC</th><th scope="col">Actor</th><th scope="col">Tenant</th><th scope="col">Action</th><th scope="col">Outcome</th><th scope="col">Correlation</th><th scope="col">Detail (bounded)</th></tr></thead><tbody>
+@if (Rows.Items.Count == 0) { <p class="empty">@Loc.T("common.none")</p> } else {
+<div class="table-wrap"><table><caption>@Loc.T(Tab == "tenant" ? "audit.tenant" : "audit.operator")</caption><thead><tr><th scope="col">UTC</th><th scope="col">@Loc.T("audit.actor")</th><th scope="col">@Loc.T("audit.tenantCol")</th><th scope="col">@Loc.T("common.action")</th><th scope="col">@Loc.T("audit.outcome")</th><th scope="col">@Loc.T("audit.correlation")</th><th scope="col">@Loc.T("audit.detail")</th></tr></thead><tbody>
 @foreach (var row in Rows.Items)
 {
-<tr><td>@row.OccurredUtc</td><td>@row.ActorId</td><td>@row.TenantId</td><td>@row.Action</td><td><StatusBadge Status="@row.Outcome" /></td><td>@row.CorrelationId</td><td><pre>@row.Detail</pre></td></tr>
+<tr><td dir="ltr">@row.OccurredUtc</td><td dir="ltr">@row.ActorId</td><td dir="ltr">@row.TenantId</td><td dir="ltr">@row.Action</td><td><StatusBadge Status="@row.Outcome" /></td><td>@row.CorrelationId</td><td><pre>@row.Detail</pre></td></tr>
 }
-</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
+</tbody></table></div>
+}
+<Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
 }
 @code {
     [SupplyParameterFromQuery] public string Tab { get; set; } = "operator";

@@ -4,10 +4,10 @@
 @inject IAdminLicenseCommands Commands
 <h1>@Loc.T("keys.title")</h1><FormError Code="@Error" />
 @if (Keys is not null) {
-<table><caption>Public key set</caption><thead><tr><th scope="col">Key</th><th scope="col">Algorithm</th><th scope="col">Public data</th></tr></thead><tbody>
-@foreach(var key in Keys.Keys) { <tr><td>@key.Id</td><td>@key.Algorithm</td><td><pre>@key.PublicKey</pre></td></tr> }</tbody></table>
+<div class="table-wrap"><table><caption>@Loc.T("keys.caption")</caption><thead><tr><th scope="col">@Loc.T("keys.key")</th><th scope="col">@Loc.T("keys.algorithm")</th><th scope="col">@Loc.T("keys.public")</th></tr></thead><tbody>
+@foreach(var key in Keys.Keys) { <tr><td>@key.Id</td><td>@key.Algorithm</td><td><pre>@key.PublicKey</pre></td></tr> }</tbody></table></div>
 <EditForm Model="Form" FormName="rotate-key" method="post" OnSubmit="Rotate">
-<input type="hidden" name="Form.Stamp" value="@Form!.Stamp" /><ConfirmCheckbox Name="Form.Confirmed" /><button type="submit">Rotate signing key</button></EditForm>
+<input type="hidden" name="Form.Stamp" value="@Form!.Stamp" /><ConfirmCheckbox Name="Form.Confirmed" /><button type="submit" class="danger">@Loc.T("keys.rotate")</button></EditForm>
 }
 @code {
     [SupplyParameterFromForm] public KeyActionForm? Form { get; set; }

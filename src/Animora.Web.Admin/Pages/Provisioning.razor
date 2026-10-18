@@ -4,23 +4,23 @@
 @inject IAdminProvisioningQueries Queries
 @inject IAdminProvisioningCommands Commands
 <h1>@Loc.T("prov.title")</h1><FormError Code="@Error" />
-<form method="get"><label>Status <select name="status"><option value="">All</option>
-@foreach (var value in new[] { "Received", "Processing", "Completed", "Failed", "Dead" }) { <option value="@value" selected="@(Status == value)">@value</option> }
-</select></label><button type="submit">Filter</button></form>
+<form method="get" class="filters"><label>@Loc.T("common.status") <select name="status"><option value="">@Loc.T("common.all")</option>
+@foreach (var value in new[] { "Received", "Processing", "Completed", "Failed", "Dead" }) { <option value="@value" selected="@(Status == value)">@Loc.T("status." + value)</option> }
+</select></label><button type="submit">@Loc.T("common.filter")</button></form>
 @if (Rows is not null)
 {
-<table><caption>Intake metadata</caption><thead><tr><th scope="col">Id</th><th scope="col">Client</th><th scope="col">Status</th><th scope="col">Attempts</th><th scope="col">Error</th><th scope="col">Received UTC</th><th scope="col">Completed UTC</th><th scope="col">Action</th></tr></thead><tbody>
+<div class="table-wrap"><table><caption>@Loc.T("prov.caption")</caption><thead><tr><th scope="col">@Loc.T("prov.id")</th><th scope="col">@Loc.T("prov.client")</th><th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("prov.attempts")</th><th scope="col">@Loc.T("prov.error")</th><th scope="col">@Loc.T("prov.received")</th><th scope="col">@Loc.T("prov.completed")</th><th scope="col">@Loc.T("common.action")</th></tr></thead><tbody>
 @foreach (var row in Rows.Items)
 {
 <tr><td>@row.Id</td><td>@row.ClientId</td><td><StatusBadge Status="@row.Status" /></td><td>@row.Attempts</td><td>@row.ErrorCode</td><td>@row.ReceivedUtc</td><td>@row.CompletedUtc</td><td>
 @if (row.Status is "Failed" or "Dead")
 {
 <form method="post" @formname="@($"retry-{row.Id}")" @onsubmit="Retry"><AntiforgeryToken />
-<input type="hidden" name="Action.Id" value="@row.Id" /><ConfirmCheckbox Name="Action.Confirmed" /><button type="submit">Retry</button></form>
+<input type="hidden" name="Action.Id" value="@row.Id" /><ConfirmCheckbox Name="Action.Confirmed" /><button type="submit">@Loc.T("prov.retry")</button></form>
 }
 </td></tr>
 }
-</tbody></table><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
+</tbody></table></div><Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
 }
 @code {
     [SupplyParameterFromQuery] public string? Status { get; set; }

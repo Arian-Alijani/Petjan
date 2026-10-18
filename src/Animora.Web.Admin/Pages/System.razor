@@ -6,16 +6,16 @@
 <h1>@Loc.T("system.title")</h1><a href="/admin/system">@Loc.T("common.refresh")</a><FormError Code="@Error" />
 @if (Status is not null)
 {
-<dl><dt>@Loc.T("dash.version")</dt><dd>@Status.Version</dd><dt>Uptime (seconds)</dt><dd>@Status.UptimeSeconds.ToString("F0")</dd><dt>PG active / max</dt><dd>@Status.Pg.PoolInUse / @Status.Pg.PoolMax</dd></dl>
-<table><caption>@Loc.T("dash.readiness")</caption><thead><tr><th scope="col">@Loc.T("dash.probe")</th><th scope="col">@Loc.T("common.status")</th></tr></thead><tbody>
+<dl><dt>@Loc.T("dash.version")</dt><dd>@Status.Version</dd><dt>@Loc.T("dash.uptime")</dt><dd>@Status.UptimeSeconds.ToString("F0") @Loc.T("dash.seconds")</dd><dt>@Loc.T("system.pgMax")</dt><dd>@Status.Pg.PoolInUse / @Status.Pg.PoolMax</dd></dl>
+<div class="table-wrap"><table><caption>@Loc.T("dash.readiness")</caption><thead><tr><th scope="col">@Loc.T("dash.probe")</th><th scope="col">@Loc.T("common.status")</th></tr></thead><tbody>
 @foreach (var row in Status.Readiness) { <tr><td>@row.Name</td><td><StatusBadge Status="@row.Status" /></td></tr> }
-</tbody></table>
-<table><caption>Worker heartbeat</caption><thead><tr><th scope="col">@Loc.T("dash.worker")</th><th scope="col">@Loc.T("dash.lastSuccess")</th></tr></thead><tbody>
+</tbody></table></div>
+<div class="table-wrap"><table><caption>@Loc.T("system.heartbeat")</caption><thead><tr><th scope="col">@Loc.T("dash.worker")</th><th scope="col">@Loc.T("dash.lastSuccess")</th></tr></thead><tbody>
 @foreach (var row in Status.Workers) { <tr><td>@row.Name</td><td>@row.LastSuccessAgeSeconds.ToString("F0")</td></tr> }
-</tbody></table>
+</tbody></table></div>
 }
-@if (InsightState is not null) { <p>Insight: @(InsightState.Enabled ? "enabled" : "disabled") · consent ADR: @(InsightState.HasConsentAdr ? "configured" : "not configured")</p> }
-<p>Single server instance only; no circuit backplane.</p>
+@if (InsightState is not null) { <p>@Loc.T("dash.insight"): @Loc.T(InsightState.Enabled ? "dash.enabled" : "dash.disabled") · @Loc.T("system.consent"): @Loc.T(InsightState.HasConsentAdr ? "system.configured" : "system.notConfigured")</p> }
+<p class="hint">@Loc.T("system.single")</p>
 @code {
     private AdminStatus? Status;
     private InsightStatus? InsightState;
