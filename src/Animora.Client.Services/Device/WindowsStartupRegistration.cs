@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.Versioning;
 using Animora.Contracts.Device;
 using Microsoft.Win32;
@@ -89,9 +88,12 @@ public sealed class WindowsStartupRegistration : IStartupRegistration
         if (string.Equals(exeName, "dotnet", StringComparison.OrdinalIgnoreCase))
         {
             // Running under the dotnet host (e.g. `dotnet run`): register the host + managed entry assembly.
-            var dll = Process.GetCurrentProcess().MainModule?.FileName;
-            var entry = System.Reflection.Assembly.GetEntryAssembly()?.Location;
-            if (string.IsNullOrEmpty(entry)) return null;
+            // Build the managed DLL path from AppContext.BaseDirectory + the entry assembly's simple name
+            // instead of Assembly.Location — Location returns "" for single-file apps (IL3000), whereas
+            // BaseDirectory is the app directory in every deployment model.
+            var entryName = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name;
+            if (string.IsNullOrEmpty(entryName)) return null;
+            var entry = Path.Combine(AppContext.BaseDirectory, entryName + ".dll");
             return $"\"{exePath}\" \"{entry}\" {StartupFlag}";
         }
 
