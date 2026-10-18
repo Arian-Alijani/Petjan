@@ -50,6 +50,13 @@ public interface IPatientsQueryService
     /// <summary>Persists edited pet profile fields; returns the updated record.</summary>
     Task<PetDetail> SavePetInfoAsync(PetDetail pet);
 
+    /// <summary>
+    /// Persists only the pet's clinical alerts (allergies + chronic conditions) — used by the visit
+    /// encounter's clinical-context section, which edits the flags without touching the rest of the
+    /// profile; returns the updated record.
+    /// </summary>
+    Task<PetDetail> SavePetAlertsAsync(string petId, IReadOnlyList<string> allergies, IReadOnlyList<string> chronicConditions);
+
     /// <summary>Appends a weight measurement to a pet's growth history; returns the updated record.</summary>
     Task<PetDetail> AddWeightEntryAsync(string petId, WeightEntry entry);
 

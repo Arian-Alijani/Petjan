@@ -271,7 +271,9 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var cmd = new CreateOwnerCommand(FullName: $"{request.FirstName} {request.LastName}".Trim(),
             request.Mobile1, request.Gender.ToDomain(), request.Mobile2, request.NationalId, request.Address,
             p?.Name, p?.Species.ToDomain(), p?.Breed, p?.Color, p?.Gender.ToDomain(),
-            ToUtc(p?.BirthDate), p?.MicrochipCode, ToUtc(p?.MicrochipDate), p?.Neutered ?? false);
+            ToUtc(p?.BirthDate), p?.MicrochipCode, ToUtc(p?.MicrochipDate), p?.Neutered ?? false,
+            p is null ? null : PatientsMapping.JoinList(p.Allergies ?? []),
+            p is null ? null : PatientsMapping.JoinList(p.ChronicConditions ?? []));
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetOwnerAsync(r.Value!))!;
@@ -286,7 +288,8 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         if (cc.IsFailure) throw new ServiceException(cc.Error);
         var cmd = new CreatePetCommand(ownerId, request.Name, request.Species.ToDomain(), request.Breed,
             request.Color, request.Gender.ToDomain(), ToUtc(request.BirthDate), request.MicrochipCode,
-            ToUtc(request.MicrochipDate), request.Neutered);
+            ToUtc(request.MicrochipDate), request.Neutered,
+            PatientsMapping.JoinList(request.Allergies ?? []), PatientsMapping.JoinList(request.ChronicConditions ?? []));
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(r.Value!))!;
@@ -319,6 +322,25 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(pet.Id))!;
+    }
+
+    public async Task<PetDetail> SavePetAlertsAsync(string petId, IReadOnlyList<string> allergies, IReadOnlyList<string> chronicConditions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(petId);
+        ArgumentNullException.ThrowIfNull(allergies);
+        ArgumentNullException.ThrowIfNull(chronicConditions);
+        await using var scope = scopes.CreateAsyncScope();
+        var (dispatcher, provider) = Resolve(scope);
+        var cc = await provider.BuildCommandContextAsync(null, null, null, default);
+        if (cc.IsFailure) throw new ServiceException(cc.Error);
+        var current = await GetPetAsync(petId);
+        if (current is null) throw new ServiceException(ErrorCodes.PetNotFound);
+        var cmd = new UpdatePetInfoCommand(current.Id, current.Name, current.Breed, current.Color,
+            current.Gender.ToDomain(), current.BirthDate is { } bd ? ToUtc(bd) : null, current.Neutered,
+            PatientsMapping.JoinList(allergies), PatientsMapping.JoinList(chronicConditions));
+        var r = await dispatcher.SendAsync(cmd, cc.Value!);
+        if (r.IsFailure) throw new ServiceException(r.Error);
+        return (await GetPetAsync(petId))!;
     }
 
     public async Task<PetDetail> AddWeightEntryAsync(string petId, CWeightEntry entry)
@@ -370,5 +392,8 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
 
     private static (IDispatcher Dispatcher, ICurrentUserProvider Provider) Resolve(AsyncServiceScope scope) =>
         (scope.ServiceProvider.GetRequiredService<IDispatcher>(),
+         scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>());
+}
+eProvider.GetRequiredService<IDispatcher>(),
          scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>());
 }

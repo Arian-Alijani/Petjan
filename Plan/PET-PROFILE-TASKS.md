@@ -145,7 +145,7 @@ visit shows "—" cleanly. **Push.**
 chosen, loading state while doctors fetch. **Done when:** clicking ثبت ویزیت lets you pick a doctor and
 lands in the encounter wizard pre-bound to this pet. **Push.**
 
-### ☐ Task 3 — Clinical alerts (هشدارهای بالینی): make them addable (at registration AND during visit), row-wise
+### ☑ Task 3 — Clinical alerts (هشدارهای بالینی): make them addable (at registration AND during visit), row-wise
 **Current:** alerts are read-only, derived from `pet.Allergies`+`pet.ChronicConditions` (persisted via
 `UpdatePetInfoCommand.AllergyNotes/ChronicNotes`, newline-joined — see mapping `Split`/`JoinList`).
 **Goal:** add/remove alert rows (allergy / chronic condition) both (a) when creating the pet and

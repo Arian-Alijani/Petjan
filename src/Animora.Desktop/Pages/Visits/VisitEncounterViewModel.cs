@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Animora.Contracts.Visits;
 using Animora.Contracts.Identity;
+using Animora.Contracts.Patients;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
@@ -50,6 +51,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly ILabTestSettingsService _labSettings;
     private readonly IFileLauncher _files;
+    private readonly IPatientsQueryService _patients;
 
     public bool CanEditVisit => _capabilities.Can("visits.write");
     private bool CanFinishVisit() => _capabilities.Can("visits.complete");
@@ -114,7 +116,8 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         IDataChangeNotifier changes,
         IDialogService dialogs,
         ILabTestSettingsService labSettings,
-        IFileLauncher files)
+        IFileLauncher files,
+        IPatientsQueryService patients)
     {
         _service = service;
         _changes = changes;
@@ -125,6 +128,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         _dialogs = dialogs;
         _labSettings = labSettings;
         _files = files;
+        _patients = patients;
 
         Title = "ویزیت و پرونده پزشکی";
         Eyebrow = "پرونده الکترونیک سلامت";
@@ -148,6 +152,12 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     /// <summary>Laboratory result sheets recorded on this visit («آزمایشات»), oldest first.</summary>
     public ObservableCollection<LabEntryViewModel> LabEntries { get; } = [];
+
+    /// <summary>Row-wise clinical alerts (allergies) edited during the encounter (Task 3).</summary>
+    public ObservableCollection<AlertRowEditViewModel> EditAllergies { get; } = [];
+
+    /// <summary>Row-wise clinical alerts (chronic conditions) edited during the encounter (Task 3).</summary>
+    public ObservableCollection<AlertRowEditViewModel> EditChronic { get; } = [];
 
     public bool IsRadiologyEmpty => RadiologyEntries.Count == 0;
 
@@ -233,6 +243,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
         await RefreshCatalogAsync();
         await LoadParaclinicAsync();
+        await LoadClinicalAlertsAsync();
 
         CurrentStep = EncounterStep.Form;
         RecomputeSubtotal();
@@ -289,6 +300,51 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         OnPropertyChanged(nameof(IsRadiologyEmpty));
         OnPropertyChanged(nameof(IsLabEmpty));
     }
+
+    /// <summary>
+    /// Loads the pet's current clinical alerts (allergies + chronic conditions) so the encounter's
+    /// clinical-context section can add/remove them; a failure simply leaves the rows empty.
+    /// </summary>
+    private async Task LoadClinicalAlertsAsync()
+    {
+        EditAllergies.Clear();
+        EditChronic.Clear();
+        if (string.IsNullOrWhiteSpace(_encounterId))
+        {
+            return;
+        }
+
+        try
+        {
+            var pet = await _patients.GetPetAsync(_draft.PetId);
+            if (pet is null)
+            {
+                return;
+            }
+
+            foreach (var a in pet.Allergies)
+            {
+                EditAllergies.Add(new AlertRowEditViewModel(a, EditAllergies.Remove));
+            }
+
+            foreach (var c in pet.ChronicConditions)
+            {
+                EditChronic.Add(new AlertRowEditViewModel(c, EditChronic.Remove));
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Permission/session failure — leave the alerts empty rather than blocking the encounter.
+        }
+    }
+
+    /// <summary>Adds an empty allergy row in the encounter's clinical-context section (Task 3).</summary>
+    [RelayCommand]
+    private void AddVisitAllergy() => EditAllergies.Add(new AlertRowEditViewModel(string.Empty, EditAllergies.Remove));
+
+    /// <summary>Adds an empty chronic-condition row in the encounter's clinical-context section (Task 3).</summary>
+    [RelayCommand]
+    private void AddVisitChronic() => EditChronic.Add(new AlertRowEditViewModel(string.Empty, EditChronic.Remove));
 
     /// <summary>Opens the radiology form sheet over the encounter («رادیولوژی»).</summary>
     [RelayCommand]
@@ -672,6 +728,10 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         await _service.SaveExamNoteAsync(_encounterId, ExamText);
         await _service.SaveDiagnosisAsync(_encounterId, DiagnosisText);
         await _service.SavePlanAsync(_encounterId, PlanText);
+        // Persist the clinical alerts the doctor added/edited during the encounter (Task 3).
+        await _patients.SavePetAlertsAsync(_draft.PetId,
+            PetFormViewModel.AlertTexts(EditAllergies), PetFormViewModel.AlertTexts(EditChronic));
+        _changes.Notify(DataDomain.Patients);
         return true;
     }
 
@@ -786,6 +846,19 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         PatientName: string.Empty,
         PatientKind: string.Empty,
         PatientIconKey: "paw",
+        OwnerName: string.Empty,
+        OwnerPhone: string.Empty,
+        TypeId: "visit",
+        TypeLabel: "ویزیت عمومی",
+        TypeAccent: "#0d9488",
+        IsUrgent: false,
+        IsSynthetic: false,
+        AtMinutes: 0,
+        DurationMinutes: 0,
+        Note: string.Empty,
+        SourceTicketId: string.Empty);
+}
+
         OwnerName: string.Empty,
         OwnerPhone: string.Empty,
         TypeId: "visit",

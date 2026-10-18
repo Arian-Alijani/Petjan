@@ -18,7 +18,7 @@ namespace Animora.Application.UseCases.Patients;
 [Auditable(AuditCategory.Clinical, "patients.pet.create")]
 public sealed record CreatePetCommand(string OwnerId, string Name, PetSpecies Species, string? Breed,
     string? Color, PetGender Gender, DateTimeOffset? BirthUtc, string? Microchip, DateTimeOffset? MicrochipUtc,
-    bool Neutered) : ICommand<string>, IJournaledCommand
+    bool Neutered, string? AllergyNotes = null, string? ChronicNotes = null) : ICommand<string>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.PatientsPetCreate;
     public string AggregateTypeName => "Pet";
@@ -47,6 +47,7 @@ public sealed class CreatePetCommandHandler(IOwnerRepository owners, IPetReposit
         var pet = Pet.Register(context.TenantId, c.OwnerId, c.Name, c.Species, clock, c.Gender, c.BirthUtc, c.Breed,
             id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow));
         pet.UpdateProfile(c.Name, c.Breed, c.Gender, c.BirthUtc, c.Neutered, c.Color);
+        pet.SetClinicalFlags(c.AllergyNotes, c.ChronicNotes);
         if (!string.IsNullOrWhiteSpace(c.Microchip)) pet.SetMicrochip(c.Microchip, c.MicrochipUtc ?? clock.UtcNow);
         pets.Add(pet);
         return Result<string>.Ok(pet.Id);

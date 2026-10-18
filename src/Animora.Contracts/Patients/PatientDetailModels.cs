@@ -221,7 +221,9 @@ public sealed record NewPetRequest(
     string Diet,
     string? MicrochipCode,
     DateTime? MicrochipDate,
-    bool Neutered);
+    bool Neutered,
+    IReadOnlyList<string>? Allergies = null,
+    IReadOnlyList<string>? ChronicConditions = null);
 
 /// <summary>
 /// Registration payload for a brand-new owner (and, when present, their first

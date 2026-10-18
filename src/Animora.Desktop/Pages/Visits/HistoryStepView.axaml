@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
              x:Class="Animora.Desktop.Pages.Visits.HistoryStepView"
              x:Name="Root"
              x:DataType="visits:VisitEncounterViewModel"
@@ -22,6 +23,57 @@
                 <TextBlock Classes="fld-label" Text="معاینهٔ فیزیکی" />
                 <TextBox Classes="fld-input" Text="{Binding ExamText}" AcceptsReturn="True" TextWrapping="Wrap"
                          MinHeight="150" PlaceholderText="یافته‌های معاینه: قلبی، ریوی، شکمی، عصبی، پوست…" />
+            </StackPanel>
+        </Grid>
+
+        <!-- clinical alerts (allergies + chronic conditions) — row-wise, persisted with the visit (Task 3) -->
+        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,20,0,10">
+            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                  Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconShield}" />
+            <TextBlock Grid.Column="1" Classes="sec-title" Text="هشدارهای بالینی" />
+            <Rectangle Grid.Column="2" Height="1" VerticalAlignment="Center"
+                       Fill="{StaticResource LineBrush}" />
+        </Grid>
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="fld-label" Text="حساسیت‌ها" />
+                    <Button Grid.Column="1" Classes="wz-back" Padding="10,4" FontSize="11.5"
+                            Command="{Binding AddVisitAllergyCommand}" Content="افزودن" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding EditAllergies}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="patients:AlertRowEditViewModel">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="0,0,0,6">
+                                <TextBox Grid.Column="0" Classes="fld-input" Text="{Binding Text}"
+                                         PlaceholderText="مثال: حساسیت به پنی‌سیلین" />
+                                <Button Grid.Column="1" Classes="wz-back" Padding="10,6"
+                                        VerticalAlignment="Center" Content="حذف"
+                                        Command="{Binding RemoveCommand}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="fld-label" Text="بیماری‌های مزمن" />
+                    <Button Grid.Column="1" Classes="wz-back" Padding="10,4" FontSize="11.5"
+                            Command="{Binding AddVisitChronicCommand}" Content="افزودن" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding EditChronic}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="patients:AlertRowEditViewModel">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="0,0,0,6">
+                                <TextBox Grid.Column="0" Classes="fld-input" Text="{Binding Text}"
+                                         PlaceholderText="مثال: نارسایی کلیه" />
+                                <Button Grid.Column="1" Classes="wz-back" Padding="10,6"
+                                        VerticalAlignment="Center" Content="حذف"
+                                        Command="{Binding RemoveCommand}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Grid>
     </StackPanel>

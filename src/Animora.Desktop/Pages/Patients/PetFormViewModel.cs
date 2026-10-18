@@ -59,6 +59,12 @@ public sealed partial class PetFormViewModel : ObservableObject
     public ObservableCollection<SpeciesTileViewModel> Tiles { get; } = [];
     public ObservableCollection<string> BreedOptions { get; } = [];
 
+    /// <summary>Row-wise clinical alerts entered at registration (allergies). Task 3.</summary>
+    public ObservableCollection<AlertRowEditViewModel> Allergies { get; } = [];
+
+    /// <summary>Row-wise clinical alerts entered at registration (chronic conditions). Task 3.</summary>
+    public ObservableCollection<AlertRowEditViewModel> ChronicConditions { get; } = [];
+
     public IReadOnlyList<string> Habitats => PatientsPresentation.Habitats;
     public IReadOnlyList<string> Behaviors => PatientsPresentation.Behaviors;
     public IReadOnlyList<string> Diets => PatientsPresentation.Diets;
@@ -149,8 +155,26 @@ public sealed partial class PetFormViewModel : ObservableObject
             Diet,
             string.IsNullOrWhiteSpace(MicrochipCode) ? null : MicrochipCode.Trim(),
             TryParseJalali(MicrochipDate, out var chip) ? chip : null,
-            Neutered);
+            Neutered,
+            AlertTexts(Allergies),
+            AlertTexts(ChronicConditions));
     }
+
+    /// <summary>Adds an empty allergy row to the registration form.</summary>
+    [RelayCommand]
+    private void AddAllergy() => Allergies.Add(new AlertRowEditViewModel(string.Empty, RemoveAllergy));
+
+    private void RemoveAllergy(AlertRowEditViewModel row) => Allergies.Remove(row);
+
+    /// <summary>Adds an empty chronic-condition row to the registration form.</summary>
+    [RelayCommand]
+    private void AddChronic() => ChronicConditions.Add(new AlertRowEditViewModel(string.Empty, RemoveChronic));
+
+    private void RemoveChronic(AlertRowEditViewModel row) => ChronicConditions.Remove(row);
+
+    /// <summary>Non-empty, trimmed alert lines from a row collection.</summary>
+    internal static IReadOnlyList<string> AlertTexts(IEnumerable<AlertRowEditViewModel> rows) =>
+        rows.Select(r => r.Text.Trim()).Where(t => t.Length > 0).ToArray();
 
     /// <summary>Whether the required minimum (a name) is present.</summary>
     public bool IsValid => !string.IsNullOrWhiteSpace(Name);

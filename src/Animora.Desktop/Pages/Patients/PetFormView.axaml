@@ -295,5 +295,74 @@
                 </Button>
             </StackPanel>
         </Grid>
+
+        <!-- ◂ هشدارهای بالینی (allergies + chronic conditions, row-wise) -->
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,16,0,12">
+            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                  Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconShield}" />
+            <TextBlock Grid.Column="1" Classes="frt" Text="هشدارهای بالینی" />
+            <Rectangle Grid.Column="2" Classes="frtrule" />
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+            <StackPanel Grid.Column="0" Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="flabel" Text="حساسیت‌ها" />
+                    <Button Grid.Column="1" Classes="miniact" Command="{Binding AddAllergyCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Path Classes="icon" Width="13" Height="13"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconPlus}" />
+                            <TextBlock Text="افزودن" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Allergies}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="patients:AlertRowEditViewModel">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="0,0,0,6">
+                                <TextBox Grid.Column="0" Classes="pf" Text="{Binding Text}"
+                                         PlaceholderText="مثال: حساسیت به پنی‌سیلین" />
+                                <Button Grid.Column="1" Classes="miniact danger" VerticalAlignment="Center"
+                                        Command="{Binding RemoveCommand}">
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource DangerBrush}"
+                                          Data="{StaticResource IconTrash}" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="flabel" Text="بیماری‌های مزمن" />
+                    <Button Grid.Column="1" Classes="miniact" Command="{Binding AddChronicCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Path Classes="icon" Width="13" Height="13"
+                                  Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconPlus}" />
+                            <TextBlock Text="افزودن" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding ChronicConditions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="patients:AlertRowEditViewModel">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6" Margin="0,0,0,6">
+                                <TextBox Grid.Column="0" Classes="pf" Text="{Binding Text}"
+                                         PlaceholderText="مثال: نارسایی کلیه" />
+                                <Button Grid.Column="1" Classes="miniact danger" VerticalAlignment="Center"
+                                        Command="{Binding RemoveCommand}">
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource DangerBrush}"
+                                          Data="{StaticResource IconTrash}" />
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Grid>
     </StackPanel>
 </UserControl>
