@@ -364,7 +364,7 @@
                     </Border>
                     <Button Grid.Column="2" Classes="primary" Command="{Binding Settings.AddLabTypeCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                   Data="{StaticResource IconPlus}" />
                             <TextBlock Text="افزودن آزمایش" />
                         </StackPanel>
@@ -403,7 +403,7 @@
                                     <Button Grid.Column="2" Classes="iconbtn" ToolTip.Tip="حذف نوع آزمایش"
                                             IsVisible="{Binding #Root.((visits:VisitsTriagePageViewModel)DataContext).Settings.CanEdit}"
                                             Command="{Binding RemoveCommand}">
-                                        <Path Classes="icon" Width="15" Height="15"
+                                        <Path Classes="icon" Width="16" Height="16"
                                               Stroke="{StaticResource DangerBrush}"
                                               Data="{StaticResource IconTrash}" />
                                     </Button>

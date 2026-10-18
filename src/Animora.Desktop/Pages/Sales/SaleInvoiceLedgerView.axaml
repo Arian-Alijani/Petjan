@@ -112,7 +112,7 @@
                             <Button Grid.Column="2" Classes="hy-search-clear"
                                     IsVisible="{Binding HasSearchValue}"
                                     Command="{Binding ClearSearchCommand}">
-                                <Path Classes="icon" Width="11" Height="11"
+                                <Path Classes="icon" Width="12" Height="12"
                                       Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconX}" />
                             </Button>
@@ -263,7 +263,7 @@
                                                                Foreground="{StaticResource InkBrush}"
                                                                TextTrimming="CharacterEllipsis" />
                                                     <StackPanel Orientation="Horizontal" Spacing="4">
-                                                        <Path Classes="icon" Width="11" Height="11"
+                                                        <Path Classes="icon" Width="12" Height="12"
                                                               Stroke="{StaticResource Muted2Brush}"
                                                               Data="{StaticResource IconPhone}"
                                                               VerticalAlignment="Center" />
@@ -335,7 +335,7 @@
                                                 IsVisible="{Binding IsDraft}">
                                         <Button Classes="led-act" ToolTip.Tip="ویرایش فاکتور"
                                                 Command="{Binding EditCommand}">
-                                            <Path Classes="icon" Width="13" Height="13"
+                                            <Path Classes="icon" Width="14" Height="14"
                                                   Stroke="{StaticResource Brand700Brush}"
                                                   Data="{StaticResource IconEdit}" />
                                         </Button>

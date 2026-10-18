@@ -96,7 +96,7 @@
                  column 0 so it anchors to the right edge of the field, with the value/placeholder filling the
                  remaining space to its left. -->
             <Grid ColumnDefinitions="Auto,*">
-                <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                       Margin="0,0,10,0"
                       Stroke="{StaticResource MutedBrush}" VerticalAlignment="Center"
                       Data="{StaticResource IconCalendar}" />
@@ -122,7 +122,7 @@
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <Button Grid.Column="0" Classes="dp-nav" Click="OnPrevMonthClick">
-                            <Path Classes="icon" Width="13" Height="13"
+                            <Path Classes="icon" Width="14" Height="14"
                                   Stroke="{StaticResource MutedBrush}"
                                   Data="{StaticResource IconChevronRight}" />
                         </Button>
@@ -131,7 +131,7 @@
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{StaticResource InkBrush}" />
                         <Button Grid.Column="2" Classes="dp-nav" Click="OnNextMonthClick">
-                            <Path Classes="icon" Width="13" Height="13"
+                            <Path Classes="icon" Width="14" Height="14"
                                   Stroke="{StaticResource MutedBrush}"
                                   Data="{StaticResource IconChevronLeft}" />
                         </Button>

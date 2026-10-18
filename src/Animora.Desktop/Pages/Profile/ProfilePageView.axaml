@@ -406,7 +406,7 @@
                                         Command="{Binding #Root.((pf:ProfilePageViewModel)DataContext).SelectTabCommand}"
                                         CommandParameter="{Binding Id}" AutomationProperties.Name="{Binding Label}">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                                        <Path Classes="icon" Width="17" Height="17" VerticalAlignment="Center"
+                                        <Path Classes="icon" Width="18" Height="18" VerticalAlignment="Center"
                                               Stroke="{Binding $parent[Button].Foreground}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                         <TextBlock Grid.Column="1" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center" />
@@ -493,7 +493,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -529,7 +529,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -581,7 +581,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconCalendar}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -628,7 +628,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconCalendar}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -668,7 +668,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconSms}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -707,7 +707,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconCalendar}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -749,7 +749,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconBell}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -793,7 +793,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconClock}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -840,7 +840,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconMoon}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -870,7 +870,7 @@
                                                     <TextBlock Text="{Binding Sub}" FontSize="10.5" Margin="0,2,0,0"
                                                                Foreground="{StaticResource MutedBrush}" />
                                                 </StackPanel>
-                                                <Path Grid.Column="1" Classes="icon" Width="15" Height="15"
+                                                <Path Grid.Column="1" Classes="icon" Width="16" Height="16"
                                                       Stroke="{StaticResource Brand600Brush}"
                                                       Data="{StaticResource IconCheck}" VerticalAlignment="Top"
                                                       IsVisible="{Binding IsOn}" />
@@ -890,7 +890,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconRows}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -947,7 +947,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconShield}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -984,7 +984,7 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="9">
                             <Border Classes="ps-card-ic">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
                                       VerticalAlignment="Center" />
                             </Border>
@@ -1038,7 +1038,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
                     <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
                             Background="{StaticResource DangerBgBrush}" VerticalAlignment="Top">
-                        <Path Classes="icon" Width="17" Height="17" Stroke="{StaticResource DangerBrush}"
+                        <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource DangerBrush}"
                               Data="{StaticResource IconAlert}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
@@ -1123,7 +1123,7 @@
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="9">
                                     <Border Classes="ps-card-ic">
-                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                               Data="{StaticResource IconPlus}" HorizontalAlignment="Center"
                                               VerticalAlignment="Center" />
                                     </Border>
@@ -1156,7 +1156,7 @@
                             </Border>
                             <Button Classes="primary" HorizontalAlignment="Stretch" Command="{Binding AddStaffCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                    <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                    <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                           Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
                                     <TextBlock Text="افزودن به تیم" VerticalAlignment="Center" />
                                 </StackPanel>
@@ -1170,7 +1170,7 @@
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="9">
                                     <Border Classes="ps-card-ic">
-                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Brand700Brush}"
+                                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
                                               Data="{StaticResource IconUsers}" HorizontalAlignment="Center"
                                               VerticalAlignment="Center" />
                                     </Border>
@@ -1259,7 +1259,7 @@
                                     <Border Classes="pf-perm" Margin="0,0,0,8">
                                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
                                             <Border Grid.Column="0" Classes="pf-perm-ic">
-                                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Muted2Brush}"
+                                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Muted2Brush}"
                                                       Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                             </Border>
@@ -1291,7 +1291,7 @@
                                 <Button Classes="outline" HorizontalAlignment="Left" Command="{Binding ChangeStaffPasswordCommand}"
                                         CommandParameter="{Binding SelectedStaff}">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Muted2Brush}"
+                                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Muted2Brush}"
                                               Data="{StaticResource IconShield}" VerticalAlignment="Center" />
                                         <TextBlock Text="تغییر رمز عبور" VerticalAlignment="Center" />
                                     </StackPanel>
@@ -1305,7 +1305,7 @@
                             <Button Grid.Column="0" Classes="outline" Command="{Binding RemoveStaffCommand}"
                                     CommandParameter="{Binding SelectedStaff}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
+                                    <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource DangerBrush}"
                                           Data="{StaticResource IconShield}" VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding SelectedStatusAction}" Foreground="{StaticResource DangerBrush}"
                                                VerticalAlignment="Center" />
@@ -1323,7 +1323,7 @@
                             </Border>
                             <Button Grid.Column="2" Classes="primary" Command="{Binding SaveAccessCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                    <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                           Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
                                     <TextBlock Text="ذخیرهٔ دسترسی‌ها" VerticalAlignment="Center" />
                                 </StackPanel>

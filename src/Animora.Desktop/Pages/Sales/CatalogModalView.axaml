@@ -187,7 +187,7 @@
                 <!-- recent strip -->
                 <StackPanel IsVisible="{Binding HasRecent}" Margin="10,10,10,6" Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="11" Height="11" Stroke="{StaticResource MutedBrush}"
+                        <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource MutedBrush}"
                               Data="{StaticResource IconClock}" VerticalAlignment="Center" />
                         <TextBlock Text="اخیراً استفاده شده" FontSize="10" FontWeight="ExtraBold"
                                    Foreground="{StaticResource MutedBrush}" />
@@ -206,7 +206,7 @@
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <Border Width="20" Height="20" CornerRadius="6"
                                                 Background="{Binding IcoBackground}">
-                                            <Path Classes="icon" Width="11" Height="11"
+                                            <Path Classes="icon" Width="12" Height="12"
                                                   Stroke="{Binding IcoForeground}"
                                                   Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />

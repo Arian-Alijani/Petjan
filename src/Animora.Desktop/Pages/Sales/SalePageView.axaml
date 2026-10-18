@@ -673,7 +673,7 @@
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <Border Grid.Column="0" Width="30" Height="30" CornerRadius="9"
                                                 Background="#fceec2">
-                                            <Path Classes="icon" Width="15" Height="15" Stroke="#96700e"
+                                            <Path Classes="icon" Width="16" Height="16" Stroke="#96700e"
                                                   Data="{StaticResource IconClipboard}"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
@@ -708,7 +708,7 @@
                                                 IsVisible="{Binding SelectedInvoice.CanEdit}">
                                         <Button Classes="sw-add-btn" Command="{Binding AddItemCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Path Classes="icon" Width="13" Height="13" Stroke="White"
+                                                <Path Classes="icon" Width="14" Height="14" Stroke="White"
                                                       Data="{StaticResource IconPlus}" />
                                                 <TextBlock Text="افزودن آیتم" />
                                             </StackPanel>
@@ -716,7 +716,7 @@
                                         <Button Classes="sw-add-btn sw-add-custom"
                                                 Command="{Binding AddCustomItemCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Path Classes="icon" Width="13" Height="13"
+                                                <Path Classes="icon" Width="14" Height="14"
                                                       Stroke="{StaticResource Brand700Brush}"
                                                       Data="{StaticResource IconEdit}" />
                                                 <TextBlock Text="آیتم دلخواه" />
@@ -958,7 +958,7 @@
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <Button Classes="outline" Padding="14,9">
                                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon" Width="16" Height="16"
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       Data="{StaticResource IconPrinter}" />
                                                 <TextBlock Text="چاپ" />
@@ -969,7 +969,7 @@
                                                 Command="{Binding VoidInvoiceCommand}"
                                                 IsVisible="{Binding SelectedInvoice.CanEdit}">
                                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon" Width="16" Height="16"
                                                       Stroke="{StaticResource DangerBrush}"
                                                       Data="{StaticResource IconX}" />
                                                 <TextBlock Text="ابطال" />
@@ -979,7 +979,7 @@
                                                 Command="{Binding RefundCommand}"
                                                 IsVisible="{Binding SelectedInvoice.ShowRefund}">
                                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon" Width="16" Height="16"
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       Data="{StaticResource IconArrowDownLeft}" />
                                                 <TextBlock Text="عودت وجه" />
@@ -1087,7 +1087,7 @@
                                                                 Background="{StaticResource WarnBgBrush}"
                                                                 CornerRadius="20" Padding="8,2">
                                                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                                                <Path Classes="icon" Width="10" Height="10"
+                                                                <Path Classes="icon" Width="12" Height="12"
                                                                       Stroke="{StaticResource WarnBrush}"
                                                                       Data="{StaticResource IconClipboard}" />
                                                                 <TextBlock Text="آماده فاکتور" FontSize="10"
@@ -1224,7 +1224,7 @@
                                                             ToolTip.Tip="حذف فاکتور"
                                                             Command="{Binding $parent[UserControl].((sales:SalePageViewModel)DataContext).DeleteOpenInvoiceCommand}"
                                                             CommandParameter="{Binding InvoiceId}">
-                                                        <Path Classes="icon" Width="11" Height="11"
+                                                        <Path Classes="icon" Width="12" Height="12"
                                                               Stroke="{StaticResource DangerBrush}"
                                                               Data="{StaticResource IconX}" />
                                                     </Button>

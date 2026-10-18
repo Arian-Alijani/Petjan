@@ -1,572 +1,217 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- Icon set: StreamGeometry resources re-drawn from
-         Animora-UI/assets/icons.js (Lucide-style outline SVGs) using
-         Avalonia's own path mini-language, not embedded raw SVG strings.
-         Consumers render these with a Path using Stroke (not Fill) —
-         see the "icon" style below — because the source set is stroke-only
-         line art (fill: none in the reference). Keys cover Phase 05's
-         sidebar set plus common action icons per the phase task list. -->
+    <!-- ══════════════════════════════════════════════════════════════════════
+         Icon set — Lucide v0.460 (ISC licence), one pack for the whole app:
+         shell navigation, workspace tabs, sub-tabs, row actions, status marks,
+         the «خلاصهٔ امروز» tiles and the species (animal) marks.
 
-    <StreamGeometry x:Key="IconDashboard">
-        M3,3 L10,3 L10,12 L3,12 Z
-        M14,3 L21,3 L21,8 L14,8 Z
-        M14,12 L21,12 L21,21 L14,21 Z
-        M3,16 L10,16 L10,21 L3,21 Z
-    </StreamGeometry>
+         Rules this file keeps:
+         • One source only, so a tick, a cross, a back chevron and a trend arrow
+           all share the same 24×24 grid, 2px weight and round terminals.
+         • Data is authored on a 24×24 viewBox, and every geometry is pinned to
+           that box, so a consumer sizes it with one Width/Height pair and
+           <Path Classes="icon" Data="{StaticResource IconX}"/>. The "icon" style
+           (Resources/Controls/IconStyle.axaml) supplies the stroke, the round
+           terminals and the default 20px box.
+         • Glyphs are direction-neutral. The icon style renders them LTR, so the
+           RTL page root never mirrors a tick or an arrow.
+         • Keys are semantic and stable (IconCart, not IconShoppingCart); they are
+           also resolved by name from ViewModels through IconKeyConverter.
+         ══════════════════════════════════════════════════════════════════════ -->
 
-    <StreamGeometry x:Key="IconCalendar">
-        M3,4 L21,4 L21,22 L3,22 Z
-        M16,2 L16,6
-        M8,2 L8,6
-        M3,10 L21,10
-    </StreamGeometry>
 
-    <!-- Calendar with a plus: "new appointment". Same frame as IconCalendar; the + sits in the body. -->
-    <StreamGeometry x:Key="IconCalendarPlus">
-        M3,4 L21,4 L21,22 L3,22 Z
-        M16,2 L16,6
-        M8,2 L8,6
-        M3,10 L21,10
-        M12,13 L12,19
-        M9,16 L15,16
-    </StreamGeometry>
+    <!-- layout-dashboard -->
+    <StreamGeometry x:Key="IconDashboard">M 0 0 M 24 24 M 4 3 h 5 a 1 1 0 0 1 1 1 v 7 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -7 a 1 1 0 0 1 1 -1 Z M 15 3 h 5 a 1 1 0 0 1 1 1 v 3 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -3 a 1 1 0 0 1 1 -1 Z M 15 12 h 5 a 1 1 0 0 1 1 1 v 7 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -7 a 1 1 0 0 1 1 -1 Z M 4 16 h 5 a 1 1 0 0 1 1 1 v 3 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -3 a 1 1 0 0 1 1 -1 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconCalendar">M 0 0 M 24 24 M 8 2 v 4 M 16 2 v 4 M 5 4 h 14 a 2 2 0 0 1 2 2 v 14 a 2 2 0 0 1 -2 2 h -14 a 2 2 0 0 1 -2 -2 v -14 a 2 2 0 0 1 2 -2 Z M 3 10 h 18</StreamGeometry>
+    <StreamGeometry x:Key="IconCalendarPlus">M 0 0 M 24 24 M 8 2 v 4 M 16 2 v 4 M 21 13 V 6 a 2 2 0 0 0 -2 -2 H 5 a 2 2 0 0 0 -2 2 v 14 a 2 2 0 0 0 2 2 h 8 M 3 10 h 18 M 16 19 h 6 M 19 16 v 6</StreamGeometry>
+    <StreamGeometry x:Key="IconUsers">M 0 0 M 24 24 M 16 21 v -2 a 4 4 0 0 0 -4 -4 H 6 a 4 4 0 0 0 -4 4 v 2 M 5 7 a 4 4 0 1 0 8 0 a 4 4 0 1 0 -8 0 M 22 21 v -2 a 4 4 0 0 0 -3 -3.87 M 16 3.13 a 4 4 0 0 1 0 7.75</StreamGeometry>
 
-    <StreamGeometry x:Key="IconUsers">
-        M17,21 v-2 a4,4 0 0 0 -4,-4 H5 a4,4 0 0 0 -4,4 v2
-        M5,7 A4,4 0 1 0 13,7 A4,4 0 1 0 5,7 Z
-        M23,21 v-2 a4,4 0 0 0 -3,-3.87
-        M16,3.13 a4,4 0 0 1 0,7.75
-    </StreamGeometry>
+    <!-- clipboard-list -->
+    <StreamGeometry x:Key="IconClipboard">M 0 0 M 24 24 M 9 2 h 6 a 1 1 0 0 1 1 1 v 2 a 1 1 0 0 1 -1 1 h -6 a 1 1 0 0 1 -1 -1 v -2 a 1 1 0 0 1 1 -1 Z M 16 4 h 2 a 2 2 0 0 1 2 2 v 14 a 2 2 0 0 1 -2 2 H 6 a 2 2 0 0 1 -2 -2 V 6 a 2 2 0 0 1 2 -2 h 2 M 12 11 h 4 M 12 16 h 4 M 8 11 h .01 M 8 16 h .01</StreamGeometry>
+    <StreamGeometry x:Key="IconSyringe">M 0 0 M 24 24 M 0 0 m 18 2 l 4 4 M 0 0 m 17 7 l 3 -3 M 19 9 L 8.7 19.3 c -1 1 -2.5 1 -3.4 0 l -.6 -.6 c -1 -1 -1 -2.5 0 -3.4 L 15 5 M 0 0 m 9 11 l 4 4 M 0 0 m 5 19 l -3 3 M 0 0 m 14 4 l 6 6</StreamGeometry>
 
-    <StreamGeometry x:Key="IconClipboard">
-        M16,4 h2 a2,2 0 0 1 2,2 v14 a2,2 0 0 1 -2,2 H6 a2,2 0 0 1 -2,-2 V6 a2,2 0 0 1 2,-2 h2
-        M8,2 L16,2 L16,6 L8,6 Z
-        M9,12 h6 M9,16 h4
-    </StreamGeometry>
+    <!-- house -->
+    <StreamGeometry x:Key="IconHome">M 0 0 M 24 24 M 15 21 v -8 a 1 1 0 0 0 -1 -1 h -4 a 1 1 0 0 0 -1 1 v 8 M 3 10 a 2 2 0 0 1 .709 -1.528 l 7 -5.999 a 2 2 0 0 1 2.582 0 l 7 5.999 A 2 2 0 0 1 21 10 v 9 a 2 2 0 0 1 -2 2 H 5 a 2 2 0 0 1 -2 -2 z</StreamGeometry>
 
-    <StreamGeometry x:Key="IconSyringe">
-        M18,2 l4,4
-        M17,7 l3,-3
-        M19,9 L8.7,19.3 c-1,1 -2.5,1 -3.4,0 l-.6,-.6 c-1,-1 -1,-2.5 0,-3.4 L15,5
-        M9,11 l4,4
-        M5,19 l-3,3
-        M14,4 l6,6
-    </StreamGeometry>
+    <!-- shopping-cart -->
+    <StreamGeometry x:Key="IconCart">M 0 0 M 24 24 M 7 21 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0 M 18 21 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0 M 2.05 2.05 h 2 l 2.66 12.42 a 2 2 0 0 0 2 1.58 h 9.78 a 2 2 0 0 0 1.95 -1.57 l 1.65 -7.43 H 5.12</StreamGeometry>
 
-    <StreamGeometry x:Key="IconHome">
-        M3,9 L12,2 L21,9 L21,20 A2,2 0 0 1 19,22 H5 A2,2 0 0 1 3,20 Z
-        M9,22 L9,12 L15,12 L15,22
-    </StreamGeometry>
+    <!-- package -->
+    <StreamGeometry x:Key="IconBox">M 0 0 M 24 24 M 11 21.73 a 2 2 0 0 0 2 0 l 7 -4 A 2 2 0 0 0 21 16 V 8 a 2 2 0 0 0 -1 -1.73 l -7 -4 a 2 2 0 0 0 -2 0 l -7 4 A 2 2 0 0 0 3 8 v 8 a 2 2 0 0 0 1 1.73 z M 12 22 V 12 M 0 0 m 3.3 7 l 7.703 4.734 a 2 2 0 0 0 1.994 0 L 20.7 7 M 0 0 m 7.5 4.27 l 9 5.15</StreamGeometry>
 
-    <StreamGeometry x:Key="IconCart">
-        M8,21 A1,1 0 1 0 10,21 A1,1 0 1 0 8,21 Z
-        M19,21 A1,1 0 1 0 21,21 A1,1 0 1 0 19,21 Z
-        M1,1 h4 l2.68,13.39 a2,2 0 0 0 2,1.61 h9.72 a2,2 0 0 0 2,-1.61 L23,6 H6
-    </StreamGeometry>
+    <!-- receipt-text -->
+    <StreamGeometry x:Key="IconReceipt">M 0 0 M 24 24 M 4 2 v 20 l 2 -1 l 2 1 l 2 -1 l 2 1 l 2 -1 l 2 1 l 2 -1 l 2 1 V 2 l -2 1 l -2 -1 l -2 1 l -2 -1 l -2 1 l -2 -1 l -2 1 Z M 14 8 H 8 M 16 12 H 8 M 13 16 H 8</StreamGeometry>
 
-    <StreamGeometry x:Key="IconBox">
-        M21,16 V8 a2,2 0 0 0 -1,-1.73 l-7,-4 a2,2 0 0 0 -2,0 l-7,4 A2,2 0 0 0 3,8 v8 a2,2 0 0 0 1,1.73 l7,4 a2,2 0 0 0 2,0 l7,-4 A2,2 0 0 0 21,16 Z
-        M3.27,6.96 L12,12.01 L20.73,6.96
-        M12,22.08 L12,12
-    </StreamGeometry>
+    <!-- chart-column -->
+    <StreamGeometry x:Key="IconChart">M 0 0 M 24 24 M 3 3 v 16 a 2 2 0 0 0 2 2 h 16 M 18 17 V 9 M 13 17 V 5 M 8 17 v -3</StreamGeometry>
 
-    <StreamGeometry x:Key="IconReceipt">
-        M4,2 v20 l3,-2 l3,2 l3,-2 l3,2 l3,-2 l3,2 V2 l-3,2 l-3,-2 l-3,2 l-3,-2 l-3,2 Z
-        M8,8 h8 M8,12 h8 M8,16 h5
-    </StreamGeometry>
+    <!-- banknote -->
+    <StreamGeometry x:Key="IconCheque">M 0 0 M 24 24 M 4 6 h 16 a 2 2 0 0 1 2 2 v 8 a 2 2 0 0 1 -2 2 h -16 a 2 2 0 0 1 -2 -2 v -8 a 2 2 0 0 1 2 -2 Z M 10 12 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 6 12 h .01 M 18 12 h .01</StreamGeometry>
+    <StreamGeometry x:Key="IconClock">M 0 0 M 24 24 M 2 12 a 10 10 0 1 0 20 0 a 10 10 0 1 0 -20 0 M 12 6 L 12 12 L 16 14</StreamGeometry>
 
-    <StreamGeometry x:Key="IconChart">
-        M12,20 L12,10
-        M18,20 L18,4
-        M6,20 L6,16
-    </StreamGeometry>
+    <!-- waypoints -->
+    <StreamGeometry x:Key="IconTimeline">M 0 0 M 24 24 M 9.5 4.5 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0 M 0 0 m 10.2 6.3 l -3.9 3.9 M 2 12 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0 M 7 12 h 10 M 17 12 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0 M 0 0 m 13.8 17.7 l 3.9 -3.9 M 9.5 19.5 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0</StreamGeometry>
+    <StreamGeometry x:Key="IconHourglass">M 0 0 M 24 24 M 5 22 h 14 M 5 2 h 14 M 17 22 v -4.172 a 2 2 0 0 0 -.586 -1.414 L 12 12 l -4.414 4.414 A 2 2 0 0 0 7 17.828 V 22 M 7 2 v 4.172 a 2 2 0 0 0 .586 1.414 L 12 12 l 4.414 -4.414 A 2 2 0 0 0 17 6.172 V 2</StreamGeometry>
 
-    <StreamGeometry x:Key="IconCheque">
-        M2,5 L22,5 L22,19 L2,19 Z
-        M6,10 h6 M6,14 h3
-        M15.5,13.5 l1.6,1.7 l3.2,-3.4
-    </StreamGeometry>
+    <!-- shield-check -->
+    <StreamGeometry x:Key="IconShield">M 0 0 M 24 24 M 20 13 c 0 5 -3.5 7.5 -7.66 8.95 a 1 1 0 0 1 -.67 -.01 C 7.5 20.5 4 18 4 13 V 6 a 1 1 0 0 1 1 -1 c 2 0 4.5 -1.2 6.24 -2.72 a 1.17 1.17 0 0 1 1.52 0 C 14.51 3.81 17 5 19 5 a 1 1 0 0 1 1 1 z M 0 0 m 9 12 l 2 2 l 4 -4</StreamGeometry>
+    <StreamGeometry x:Key="IconPlus">M 0 0 M 24 24 M 5 12 h 14 M 12 5 v 14</StreamGeometry>
+    <StreamGeometry x:Key="IconCheck">M 0 0 M 24 24 M 20 6 L 9 17 l -5 -5</StreamGeometry>
+    <StreamGeometry x:Key="IconX">M 0 0 M 24 24 M 18 6 L 6 18 M 0 0 m 6 6 l 12 12</StreamGeometry>
 
-    <StreamGeometry x:Key="IconClock">
-        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
-        M12,6 L12,12 L16,14
-    </StreamGeometry>
+    <!-- circle-check -->
+    <StreamGeometry x:Key="IconCheckCircle">M 0 0 M 24 24 M 2 12 a 10 10 0 1 0 20 0 a 10 10 0 1 0 -20 0 M 0 0 m 9 12 l 2 2 l 4 -4</StreamGeometry>
+    <StreamGeometry x:Key="IconEye">M 0 0 M 24 24 M 2.062 12.348 a 1 1 0 0 1 0 -.696 a 10.75 10.75 0 0 1 19.876 0 a 1 1 0 0 1 0 .696 a 10.75 10.75 0 0 1 -19.876 0 M 9 12 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0</StreamGeometry>
+    <StreamGeometry x:Key="IconSearch">M 0 0 M 24 24 M 3 11 a 8 8 0 1 0 16 0 a 8 8 0 1 0 -16 0 M 0 0 m 21 21 l -4.3 -4.3</StreamGeometry>
 
-    <!-- Boarding (پانسیون) section-switcher + status glyphs, redrawn from the
-         reference's icons.js collection (timeline/hourglass) in the same 2px
-         rounded Lucide-stroke language. -->
-    <StreamGeometry x:Key="IconTimeline">
-        M3,6 A2,2 0 1 0 7,6 A2,2 0 1 0 3,6 Z
-        M3,18 A2,2 0 1 0 7,18 A2,2 0 1 0 3,18 Z
-        M5,8 L5,16
-        M10,6 L21,6
-        M10,18 L21,18
-    </StreamGeometry>
+    <!-- square-pen -->
+    <StreamGeometry x:Key="IconEdit">M 0 0 M 24 24 M 12 3 H 5 a 2 2 0 0 0 -2 2 v 14 a 2 2 0 0 0 2 2 h 14 a 2 2 0 0 0 2 -2 v -7 M 18.375 2.625 a 1 1 0 0 1 3 3 l -9.013 9.014 a 2 2 0 0 1 -.853 .505 l -2.873 .84 a .5 .5 0 0 1 -.62 -.62 l .84 -2.873 a 2 2 0 0 1 .506 -.852 z</StreamGeometry>
 
-    <StreamGeometry x:Key="IconHourglass">
-        M6,2 L18,2
-        M6,22 L18,22
-        M6,2 c0,4 6,6 6,10 S6,18 6,22
-        M18,2 c0,4 -6,6 -6,10 s6,6 6,10
-    </StreamGeometry>
+    <!-- trash-2 -->
+    <StreamGeometry x:Key="IconTrash">M 0 0 M 24 24 M 3 6 h 18 M 19 6 v 14 c 0 1 -1 2 -2 2 H 7 c -1 0 -2 -1 -2 -2 V 6 M 8 6 V 4 c 0 -1 1 -2 2 -2 h 4 c 1 0 2 1 2 2 v 2 M 10 11 L 10 17 M 14 11 L 14 17</StreamGeometry>
 
-    <StreamGeometry x:Key="IconShield">
-        M12,22 s8,-4 8,-10 V5 l-8,-3 l-8,3 v7 c0,6 8,10 8,10 z
-        M9,12 l2,2 l4,-4
-    </StreamGeometry>
+    <!-- ellipsis-vertical -->
+    <StreamGeometry x:Key="IconMore">M 0 0 M 24 24 M 11 12 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0 M 11 5 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0 M 11 19 a 1 1 0 1 0 2 0 a 1 1 0 1 0 -2 0</StreamGeometry>
+    <StreamGeometry x:Key="IconFilter">M 0 0 M 24 24 M 22 3 L 2 3 L 10 12.46 L 10 19 L 14 21 L 14 12.46 L 22 3 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconChevronDown">M 0 0 M 24 24 M 0 0 m 6 9 l 6 6 l 6 -6</StreamGeometry>
+    <StreamGeometry x:Key="IconChevronLeft">M 0 0 M 24 24 M 0 0 m 15 18 l -6 -6 l 6 -6</StreamGeometry>
+    <StreamGeometry x:Key="IconChevronRight">M 0 0 M 24 24 M 0 0 m 9 18 l 6 -6 l -6 -6</StreamGeometry>
+    <StreamGeometry x:Key="IconMenu">M 0 0 M 24 24 M 4 12 L 20 12 M 4 6 L 20 6 M 4 18 L 20 18</StreamGeometry>
 
-    <StreamGeometry x:Key="IconPlus">
-        M12,5 L12,19
-        M5,12 L19,12
-    </StreamGeometry>
+    <!-- chevrons-left -->
+    <StreamGeometry x:Key="IconFold">M 0 0 M 24 24 M 0 0 m 11 17 l -5 -5 l 5 -5 M 0 0 m 18 17 l -5 -5 l 5 -5</StreamGeometry>
+    <StreamGeometry x:Key="IconArrowUpRight">M 0 0 M 24 24 M 7 7 h 10 v 10 M 7 17 L 17 7</StreamGeometry>
+    <StreamGeometry x:Key="IconMoon">M 0 0 M 24 24 M 12 3 a 6 6 0 0 0 9 9 a 9 9 0 1 1 -9 -9 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconBell">M 0 0 M 24 24 M 6 8 a 6 6 0 0 1 12 0 c 0 7 3 9 3 9 H 3 s 3 -2 3 -9 M 10.3 21 a 1.94 1.94 0 0 0 3.4 0</StreamGeometry>
+    <StreamGeometry x:Key="IconTruck">M 0 0 M 24 24 M 14 18 V 6 a 2 2 0 0 0 -2 -2 H 4 a 2 2 0 0 0 -2 2 v 11 a 1 1 0 0 0 1 1 h 2 M 15 18 H 9 M 19 18 h 2 a 1 1 0 0 0 1 -1 v -3.65 a 1 1 0 0 0 -.22 -.624 l -3.48 -4.35 A 1 1 0 0 0 17.52 8 H 14 M 15 18 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 5 18 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0</StreamGeometry>
 
-    <!-- Standard checkmark. The app root is FlowDirection=RightToLeft, which
-         horizontally mirrors Path geometry; this geometry is authored as the
-         mirror image of a conventional tick (short arm bottom-left, long arm
-         top-right) so it renders correctly (not reversed) inside the RTL UI. -->
-    <StreamGeometry x:Key="IconCheck">
-        M20,6.5 L10,17 L5,12
-    </StreamGeometry>
+    <!-- paw-print -->
+    <StreamGeometry x:Key="IconPaw">M 0 0 M 24 24 M 9 4 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 16 8 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 18 16 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 9 10 a 5 5 0 0 1 5 5 v 3.5 a 3.5 3.5 0 0 1 -6.84 1.045 Q 6.52 17.48 4.46 16.84 A 3.5 3.5 0 0 1 5.5 10 Z</StreamGeometry>
 
-    <StreamGeometry x:Key="IconX">
-        M18,6 L6,18
-        M6,6 L18,18
-    </StreamGeometry>
+    <!-- triangle-alert -->
+    <StreamGeometry x:Key="IconAlert">M 0 0 M 24 24 M 0 0 m 21.73 18 l -8 -14 a 2 2 0 0 0 -3.48 0 l -8 14 A 2 2 0 0 0 4 21 h 16 a 2 2 0 0 0 1.73 -3 M 12 9 v 4 M 12 17 h .01</StreamGeometry>
+    <StreamGeometry x:Key="IconWallet">M 0 0 M 24 24 M 19 7 V 4 a 1 1 0 0 0 -1 -1 H 5 a 2 2 0 0 0 0 4 h 15 a 1 1 0 0 1 1 1 v 4 h -3 a 2 2 0 0 0 0 4 h 3 a 1 1 0 0 0 1 -1 v -2 a 1 1 0 0 0 -1 -1 M 3 5 v 14 a 2 2 0 0 0 2 2 h 15 a 1 1 0 0 0 1 -1 v -4</StreamGeometry>
+    <StreamGeometry x:Key="IconCoins">M 0 0 M 24 24 M 2 8 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0 M 18.09 10.37 A 6 6 0 1 1 10.34 18 M 7 6 h 1 v 4 M 0 0 m 16.71 13.88 l .7 .71 l -2.82 2.82</StreamGeometry>
 
-    <!-- Check inside a circle — the canonical "confirm / mark done" row action.
-         The tick arm is authored mirror-image (like IconCheck) so it reads
-         correctly inside the RTL root. -->
-    <StreamGeometry x:Key="IconCheckCircle">
-        M12,3 a9,9 0 1 0 0,18 a9,9 0 0 0 0,-18 Z
-        M16,9.5 L11,15 L8,12
-    </StreamGeometry>
+    <!-- file-text -->
+    <StreamGeometry x:Key="IconFile">M 0 0 M 24 24 M 15 2 H 6 a 2 2 0 0 0 -2 2 v 16 a 2 2 0 0 0 2 2 h 12 a 2 2 0 0 0 2 -2 V 7 Z M 14 2 v 4 a 2 2 0 0 0 2 2 h 4 M 10 9 H 8 M 16 13 H 8 M 16 17 H 8</StreamGeometry>
+    <StreamGeometry x:Key="IconBriefcase">M 0 0 M 24 24 M 16 20 V 4 a 2 2 0 0 0 -2 -2 h -4 a 2 2 0 0 0 -2 2 v 16 M 4 6 h 16 a 2 2 0 0 1 2 2 v 10 a 2 2 0 0 1 -2 2 h -16 a 2 2 0 0 1 -2 -2 v -10 a 2 2 0 0 1 2 -2 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconDog">M 0 0 M 24 24 M 11.25 16.25 h 1.5 L 12 17 z M 16 14 v .5 M 4.42 11.247 A 13.152 13.152 0 0 0 4 14.556 C 4 18.728 7.582 21 12 21 s 8 -2.272 8 -6.444 a 11.702 11.702 0 0 0 -.493 -3.309 M 8 14 v .5 M 8.5 8.5 c -.384 1.05 -1.083 2.028 -2.344 2.5 c -1.931 .722 -3.576 -.297 -3.656 -1 c -.113 -.994 1.177 -6.53 4 -7 c 1.923 -.321 3.651 .845 3.651 2.235 A 7.497 7.497 0 0 1 14 5.277 c 0 -1.39 1.844 -2.598 3.767 -2.277 c 2.823 .47 4.113 6.006 4 7 c -.08 .703 -1.725 1.722 -3.656 1 c -1.261 -.472 -1.855 -1.45 -2.239 -2.5</StreamGeometry>
+    <StreamGeometry x:Key="IconCat">M 0 0 M 24 24 M 12 5 c .67 0 1.35 .09 2 .26 c 1.78 -2 5.03 -2.84 6.42 -2.26 c 1.4 .58 -.42 7 -.42 7 c .57 1.07 1 2.24 1 3.44 C 21 17.9 16.97 21 12 21 s -9 -3 -9 -7.56 c 0 -1.25 .5 -2.4 1 -3.44 c 0 0 -1.89 -6.42 -.5 -7 c 1.39 -.58 4.72 .23 6.5 2.23 A 9.04 9.04 0 0 1 12 5 Z M 8 14 v .5 M 16 14 v .5 M 11.25 16.25 h 1.5 L 12 17 l -.75 -.75 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconBird">M 0 0 M 24 24 M 16 7 h .01 M 3.4 18 H 12 a 8 8 0 0 0 8 -8 V 7 a 4 4 0 0 0 -7.28 -2.3 L 2 20 M 0 0 m 20 7 l 2 .5 l -2 .5 M 10 18 v 3 M 14 17.75 V 21 M 7 18 a 6 6 0 0 0 3.84 -10.61</StreamGeometry>
+    <StreamGeometry x:Key="IconRabbit">M 0 0 M 24 24 M 13 16 a 3 3 0 0 1 2.24 5 M 18 12 h .01 M 18 21 h -8 a 4 4 0 0 1 -4 -4 a 7 7 0 0 1 7 -7 h .2 L 9.6 6.4 a 1 1 0 1 1 2.8 -2.8 L 15.8 7 h .2 c 3.3 0 6 2.7 6 6 v 1 a 2 2 0 0 1 -2 2 h -1 a 3 3 0 0 0 -3 3 M 20 8.54 V 4 a 2 2 0 1 0 -4 0 v 3 M 7.612 12.524 a 3 3 0 1 0 -1.6 4.3</StreamGeometry>
+    <StreamGeometry x:Key="IconPhone">M 0 0 M 24 24 M 22 16.92 v 3 a 2 2 0 0 1 -2.18 2 a 19.79 19.79 0 0 1 -8.63 -3.07 a 19.5 19.5 0 0 1 -6 -6 a 19.79 19.79 0 0 1 -3.07 -8.67 A 2 2 0 0 1 4.11 2 h 3 a 2 2 0 0 1 2 1.72 a 12.84 12.84 0 0 0 .7 2.81 a 2 2 0 0 1 -.45 2.11 L 8.09 9.91 a 16 16 0 0 0 6 6 l 1.27 -1.27 a 2 2 0 0 1 2.11 -.45 a 12.84 12.84 0 0 0 2.81 .7 A 2 2 0 0 1 22 16.92 z</StreamGeometry>
 
-    <!-- Canonical "view details / open record" glyph (Lucide eye). Used
-         consistently for every «مشاهده / جزئیات / پرونده» row action across
-         Patients, Vaccination, Inventory, etc. so the affordance is identical
-         everywhere. Stroke-only, matches the 2px rounded icon language. -->
-    <StreamGeometry x:Key="IconEye">
-        M2.06,12.35 a1,1 0 0 1 0,-0.7 C3.42,8.25 7.36,5.5 12,5.5 s8.58,2.75 9.94,6.15 a1,1 0 0 1 0,0.7 C20.58,15.75 16.64,18.5 12,18.5 s-8.58,-2.75 -9.94,-6.15 Z
-        M12,15 a3,3 0 1 0 0,-6 a3,3 0 0 0 0,6 Z
-    </StreamGeometry>
+    <!-- smartphone -->
+    <StreamGeometry x:Key="IconMobile">M 0 0 M 24 24 M 7 2 h 10 a 2 2 0 0 1 2 2 v 16 a 2 2 0 0 1 -2 2 h -10 a 2 2 0 0 1 -2 -2 v -16 a 2 2 0 0 1 2 -2 Z M 12 18 h .01</StreamGeometry>
+    <StreamGeometry x:Key="IconIdCard">M 0 0 M 24 24 M 16 10 h 2 M 16 14 h 2 M 6.17 15 a 3 3 0 0 1 5.66 0 M 7 11 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 4 5 h 16 a 2 2 0 0 1 2 2 v 10 a 2 2 0 0 1 -2 2 h -16 a 2 2 0 0 1 -2 -2 v -10 a 2 2 0 0 1 2 -2 Z</StreamGeometry>
 
-    <StreamGeometry x:Key="IconSearch">
-        M3,11 A8,8 0 1 0 19,11 A8,8 0 1 0 3,11 Z
-        M21,21 L16.65,16.65
-    </StreamGeometry>
+    <!-- map-pin -->
+    <StreamGeometry x:Key="IconPin">M 0 0 M 24 24 M 20 10 c 0 4.993 -5.539 10.193 -7.399 11.799 a 1 1 0 0 1 -1.202 0 C 9.539 20.193 4 14.993 4 10 a 8 8 0 0 1 16 0 M 9 10 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0</StreamGeometry>
+    <StreamGeometry x:Key="IconDownload">M 0 0 M 24 24 M 21 15 v 4 a 2 2 0 0 1 -2 2 H 5 a 2 2 0 0 1 -2 -2 v -4 M 7 10 L 12 15 L 17 10 M 12 15 L 12 3</StreamGeometry>
+    <StreamGeometry x:Key="IconList">M 0 0 M 24 24 M 3 12 h .01 M 3 18 h .01 M 3 6 h .01 M 8 12 h 13 M 8 18 h 13 M 8 6 h 13</StreamGeometry>
 
-    <StreamGeometry x:Key="IconEdit">
-        M11,4 H4 a2,2 0 0 0 -2,2 v14 a2,2 0 0 0 2,2 h14 a2,2 0 0 0 2,-2 v-7
-        M18.5,2.5 a2.121,2.121 0 0 1 3,3 L12,15 l-4,1 l1,-4 Z
-    </StreamGeometry>
+    <!-- layout-grid -->
+    <StreamGeometry x:Key="IconGrid">M 0 0 M 24 24 M 4 3 h 5 a 1 1 0 0 1 1 1 v 5 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -5 a 1 1 0 0 1 1 -1 Z M 15 3 h 5 a 1 1 0 0 1 1 1 v 5 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -5 a 1 1 0 0 1 1 -1 Z M 15 14 h 5 a 1 1 0 0 1 1 1 v 5 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -5 a 1 1 0 0 1 1 -1 Z M 4 14 h 5 a 1 1 0 0 1 1 1 v 5 a 1 1 0 0 1 -1 1 h -5 a 1 1 0 0 1 -1 -1 v -5 a 1 1 0 0 1 1 -1 Z</StreamGeometry>
 
-    <StreamGeometry x:Key="IconTrash">
-        M3,6 L5,6 L21,6
-        M19,6 l-2,14 a2,2 0 0 1 -2,2 H9 a2,2 0 0 1 -2,-2 L5,6
-    </StreamGeometry>
+    <!-- circle-ellipsis -->
+    <StreamGeometry x:Key="IconMore2">M 0 0 M 24 24 M 2 12 a 10 10 0 1 0 20 0 a 10 10 0 1 0 -20 0 M 17 12 h .01 M 12 12 h .01 M 7 12 h .01</StreamGeometry>
+    <StreamGeometry x:Key="IconInfo">M 0 0 M 24 24 M 2 12 a 10 10 0 1 0 20 0 a 10 10 0 1 0 -20 0 M 12 16 v -4 M 12 8 h .01</StreamGeometry>
+    <StreamGeometry x:Key="IconCake">M 0 0 M 24 24 M 20 21 v -8 a 2 2 0 0 0 -2 -2 H 6 a 2 2 0 0 0 -2 2 v 8 M 4 16 s .5 -1 2 -1 s 2.5 2 4 2 s 2.5 -2 4 -2 s 2.5 2 4 2 s 2 -1 2 -1 M 2 21 h 20 M 7 8 v 3 M 12 8 v 3 M 17 8 v 3 M 7 4 h .01 M 12 4 h .01 M 17 4 h .01</StreamGeometry>
+    <StreamGeometry x:Key="IconPalette">M 0 0 M 24 24 M 13 6.5 a 0.5 0.5 0 1 0 1 0 a 0.5 0.5 0 1 0 -1 0 M 17 10.5 a 0.5 0.5 0 1 0 1 0 a 0.5 0.5 0 1 0 -1 0 M 8 7.5 a 0.5 0.5 0 1 0 1 0 a 0.5 0.5 0 1 0 -1 0 M 6 12.5 a 0.5 0.5 0 1 0 1 0 a 0.5 0.5 0 1 0 -1 0 M 12 2 C 6.5 2 2 6.5 2 12 s 4.5 10 10 10 c .926 0 1.648 -.746 1.648 -1.688 c 0 -.437 -.18 -.835 -.437 -1.125 c -.29 -.289 -.438 -.652 -.438 -1.125 a 1.64 1.64 0 0 1 1.668 -1.668 h 1.996 c 3.051 0 5.555 -2.503 5.555 -5.554 C 21.965 6.012 17.461 2 12 2 z</StreamGeometry>
+    <StreamGeometry x:Key="IconSmile">M 0 0 M 24 24 M 2 12 a 10 10 0 1 0 20 0 a 10 10 0 1 0 -20 0 M 8 14 s 1.5 2 4 2 s 4 -2 4 -2 M 9 9 L 9.01 9 M 15 9 L 15.01 9</StreamGeometry>
+    <StreamGeometry x:Key="IconCpu">M 0 0 M 24 24 M 6 4 h 12 a 2 2 0 0 1 2 2 v 12 a 2 2 0 0 1 -2 2 h -12 a 2 2 0 0 1 -2 -2 v -12 a 2 2 0 0 1 2 -2 Z M 10 9 h 4 a 1 1 0 0 1 1 1 v 4 a 1 1 0 0 1 -1 1 h -4 a 1 1 0 0 1 -1 -1 v -4 a 1 1 0 0 1 1 -1 Z M 15 2 v 2 M 15 20 v 2 M 2 15 h 2 M 2 9 h 2 M 20 15 h 2 M 20 9 h 2 M 9 2 v 2 M 9 20 v 2</StreamGeometry>
+    <StreamGeometry x:Key="IconBarcode">M 0 0 M 24 24 M 3 5 v 14 M 8 5 v 14 M 12 5 v 14 M 17 5 v 14 M 21 5 v 14</StreamGeometry>
 
-    <StreamGeometry x:Key="IconMore">
-        M10.8,5 A1.2,1.2 0 1 0 13.2,5 A1.2,1.2 0 1 0 10.8,5 Z
-        M10.8,12 A1.2,1.2 0 1 0 13.2,12 A1.2,1.2 0 1 0 10.8,12 Z
-        M10.8,19 A1.2,1.2 0 1 0 13.2,19 A1.2,1.2 0 1 0 10.8,19 Z
-    </StreamGeometry>
+    <!-- thermometer -->
+    <StreamGeometry x:Key="IconThermo">M 0 0 M 24 24 M 14 4 v 10.54 a 4 4 0 1 1 -4 0 V 4 a 2 2 0 0 1 4 0 Z</StreamGeometry>
 
-    <StreamGeometry x:Key="IconFilter">
-        M22,3 L2,3 L10,12.46 L10,19 L14,21 L14,12.46 Z
-    </StreamGeometry>
+    <!-- activity -->
+    <StreamGeometry x:Key="IconPulse">M 0 0 M 24 24 M 22 12 h -2.48 a 2 2 0 0 0 -1.93 1.46 l -2.35 8.36 a .25 .25 0 0 1 -.48 0 L 9.24 2.18 a .25 .25 0 0 0 -.48 0 l -2.35 8.36 A 2 2 0 0 1 4.49 12 H 2</StreamGeometry>
 
-    <StreamGeometry x:Key="IconChevronDown">
-        M6,9 L12,15 L18,9
-    </StreamGeometry>
+    <!-- wind -->
+    <StreamGeometry x:Key="IconLungs">M 0 0 M 24 24 M 12.8 19.6 A 2 2 0 1 0 14 16 H 2 M 17.5 8 a 2.5 2.5 0 1 1 2 4 H 2 M 9.8 4.4 A 2 2 0 1 1 11 8 H 2</StreamGeometry>
 
-    <StreamGeometry x:Key="IconChevronLeft">
-        M15,18 L9,12 L15,6
-    </StreamGeometry>
+    <!-- stethoscope -->
+    <StreamGeometry x:Key="IconStetho">M 0 0 M 24 24 M 11 2 v 2 M 5 2 v 2 M 5 3 H 4 a 2 2 0 0 0 -2 2 v 4 a 6 6 0 0 0 12 0 V 5 a 2 2 0 0 0 -2 -2 h -1 M 8 15 a 6 6 0 0 0 12 0 v -3 M 18 10 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0</StreamGeometry>
 
-    <StreamGeometry x:Key="IconChevronRight">
-        M9,18 L15,12 L9,6
-    </StreamGeometry>
+    <!-- slice -->
+    <StreamGeometry x:Key="IconScalpel">M 0 0 M 24 24 M 11 16.586 V 19 a 1 1 0 0 1 -1 1 H 2 L 18.37 3.63 a 1 1 0 1 1 3 3 l -9.663 9.663 a 1 1 0 0 1 -1.414 0 L 8 14</StreamGeometry>
+    <StreamGeometry x:Key="IconFolder">M 0 0 M 24 24 M 20 20 a 2 2 0 0 0 2 -2 V 8 a 2 2 0 0 0 -2 -2 h -7.9 a 2 2 0 0 1 -1.69 -.9 L 9.6 3.9 A 2 2 0 0 0 7.93 3 H 4 a 2 2 0 0 0 -2 2 v 13 a 2 2 0 0 0 2 2 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconUpload">M 0 0 M 24 24 M 21 15 v 4 a 2 2 0 0 1 -2 2 H 5 a 2 2 0 0 1 -2 -2 v -4 M 17 8 L 12 3 L 7 8 M 12 3 L 12 15</StreamGeometry>
+    <StreamGeometry x:Key="IconUser">M 0 0 M 24 24 M 19 21 v -2 a 4 4 0 0 0 -4 -4 H 9 a 4 4 0 0 0 -4 4 v 2 M 8 7 a 4 4 0 1 0 8 0 a 4 4 0 1 0 -8 0</StreamGeometry>
 
-    <!-- Hamburger / menu icon (3 horizontal lines). -->
-    <StreamGeometry x:Key="IconMenu">
-        M3,6 h18 M3,12 h18 M3,18 h18
-    </StreamGeometry>
+    <!-- message-square -->
+    <StreamGeometry x:Key="IconSms">M 0 0 M 24 24 M 21 15 a 2 2 0 0 1 -2 2 H 7 l -4 4 V 5 a 2 2 0 0 1 2 -2 h 14 a 2 2 0 0 1 2 2 z</StreamGeometry>
 
-    <!-- Fold toggle (double chevron »), matching the reference topbar's
-         collapse control (Icons.fold in Animora-UI/assets/icons.js). -->
-    <StreamGeometry x:Key="IconFold">
-        M7,6 L13,12 L7,18
-        M14,6 L20,12 L14,18
-    </StreamGeometry>
+    <!-- share-2 -->
+    <StreamGeometry x:Key="IconShare">M 0 0 M 24 24 M 15 5 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M 3 12 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M 15 19 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M 8.59 13.51 L 15.42 17.49 M 15.41 6.51 L 8.59 10.49</StreamGeometry>
+    <StreamGeometry x:Key="IconMicroscope">M 0 0 M 24 24 M 6 18 h 8 M 3 22 h 18 M 14 22 a 7 7 0 1 0 0 -14 h -1 M 9 14 h 2 M 9 12 a 2 2 0 0 1 -2 -2 V 6 h 6 v 4 a 2 2 0 0 1 -2 2 Z M 12 6 V 3 a 1 1 0 0 0 -1 -1 H 9 a 1 1 0 0 0 -1 1 v 3</StreamGeometry>
 
-    <!-- Trending arrow (up-right), for the "درآمد امروز" KPI icon. -->
-    <StreamGeometry x:Key="IconArrowUpRight">
-        M7,17 L17,7
-        M7,7 h10 v10
-    </StreamGeometry>
+    <!-- trending-up -->
+    <StreamGeometry x:Key="IconTrend">M 0 0 M 24 24 M 22 7 L 13.5 15.5 L 8.5 10.5 L 2 17 M 16 7 L 22 7 L 22 13</StreamGeometry>
+    <StreamGeometry x:Key="IconHistory">M 0 0 M 24 24 M 3 12 a 9 9 0 1 0 9 -9 a 9.75 9.75 0 0 0 -6.74 2.74 L 3 8 M 3 3 v 5 h 5 M 12 7 v 5 l 4 2</StreamGeometry>
+    <StreamGeometry x:Key="IconScale">M 0 0 M 24 24 M 0 0 m 16 16 l 3 -8 l 3 8 c -.87 .65 -1.92 1 -3 1 s -2.13 -.35 -3 -1 Z M 0 0 m 2 16 l 3 -8 l 3 8 c -.87 .65 -1.92 1 -3 1 s -2.13 -.35 -3 -1 Z M 7 21 h 10 M 12 3 v 18 M 3 7 h 2 c 2 0 5 -1 7 -2 c 2 1 5 2 7 2 h 2</StreamGeometry>
 
-    <!-- Crescent moon (theme toggle), matching the reference topbar. -->
-    <StreamGeometry x:Key="IconMoon">
-        M21,12.79 A9,9 0 1 1 11.21,3 A7,7 0 0 0 21,12.79 Z
-    </StreamGeometry>
+    <!-- flask-conical -->
+    <StreamGeometry x:Key="IconFlask">M 0 0 M 24 24 M 10 2 v 7.527 a 2 2 0 0 1 -.211 .896 L 4.72 20.55 a 1 1 0 0 0 .9 1.45 h 12.76 a 1 1 0 0 0 .9 -1.45 l -5.069 -10.127 A 2 2 0 0 1 14 9.527 V 2 M 8.5 2 h 7 M 7 16 h 10</StreamGeometry>
+    <StreamGeometry x:Key="IconTag">M 0 0 M 24 24 M 12.586 2.586 A 2 2 0 0 0 11.172 2 H 4 a 2 2 0 0 0 -2 2 v 7.172 a 2 2 0 0 0 .586 1.414 l 8.704 8.704 a 2.426 2.426 0 0 0 3.42 0 l 6.58 -6.58 a 2.426 2.426 0 0 0 0 -3.42 z M 7 7.5 a 0.5 0.5 0 1 0 1 0 a 0.5 0.5 0 1 0 -1 0</StreamGeometry>
 
-    <!-- Rounded outline bell with a separate clapper (notifications). -->
-    <StreamGeometry x:Key="IconBell">
-        M12,3 C8.7,3 6,5.7 6,9 L6,12.5 C6,14 5.4,15.4 4.4,16.5 L3.5,17.5 C3.1,17.9 3.4,18.5 4,18.5 L20,18.5 C20.6,18.5 20.9,17.9 20.5,17.5 L19.6,16.5 C18.6,15.4 18,14 18,12.5 L18,9 C18,5.7 15.3,3 12,3 Z
-        M10,21 C10.5,21.7 11.1,22 12,22 C12.9,22 13.5,21.7 14,21
-    </StreamGeometry>
+    <!-- house -->
+    <StreamGeometry x:Key="IconHome2">M 0 0 M 24 24 M 15 21 v -8 a 1 1 0 0 0 -1 -1 h -4 a 1 1 0 0 0 -1 1 v 8 M 3 10 a 2 2 0 0 1 .709 -1.528 l 7 -5.999 a 2 2 0 0 1 2.582 0 l 7 5.999 A 2 2 0 0 1 21 10 v 9 a 2 2 0 0 1 -2 2 H 5 a 2 2 0 0 1 -2 -2 z</StreamGeometry>
 
-    <!-- Delivery truck, for the "خرید و تأمین" quick tile and the Purchase
-         screen's «سفارش فعال» KPI (icons.js `truck`). -->
-    <StreamGeometry x:Key="IconTruck">
-        M1,3 h15 v13 h-15 Z
-        M16,8 h4 l3,3 v5 h-7 Z
-        M5.5,18.5 A2.5,2.5 0 1 0 10.5,18.5 A2.5,2.5 0 1 0 5.5,18.5 Z
-        M18.5,18.5 A2.5,2.5 0 1 0 23.5,18.5 A2.5,2.5 0 1 0 18.5,18.5 Z
-    </StreamGeometry>
+    <!-- soup -->
+    <StreamGeometry x:Key="IconBowl">M 0 0 M 24 24 M 12 21 a 9 9 0 0 0 9 -9 H 3 a 9 9 0 0 0 9 9 Z M 7 21 h 10 M 19.5 12 L 22 6 M 16.25 3 c .27 .1 .8 .53 .75 1.36 c -.06 .83 -.93 1.2 -1 2.02 c -.05 .78 .34 1.24 .73 1.62 M 11.25 3 c .27 .1 .8 .53 .74 1.36 c -.05 .83 -.93 1.2 -.98 2.02 c -.06 .78 .33 1.24 .72 1.62 M 6.25 3 c .27 .1 .8 .53 .75 1.36 c -.06 .83 -.93 1.2 -1 2.02 c -.05 .78 .34 1.24 .74 1.62</StreamGeometry>
 
-    <!-- Paw print: primary VetPlus brand mark and the fallback species glyph. -->
-    <StreamGeometry x:Key="IconPaw">
-        M8,10 A1.6,2 0 1 0 8,9.99 Z
-        M12,8 A1.6,2.2 0 1 0 12,7.99 Z
-        M16,10 A1.6,2 0 1 0 16,9.99 Z
-        M12,20 c-2.4,0 -4.2,-1.6 -4.2,-3.6 c0,-1.8 1.9,-3.4 4.2,-3.4 c2.3,0 4.2,1.6 4.2,3.4 c0,2 -1.8,3.6 -4.2,3.6 Z
-    </StreamGeometry>
+    <!-- rows-3 -->
+    <StreamGeometry x:Key="IconRows">M 0 0 M 24 24 M 5 3 h 14 a 2 2 0 0 1 2 2 v 14 a 2 2 0 0 1 -2 2 h -14 a 2 2 0 0 1 -2 -2 v -14 a 2 2 0 0 1 2 -2 Z M 21 9 H 3 M 21 15 H 3</StreamGeometry>
+    <StreamGeometry x:Key="IconPrinter">M 0 0 M 24 24 M 6 18 H 4 a 2 2 0 0 1 -2 -2 v -5 a 2 2 0 0 1 2 -2 h 16 a 2 2 0 0 1 2 2 v 5 a 2 2 0 0 1 -2 2 h -2 M 6 9 V 3 a 1 1 0 0 1 1 -1 h 10 a 1 1 0 0 1 1 1 v 6 M 7 14 h 10 a 1 1 0 0 1 1 1 v 6 a 1 1 0 0 1 -1 1 h -10 a 1 1 0 0 1 -1 -1 v -6 a 1 1 0 0 1 1 -1 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconCopy">M 0 0 M 24 24 M 10 8 h 10 a 2 2 0 0 1 2 2 v 10 a 2 2 0 0 1 -2 2 h -10 a 2 2 0 0 1 -2 -2 v -10 a 2 2 0 0 1 2 -2 Z M 4 16 c -1.1 0 -2 -.9 -2 -2 V 4 c 0 -1.1 .9 -2 2 -2 h 10 c 1.1 0 2 .9 2 2</StreamGeometry>
 
-    <!-- Dashboard-specific glyphs redrawn from the reference SVG collection.
-         Keeping these as shared StreamGeometry resources avoids image files,
-         scales cleanly at every DPI, and preserves the reference's 2px rounded
-         Lucide-style stroke language. -->
-    <StreamGeometry x:Key="IconAlert">
-        M10.29,3.86 L1.82,18 a2,2 0 0 0 1.71,3 h16.94 a2,2 0 0 0 1.71,-3 L13.71,3.86 a2,2 0 0 0 -3.42,0 Z
-        M12,9 v4 M12,17 h.01
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconWallet">
-        M20,12 V8 H6 a2,2 0 0 1 0,-4 h12 v4 M4,6 v12 a2,2 0 0 0 2,2 h14 v-4 M18,12 a2,2 0 0 0 0,4 h4 v-4 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconCoins">
-        M8,2 a6,6 0 1 0 0,12 a6,6 0 1 0 0,-12 Z
-        M18.09,10.37 A6,6 0 1 1 10.34,18 M7,6 h1 v4 M16.71,13.88 l.7,.71 l-2.82,2.82
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconFile">
-        M14,2 H6 a2,2 0 0 0 -2,2 v16 a2,2 0 0 0 2,2 h12 a2,2 0 0 0 2,-2 V8 Z M14,2 v6 h6 M8,13 h8 M8,17 h8
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconBriefcase">
-        M2,7 h20 v14 H2 Z M8,7 V5 a2,2 0 0 1 2,-2 h4 a2,2 0 0 1 2,2 v2 M2,12 h20
-    </StreamGeometry>
-    <!-- Dog head, head-only composition matching IconCat so both species
-         glyphs sit consistently in avatar tiles. Long floppy ears hanging down
-         either side of a rounded face, snout + eyes. Stroke-only, 2px rounded. -->
-    <StreamGeometry x:Key="IconDog">
-        M7.5,5.5 C5.5,5 3.5,6 3.2,8.5 c-0.3,2.4 0.4,4.6 1.6,6.2 M16.5,5.5 c2,-0.5 4,0.5 4.3,3 c0.3,2.4 -0.4,4.6 -1.6,6.2
-        M7.5,5.5 C8.7,4.5 10.3,4 12,4 s3.3,0.5 4.5,1.5 c1.5,1.3 2.5,3.3 2.5,5.5 c0,3.9 -3.1,7 -7,7 s-7,-3.1 -7,-7 c0,-2.2 1,-4.2 2.5,-5.5 Z
-        M9.5,11 h.01 M14.5,11 h.01
-        M12,13.5 a1.3,1.3 0 0 0 -1.3,1.3 a1.3,1.3 0 0 0 2.6,0 a1.3,1.3 0 0 0 -1.3,-1.3 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconCat">
-        M12,5 c.67,0 1.35,.09 2,.26 c1.78,-2 5.03,-2.84 6.42,-2.26 c1.4,.58 -.42,7 -.42,7 c.57,1.07 1,2.24 1,3.44 C21,17.9 16.97,21 12,21 s-9,-3.1 -9,-7.56 c0,-1.25 .5,-2.4 1,-3.44 c0,0 -1.89,-6.42 -.5,-7 C4.89,2.42 8.22,3.23 10,5.23 A9.04,9.04 0 0 1 12,5 Z
-        M8,14 v.5 M16,14 v.5 M11.25,16.25 h1.5 L12,17 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconBird">
-        M16,7 h.01 M3.4,18 H12 a8,8 0 0 0 8,-8 V7 a4,4 0 0 0 -7.28,-2.3 L2,20 M20,7 l2,.5 l-2,.5 M10,18 v3 M14,17.75 V21 M7,18 a6,6 0 0 0 3.84,-10.61
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconRabbit">
-        M13,16 a3,3 0 0 1 2.24,5 M18,12 h.01 M18,21 H10 a4,4 0 0 1 -4,-4 a7,7 0 0 1 7,-7 h.2 L9.6,6.4 a1,1 0 1 1 2.8,-2.8 L15.8,7 h.2 c3.3,0 6,2.7 6,6 v1 a2,2 0 0 1 -2,2 h-1 a3,3 0 0 0 -3,3 M20,8 V4 a2,2 0 1 0 -4,0 v3 M7.61,12.52 a3,3 0 1 0 -1.6,4.3
-    </StreamGeometry>
+    <!-- wrench -->
+    <StreamGeometry x:Key="IconTools">M 0 0 M 24 24 M 14.7 6.3 a 1 1 0 0 0 0 1.4 l 1.6 1.6 a 1 1 0 0 0 1.4 0 l 3.77 -3.77 a 6 6 0 0 1 -7.94 7.94 l -6.91 6.91 a 2.12 2.12 0 0 1 -3 -3 l 6.91 -6.91 a 6 6 0 0 1 7.94 -7.94 l -3.76 3.76 z</StreamGeometry>
+    <StreamGeometry x:Key="IconScissors">M 0 0 M 24 24 M 3 6 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M 8.12 8.12 L 12 12 M 20 4 L 8.12 15.88 M 3 18 a 3 3 0 1 0 6 0 a 3 3 0 1 0 -6 0 M 14.8 14.8 L 20 20</StreamGeometry>
+    <StreamGeometry x:Key="IconPlay">M 0 0 M 24 24 M 6 3 L 20 12 L 6 21 L 6 3 Z</StreamGeometry>
 
-    <!-- Patients & Owners directory glyphs, redrawn from the reference's
-         patients-ui.js action set (phone/mobile/id-card/pin) and the
-         list/grid/export toolbar icons (icons.js list/grid/download). -->
-    <StreamGeometry x:Key="IconPhone">
-        M22,16.92 v3 a2,2 0 0 1 -2.18,2 a19.79,19.79 0 0 1 -8.63,-3.07 a19.5,19.5 0 0 1 -6,-6 a19.79,19.79 0 0 1 -3.07,-8.67 A2,2 0 0 1 4.11,2 h3 a2,2 0 0 1 2,1.72 c.13,.96 .36,1.9 .7,2.81 a2,2 0 0 1 -.45,2.11 L8.09,9.91 a16,16 0 0 0 6,6 l1.27,-1.27 a2,2 0 0 1 2.11,-.45 c.9,.34 1.85,.57 2.81,.7 A2,2 0 0 1 22,16.92 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconMobile">
-        M7,2 h10 a2,2 0 0 1 2,2 v16 a2,2 0 0 1 -2,2 h-10 a2,2 0 0 1 -2,-2 v-16 a2,2 0 0 1 2,-2 z
-        M12,18 h0.01
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconIdCard">
-        M4,4 h16 a2,2 0 0 1 2,2 v12 a2,2 0 0 1 -2,2 h-16 a2,2 0 0 1 -2,-2 v-12 a2,2 0 0 1 2,-2 z
-        M6,11 A2.5,2.5 0 1 0 11,11 A2.5,2.5 0 1 0 6,11 Z
-        M4.5,17 c.8,-1.6 2.3,-2.5 4,-2.5 c1.7,0 3.2,.9 4,2.5
-        M15,9 h4 M15,13 h4
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPin">
-        M21,10 c0,7 -9,13 -9,13 c0,0 -9,-6 -9,-13 a9,9 0 0 1 18,0 z
-        M9,10 A3,3 0 1 0 15,10 A3,3 0 1 0 9,10 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconDownload">
-        M21,15 v4 a2,2 0 0 1 -2,2 H5 a2,2 0 0 1 -2,-2 v-4
-        M7,10 L12,15 L17,10
-        M12,15 V3
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconList">
-        M8,6 L21,6 M8,12 L21,12 M8,18 L21,18 M3,6 L3.01,6 M3,12 L3.01,12 M3,18 L3.01,18
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconGrid">
-        M4,3 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
-        M15,3 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
-        M4,14 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
-        M15,14 h5 a1,1 0 0 1 1,1 v5 a1,1 0 0 1 -1,1 h-5 a1,1 0 0 1 -1,-1 v-5 a1,1 0 0 1 1,-1 z
-    </StreamGeometry>
-    <!-- reference icons.js "more2": circled ellipsis — the species glyph for
-         rodents / "other" (SPECIES.rodent.icon/.other.icon). -->
-    <StreamGeometry x:Key="IconMore2">
-        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
-        M8,12 h.01 M12,12 h.01 M16,12 h.01
-    </StreamGeometry>
+    <!-- lightbulb -->
+    <StreamGeometry x:Key="IconBulb">M 0 0 M 24 24 M 15 14 c .2 -1 .7 -1.7 1.5 -2.5 c 1 -.9 1.5 -2.2 1.5 -3.5 A 6 6 0 0 0 6 8 c 0 1 .2 2.2 1.5 3.5 c .7 .7 1.3 1.5 1.5 2.5 M 9 18 h 6 M 10 22 h 4</StreamGeometry>
 
-    <!-- ===== Phase 09 additions =====
-         Icon geometries re-drawn from Animora-UI/assets/patients-ui.js's
-         Object.assign(window.Icons, {...}) block (the extra glyphs the patients
-         module merges into the global set) plus the reference icons.js entries
-         the Pet File / Owner Sheet / wizard render. Same stroke-only look. -->
+    <!-- landmark -->
+    <StreamGeometry x:Key="IconBank">M 0 0 M 24 24 M 3 22 L 21 22 M 6 18 L 6 11 M 10 18 L 10 11 M 14 18 L 14 11 M 18 18 L 18 11 M 12 2 L 20 7 L 4 7 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconBone">M 0 0 M 24 24 M 17 10 c .7 -.7 1.69 0 2.5 0 a 2.5 2.5 0 1 0 0 -5 a .5 .5 0 0 1 -.5 -.5 a 2.5 2.5 0 1 0 -5 0 c 0 .81 .7 1.8 0 2.5 l -7 7 c -.7 .7 -1.69 0 -2.5 0 a 2.5 2.5 0 0 0 0 5 c .28 0 .5 .22 .5 .5 a 2.5 2.5 0 1 0 5 0 c 0 -.81 -.7 -1.8 0 -2.5 Z</StreamGeometry>
+    <StreamGeometry x:Key="IconBath">M 0 0 M 24 24 M 10 4 L 8 6 M 17 19 v 2 M 2 12 h 20 M 7 19 v 2 M 9 5 L 7.621 3.621 A 2.121 2.121 0 0 0 4 5 v 12 a 2 2 0 0 0 2 2 h 12 a 2 2 0 0 0 2 -2 v -5</StreamGeometry>
 
-    <StreamGeometry x:Key="IconInfo">
-        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
-        M12,16 v-4 M12,8 h.01
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconCake">
-        M20,21 v-8 a2,2 0 0 0 -2,-2 H6 a2,2 0 0 0 -2,2 v8
-        M4,16 c0,0 1.5,-1 4,-1 c2.5,0 4,2 8,2 c2.5,0 4,-1 4,-1
-        M2,21 h20
-        M7,8 v-.5 a1.5,1.5 0 1 1 3,0 V8 M14,8 v-.5 a1.5,1.5 0 1 1 3,0 V8
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPalette">
-        M12,2 a10,10 0 0 0 0,20 a2,2 0 0 0 2,-2 v-1 a2,2 0 0 1 2,-2 h1 a4,4 0 0 0 4,-4 a10,10 0 0 0 -9,-11 z
-        M13.5,6.5 h.01 M17.5,10.5 h.01 M8.5,7.5 h.01 M6.5,12.5 h.01
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconSmile">
-        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
-        M8,14 c0,0 1.5,2 4,2 c2.5,0 4,-2 4,-2
-        M9,9 h.01 M15,9 h.01
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconCpu">
-        M6,4 L18,4 A2,2 0 0 1 20,6 L20,18 A2,2 0 0 1 18,20 L6,20 A2,2 0 0 1 4,18 L4,6 A2,2 0 0 1 6,4 Z
-        M9,9 L15,9 L15,15 L9,15 Z
-        M9,2 v2 M15,2 v2 M9,20 v2 M15,20 v2 M2,9 h2 M2,15 h2 M20,9 h2 M20,15 h2
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconBarcode">
-        M3,5 v14 M7,5 v14 M11,5 v10 M15,5 v14 M19,5 v14
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconThermo">
-        M14,14.76 V3.5 a2.5,2.5 0 0 0 -5,0 v11.26 a4.5,4.5 0 1 0 5,0 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPulse">
-        M22,12 h-4 l-3,9 L9,3 l-3,9 H2
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconLungs">
-        M12,3 v10
-        M9,13 c0,3 -1,6 -3.5,6 C3,19 2,17 2,14 c0,-3 2,-6 4,-8
-        M15,13 c0,3 1,6 3.5,6 C21,19 22,17 22,14 c0,-3 -2,-6 -4,-8
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconStetho">
-        M4,3 v6 a5,5 0 0 0 10,0 V3
-        M4,3 H2 M14,3 h2
-        M9,14 v2 a5,5 0 0 0 10,0 v-2
-        M16.5,11 A2.5,2.5 0 1 0 21.5,11 A2.5,2.5 0 1 0 16.5,11 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconScalpel">
-        M14,4 L20,10 L10,20 H4 v-6 z
-        M14,4 l6,6
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconFolder">
-        M4,4 h5 l2,3 h9 a2,2 0 0 1 2,2 v9 a2,2 0 0 1 -2,2 H4 a2,2 0 0 1 -2,-2 V6 a2,2 0 0 1 2,-2 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconUpload">
-        M21,15 v4 a2,2 0 0 1 -2,2 H5 a2,2 0 0 1 -2,-2 v-4
-        M17,8 L12,3 L7,8
-        M12,3 V15
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconUser">
-        M20,21 v-2 a4,4 0 0 0 -4,-4 H8 a4,4 0 0 0 -4,4 v2
-        M4,7 A4,4 0 1 0 12,7 A4,4 0 1 0 4,7 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconSms">
-        M21,11.5 a8.38,8.38 0 0 1 -.9,3.8 a8.5,8.5 0 0 1 -7.6,4.7 a8.38,8.38 0 0 1 -3.8,-.9 L3,21 l1.9,-5.7 a8.38,8.38 0 0 1 -.9,-3.8 a8.5,8.5 0 0 1 4.7,-7.6 a8.38,8.38 0 0 1 3.8,-.9 h.5 a8.48,8.48 0 0 1 8,8 v.5 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconShare">
-        M15,5 A3,3 0 1 0 21,5 A3,3 0 1 0 15,5 Z
-        M3,12 A3,3 0 1 0 9,12 A3,3 0 1 0 3,12 Z
-        M15,19 A3,3 0 1 0 21,19 A3,3 0 1 0 15,19 Z
-        M8.6,13.5 L15.4,17.5 M15.4,6.5 L8.6,10.5
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconMicroscope">
-        M6,18 h8 M3,22 h18
-        M14,22 a7,7 0 1 0 0,-14 h-1
-        M9,14 h2
-        M9,12 a2,2 0 0 1 -2,-2 V6 a2,2 0 0 1 2,-2 h1 a2,2 0 0 1 2,2 v4 a2,2 0 0 1 -2,2 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconTrend">
-        M23,6 L13.5,15.5 L8.5,10.5 L1,18
-        M17,6 h6 v6
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconHistory">
-        M3,3 v5 h5
-        M3.05,13 a9,9 0 1 0 2.95,-7.7 L3,8
-        M12,7 v5 l4,2
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconScale">
-        M12,3 v18 M5,21 h14
-        M3,9 L7,3 L11,9 a4,4 0 0 1 -8,0 z
-        M13,9 L17,3 L21,9 a4,4 0 0 1 -8,0 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconFlask">
-        M9,3 h6 v6 l4,8 a2,2 0 0 1 -1.79,2.9 H6.79 A2,2 0 0 1 5,17 l4,-8 V3 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconTag">
-        M20.59,13.41 L13.42,20.6 a2,2 0 0 1 -2.83,0 L2,12 V2 h10 l8.59,8.59 a2,2 0 0 1 0,2.82 z
-        M7,7 h.01
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconHome2">
-        M3,9 L12,2 L21,9 v11 a2,2 0 0 1 -2,2 H5 a2,2 0 0 1 -2,-2 z
-        M9,22 V12 h6 v10
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconBowl">
-        M3,11 h18 a9,9 0 0 1 -9,9 a9,9 0 0 1 -9,-9 z
-        M8,7 c0,-1.5 1,-2 1,-3 M12,6 c0,-1.5 1,-2 1,-3 M16,7 c0,-1.5 1,-2 1,-3
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconRows">
-        M4,4 h16 a1.5,1.5 0 0 1 1.5,1.5 v2 a1.5,1.5 0 0 1 -1.5,1.5 H4 a1.5,1.5 0 0 1 -1.5,-1.5 v-2 a1.5,1.5 0 0 1 1.5,-1.5 z
-        M4,14 h16 a1.5,1.5 0 0 1 1.5,1.5 v2 a1.5,1.5 0 0 1 -1.5,1.5 H4 a1.5,1.5 0 0 1 -1.5,-1.5 v-2 a1.5,1.5 0 0 1 1.5,-1.5 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPrinter">
-        M6,9 V2 h12 v7
-        M6,18 H4 a2,2 0 0 1 -2,-2 v-5 a2,2 0 0 1 2,-2 h16 a2,2 0 0 1 2,2 v5 a2,2 0 0 1 -2,2 h-2
-        M6,14 L18,14 L18,22 L6,22 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconCopy">
-        M11,9 h11 a2,2 0 0 1 2,2 v11 a2,2 0 0 1 -2,2 H11 a2,2 0 0 1 -2,-2 V11 a2,2 0 0 1 2,-2 z
-        M5,15 H4 a2,2 0 0 1 -2,-2 V4 a2,2 0 0 1 2,-2 h9 a2,2 0 0 1 2,2 v1
-    </StreamGeometry>
+    <!-- refresh-cw -->
+    <StreamGeometry x:Key="IconRefresh">M 0 0 M 24 24 M 3 12 a 9 9 0 0 1 9 -9 a 9.75 9.75 0 0 1 6.74 2.74 L 21 8 M 21 3 v 5 h -5 M 21 12 a 9 9 0 0 1 -9 9 a 9.75 9.75 0 0 1 -6.74 -2.74 L 3 16 M 8 16 H 3 v 5</StreamGeometry>
+    <StreamGeometry x:Key="IconLayers">M 0 0 M 24 24 M 0 0 m 12.83 2.18 a 2 2 0 0 0 -1.66 0 L 2.6 6.08 a 1 1 0 0 0 0 1.83 l 8.58 3.91 a 2 2 0 0 0 1.66 0 l 8.58 -3.9 a 1 1 0 0 0 0 -1.83 Z M 0 0 m 22 17.65 l -9.17 4.16 a 2 2 0 0 1 -1.66 0 L 2 17.65 M 0 0 m 22 12.65 l -9.17 4.16 a 2 2 0 0 1 -1.66 0 L 2 12.65</StreamGeometry>
+    <StreamGeometry x:Key="IconArrowDownLeft">M 0 0 M 24 24 M 17 7 L 7 17 M 17 17 H 7 V 7</StreamGeometry>
+    <StreamGeometry x:Key="IconCreditCard">M 0 0 M 24 24 M 4 5 h 16 a 2 2 0 0 1 2 2 v 10 a 2 2 0 0 1 -2 2 h -16 a 2 2 0 0 1 -2 -2 v -10 a 2 2 0 0 1 2 -2 Z M 2 10 L 22 10</StreamGeometry>
 
-    <!-- Visits (Phase 10): tool/scissors/play/bulb from icons.js. -->
-    <StreamGeometry x:Key="IconTools">
-        M14.7,6.3 a1,1 0 0 0 0,1.4 l1.6,1.6 a1,1 0 0 0 1.4,0 l3.77,-3.77 a6,6 0 0 1 -7.94,7.94 l-6.91,6.91 a2.12,2.12 0 0 1 -3,-3 l6.91,-6.91 a6,6 0 0 1 7.94,-7.94 l-3.76,3.76 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconScissors">
-        M6,9 A3,3 0 1 0 6,8.99 Z
-        M6,21 A3,3 0 1 0 6,20.99 Z
-        M20,4 L8.12,15.88
-        M14.47,14.48 L20,20
-        M8.12,8.12 L12,12
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPlay">
-        M5,3 L19,12 L5,21 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconBulb">
-        M9,18 h6
-        M10,22 h4
-        M15.09,14 c.18,-.98 .65,-1.74 1.41,-2.5 A4.65,4.65 0 0 0 18,8 A6,6 0 0 0 6,8 c0,1 .23,2.23 1.5,3.5 A4.61,4.61 0 0 1 8.91,14
-    </StreamGeometry>
+    <!-- dollar-sign -->
+    <StreamGeometry x:Key="IconDollar">M 0 0 M 24 24 M 12 2 L 12 22 M 17 5 H 9.5 a 3.5 3.5 0 0 0 0 7 h 5 a 3.5 3.5 0 0 1 0 7 H 6</StreamGeometry>
+    <StreamGeometry x:Key="IconImage">M 0 0 M 24 24 M 5 3 h 14 a 2 2 0 0 1 2 2 v 14 a 2 2 0 0 1 -2 2 h -14 a 2 2 0 0 1 -2 -2 v -14 a 2 2 0 0 1 2 -2 Z M 7 9 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 0 0 m 21 15 l -3.086 -3.086 a 2 2 0 0 0 -2.828 0 L 6 21</StreamGeometry>
 
-    <!-- Cashier (Phase 22): bank from icons.js — the «جریان نقدی روز» stat tile. -->
-    <StreamGeometry x:Key="IconBank">
-        M12,2 L22,8 L2,8 Z
-        M4,8 v10 M20,8 v10 M8,8 v10 M16,8 v10 M2,22 h20
-    </StreamGeometry>
+    <!-- trending-up -->
+    <StreamGeometry x:Key="IconTrendUp">M 0 0 M 24 24 M 22 7 L 13.5 15.5 L 8.5 10.5 L 2 17 M 16 7 L 22 7 L 22 13</StreamGeometry>
 
-    <!-- Inventory (Phase 17): bone/bath/refresh from icons.js — the category
-         glyphs «پت‌شاپ»/«غذا»/«بهداشتی» and the row «تغییر موجودی» action. -->
-    <StreamGeometry x:Key="IconBone">
-        M17,10 c.7,-.7 1.69,0 2.5,0 a2.5,2.5 0 1 0 0,-5 a.5,.5 0 0 1 -.5,-.5 a2.5,2.5 0 1 0 -5,0 c0,.81 .7,1.8 0,2.5 l-7,7 c-.7,.7 -1.69,0 -2.5,0 a2.5,2.5 0 0 0 0,5 c.28,0 .5,.22 .5,.5 a2.5,2.5 0 1 0 5,0 c0,-.81 -.7,-1.8 0,-2.5 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconBath">
-        M9,6 L6.5,3.5 a1.5,1.5 0 0 0 -1,-.5 C4.68,3 4,3.68 4,4.5 V17 a2,2 0 0 0 2,2 h12 a2,2 0 0 0 2,-2 v-5
-        M10,5 L8,7
-        M2,12 L22,12
-        M7,19 L7,21
-        M17,19 L17,21
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconRefresh">
-        M3,12 a9,9 0 0 1 15,-6.7 L21,8
-        M21,3 v5 h-5
-        M21,12 a9,9 0 0 1 -15,6.7 L3,16
-        M3,21 v-5 h5
-    </StreamGeometry>
+    <!-- trending-down -->
+    <StreamGeometry x:Key="IconTrendDown">M 0 0 M 24 24 M 22 17 L 13.5 8.5 L 8.5 13.5 L 2 7 M 16 17 L 22 17 L 22 11</StreamGeometry>
+    <StreamGeometry x:Key="IconPercent">M 0 0 M 24 24 M 19 5 L 5 19 M 4 6.5 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0 M 15 17.5 a 2.5 2.5 0 1 0 5 0 a 2.5 2.5 0 1 0 -5 0</StreamGeometry>
+    <StreamGeometry x:Key="IconTarget">M 0 0 M 24 24 M 2 12 a 10 10 0 1 0 20 0 a 10 10 0 1 0 -20 0 M 6 12 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0 M 10 12 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0</StreamGeometry>
 
-    <!-- Inventory modals (Phase 18): layers (تنوع‌ها tab + variant KPIs) and
-         arrowDownLeft (history «افزایش» tile), from icons.js. -->
-    <StreamGeometry x:Key="IconLayers">
-        M12,2 L2,7 L12,12 L22,7 Z
-        M2,17 L12,22 L22,17
-        M2,12 L12,17 L22,12
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconArrowDownLeft">
-        M17,7 L7,17
-        M17,17 H7 V7
-    </StreamGeometry>
+    <!-- chart-pie -->
+    <StreamGeometry x:Key="IconPieChart">M 0 0 M 24 24 M 21 12 c .552 0 1.005 -.449 .95 -.998 a 10 10 0 0 0 -8.953 -8.951 c -.55 -.055 -.998 .398 -.998 .95 v 8 a 1 1 0 0 0 1 1 z M 21.21 15.89 A 10 10 0 1 1 8 2.83</StreamGeometry>
 
-    <!-- Purchase screen KPIs (Phase 19), from icons.js: card (خرید این ماه) and
-         dollar (بدهی تأمین‌کننده). -->
-    <StreamGeometry x:Key="IconCreditCard">
-        M4,5 h16 a2,2 0 0 1 2,2 v10 a2,2 0 0 1 -2,2 h-16 a2,2 0 0 1 -2,-2 v-10 a2,2 0 0 1 2,-2 Z
-        M2,10 h20
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconDollar">
-        M12,2 v20
-        M17,5 H9.5 a3.5,3.5 0 0 0 0,7 h5 a3.5,3.5 0 0 1 0,7 H6
-    </StreamGeometry>
+    <!-- piggy-bank -->
+    <StreamGeometry x:Key="IconPiggy">M 0 0 M 24 24 M 19 5 c -1.5 0 -2.8 1.4 -3 2 c -3.5 -1.5 -11 -.3 -11 5 c 0 1.8 0 3 2 4.5 V 20 h 4 v -2 h 3 v 2 h 4 v -4 c 1 -.5 1.7 -1 2 -2 h 2 v -4 h -2 c 0 -1 -.5 -1.5 -1 -2 V 5 z M 2 9 v 1 c 0 1.1 .9 2 2 2 h 1 M 16 11 h .01</StreamGeometry>
 
-    <!-- Sale/POS: image (سونوگرافی/رادیولوژی line tags), from icons.js. -->
-    <StreamGeometry x:Key="IconImage">
-        M5,3 h14 a2.5,2.5 0 0 1 2.5,2.5 v13 a2.5,2.5 0 0 1 -2.5,2.5 h-14 a2.5,2.5 0 0 1 -2.5,-2.5 v-13 a2.5,2.5 0 0 1 2.5,-2.5 Z
-        M8.5,8.5 m-1.5,0 a1.5,1.5 0 1 0 3,0 a1.5,1.5 0 1 0 -3,0
-        M21,15 L16,10 L5,21
-    </StreamGeometry>
+    <!-- sparkles -->
+    <StreamGeometry x:Key="IconSpark">M 0 0 M 24 24 M 9.937 15.5 A 2 2 0 0 0 8.5 14.063 l -6.135 -1.582 a .5 .5 0 0 1 0 -.962 L 8.5 9.936 A 2 2 0 0 0 9.937 8.5 l 1.582 -6.135 a .5 .5 0 0 1 .963 0 L 14.063 8.5 A 2 2 0 0 0 15.5 9.937 l 6.135 1.581 a .5 .5 0 0 1 0 .964 L 15.5 14.063 a 2 2 0 0 0 -1.437 1.437 l -1.582 6.135 a .5 .5 0 0 1 -.963 0 z M 20 3 v 4 M 22 5 h -4 M 4 17 v 2 M 5 18 H 3</StreamGeometry>
+    <StreamGeometry x:Key="IconMegaphone">M 0 0 M 24 24 M 0 0 m 3 11 l 18 -5 v 12 L 3 14 v -3 z M 11.6 16.8 a 3 3 0 1 1 -5.8 -1.6</StreamGeometry>
 
-    <!-- Finance (Phase 25): trendUp/trendDown/percent/target/pieChart/piggy/
-         spark/megaphone from icons.js, for the KPI deltas, the mini stat strip,
-         the donut head chip and the product/service cards. -->
-    <StreamGeometry x:Key="IconTrendUp">
-        M22,7 L13.5,15.5 L8.5,10.5 L2,17
-        M16,7 L22,7 L22,13
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconTrendDown">
-        M22,17 L13.5,8.5 L8.5,13.5 L2,7
-        M16,17 L22,17 L22,11
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPercent">
-        M19,5 L5,19
-        M4,6.5 A2.5,2.5 0 1 0 9,6.5 A2.5,2.5 0 1 0 4,6.5 Z
-        M15,17.5 A2.5,2.5 0 1 0 20,17.5 A2.5,2.5 0 1 0 15,17.5 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconTarget">
-        M2,12 A10,10 0 1 0 22,12 A10,10 0 1 0 2,12 Z
-        M6,12 A6,6 0 1 0 18,12 A6,6 0 1 0 6,12 Z
-        M10,12 A2,2 0 1 0 14,12 A2,2 0 1 0 10,12 Z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPieChart">
-        M21.21,15.89 A10,10 0 1 1 8,2.83
-        M22,12 A10,10 0 0 0 12,2 v10 z
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconPiggy">
-        M19,5 c-1.5,0 -2.8,1.4 -3,2 c-3.5,-1.5 -11,-0.3 -11,5 c0,1.8 0,3 2,4.5 V20 h4 v-2 h3 v2 h4 v-4 c1,-0.5 1.7,-1 2,-2 h2 v-4 h-2 c0,-1 -0.5,-1.5 -1,-2 V5 z
-        M2,9 v1 c0,1.1 0.9,2 2,2 h1
-        M16,11 h0.01
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconSpark">
-        M12,3 v3 M12,18 v3 M5.6,5.6 l2.1,2.1 M16.3,16.3 l2.1,2.1 M3,12 h3 M18,12 h3 M5.6,18.4 l2.1,-2.1 M16.3,7.7 l2.1,-2.1
-    </StreamGeometry>
-    <StreamGeometry x:Key="IconMegaphone">
-        m3,11 l18,-5 v12 L3,14 v-3 z
-        M11.6,16.8 a3,3 0 1 1 -5.8,-1.6
-    </StreamGeometry>
-
-    <!-- Sync (topbar sync box): two opposing circular arrows — the canonical
-         "syncing / refresh" glyph, distinct from the single-arc IconRefresh.
-         Feather-style, stroke-only, drawn in the same 24×24 language. -->
-    <StreamGeometry x:Key="IconSync">
-        M21,12 a9,9 0 0 1 -9,9 a9,9 0 0 1 -7.2,-3.6
-        M3,12 a9,9 0 0 1 9,-9 a9,9 0 0 1 7.2,3.6
-        M18.5,2.4 L19.2,6 L15.6,6.7
-        M5.5,21.6 L4.8,18 L8.4,17.3
-    </StreamGeometry>
-
-    <!-- Cloud (sync glyphs / offline states): a simple rounded cloud outline. -->
-    <StreamGeometry x:Key="IconCloud">
-        M17.5,19 H7 a5,5 0 0 1 -1,-9.9 a6,6 0 0 1 11.6,1.6 A4,4 0 0 1 17.5,19 Z
-    </StreamGeometry>
+    <!-- refresh-ccw -->
+    <StreamGeometry x:Key="IconSync">M 0 0 M 24 24 M 21 12 a 9 9 0 0 0 -9 -9 a 9.75 9.75 0 0 0 -6.74 2.74 L 3 8 M 3 3 v 5 h 5 M 3 12 a 9 9 0 0 0 9 9 a 9.75 9.75 0 0 0 6.74 -2.74 L 21 16 M 16 16 h 5 v 5</StreamGeometry>
+    <StreamGeometry x:Key="IconCloud">M 0 0 M 24 24 M 17.5 19 H 9 a 7 7 0 1 1 6.71 -9 h 1.79 a 4.5 4.5 0 1 1 0 9 Z</StreamGeometry>
 
 </ResourceDictionary>

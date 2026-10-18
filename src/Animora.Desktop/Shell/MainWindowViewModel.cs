@@ -17,11 +17,14 @@ namespace Animora.Desktop.Shell;
 /// </summary>
 public sealed partial class MainWindowViewModel : ObservableObject
 {
-    private const double ExpandedSidebarWidth = 288;
+    // 248 is the working width of the rail: a 12px gutter on both sides, an 18px icon
+    // column, a 12px gap and ~190px of label — enough for the longest group title
+    // («مدیریت کلینیک») without the oversized 288 rail eating content width.
+    private const double ExpandedSidebarWidth = 248;
 
     // Keep a compact navigation rail visible when the full menu is collapsed so
     // every page remains reachable from its icon.
-    private const double CollapsedSidebarWidth = 76;
+    private const double CollapsedSidebarWidth = 72;
 
     private readonly INavigationService _navigation;
     private readonly IDialogService _dialogs;

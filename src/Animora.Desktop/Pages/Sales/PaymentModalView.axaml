@@ -79,7 +79,7 @@
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{StaticResource Brand600Brush}"
                                   Data="{StaticResource IconWallet}" VerticalAlignment="Center" />
                             <TextBlock Text="روش پرداخت" FontSize="13" FontWeight="ExtraBold"
@@ -213,7 +213,7 @@
                             <!-- icon sits on the visual LEFT of the label (LTR inner flow inside the RTL dialog) -->
                             <StackPanel Orientation="Horizontal" Spacing="8" FlowDirection="LeftToRight">
                                 <Path Classes="icon" Width="16" Height="16" Stroke="White"
-                                      StrokeThickness="2" Data="{StaticResource IconWallet}"
+                                      Data="{StaticResource IconWallet}"
                                       VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding PayCtaLabel}" VerticalAlignment="Center"
                                            FlowDirection="RightToLeft" />
@@ -317,7 +317,7 @@
                     <UniformGrid Columns="3">
                         <Button Classes="outline ps-foot" Margin="0,0,8,0" Command="{Binding RefundFromSuccessCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="15" Height="15"
+                                <Path Classes="icon" Width="16" Height="16"
                                       Stroke="{StaticResource MutedBrush}"
                                       Data="{StaticResource IconArrowDownLeft}" />
                                 <TextBlock Text="عودت وجه" />
@@ -325,7 +325,7 @@
                         </Button>
                         <Button Classes="outline ps-foot" Margin="0,0,8,0" Command="{Binding PrintCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="15" Height="15"
+                                <Path Classes="icon" Width="16" Height="16"
                                       Stroke="{StaticResource MutedBrush}"
                                       Data="{StaticResource IconPrinter}" />
                                 <TextBlock Text="چاپ رسید" />
@@ -333,7 +333,7 @@
                         </Button>
                         <Button Classes="outline ps-foot" Command="{Binding CloseCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="15" Height="15"
+                                <Path Classes="icon" Width="16" Height="16"
                                       Stroke="{StaticResource MutedBrush}"
                                       Data="{StaticResource IconX}" />
                                 <TextBlock Text="بستن" />
@@ -353,7 +353,7 @@
                             </Style>
                         </Button.Styles>
                         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                   StrokeThickness="2.5" Data="{StaticResource IconArrowUpRight}" />
                             <TextBlock Text="{Binding SuccessNextLabel}" VerticalAlignment="Center" />
                         </StackPanel>

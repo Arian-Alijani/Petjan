@@ -498,7 +498,7 @@
                                                             BorderThickness="0" Foreground="{StaticResource MutedBrush}"
                                                             Command="{Binding #Root.((inv:ProductModalViewModel)DataContext).RemoveOptionCommand}"
                                                             CommandParameter="{Binding}" ToolTip.Tip="حذف">
-                                                        <Path Classes="icon" Width="10" Height="10"
+                                                        <Path Classes="icon" Width="12" Height="12"
                                                               Stroke="{StaticResource MutedBrush}"
                                                               Data="{StaticResource IconX}"
                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -554,7 +554,7 @@
                                                     ToolTip.Tip="حذف تنوع"
                                                     Command="{Binding #Root.((inv:ProductModalViewModel)DataContext).DeleteVariantCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon" Width="16" Height="16"
                                                       Stroke="{StaticResource DangerBrush}" Data="{StaticResource IconTrash}" />
                                             </Button>
                                         </Grid>
@@ -731,7 +731,7 @@
             <Grid ColumnDefinitions="Auto,Auto,*">
                 <Button Grid.Column="0" Classes="primary" Command="{Binding SaveCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
                         <TextBlock Text="ذخیره تغییرات" VerticalAlignment="Center" />
                     </StackPanel>
@@ -741,7 +741,7 @@
                 <Button Grid.Column="2" Classes="danger-ghost" HorizontalAlignment="Left"
                         Command="{Binding DeleteCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource DangerBrush}"
                               Data="{StaticResource IconTrash}" VerticalAlignment="Center" />
                         <TextBlock Text="حذف کالا" VerticalAlignment="Center" />
                     </StackPanel>

@@ -105,7 +105,7 @@
                 <Button Grid.Column="1" Classes="primary" HorizontalAlignment="Right"
                         Command="{Binding SaveCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconCheck}" />
                         <TextBlock Text="ثبت حیوان" />
                     </StackPanel>

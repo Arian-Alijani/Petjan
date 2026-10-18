@@ -76,7 +76,7 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                         <Button Classes="ap-chip" Command="{Binding ToggleHistoryCalendarCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand600Brush}"
+                                <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand600Brush}"
                                       Data="{StaticResource IconCalendar}" />
                                 <TextBlock Text="{Binding HistoryRangeChipText}" />
                             </StackPanel>
@@ -224,7 +224,7 @@
                                 <Grid ColumnDefinitions="Auto,*" ColumnSpacing="9">
                                     <Border Grid.Column="0" Width="30" Height="30" CornerRadius="9"
                                             Background="{StaticResource Bg2Brush}" VerticalAlignment="Center">
-                                        <Path Classes="icon" Width="15" Height="15"
+                                        <Path Classes="icon" Width="16" Height="16"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"
                                               Stroke="{StaticResource Muted2Brush}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
@@ -294,7 +294,7 @@
                                             Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).ViewDayInCalendarCommand}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
-                                            <Path Classes="icon" Width="11" Height="11" Stroke="{StaticResource Brand700Brush}"
+                                            <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Brand700Brush}"
                                                   Data="{StaticResource IconCalendar}" />
                                             <TextBlock Text="مشاهده در تقویم" FontSize="10" FontWeight="Bold"
                                                        Foreground="{StaticResource Brand700Brush}" />

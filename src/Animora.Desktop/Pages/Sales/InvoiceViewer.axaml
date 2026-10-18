@@ -118,7 +118,7 @@
                         <Button Width="32" Height="32" Padding="0" CornerRadius="999"
                                 Background="#55ffffff" BorderThickness="0"
                                 Command="{Binding CloseCommand}" ToolTip.Tip="بستن">
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{StaticResource MutedBrush}"
                                   Data="{StaticResource IconX}" />
                         </Button>
@@ -129,7 +129,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="7">
                     <Border Classes="iv-chip" IsVisible="{Binding HasTime}">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand700Brush}"
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
                                   Data="{StaticResource IconClock}" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding TimeText}" FontSize="12" FontWeight="Bold"
                                        Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
@@ -137,7 +137,7 @@
                     </Border>
                     <Border Classes="iv-chip">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand700Brush}"
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
                                   Data="{StaticResource IconTag}" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding SourceLabel}" FontSize="12" FontWeight="Bold"
                                        Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
@@ -145,7 +145,7 @@
                     </Border>
                     <Border Classes="iv-chip" IsVisible="{Binding HasReceipt}">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource OkBrush}"
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource OkBrush}"
                                   Data="{StaticResource IconFile}" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding ReceiptText}" FontSize="12" FontWeight="Bold"
                                        Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
@@ -153,7 +153,7 @@
                     </Border>
                     <Border Classes="iv-chip" IsVisible="{Binding HasDoctor}">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource LilacBrush}"
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource LilacBrush}"
                                   Data="{StaticResource IconStetho}" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding DoctorText}" FontSize="12" FontWeight="Bold"
                                        Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
@@ -161,7 +161,7 @@
                     </Border>
                     <Border Classes="iv-chip" IsVisible="{Binding HasInsuranceLabel}">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource MintBrush}"
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MintBrush}"
                                   Data="{StaticResource IconShield}" VerticalAlignment="Center" />
                             <TextBlock Text="{Binding InsuranceLabel}" FontSize="12" FontWeight="Bold"
                                        Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
@@ -232,7 +232,7 @@
                                 <Grid ColumnDefinitions="38,*,Auto,Auto,110,Auto,Auto" ColumnSpacing="10">
                                     <Border Grid.Column="0" Classes="iv-tag"
                                             Background="{Binding TagBackground}">
-                                        <Path Classes="icon" Width="17" Height="17"
+                                        <Path Classes="icon" Width="18" Height="18"
                                               Stroke="{Binding TagForeground}"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -304,7 +304,7 @@
                                             IsVisible="{Binding IsEditable}"
                                             Click="OnRemoveLineClick"
                                             ToolTip.Tip="حذف ردیف">
-                                        <Path Classes="icon" Width="15" Height="15"
+                                        <Path Classes="icon" Width="16" Height="16"
                                               Stroke="{StaticResource MutedBrush}"
                                               Data="{StaticResource IconTrash}" />
                                     </Button>
@@ -473,7 +473,7 @@
                                                 <Grid Grid.Column="0" RowDefinitions="Auto,*">
                                                     <Border Grid.Row="0" Classes="iv-dot"
                                                             Background="{Binding BadgeBrush}">
-                                                        <Path Classes="icon" Width="15" Height="15"
+                                                        <Path Classes="icon" Width="16" Height="16"
                                                               Stroke="{Binding BadgeIconBrush}"
                                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -513,7 +513,7 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
                     <Button Classes="outline" Padding="14,9" Command="{Binding PrintCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{Binding $parent[Button].Foreground}"
                                   Data="{StaticResource IconPrinter}" />
                             <TextBlock Text="چاپ" />
@@ -524,7 +524,7 @@
                             IsVisible="{Binding ShowVoid}"
                             Command="{Binding VoidInvoiceCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{StaticResource DangerBrush}"
                                   Data="{StaticResource IconX}" />
                             <TextBlock Text="ابطال" />
@@ -534,7 +534,7 @@
                             IsVisible="{Binding ShowRefund}"
                             Command="{Binding RefundCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{Binding $parent[Button].Foreground}"
                                   Data="{StaticResource IconArrowDownLeft}" />
                             <TextBlock Text="عودت وجه" />
@@ -544,7 +544,7 @@
                             IsVisible="{Binding CanEdit}"
                             Command="{Binding DeleteInvoiceCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="7">
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Stroke="{StaticResource DangerBrush}"
                                   Data="{StaticResource IconTrash}" />
                             <TextBlock Text="حذف فاکتور" />

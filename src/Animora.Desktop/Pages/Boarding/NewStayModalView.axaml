@@ -330,7 +330,7 @@
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <Button Classes="primary" Command="{Binding SubmitCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
                         <TextBlock Text="ثبت پذیرش" VerticalAlignment="Center" />
                     </StackPanel>

@@ -158,7 +158,7 @@
                                 Background="{StaticResource Bg2Brush}" BorderThickness="0"
                                 IsVisible="{Binding HasQuery}"
                                 Command="{Binding ClearQueryCommand}" ToolTip.Tip="پاک کردن">
-                            <Path Classes="icon" Width="11" Height="11" Stroke="{StaticResource MutedBrush}"
+                            <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource MutedBrush}"
                                   StrokeThickness="3" Data="{StaticResource IconX}" />
                         </Button>
                     </Panel>
@@ -212,7 +212,7 @@
                                                     </Border>
                                                 </Grid>
                                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" Margin="0,4,0,0">
-                                                    <Path Classes="icon" Width="13" Height="13"
+                                                    <Path Classes="icon" Width="14" Height="14"
                                                           Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconUsers}" />
                                                     <TextBlock Grid.Column="1" Text="{Binding OwnerName}" FontSize="11.5"
                                                                TextTrimming="CharacterEllipsis"
@@ -247,14 +247,14 @@
                     <Button Grid.Column="0" Classes="opt" Classes.on="{Binding IsVaccine}"
                             Command="{Binding SetItemTypeCommand}" CommandParameter="vaccine">
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconSyringe}" />
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconSyringe}" />
                             <TextBlock Text="واکسن" />
                         </StackPanel>
                     </Button>
                     <Button Grid.Column="1" Classes="opt" Classes.on="{Binding IsMedication}"
                             Command="{Binding SetItemTypeCommand}" CommandParameter="medication">
                         <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconFlask}" />
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconFlask}" />
                             <TextBlock Text="دارو" />
                         </StackPanel>
                     </Button>
@@ -271,13 +271,13 @@
                                  Padding="12,10" CornerRadius="10" />
                         <Button Grid.Column="1" Classes="outline" Command="{Binding OpenStockPickerCommand}" ToolTip.Tip="انتخاب از اقلام انبار">
                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource InkBrush}" Data="{StaticResource IconBox}" />
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource InkBrush}" Data="{StaticResource IconBox}" />
                                 <TextBlock Text="انتخاب از انبار" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </Grid>
                     <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasStockInfo}">
-                        <Path Classes="icon stock-info" Classes.out="{Binding IsStockUnavailable}" Width="13" Height="13" Data="{StaticResource IconBox}" />
+                        <Path Classes="icon stock-info" Classes.out="{Binding IsStockUnavailable}" Width="14" Height="14" Data="{StaticResource IconBox}" />
                         <TextBlock Classes="stock-info" Classes.out="{Binding IsStockUnavailable}" Text="{Binding StockInfoText}" FontSize="11.5" />
                     </StackPanel>
                 </StackPanel>
@@ -392,7 +392,7 @@
                                         <Button Width="18" Height="18" Padding="0" CornerRadius="9" Background="Transparent" BorderThickness="0"
                                                 Command="{Binding #Root.((vx:AddVaccineModalViewModel)DataContext).RemoveSpecificDayCommand}"
                                                 CommandParameter="{Binding}" ToolTip.Tip="حذف">
-                                            <Path Classes="icon" Width="10" Height="10" Stroke="{StaticResource Brand700Brush}" StrokeThickness="3" Data="{StaticResource IconX}" />
+                                            <Path Classes="icon" Width="12" Height="12" Stroke="{StaticResource Brand700Brush}" StrokeThickness="3" Data="{StaticResource IconX}" />
                                         </Button>
                                     </StackPanel>
                                 </Border>

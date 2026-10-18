@@ -126,7 +126,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Classes="primary" Command="{Binding SaveCommand}" IsEnabled="{Binding IsIdle}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White" Data="{StaticResource IconCheck}"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White" Data="{StaticResource IconCheck}"
                               VerticalAlignment="Center" />
                         <TextBlock Text="ثبت آزمایش" VerticalAlignment="Center" />
                     </StackPanel>

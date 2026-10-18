@@ -114,7 +114,7 @@
                 <Button Classes="inv-seg" Classes.is-active="{Binding IsPurchaseInvoicesView}"
                         Command="{Binding SetPurchaseViewCommand}" CommandParameter="invoices">
                     <StackPanel Orientation="Horizontal" Spacing="7">
-                        <Path Classes="icon" Width="15" Height="15"
+                        <Path Classes="icon" Width="16" Height="16"
                               Stroke="{Binding $parent[Button].Foreground}"
                               Data="{StaticResource IconReceipt}" VerticalAlignment="Center" />
                         <TextBlock Text="فاکتورهای خرید" VerticalAlignment="Center" />
@@ -123,7 +123,7 @@
                 <Button Classes="inv-seg" Classes.is-active="{Binding IsSupplierRegisterView}"
                         Command="{Binding SetPurchaseViewCommand}" CommandParameter="suppliers">
                     <StackPanel Orientation="Horizontal" Spacing="7">
-                        <Path Classes="icon" Width="15" Height="15"
+                        <Path Classes="icon" Width="16" Height="16"
                               Stroke="{Binding $parent[Button].Foreground}"
                               Data="{StaticResource IconUsers}" VerticalAlignment="Center" />
                         <TextBlock Text="تأمین‌کنندگان" VerticalAlignment="Center" />
@@ -254,7 +254,7 @@
                                             BorderThickness="0" VerticalAlignment="Center"
                                             IsVisible="{Binding HasSupplierSearchValue}"
                                             Command="{Binding ClearSupplierSearchCommand}">
-                                        <Path Classes="icon" Width="10" Height="10"
+                                        <Path Classes="icon" Width="12" Height="12"
                                               Stroke="{StaticResource Brand700Brush}"
                                               Data="{StaticResource IconX}" />
                                     </Button>
@@ -394,7 +394,7 @@
                         <!-- phone + payment term -->
                         <StackPanel Spacing="7">
                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                <Path Classes="icon" Width="13" Height="13"
+                                <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{StaticResource MutedBrush}"
                                       Data="{StaticResource IconPhone}" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding SelectedSupplierPhone}" FontSize="12.5"
@@ -402,7 +402,7 @@
                                            VerticalAlignment="Center" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="7">
-                                <Path Classes="icon" Width="13" Height="13"
+                                <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{StaticResource MutedBrush}"
                                       Data="{StaticResource IconCalendar}" VerticalAlignment="Center" />
                                 <TextBlock Text="{Binding SelectedSupplierTerm}" FontSize="12"

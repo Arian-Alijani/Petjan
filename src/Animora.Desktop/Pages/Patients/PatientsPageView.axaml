@@ -525,7 +525,7 @@
                         IsVisible="{Binding IsDirectorySection}">
                 <Button Classes="outline" Command="{Binding ExportExcelCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Path Classes="icon" Width="15" Height="15"
+                        <Path Classes="icon" Width="16" Height="16"
                               Stroke="{Binding $parent[Button].Foreground}"
                               Data="{StaticResource IconDownload}" />
                         <TextBlock Text="خروجی" />
@@ -611,7 +611,7 @@
                                     BorderThickness="0" VerticalAlignment="Center"
                                     IsVisible="{Binding HasSearchText}"
                                     Command="{Binding ClearSearchCommand}">
-                                <Path Classes="icon" Width="11" Height="11"
+                                <Path Classes="icon" Width="12" Height="12"
                                       Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconX}" />
                             </Button>
@@ -685,7 +685,7 @@
                                     <Button Classes="segtap"
                                             Command="{Binding SetLayoutCommand}" CommandParameter="list">
                                         <StackPanel Orientation="Horizontal" Spacing="7">
-                                            <Path Classes="icon" Width="15" Height="15"
+                                            <Path Classes="icon" Width="16" Height="16"
                                                   Data="{StaticResource IconList}" />
                                             <TextBlock Text="سطری" />
                                         </StackPanel>
@@ -695,7 +695,7 @@
                                     <Button Classes="segtap"
                                             Command="{Binding SetLayoutCommand}" CommandParameter="grid">
                                         <StackPanel Orientation="Horizontal" Spacing="7">
-                                            <Path Classes="icon" Width="15" Height="15"
+                                            <Path Classes="icon" Width="16" Height="16"
                                                   Data="{StaticResource IconGrid}" />
                                             <TextBlock Text="باکسی" />
                                         </StackPanel>
@@ -776,7 +776,7 @@
                                         VerticalAlignment="Top" ToolTip.Tip="مشاهده پرونده"
                                         Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
                                         CommandParameter="{Binding Owner}">
-                                    <Path Classes="icon" Width="17" Height="17" Data="{StaticResource IconEye}"
+                                    <Path Classes="icon" Width="18" Height="18" Data="{StaticResource IconEye}"
                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Button>
                             </Grid>
@@ -826,7 +826,7 @@
                                                 Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).AddPetCommand}"
                                                 CommandParameter="{Binding Owner}">
                                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                                <Path Classes="icon" Width="13" Height="13"
+                                                <Path Classes="icon" Width="14" Height="14"
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       Data="{StaticResource IconPlus}" />
                                                 <TextBlock Text="افزودن حیوان" />
@@ -845,7 +845,7 @@
                                                     <Grid ColumnDefinitions="34,*,Auto,Auto" ColumnSpacing="10">
                                                         <Border Grid.Column="0" Width="34" Height="34" CornerRadius="11"
                                                                 Background="{Binding ToneBrush}">
-                                                            <Path Classes="icon" Width="17" Height="17" Stroke="White"
+                                                            <Path Classes="icon" Width="18" Height="18" Stroke="White"
                                                                   Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}"
                                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                         </Border>
@@ -863,7 +863,7 @@
                                                         </StackPanel>
                                                         <controls:Badge Grid.Column="2" VerticalAlignment="Center"
                                                                         Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
-                                                        <Path Grid.Column="3" Classes="icon reveal" Width="15" Height="15"
+                                                        <Path Grid.Column="3" Classes="icon reveal" Width="16" Height="16"
                                                               VerticalAlignment="Center" Data="{StaticResource IconChevronLeft}" />
                                                     </Grid>
                                                 </Button>
@@ -880,7 +880,7 @@
                                             Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).OpenOwnerCommand}"
                                             CommandParameter="{Binding Owner}">
                                         <StackPanel Orientation="Horizontal" Spacing="5">
-                                            <Path Classes="icon" Width="13" Height="13"
+                                            <Path Classes="icon" Width="14" Height="14"
                                                   Stroke="{Binding $parent[Button].Foreground}"
                                                   Data="{StaticResource IconFile}" />
                                             <TextBlock Text="پرونده سرپرست" />
@@ -890,7 +890,7 @@
                                             Command="{Binding #Root.((patients:PatientsPageViewModel)DataContext).CallOwnerCommand}"
                                             CommandParameter="{Binding Owner}">
                                         <StackPanel Orientation="Horizontal" Spacing="5">
-                                            <Path Classes="icon" Width="13" Height="13"
+                                            <Path Classes="icon" Width="14" Height="14"
                                                   Stroke="{Binding $parent[Button].Foreground}"
                                                   Data="{StaticResource IconPhone}" />
                                             <TextBlock Text="تماس" />
@@ -956,7 +956,7 @@
                                            Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
                                 <Border Classes="pkbreed" HorizontalAlignment="Left" Margin="0,9,0,0">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13"
+                                        <Path Classes="icon" Width="14" Height="14"
                                               Stroke="{StaticResource MutedBrush}"
                                               Data="{Binding SpeciesIconKey, Converter={StaticResource IconKeyConverter}}" />
                                         <TextBlock Text="{Binding BreedText}" FontSize="11.5"
@@ -995,7 +995,7 @@
                                     <TextBlock Grid.Column="1" Text="{Binding OwnerName}" FontSize="12" FontWeight="Bold"
                                                Foreground="{StaticResource InkBrush}" VerticalAlignment="Center"
                                                TextTrimming="CharacterEllipsis" />
-                                    <Path Grid.Column="2" Classes="icon reveal" Width="15" Height="15"
+                                    <Path Grid.Column="2" Classes="icon reveal" Width="16" Height="16"
                                           VerticalAlignment="Center" Data="{StaticResource IconChevronLeft}" />
                                 </Grid>
                             </Border>
@@ -1055,7 +1055,7 @@
                                         <!-- contact -->
                                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <Path Classes="icon" Width="13" Height="13" VerticalAlignment="Center"
+                                                <Path Classes="icon" Width="14" Height="14" VerticalAlignment="Center"
                                                       Stroke="{StaticResource Muted2Brush}"
                                                       Data="{StaticResource IconMobile}" />
                                                 <TextBlock Text="{Binding Owner.Mobile1}" Classes="ocline" />
@@ -1079,7 +1079,7 @@
                                         <controls:Badge Grid.Column="5" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                         Text="{Binding VaccineStateText}" Tone="{Binding VaccineStateTone}"
                                                         ToolTip.Tip="وضعیت واکسن حیوانات" />
-                                        <Path Grid.Column="6" Classes="icon go" Width="15" Height="15"
+                                        <Path Grid.Column="6" Classes="icon go" Width="16" Height="16"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"
                                               Data="{StaticResource IconChevronLeft}" />
                                     </Grid>
@@ -1174,7 +1174,7 @@
                                         <!-- status -->
                                         <controls:Badge Grid.Column="6" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                         Text="{Binding StatusText}" Tone="{Binding StatusTone}" />
-                                        <Path Grid.Column="7" Classes="icon go" Width="15" Height="15"
+                                        <Path Grid.Column="7" Classes="icon go" Width="16" Height="16"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"
                                               Data="{StaticResource IconChevronLeft}" />
                                     </Grid>
@@ -1233,7 +1233,7 @@
                     <Button Classes="pgbtn" Command="{Binding PreviousPageCommand}"
                             ToolTip.Tip="صفحه قبل">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Data="{StaticResource IconChevronRight}" />
                             <TextBlock Text="قبلی" />
                         </StackPanel>
@@ -1249,7 +1249,7 @@
                             ToolTip.Tip="صفحه بعد">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock Text="بعدی" />
-                            <Path Classes="icon" Width="15" Height="15"
+                            <Path Classes="icon" Width="16" Height="16"
                                   Data="{StaticResource IconChevronLeft}" />
                         </StackPanel>
                     </Button>
@@ -1328,7 +1328,7 @@
                                 <Button Grid.Column="1" Classes="primary"
                                         Command="{Binding Settings.AddSpeciesCommand}">
                                     <StackPanel Orientation="Horizontal" Spacing="7">
-                                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                               Data="{StaticResource IconPlus}" />
                                         <TextBlock Text="افزودن نوع" />
                                     </StackPanel>
@@ -1389,27 +1389,27 @@
                                                         <Button Classes="iconbtn" ToolTip.Tip="ویرایش نام"
                                                                 IsVisible="{Binding !IsEditingName}"
                                                                 Command="{Binding BeginRenameCommand}">
-                                                            <Path Classes="icon" Width="15" Height="15"
+                                                            <Path Classes="icon" Width="16" Height="16"
                                                                   Data="{StaticResource IconEdit}" />
                                                         </Button>
                                                         <Button Classes="iconbtn" ToolTip.Tip="حذف نوع"
                                                                 IsVisible="{Binding !IsEditingName}"
                                                                 Command="{Binding RemoveCommand}">
-                                                            <Path Classes="icon" Width="15" Height="15"
+                                                            <Path Classes="icon" Width="16" Height="16"
                                                                   Stroke="{StaticResource DangerBrush}"
                                                                   Data="{StaticResource IconTrash}" />
                                                         </Button>
                                                         <Button Classes="iconbtn" ToolTip.Tip="ذخیره"
                                                                 IsVisible="{Binding IsEditingName}"
                                                                 Command="{Binding CommitRenameCommand}">
-                                                            <Path Classes="icon" Width="15" Height="15"
+                                                            <Path Classes="icon" Width="16" Height="16"
                                                                   Stroke="{StaticResource OkBrush}"
                                                                   Data="{StaticResource IconCheck}" />
                                                         </Button>
                                                         <Button Classes="iconbtn" ToolTip.Tip="انصراف"
                                                                 IsVisible="{Binding IsEditingName}"
                                                                 Command="{Binding CancelRenameCommand}">
-                                                            <Path Classes="icon" Width="15" Height="15"
+                                                            <Path Classes="icon" Width="16" Height="16"
                                                                   Data="{StaticResource IconX}" />
                                                         </Button>
                                                     </StackPanel>
@@ -1494,7 +1494,7 @@
                                                     <Button Grid.Column="1" Classes="outline"
                                                             Command="{Binding AddBreedCommand}">
                                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                                            <Path Classes="icon" Width="13" Height="13"
+                                                            <Path Classes="icon" Width="14" Height="14"
                                                                   Stroke="{Binding $parent[Button].Foreground}"
                                                                   Data="{StaticResource IconPlus}" />
                                                             <TextBlock Text="نژاد" />

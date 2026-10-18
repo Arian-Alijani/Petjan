@@ -74,7 +74,7 @@
                         <Button Grid.Column="1" Classes="hy-pager" HorizontalAlignment="Right"
                                 Command="{Binding AddRoomCommand}" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="13" Height="13" StrokeThickness="2.5"
+                                <Path Classes="icon" Width="14" Height="14" StrokeThickness="2.5"
                                       Stroke="{Binding $parent[Button].Foreground}"
                                       Data="{StaticResource IconPlus}" />
                                 <TextBlock Text="اتاق جدید" FontSize="12" FontWeight="Bold" />
@@ -109,7 +109,7 @@
                                             <Button Grid.Column="3" Classes="sicon" ToolTip.Tip="ویرایش اتاق"
                                                     Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).EditRoomCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon" Width="13" Height="13"
+                                                <Path Classes="icon" Width="14" Height="14"
                                                       Stroke="{StaticResource MutedBrush}"
                                                       Data="{StaticResource IconEdit}" />
                                             </Button>
@@ -161,7 +161,7 @@
                         <Button Grid.Column="1" Classes="hy-pager" HorizontalAlignment="Right"
                                 Command="{Binding AddBoardingServiceCommand}" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="13" Height="13" StrokeThickness="2.5"
+                                <Path Classes="icon" Width="14" Height="14" StrokeThickness="2.5"
                                       Stroke="{Binding $parent[Button].Foreground}"
                                       Data="{StaticResource IconPlus}" />
                                 <TextBlock Text="خدمت جدید" FontSize="12" FontWeight="Bold" />
@@ -190,7 +190,7 @@
                                         <Button Grid.Column="2" Classes="sicon" ToolTip.Tip="ویرایش خدمت"
                                                 Command="{Binding #Root.((boarding:BoardingPageViewModel)DataContext).EditBoardingServiceCommand}"
                                                 CommandParameter="{Binding}">
-                                            <Path Classes="icon" Width="13" Height="13"
+                                            <Path Classes="icon" Width="14" Height="14"
                                                   Stroke="{StaticResource MutedBrush}"
                                                   Data="{StaticResource IconEdit}" />
                                         </Button>

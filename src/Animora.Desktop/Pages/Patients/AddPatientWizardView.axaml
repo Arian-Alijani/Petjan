@@ -233,7 +233,7 @@
                                 Command="{Binding SetModeCommand}" CommandParameter="new">
                             <StackPanel Orientation="Horizontal" Spacing="6"
                                         HorizontalAlignment="Center">
-                                <Path Classes="icon" Width="15" Height="15"
+                                <Path Classes="icon" Width="16" Height="16"
                                       Stroke="{Binding $parent[Button].Foreground}"
                                       Data="{StaticResource IconUser}" />
                                 <TextBlock Text="سرپرست جدید" />
@@ -243,7 +243,7 @@
                                 Command="{Binding SetModeCommand}" CommandParameter="existing">
                             <StackPanel Orientation="Horizontal" Spacing="6"
                                         HorizontalAlignment="Center">
-                                <Path Classes="icon" Width="15" Height="15"
+                                <Path Classes="icon" Width="16" Height="16"
                                       Stroke="{Binding $parent[Button].Foreground}"
                                       Data="{StaticResource IconSearch}" />
                                 <TextBlock Text="انتخاب سرپرست موجود" />
@@ -263,7 +263,7 @@
                 <StackPanel IsVisible="{Binding IsNewMode}">
 
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,4,0,12">
-                        <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                               Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconIdCard}" />
                         <TextBlock Grid.Column="1" Classes="frt" Text="اطلاعات هویتی" />
                         <Rectangle Grid.Column="2" Classes="frtrule" />
@@ -320,7 +320,7 @@
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,0,0,12">
-                        <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                               Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconPhone}" />
                         <TextBlock Grid.Column="1" Classes="frt" Text="راه‌های ارتباطی" />
                         <Rectangle Grid.Column="2" Classes="frtrule" />
@@ -355,7 +355,7 @@
                 <!-- existing-owner picker -->
                 <StackPanel IsVisible="{Binding IsExistingMode}">
                     <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8" Margin="0,4,0,12">
-                        <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+                        <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                               Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconSearch}" />
                         <TextBlock Grid.Column="1" Classes="frt" Text="جستجوی پرونده سرپرست" />
                         <Rectangle Grid.Column="2" Classes="frtrule" />
@@ -454,7 +454,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <TextBlock Text="بازگشت" VerticalAlignment="Center" />
                             <Path Classes="icon" Width="16" Height="16"
-                                  Stroke="{Binding $parent[Button].Foreground}" StrokeThickness="2"
+                                  Stroke="{Binding $parent[Button].Foreground}"
                                   Data="{StaticResource IconChevronRight}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -462,10 +462,10 @@
                         <!-- single minimal icon, always to the LEFT of the label -->
                         <StackPanel Orientation="Horizontal" Spacing="7">
                             <TextBlock Text="{Binding NextLabel}" VerticalAlignment="Center" />
-                            <Path Classes="icon" Width="16" Height="16" Stroke="White" StrokeThickness="2"
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                   IsVisible="{Binding IsStepTwo}"
                                   Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
-                            <Path Classes="icon" Width="16" Height="16" Stroke="White" StrokeThickness="2"
+                            <Path Classes="icon" Width="16" Height="16" Stroke="White"
                                   IsVisible="{Binding IsStepOne}"
                                   Data="{StaticResource IconChevronLeft}" VerticalAlignment="Center" />
                         </StackPanel>

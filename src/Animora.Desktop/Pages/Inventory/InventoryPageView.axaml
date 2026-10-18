@@ -396,7 +396,7 @@
                                         Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).SetSubnavCommand}"
                                         CommandParameter="{Binding Key}">
                                     <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center">
-                                        <Path Classes="icon" Width="15" Height="15"
+                                        <Path Classes="icon" Width="16" Height="16"
                                               Stroke="{Binding $parent[Button].Foreground}" VerticalAlignment="Center"
                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                         <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
@@ -552,7 +552,7 @@
                                                     ToolTip.Tip="مشاهده تنوع‌ها"
                                                     Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).ToggleExpandCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon expand-chevron" Width="15" Height="15"
+                                                <Path Classes="icon expand-chevron" Width="16" Height="16"
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       RenderTransformOrigin="0.5,0.5"
                                                       Data="{StaticResource IconChevronDown}" />
@@ -651,13 +651,13 @@
                                             <Button Classes="icon-btn" ToolTip.Tip="تغییر موجودی"
                                                     Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).OpenStockAdjustCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon" Width="16" Height="16"
                                                       Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconRefresh}" />
                                             </Button>
                                             <Button Classes="icon-btn" ToolTip.Tip="مشاهده و ویرایش"
                                                     Command="{Binding #Root.((inv:InventoryPageViewModel)DataContext).OpenProductCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon" Width="16" Height="16"
                                                       Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconEye}" />
                                             </Button>
                                         </StackPanel>
@@ -744,7 +744,7 @@
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <Button Classes="pgbtn" Command="{Binding PreviousPageCommand}" ToolTip.Tip="صفحه قبل">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconChevronRight}" />
+                                    <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconChevronRight}" />
                                     <TextBlock Text="قبلی" />
                                 </StackPanel>
                             </Button>
@@ -756,7 +756,7 @@
                             <Button Classes="pgbtn" Command="{Binding NextPageCommand}" ToolTip.Tip="صفحه بعد">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="بعدی" />
-                                    <Path Classes="icon" Width="15" Height="15" Data="{StaticResource IconChevronLeft}" />
+                                    <Path Classes="icon" Width="16" Height="16" Data="{StaticResource IconChevronLeft}" />
                                 </StackPanel>
                             </Button>
                         </StackPanel>
