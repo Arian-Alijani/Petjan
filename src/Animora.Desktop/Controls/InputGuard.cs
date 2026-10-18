@@ -21,6 +21,9 @@ public enum InputGuardKind
 
     /// <summary>A decimal number: digits plus a single <c>.</c>.</summary>
     Decimal,
+
+    /// <summary>A Jalali date typed as <c>yyyy/MM/dd</c>: digits plus <c>/</c>.</summary>
+    Date,
 }
 
 /// <summary>
@@ -118,6 +121,7 @@ public static class InputGuard
                 InputGuardKind.Digits => char.IsDigit(ch),
                 InputGuardKind.Phone => char.IsDigit(ch) || ch is '+' or '(' or ')' or '-' or ' ',
                 InputGuardKind.Decimal => char.IsDigit(ch) || (ch == '.' && !hasDot),
+                InputGuardKind.Date => char.IsDigit(ch) || ch == '/',
                 _ => true,
             };
 

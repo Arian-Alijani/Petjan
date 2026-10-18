@@ -1,5 +1,6 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:inv="using:Animora.Desktop.Pages.Inventory"
              x:Class="Animora.Desktop.Pages.Inventory.StockAdjustModalView"
              x:Name="Root"
@@ -108,7 +109,7 @@
                                     <Border Grid.Column="1" Classes="stepper" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal">
                                             <Button Classes="step" Content="−" Command="{Binding DecrementCommand}" />
-                                            <TextBox Classes="step-in" Text="{Binding StockText}" />
+                                            <TextBox controls:InputGuard.Kind="Digits" MaxLength="9" Classes="step-in" Text="{Binding StockText}" />
                                             <Button Classes="step" Content="+" Command="{Binding IncrementCommand}" />
                                         </StackPanel>
                                     </Border>

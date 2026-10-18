@@ -260,9 +260,13 @@
                                     </Button>
                                 </Grid>
                             </Border>
-                            <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="12"
-                                       FontWeight="SemiBold" Foreground="{StaticResource MutedBrush}"
-                                       Text="{Binding PurchaseSupplierCountText, StringFormat='{}{0} تأمین‌کننده'}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="{Binding PurchaseSupplierCountText}" FontSize="12"
+                                           FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
+                                <TextBlock Text="تأمین‌کننده" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
                         </Grid>
 
                         <Grid ColumnDefinitions="2.2*,1.1*,1.3*,0.9*,1.2*,1.1*,0.9*"

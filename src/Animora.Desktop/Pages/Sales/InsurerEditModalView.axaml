@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:sales="using:Animora.Desktop.Pages.Sales"
              x:Class="Animora.Desktop.Pages.Sales.InsurerEditModalView"
              x:DataType="sales:InsurerEditModalViewModel"
@@ -65,14 +66,14 @@
 
             <StackPanel Spacing="6">
                 <TextBlock Classes="sm-lbl" Text="درصد پوشش (٪)" />
-                <TextBox Classes="sm-inp" Text="{Binding PercentText}" PlaceholderText="۰ تا ۱۰۰"
+                <TextBox controls:InputGuard.Kind="Digits" MaxLength="3" Classes="sm-inp" Text="{Binding PercentText}" PlaceholderText="۰ تا ۱۰۰"
                          TextAlignment="Right" />
                 <TextBlock Classes="sm-hint" Text="سهمی از مبلغ فاکتور که بیمه پرداخت می‌کند." />
             </StackPanel>
 
             <StackPanel Spacing="6">
                 <TextBlock Classes="sm-lbl" Text="سقف پوشش (تومان)" />
-                <TextBox Classes="sm-inp" Text="{Binding CeilingText}" PlaceholderText="بدون سقف"
+                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="sm-inp" Text="{Binding CeilingText}" PlaceholderText="بدون سقف"
                          TextAlignment="Right" />
                 <TextBlock Classes="sm-hint"
                            Text="بیشترین مبلغی که بیمه برای یک فاکتور می‌پردازد؛ خالی یا ۰ یعنی بدون سقف." />

@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:boarding="using:Animora.Desktop.Pages.Boarding"
              x:Class="Animora.Desktop.Pages.Boarding.RoomEditModalView"
              x:Name="Root"
@@ -60,7 +61,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="6">
                     <TextBlock Classes="sm-lbl" Text="ظرفیت (۱ تا ۱۰)" />
-                    <TextBox Classes="sm-inp" Text="{Binding CapacityText}" PlaceholderText="۱" TextAlignment="Right" />
+                    <TextBox controls:InputGuard.Kind="Digits" MaxLength="4" Classes="sm-inp" Text="{Binding CapacityText}" PlaceholderText="۱" TextAlignment="Right" />
                 </StackPanel>
             </Grid>
 

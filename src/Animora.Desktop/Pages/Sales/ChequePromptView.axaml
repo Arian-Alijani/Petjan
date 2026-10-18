@@ -64,11 +64,11 @@
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel Grid.Column="0">
                         <TextBlock Classes="fld" Text="شمارهٔ چک" />
-                        <TextBox Classes="inp" Text="{Binding Number}" FontFamily="monospace" />
+                        <TextBox MaxLength="30" Classes="inp" Text="{Binding Number}" FontFamily="monospace" />
                     </StackPanel>
                     <StackPanel Grid.Column="1">
                         <TextBlock Classes="fld" Text="مبلغ (تومان)" />
-                        <TextBox Classes="inp" Text="{Binding AmountText}" PlaceholderText="۰" />
+                        <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding AmountText}" PlaceholderText="۰" />
                     </StackPanel>
                 </Grid>
                 <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
@@ -97,7 +97,7 @@
                 </Grid>
                 <StackPanel>
                     <TextBlock Classes="fld" Text="شناسهٔ صیاد (اختیاری)" />
-                    <TextBox Classes="inp" Text="{Binding SayadId}" FontFamily="monospace" />
+                    <TextBox controls:InputGuard.Kind="Digits" MaxLength="26" Classes="inp" Text="{Binding SayadId}" FontFamily="monospace" />
                 </StackPanel>
                 <StackPanel>
                     <TextBlock Classes="fld" Text="یادداشت" />

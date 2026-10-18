@@ -784,7 +784,7 @@
                             </StackPanel>
                             <StackPanel Grid.Column="1" Spacing="0">
                                 <TextBlock Classes="cs-pay-lbl" Text="مبلغ پرداخت (ریال)" />
-                                <TextBox Classes="cs-pay-input" Text="{Binding PayAmountText, Mode=TwoWay}"
+                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="cs-pay-input" Text="{Binding PayAmountText, Mode=TwoWay}"
                                          PlaceholderText="{Binding PayAmountWatermark}" TextAlignment="Right" />
                                 <WrapPanel Orientation="Horizontal" Margin="0,6,0,0">
                                     <ItemsControl ItemsSource="{Binding Presets}">
@@ -808,7 +808,7 @@
                             </StackPanel>
                             <StackPanel Grid.Column="0" Spacing="0" Margin="0,10,0,0">
                                 <TextBlock Classes="cs-pay-lbl" Text="شمارهٔ مرجع (اختیاری)" />
-                                <TextBox Classes="cs-pay-input" Text="{Binding PayReferenceText, Mode=TwoWay}"
+                                <TextBox MaxLength="40" Classes="cs-pay-input" Text="{Binding PayReferenceText, Mode=TwoWay}"
                                          PlaceholderText="مثلاً: شماره چک / تراکنش" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Spacing="0" Margin="0,10,0,0">

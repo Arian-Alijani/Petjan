@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:reception="using:Animora.Desktop.Pages.Reception"
              xmlns:contracts="using:Animora.Contracts.Reception"
              x:Class="Animora.Desktop.Pages.Reception.WalkInModalView"
@@ -35,7 +36,7 @@
         <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
             <StackPanel Grid.Column="0" Spacing="6">
                 <TextBlock Text="شماره تماس" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />
-                <TextBox Text="{Binding Phone}" PlaceholderText="۰۹xxxxxxxxx" Padding="12,10" CornerRadius="10" />
+                <TextBox controls:InputGuard.Kind="Phone" MaxLength="15" Text="{Binding Phone}" PlaceholderText="۰۹xxxxxxxxx" Padding="12,10" CornerRadius="10" />
             </StackPanel>
             <StackPanel Grid.Column="1" Spacing="6">
                 <TextBlock Text="پزشک معالج" FontSize="12" FontWeight="Bold" Foreground="{StaticResource Ink2Brush}" />

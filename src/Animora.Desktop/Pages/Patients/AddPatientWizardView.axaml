@@ -1,5 +1,6 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:patients="using:Animora.Desktop.Pages.Patients"
              x:Class="Animora.Desktop.Pages.Patients.AddPatientWizardView"
              x:Name="Root"
@@ -292,7 +293,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="6">
                             <TextBlock Classes="flabel" Text="کد ملی" />
-                            <TextBox Classes="qf" Text="{Binding NationalId}" PlaceholderText="۰۰۱۲۳۴۵۶۷۸" />
+                            <TextBox controls:InputGuard.Kind="Digits" MaxLength="10" Classes="qf" Text="{Binding NationalId}" PlaceholderText="۰۰۱۲۳۴۵۶۷۸" />
                         </StackPanel>
                     </Grid>
 
@@ -331,11 +332,11 @@
                                 <TextBlock Classes="flabel" Text="شماره موبایل اول" />
                                 <TextBlock Classes="req" Text="*" />
                             </StackPanel>
-                            <TextBox Classes="qf" Text="{Binding Mobile1}" PlaceholderText="۰۹۱۲۳۴۵۶۷۸۹" />
+                            <TextBox controls:InputGuard.Kind="Phone" MaxLength="15" Classes="qf" Text="{Binding Mobile1}" PlaceholderText="۰۹۱۲۳۴۵۶۷۸۹" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6">
                             <TextBlock Classes="flabel" Text="شماره موبایل دوم" />
-                            <TextBox Classes="qf" Text="{Binding Mobile2}" PlaceholderText="اختیاری" />
+                            <TextBox controls:InputGuard.Kind="Phone" MaxLength="15" Classes="qf" Text="{Binding Mobile2}" PlaceholderText="اختیاری" />
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="6">
                             <TextBlock Classes="flabel" Text="تلفن ثابت" />

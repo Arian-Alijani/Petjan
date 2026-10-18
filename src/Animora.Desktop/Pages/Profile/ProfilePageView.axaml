@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:pf="using:Animora.Desktop.Pages.Profile"
              x:Class="Animora.Desktop.Pages.Profile.ProfilePageView"
              x:Name="Root"
@@ -508,7 +509,7 @@
                     </Grid>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <TextBlock Grid.Column="1" Classes="ps-label" Text="شمارهٔ تماس" VerticalAlignment="Center" />
-                        <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding ProfilePhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBox controls:InputGuard.Kind="Phone" MaxLength="20" Grid.Column="0" Classes="ps-input" Text="{Binding ProfilePhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     </Grid>
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <TextBlock Grid.Column="1" Classes="ps-label" Text="ایمیل کاری" VerticalAlignment="Center" />
@@ -517,7 +518,7 @@
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                         <TextBlock Grid.Column="1" Classes="ps-label" Text="شمارهٔ نظام دامپزشکی"
                                    VerticalAlignment="Center" />
-                        <TextBox Grid.Column="0" Classes="ps-input" Text="{Binding NationalCodeLine}" IsEnabled="False" />
+                        <TextBox MaxLength="20" Grid.Column="0" Classes="ps-input" Text="{Binding NationalCodeLine}" IsEnabled="False" />
                     </Grid>
                 </StackPanel>
             </Border>
@@ -1144,7 +1145,7 @@
                                          MaxLength="256" PasswordChar="●" PlaceholderText="حداقل ۸ کاراکتر، شامل حرف و عدد" FlowDirection="LeftToRight"
                                          AutomationProperties.Name="رمز عبور کاربر جدید" />
                                 <TextBlock Classes="ps-label" Text="شمارهٔ تماس" Margin="0,6,0,0" />
-                                <TextBox Classes="ps-input" Text="{Binding NewMemberPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox controls:InputGuard.Kind="Phone" MaxLength="15" Classes="ps-input" Text="{Binding NewMemberPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MaxLength="30" PlaceholderText="اختیاری" FlowDirection="LeftToRight" />
                                 <TextBlock Classes="ps-label" Text="نقش در کلینیک *" Margin="0,6,0,0" />
                                 <ComboBox Classes="ps-select" ItemsSource="{Binding NewMemberRoleOptions.Options}"
@@ -1281,10 +1282,10 @@
                                 IsVisible="{Binding CanChangeSelectedPassword}">
                             <StackPanel Spacing="6">
                                 <TextBlock Classes="ps-label" Text="تغییر رمز عبور کاربر" />
-                                <TextBox Classes="ps-input" Text="{Binding StaffNewPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox MaxLength="64" Classes="ps-input" Text="{Binding StaffNewPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MaxLength="256" PasswordChar="●" PlaceholderText="رمز عبور جدید (حداقل ۸ کاراکتر، شامل حرف و عدد)"
                                          FlowDirection="LeftToRight" AutomationProperties.Name="رمز عبور جدید کاربر" />
-                                <TextBox Classes="ps-input" Text="{Binding StaffNewPasswordConfirm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox MaxLength="64" Classes="ps-input" Text="{Binding StaffNewPasswordConfirm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MaxLength="256" PasswordChar="●" PlaceholderText="تکرار رمز عبور جدید"
                                          FlowDirection="LeftToRight" AutomationProperties.Name="تکرار رمز عبور جدید" />
                                 <Button Classes="outline" HorizontalAlignment="Left" Command="{Binding ChangeStaffPasswordCommand}"
