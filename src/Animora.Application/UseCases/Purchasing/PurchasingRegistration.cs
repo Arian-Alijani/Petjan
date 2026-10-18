@@ -13,6 +13,8 @@ public static class PurchasingRegistration
     public static ApplicationRegistrationBuilder AddPurchasingUseCases(this ApplicationRegistrationBuilder builder) => builder
         .AddQuery<PurchasingSnapshotQuery, PurchasingSnapshotReadModel, PurchasingSnapshotQueryHandler>()
         .AddQuery<SupplierDirectoryQuery, IReadOnlyList<SupplierRowReadModel>, SupplierDirectoryQueryHandler>()
+        .AddQuery<SupplierRegisterQuery, IReadOnlyList<SupplierSummaryReadModel>, SupplierRegisterQueryHandler>()
+        .AddQuery<SupplierProfileQuery, SupplierProfileReadModel?, SupplierProfileQueryHandler>()
         .AddQuery<PurchaseReceiptListQuery, PurchaseReceiptListReadModel, PurchaseReceiptListQueryHandler>()
         .AddCommand<CreateSupplierCommand, string, CreateSupplierCommandHandler>()
         .AddValidator<CreateSupplierCommand, CreateSupplierCommandValidator>()

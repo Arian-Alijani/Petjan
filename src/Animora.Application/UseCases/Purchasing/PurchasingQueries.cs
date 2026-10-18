@@ -38,6 +38,48 @@ public sealed class SupplierDirectoryQueryHandler(IPurchaseDirectoryQueries quer
             await queries.ListSuppliersAsync(query.Search, Math.Clamp(query.Take, 1, 200), ct));
 }
 
+/// <summary>
+/// The supplier register («تأمین‌کنندگان»): every active supplier with its purchase statistics
+/// (receipt count, total purchased, last purchase date, open orders), optionally filtered by name / code / phone.
+/// </summary>
+[RequiresPermission(PermissionCodes.PurchasingRead)]
+public sealed record SupplierRegisterQuery(string? Search = null, int Take = 200)
+    : IQuery<IReadOnlyList<SupplierSummaryReadModel>>;
+
+public sealed class SupplierRegisterQueryHandler(IPurchaseDirectoryQueries queries)
+    : IQueryHandler<SupplierRegisterQuery, IReadOnlyList<SupplierSummaryReadModel>>
+{
+    public async Task<Result<IReadOnlyList<SupplierSummaryReadModel>>> HandleAsync(
+        SupplierRegisterQuery query, QueryContext context, CancellationToken ct) =>
+        Result<IReadOnlyList<SupplierSummaryReadModel>>.Ok(
+            await queries.ListSupplierSummariesAsync(query.Search, Math.Clamp(query.Take, 1, 500), ct));
+}
+
+/// <summary>
+/// One supplier's full profile: its register row plus the completed-purchase history (newest first).
+/// A successful query with <see langword="null"/> means the id is unknown/inactive — a real answer, not a failure.
+/// </summary>
+[RequiresPermission(PermissionCodes.PurchasingRead)]
+public sealed record SupplierProfileQuery(string SupplierId, int HistoryTake = 100) : IQuery<SupplierProfileReadModel?>;
+
+public sealed class SupplierProfileQueryHandler(IPurchaseDirectoryQueries queries)
+    : IQueryHandler<SupplierProfileQuery, SupplierProfileReadModel?>
+{
+    public async Task<Result<SupplierProfileReadModel?>> HandleAsync(
+        SupplierProfileQuery query, QueryContext context, CancellationToken ct)
+    {
+        var summary = await queries.FindSupplierSummaryAsync(query.SupplierId, ct);
+        if (summary is null)
+        {
+            return Result<SupplierProfileReadModel?>.Ok(null);
+        }
+
+        var purchases = await queries.ListSupplierPurchasesAsync(
+            query.SupplierId, Math.Clamp(query.HistoryTake, 1, 500), ct);
+        return Result<SupplierProfileReadModel?>.Ok(new SupplierProfileReadModel(summary, purchases));
+    }
+}
+
 /// <summary>The purchases table + KPI counters: recent goods receipts, receipt count and supplier count.</summary>
 [RequiresPermission(PermissionCodes.PurchasingRead)]
 public sealed record PurchaseReceiptListQuery(int Take = 100) : IQuery<PurchaseReceiptListReadModel>;
