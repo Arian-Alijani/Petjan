@@ -1260,9 +1260,9 @@
                                         <StackPanel Grid.Column="0" Spacing="6">
                                             <TextBlock Text="تاریخ (شمسی)" FontSize="11"
                                                        Foreground="{StaticResource Ink2Brush}" />
-                                            <TextBox Text="{Binding NewWeightDate}"
-                                                     PlaceholderText="{Binding DefaultWeightDate}"
-                                                     Padding="12,10" CornerRadius="10" />
+                                            <controls:JalaliDatePicker DateValue="{Binding NewWeightDate, Mode=TwoWay}"
+                                                                       Placeholder="{Binding DefaultWeightDate}"
+                                                                       HorizontalAlignment="Stretch" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Spacing="6">
                                             <TextBlock Text="وزن (کیلوگرم)" FontSize="11"

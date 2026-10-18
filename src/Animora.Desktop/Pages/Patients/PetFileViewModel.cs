@@ -97,7 +97,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     [ObservableProperty] private bool _isEditingInfo;
 
     // ---- weight mini-form ----
-    [ObservableProperty] private string _newWeightDate = string.Empty;
+    [ObservableProperty] private string _newWeightDate = JalaliDate.Today.ToString("short");
     [ObservableProperty] private string _newWeightValue = string.Empty;
 
     // ---- info edit buffers ----
@@ -770,20 +770,24 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             return;
         }
 
-        var date = string.IsNullOrWhiteSpace(NewWeightDate) ? DateTime.Today : DateTime.Today;
-        if (!string.IsNullOrWhiteSpace(NewWeightDate))
+        var date = DateTime.Today;
+        if (!string.IsNullOrWhiteSpace(NewWeightDate) && !TryParseJalali(NewWeightDate, out date))
         {
-            if (!TryParseJalali(NewWeightDate, out date))
-            {
-                _toast.Show("تاریخ را به شکل ۱۴۰۴/۰۵/۱۱ وارد کنید", Controls.Tone.Info);
-                return;
-            }
+            _toast.Show("تاریخ انتخاب‌شده معتبر نیست؛ دوباره از تقویم انتخاب کنید", Controls.Tone.Info);
+            return;
+        }
+
+        // A weight is always a measured (past) value: refuse future dates.
+        if (date.Date > DateTime.Today)
+        {
+            _toast.Show("تاریخ وزن نمی‌تواند بعد از امروز باشد", Controls.Tone.Info);
+            return;
         }
 
         var saved = await _patients.AddWeightEntryAsync(_pet.Id, new WeightEntry(date, weight));
         Apply(saved);
         NewWeightValue = string.Empty;
-        NewWeightDate = string.Empty;
+        NewWeightDate = JalaliDate.Today.ToString("short");
         _toast.Show("وزن جدید ثبت شد", Controls.Tone.Ok);
     }
 

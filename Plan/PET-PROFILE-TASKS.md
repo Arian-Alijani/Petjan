@@ -226,7 +226,7 @@ BloodType, Neutered(+date), Insurance, Microchip (code/date/vendor/location).
 **Done when:** every registration attribute is editable in the info tab and round-trips through the DB.
 **Push** (likely 2 pushes: domain/persistence/migration, then UI).
 
-### ☐ Task 7 — "ثبت وزن جدید": date via calendar panel, not manual typing
+### ☑ Task 7 — "ثبت وزن جدید": date via calendar panel, not manual typing
 **Current:** weight tab add-form (axaml L937-966) has a `TextBox` for `NewWeightDate` (typed Jalali). VM
 `AddWeightAsync` (L637-666) parses it with `TryParseJalali`.
 **Fix:** replace the date `TextBox` with the project's **Jalali calendar picker control** (the same one
