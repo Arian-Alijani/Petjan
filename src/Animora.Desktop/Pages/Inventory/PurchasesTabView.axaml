@@ -240,7 +240,7 @@
                             <Border Grid.Column="0" Background="{StaticResource Bg2Brush}"
                                     BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                                     CornerRadius="10" Padding="10,0" MaxWidth="340"
-                                    HorizontalAlignment="Left">
+                                    HorizontalAlignment="Right">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                     <Path Grid.Column="0" Classes="icon" Width="14" Height="14"
                                           VerticalAlignment="Center" Stroke="{StaticResource MutedBrush}"

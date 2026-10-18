@@ -1145,7 +1145,7 @@
                                          MaxLength="256" PasswordChar="●" PlaceholderText="حداقل ۸ کاراکتر، شامل حرف و عدد" FlowDirection="LeftToRight"
                                          AutomationProperties.Name="رمز عبور کاربر جدید" />
                                 <TextBlock Classes="ps-label" Text="شمارهٔ تماس" Margin="0,6,0,0" />
-                                <TextBox controls:InputGuard.Kind="Phone" MaxLength="15" Classes="ps-input" Text="{Binding NewMemberPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox controls:InputGuard.Kind="Phone" Classes="ps-input" Text="{Binding NewMemberPhone, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MaxLength="30" PlaceholderText="اختیاری" FlowDirection="LeftToRight" />
                                 <TextBlock Classes="ps-label" Text="نقش در کلینیک *" Margin="0,6,0,0" />
                                 <ComboBox Classes="ps-select" ItemsSource="{Binding NewMemberRoleOptions.Options}"
@@ -1282,10 +1282,10 @@
                                 IsVisible="{Binding CanChangeSelectedPassword}">
                             <StackPanel Spacing="6">
                                 <TextBlock Classes="ps-label" Text="تغییر رمز عبور کاربر" />
-                                <TextBox MaxLength="64" Classes="ps-input" Text="{Binding StaffNewPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Classes="ps-input" Text="{Binding StaffNewPassword, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MaxLength="256" PasswordChar="●" PlaceholderText="رمز عبور جدید (حداقل ۸ کاراکتر، شامل حرف و عدد)"
                                          FlowDirection="LeftToRight" AutomationProperties.Name="رمز عبور جدید کاربر" />
-                                <TextBox MaxLength="64" Classes="ps-input" Text="{Binding StaffNewPasswordConfirm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                <TextBox Classes="ps-input" Text="{Binding StaffNewPasswordConfirm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          MaxLength="256" PasswordChar="●" PlaceholderText="تکرار رمز عبور جدید"
                                          FlowDirection="LeftToRight" AutomationProperties.Name="تکرار رمز عبور جدید" />
                                 <Button Classes="outline" HorizontalAlignment="Left" Command="{Binding ChangeStaffPasswordCommand}"

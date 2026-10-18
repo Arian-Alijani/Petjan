@@ -100,7 +100,7 @@
 
                 <!-- tier 1 · search + the register summary -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
-                    <Border Grid.Column="0" Classes="hy-search" MaxWidth="460" HorizontalAlignment="Left">
+                    <Border Grid.Column="0" Classes="hy-search" MaxWidth="460" HorizontalAlignment="Right">
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                             <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                                   VerticalAlignment="Center"
