@@ -758,4 +758,187 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void
+    private void AddVax() => _toast.Show("فرم ثبت واکسن جدید (نمونه طراحی)", Controls.Tone.Info);
+
+    [RelayCommand]
+    private void CopyMicrochip()
+    {
+        if (HasMicrochip)
+        {
+            _toast.Show("شناسه میکروچیپ کپی شد", Controls.Tone.Ok);
+        }
+    }
+
+    [RelayCommand]
+    private void DownloadDoc(DocRowViewModel? doc) =>
+        _toast.Show("دانلود فایل (نمونه طراحی)", Controls.Tone.Info);
+
+    [RelayCommand]
+    private void UploadDoc() => _toast.Show("بارگذاری فایل (نمونه طراحی)", Controls.Tone.Info);
+
+    [RelayCommand]
+    private void CallOwner()
+    {
+        if (_owner is not null)
+        {
+            _toast.Show($"در حال برقراری تماس با {Fa(_owner.Mobile1)}", Controls.Tone.Info);
+        }
+    }
+
+    [RelayCommand]
+    private void Print() => _toast.Show("چاپ پرونده (نمونه طراحی)", Controls.Tone.Info);
+
+    [RelayCommand]
+    private Task BackToOwner()
+    {
+        var ownerId = _pet?.OwnerId;
+        if (ownerId is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        // The reference closes the pet sheet then reopens the owner sheet
+        // (closePetFile(); openOwnerDrawer(...)) so the record surface stays a
+        // centered overlay rather than a page navigation.
+        return _presenter.OpenOwnerSheetAsync(ownerId);
+    }
+
+    [RelayCommand]
+    private void Close() => _dialogs.Close();
+
+    // ---- delete (soft) ----
+
+    /// <summary>
+    /// Asks for confirmation, then tombstones the pet via <see cref="IPatientsQueryService.DeletePetAsync"/>.
+    /// The confirm modal sits on top of this sheet; on confirm it closes itself first, then the sheet
+    /// is closed here once the command has succeeded so a failure leaves the file open.
+    /// </summary>
+    [RelayCommand]
+    private void Delete()
+    {
+        if (_pet is null)
+        {
+            return;
+        }
+
+        var petId = _pet.Id;
+        var petName = _pet.Name;
+        _dialogs.ShowModal(new ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف پرونده بیمار",
+            "پرونده ",
+            $"«{petName}»",
+            " از فهرست بیماران حذف شود؟",
+            "این پرونده از فهرست و پرونده سرپرست حذف می‌شود؛ سوابق ویزیت و واکسیناسیون در تاریخچه باقی می‌ماند.",
+            "بله، حذف کن",
+            "انصراف",
+            () => _ = DeleteConfirmedAsync(petId)), 480);
+    }
+
+    private async Task DeleteConfirmedAsync(string petId)
+    {
+        try
+        {
+            await _patients.DeletePetAsync(petId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(
+                PatientsPresentation.CommandFailureMessage(ex, "حذف پرونده بیمار انجام نشد؛ دوباره تلاش کنید"),
+                Controls.Tone.Danger);
+            return;
+        }
+        catch (Exception)
+        {
+            _toast.Show("حذف پرونده بیمار انجام نشد؛ دوباره تلاش کنید", Controls.Tone.Danger);
+            return;
+        }
+
+        _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.Appointments, DataDomain.Visits);
+        _dialogs.Close();
+        _toast.Show("پرونده بیمار حذف شد", Controls.Tone.Ok);
+    }
+
+    // ---- helpers ----
+
+    // Alert/status palette, transcribed from patients.css .alert-row.{danger,warn,
+    // info,ok} (background, border, foreground). Pre-resolved here so the View
+    // binds a brush, never a converter/string.
+    // Shared via BrushCache (PERFORMANCE.md §10) — three fixed semantic colours.
+    private static readonly Avalonia.Media.IBrush DeltaUp =
+        Controls.BrushCache.Solid("#027a48");
+    private static readonly Avalonia.Media.IBrush DeltaDown =
+        Controls.BrushCache.Solid("#d92d20");
+    private static readonly Avalonia.Media.IBrush DeltaFlat =
+        Controls.BrushCache.Solid("#667085");
+
+    private static (Avalonia.Media.IBrush Bg, Avalonia.Media.IBrush Border, Avalonia.Media.IBrush Fg) AlertPalette(string cls) => cls switch
+    {
+        "danger" => (Brush("#fef3f2"), Brush("#f6cfc9"), Brush("#8f2b21")),
+        "warn" => (Brush("#fffaeb"), Brush("#f0dcb4"), Brush("#7a5314")),
+        "ok" => (Brush("#ecfdf3"), Brush("#c3dfd1"), Brush("#1f6a4d")),
+        _ => (Brush("#eff8ff"), Brush("#cfdcf5"), Brush("#2f4f8c")),
+    };
+
+    private static Avalonia.Media.IBrush Brush(string hex) =>
+        Controls.BrushCache.Solid(hex);
+
+    private static string ToneClass(Controls.Tone tone) => tone switch
+    {
+        Controls.Tone.Danger => "danger",
+        Controls.Tone.Warn => "warn",
+        Controls.Tone.Ok => "ok",
+        _ => "info",
+    };
+
+    private static bool Empty(string? value) => string.IsNullOrWhiteSpace(value);
+
+    private static string Trim(string value) => value.Trim();
+
+    private static string WeightValue(WeightEntry[] ordered) =>
+        ordered.Length == 0 ? "—" : Fa(Number(ordered[^1].WeightKg));
+
+    private static string Number(double value) =>
+        value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Fa(string value) => PersianNumberFormatter.ToPersianDigits(value);
+
+    private static bool TryParseJalali(string input, out DateTime date)
+    {
+        date = default;
+        var normalized = PersianNumberFormatter.ToAsciiDigits(input).Trim();
+        var parts = normalized.Split('/', '-', '.');
+        if (parts.Length != 3)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(parts[0], out var y) ||
+            !int.TryParse(parts[1], out var m) ||
+            !int.TryParse(parts[2], out var d))
+        {
+            return false;
+        }
+
+        try
+        {
+            date = new JalaliDate(y, m, d).ToDateTime();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParseWeight(string input, out double weight)
+    {
+        weight = 0;
+        var normalized = PersianNumberFormatter.ToAsciiDigits(input)
+            .Replace('٫', '.').Replace('،', '.').Trim();
+        return double.TryParse(normalized, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out weight);
+    }
+}
