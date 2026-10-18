@@ -170,7 +170,7 @@ lands in the encounter wizard pre-bound to this pet. **Push.**
 the visit flow, and they persist + show in the summary alerts panel. **Push** (likely split into
 2 pushes: contracts/app/persistence change, then UI).
 
-### ☐ Task 4 — KPI cells get data-entry; integrate with the rest
+### ☑ Task 4 — KPI cells get data-entry; integrate with the rest
 **Current KPI strip (axaml L301-355):** 4 cells — وزن فعلی, سن, آخرین ویزیت, واکسن بعدی. Plus the vitals
 panel (task 1). These are read-only summaries.
 **Goal:** "every KPI, when opening the file, has an option to enter its related data, fully integrated."
@@ -188,7 +188,7 @@ command (AddWeight / AddVax / AddVisit / EditInfo→birthdate). Keep it visually
 buttons). **Done when:** each actionable KPI has a working entry affordance tied to the real write path.
 **Push.**
 
-### ☐ Task 5 — "واکسن بعدی" (next vaccine) display works correctly
+### ☑ Task 5 — "واکسن بعدی" (next vaccine) display works correctly
 **Current:** `Apply` (VM L314-333) computes next-vax from `pet.Vaccinations.OrderByDescending(NextDate)`
 — but `Vaccinations` is **always `[]`** (ToDetail hardcode). So next-vax chip/KPI always "ثبت نشده".
 **Fix:** depends on task 9 wiring the real vaccination source. After task 9, verify:

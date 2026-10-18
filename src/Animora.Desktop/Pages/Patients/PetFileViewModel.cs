@@ -323,7 +323,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         LastVisitTypeText = lastVisit?.Type ?? "بدون سابقه";
 
         // next vaccine
-        var nextVax = pet.Vaccinations.OrderByDescending(v => v.NextDate).FirstOrDefault();
+        var nextVax = NextVaccination(pet);
         if (nextVax is null)
         {
             NextVaxChipText = string.Empty;
@@ -435,7 +435,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             AddAlert("حساسیت", a, "IconAlert", "warn");
         }
 
-        var nextVax = pet.Vaccinations.OrderByDescending(v => v.NextDate).FirstOrDefault();
+        var nextVax = NextVaccination(pet);
         if (nextVax is not null)
         {
             var (days, _) = RelativeDateFormatter.Until(nextVax.NextDate);
@@ -905,6 +905,25 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     };
 
     private static bool Empty(string? value) => string.IsNullOrWhiteSpace(value);
+
+    /// <summary>
+    /// The single "next" vaccination to surface (Task 5): the soonest upcoming due dose;
+    /// when every dose is overdue, the most overdue (earliest) one. Never the latest date.
+    /// </summary>
+    private static VaccinationSummaryRef? NextVaccination(PetDetail pet)
+    {
+        if (pet.Vaccinations.Count == 0)
+        {
+            return null;
+        }
+
+        var today = DateTime.Today;
+        var upcoming = pet.Vaccinations
+            .Where(v => v.NextDate.Date >= today)
+            .OrderBy(v => v.NextDate)
+            .FirstOrDefault();
+        return upcoming ?? pet.Vaccinations.OrderBy(v => v.NextDate).First();
+    }
 
     private static string Trim(string value) => value.Trim();
 
