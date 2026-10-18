@@ -1,5 +1,6 @@
 using System.Net;
 using Animora.Application.Security;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Wire.Auth;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
@@ -49,6 +50,9 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
             entered = true;
             var local = cache.Current;
             var generation = gate.Generation;
+            TraceLog.Debug($"[live] RefreshAsync BEGIN gen={generation} localUser={local?.UserId ?? "(none)"} locked={local?.IsLocked} " +
+                $"expires={local?.ExpiresAtUtc?.ToString("O") ?? "(none)"} revision='{_revision ?? "(none)"}' " +
+                $"appliedGen={_appliedGeneration} nextMirrorInMs={_nextMirrorTick - Environment.TickCount64}", "live");
             if (local is not { UserId: { Length: > 0 }, IsLocked: false })
             {
                 gate.ClearOnlineAccess();
@@ -70,6 +74,7 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
             if (response is null)
             {
                 gate.ClearOnlineAccess();
+                TraceLog.Warn($"[live] RefreshAsync → auth/access returned NO response ({exchange.Detail}) ⇒ network-unavailable; offline snapshot kept, live lease dropped.", "live");
                 return Result.Fail(ErrorCodes.NetworkUnavailable);
             }
             if (!response.IsSuccessStatusCode)
@@ -82,6 +87,8 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                     {
                         cache.MarkLocked();
                         gate.Clear();
+                        TraceLog.Error($"[live] RefreshAsync → auth/access {(int)response.StatusCode} ({code}) ⇒ session INVALID; " +
+                            "gate.Clear() invoked — shell drops to read-only until re-auth. (deviceRevoked=" + (code == ErrorCodes.DeviceRevoked.Code) + ")", null, "live");
                         if (code == ErrorCodes.DeviceRevoked.Code)
                             await devices.HandleRevokedAsync(linked.Token).ConfigureAwait(false);
                         await using var scope = scopes.CreateAsyncScope();
@@ -90,6 +97,7 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                     }
                     return Result.Fail(ErrorCodes.SessionExpired);
                 }
+                TraceLog.Warn($"[live] RefreshAsync → auth/access answered {(int)response.StatusCode}; transient={OnlineApi.IsTransient(response.StatusCode)} ⇒ live lease dropped, offline snapshot kept.", "live");
                 return Result.Fail(OnlineApi.IsTransient(response.StatusCode) ? ErrorCodes.ServerBusy : ErrorCodes.SyncProtocolViolation);
             }
             var access = await OnlineApi.ReadAsync<CurrentAccessWire>(response, linked.Token).ConfigureAwait(false);
@@ -99,6 +107,9 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                 || access.Permissions.Any(code => string.IsNullOrWhiteSpace(code) || !PermissionCodes.Exists(code)))
             {
                 gate.ClearOnlineAccess();
+                TraceLog.Warn($"[live] RefreshAsync → auth/access payload REJECTED (null={access is null}, " +
+                    $"tenantMatch={access?.TenantId == expected.TenantId}, userMatch={access?.UserId == expected.UserId}, " +
+                    $"deviceMatch={access?.DeviceId == expected.DeviceId}, revision='{access?.Revision}' perms={access?.Permissions?.Count}) ⇒ live lease dropped.", "live");
                 return Result.Fail(ErrorCodes.SyncProtocolViolation);
             }
             var latest = await sessions.ReadAsync(linked.Token).ConfigureAwait(false);
@@ -110,6 +121,9 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
             {
                 // Once the server has announced different authority, even an interrupted mirror must not
                 // fall back to an obsolete local grant. The next pass retries without requiring another login.
+                TraceLog.Info($"[live] RefreshAsync → MIRROR TRIGGERED (revisionChanged={_revision != access.Revision} " +
+                    $"genChanged={_appliedGeneration != generation} periodicDue={Environment.TickCount64 >= _nextMirrorTick}) " +
+                    $"rev='{access.Revision}' gen={generation}; mirroring GET /auth/keys + POST /auth/capabilities.", "live");
                 gate.ClearOnlineAccess();
                 var applied = await mirror.RefreshLocalAccessAsync(access, currentSession, StillCurrent, linked.Token).ConfigureAwait(false);
                 if (applied.IsFailure)
@@ -121,7 +135,13 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                     // window: doing so blanked the whole shell (every nav entry gated off ⇒ empty sidebar + read-only
                     // banner) after the app sat idle past the 5-minute renewal, and a manual "Sync Now" could not recover
                     // it because that path never re-warms the gate. Keep the offline authority and retry next pass.
-                    if (IsAuthorityRemoved(applied.Error)) gate.Clear();
+                    var authorityRemoved = IsAuthorityRemoved(applied.Error);
+                    if (authorityRemoved)
+                    {
+                        gate.Clear();
+                        TraceLog.Error($"[live] RefreshAsync → MIRROR FAILED with AUTHORITY-REMOVED error ({applied.Error} '{applied.Detail}') ⇒ " +
+                            "gate.Clear(): this is a shell-blanking path (offline snapshot dropped). Verify the server actually removed authority.", null, "live");
+                    }
                     else
                     {
                         // Transient renewal failure: back the NEXT mirror attempt off so the 4–6s loop does not keep
@@ -131,6 +151,8 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                         // The signed offline snapshot is still valid; keep it and let the next window renew normally.
                         gate.ClearOnlineAccess();
                         _nextMirrorTick = Environment.TickCount64 + MirrorTransientBackoffTicks;
+                        TraceLog.Warn($"[live] RefreshAsync → mirror TRANSIENT failure ({applied.Error} '{applied.Detail}'); " +
+                            $"offline snapshot KEPT, next mirror attempt backed off {MirrorTransientBackoffTicks}ms. Shell should stay usable.", "live");
                     }
                     return applied;
                 }
@@ -144,11 +166,14 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
                     // Back off too: hammering the mirror again every pass cannot fix a local-store problem and only
                     // burns the auth rate-limit budget. The already-published offline view keeps the shell usable.
                     _nextMirrorTick = Environment.TickCount64 + MirrorTransientBackoffTicks;
+                    TraceLog.Warn($"[live] RefreshAsync → gate warm-up did NOT publish a view (stillCurrent={StillCurrent()}); " +
+                        $"backing off {MirrorTransientBackoffTicks}ms. If no prior view exists the shell is read-only until the next good pass.", "live");
                     return Result.Fail(ErrorCodes.StoreUnavailable);
                 }
                 _revision = access.Revision;
                 _appliedGeneration = generation;
                 _nextMirrorTick = Environment.TickCount64 + MirrorIntervalTicks;
+                TraceLog.Info($"[live] RefreshAsync → MIRROR APPLIED rev='{access.Revision}' gen={generation}; next mirror in {MirrorIntervalTicks}ms.", "live");
             }
             if (StillCurrent()) gate.SetOnlineAccess(expected.UserId, access.Permissions, generation);
             return Result.Ok();
@@ -158,12 +183,14 @@ public sealed class LiveAccessRefreshService(OnlineApi api, ISessionStore sessio
             // The 8-second online probe (or the mirror) timed out — transient by definition. Drop the live lease but
             // keep the signed offline snapshot so the shell stays usable; never clear authority here even mid-replace.
             gate.ClearOnlineAccess();
+            TraceLog.Warn("[live] RefreshAsync → 8s online probe/mirror TIMED OUT (transient); live lease dropped, offline snapshot kept.", "live");
             return Result.Fail(ErrorCodes.NetworkUnavailable);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // An unexpected transport/store fault is also transient; keep the offline snapshot and retry next pass.
             gate.ClearOnlineAccess();
+            TraceLog.Error("[live] RefreshAsync → unexpected transport/store fault (transient); live lease dropped, offline snapshot kept.", ex, "live");
             logger.LogWarning(ex, "Active access refresh failed; no online authority was renewed.");
             return Result.Fail(ErrorCodes.StoreUnavailable);
         }

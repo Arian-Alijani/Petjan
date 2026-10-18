@@ -31,10 +31,21 @@ public sealed partial class NavigationService : ObservableObject, INavigationSer
     {
         void Apply()
         {
-            if (CurrentViewModel is not { } current) return;
+            if (CurrentViewModel is not { } current)
+            {
+                AppTrace.Debug("[nav] OnCapabilitiesChanged — no current page; nothing to revoke.", "nav");
+                return;
+            }
             var required = CurrentNavigationKey is { } key ? NavPermissions.For(key) : null;
-            if (required is not null && _gate.Can(required)) return;
+            if (required is not null && _gate.Can(required))
+            {
+                AppTrace.Debug($"[nav] OnCapabilitiesChanged — current '{CurrentNavigationKey}' still permitted ({required}); keeping it.", "nav");
+                return;
+            }
             // Removing a sidebar entry alone left its data and active refresh work visible indefinitely.
+            AppTrace.Warn($"[nav] OnCapabilitiesChanged — current page '{CurrentNavigationKey ?? current.GetType().Name}' is NO LONGER permitted " +
+                $"(required='{required ?? "(unmapped)"}'); CLEARING CurrentViewModel ⇒ content area becomes EMPTY (the blank-shell symptom). " +
+                "This fires whenever the capability gate drops to deny-all.", "nav");
             current.IsCurrentPage = false;
             current.OnNavigatedFrom();
             CurrentNavigationKey = null;

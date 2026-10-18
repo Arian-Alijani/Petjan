@@ -3,6 +3,7 @@ using Animora.Application.Security;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Application.Ports;
 using Animora.Application.UseCases.Sync;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Results;
 using Animora.Contracts.Sync;
 using Animora.Domain.Time;
@@ -42,6 +43,8 @@ public sealed class LocalSyncStatusService(
         // Cancellation while waiting must not change another caller's state.
         await _pass.WaitAsync(ct).ConfigureAwait(false);
         var previous = Volatile.Read(ref _snapshot);
+        TraceLog.Info($"[sync] ExecuteAsync BEGIN runPass={runPass} prevState={previous.State} prevPending={previous.PendingChangeCount} " +
+            $"pullConfigured={PullConfigured} transport={transport.GetType().Name}.", "sync");
         try
         {
             await using var scope = scopes.CreateAsyncScope();
@@ -61,6 +64,8 @@ public sealed class LocalSyncStatusService(
                         var session = await sessions.ReadAsync(ct).ConfigureAwait(false);
                         if (session.IsFailure || session.Value is null || (state is not null && state.TenantId != session.Value.TenantId))
                         {
+                            TraceLog.Warn($"[sync] ExecuteAsync → no usable session (readFailed={session.IsFailure} null={session.Value is null} " +
+                                $"tenantMismatch={state is not null && session.Value is not null && state.TenantId != session.Value.TenantId}) ⇒ Offline; pass skipped.", "sync");
                             Publish(new(SyncState.Offline, previous.LastSyncedAt, previous.PendingChangeCount));
                             return;
                         }
@@ -71,6 +76,8 @@ public sealed class LocalSyncStatusService(
                 finally { state?.TransitionGate.Release(); }
                 if (result.IsFailure || result.Value!.Failed > 0)
                 {
+                    TraceLog.Error($"[sync] ExecuteAsync → command pass FAILED (isFailure={result.IsFailure} error={result.Error} " +
+                        $"failed={result.Value?.Failed}) ⇒ Error.", null, "sync");
                     Publish(new(SyncState.Error, previous.LastSyncedAt, previous.PendingChangeCount));
                     return;
                 }
@@ -89,15 +96,25 @@ public sealed class LocalSyncStatusService(
             // previous count if the summary read failed.
             var pendingCount = summary.IsSuccess ? RetriableCount(summary.Value!) : previous.PendingChangeCount;
             var terminal = summary.IsSuccess ? TerminalCount(summary.Value!) : previous.TerminalFailureCount;
-            Publish(new(MapState(summary, pull), last, pendingCount, terminal));
+            var mapped = MapState(summary, pull);
+            var pullText = pull is null
+                ? "(none)"
+                : pull.Value.IsSuccess ? pull.Value.Value.ToString() : "FAILED:" + pull.Value.Error;
+            TraceLog.Info($"[sync] ExecuteAsync ← runPass={runPass} summaryOk={summary.IsSuccess} " +
+                $"(total={summary.Value?.Total} rejected={summary.Value?.Rejected} conflict={summary.Value?.Conflict} needsAttention={summary.Value?.NeedsAttention}) " +
+                $"pull={pullText} " +
+                $"lastSynced={last?.ToString("O") ?? "(none)"} pending={pendingCount} terminal={terminal} ⇒ state={mapped}.", "sync");
+            Publish(new(mapped, last, pendingCount, terminal));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            TraceLog.Warn("[sync] ExecuteAsync CANCELLED (caller token) — keeping previous snapshot.", "sync");
             Publish(previous);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Store/transport failure is surfaced through the contract, never a simulated success.
+            TraceLog.Error("[sync] ExecuteAsync THREW → Error state.", ex, "sync");
             Publish(new(SyncState.Error, previous.LastSyncedAt, previous.PendingChangeCount));
         }
         finally { _pass.Release(); }

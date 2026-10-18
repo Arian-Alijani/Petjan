@@ -1,6 +1,7 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Security;
 using Animora.Application.UseCases.Identity;
+using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Identity;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
@@ -21,6 +22,7 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
     public async Task<AuthOutcome> SignInAsync(string username, string password, bool rememberDevice,
         CancellationToken ct = default)
     {
+        TraceLog.Info($"[auth] SignInAsync BEGIN user='{username}' remember={rememberDevice}", "auth");
         gate.Clear(); // fence any in-flight refresh belonging to the previous login
         await using var scope = scopes.CreateAsyncScope();
         var (dispatcher, provider) = Resolve(scope);
@@ -29,6 +31,7 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
         if (context.IsFailure)
         {
             gate.Clear(); // fail closed: no session ⇒ no authority.
+            TraceLog.Warn($"[auth] SignInAsync → no anonymous command context ({context.Error}); gate CLEARED (read-only).", "auth");
             return new AuthOutcome(false, context.Error.Code, null);
         }
 
@@ -36,17 +39,21 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
         if (!result.IsSuccess)
         {
             gate.Clear(); // keep the gate read-only/denied when credentials are refused.
+            TraceLog.Warn($"[auth] SignInAsync → dispatcher REFUSED ({result.Error}); gate CLEARED (read-only).", "auth");
             return new AuthOutcome(false, result.Error.Code, null);
         }
 
         // The shell is constructed the instant this returns, so warm the capability gate first (B04c).
+        TraceLog.Info("[auth] SignInAsync → success; warming capability gate + live access before the shell is built.", "auth");
         await gate.RefreshAsync(ct);
         if (liveAccess is not null) await liveAccess.RefreshAsync(ct);
+        TraceLog.Info($"[auth] SignInAsync ← gate after warm-up: {gate.DescribeState()}", "auth");
         return new AuthOutcome(true, null, result.Value!.DisplayName);
     }
 
     public async Task SignOutAsync(string reason, CancellationToken ct = default)
     {
+        TraceLog.Warn($"[auth] SignOutAsync BEGIN reason='{reason}' — gate will be CLEARED (all authority dropped).", "auth");
         try
         {
             await using var scope = scopes.CreateAsyncScope();
@@ -65,11 +72,13 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
                 var ended = await online.LogoutAsync(CancellationToken.None);
                 if (ended.IsFailure) throw new InvalidOperationException("Online session cleanup failed: " + ended.Error.Code);
             }
+            TraceLog.Warn("[auth] SignOutAsync DONE — gate is now deny-all (expected until the next sign-in).", "auth");
         }
     }
 
     public async Task<AuthOutcome> TryResumeSessionAsync(CancellationToken ct = default)
     {
+        TraceLog.Info("[auth] TryResumeSessionAsync BEGIN.", "auth");
         gate.Clear(); // fence any stale authority before we decide whether a session can be resumed
         try
         {
@@ -85,20 +94,26 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
             // Only a live, unlocked, non-first-run session may silently open the shell. A locked (idle-timed-out)
             // session still requires the user to re-authenticate, so it is NOT an auto-login.
             if (snapshot.UserId is null || snapshot.IsLocked || snapshot.IsFirstRun)
+            {
+                TraceLog.Info($"[auth] TryResumeSessionAsync → not auto-resumable (userIdNull={snapshot.UserId is null}, locked={snapshot.IsLocked}, firstRun={snapshot.IsFirstRun}).", "auth");
                 return new AuthOutcome(false, null, null);
+            }
 
             // Mirror the sign-in post-steps so the shell, which is built the instant this returns, has authority (B04c).
+            TraceLog.Info("[auth] TryResumeSessionAsync → resuming; warming capability gate + live access.", "auth");
             await gate.RefreshAsync(ct);
             if (liveAccess is not null) await liveAccess.RefreshAsync(ct);
+            TraceLog.Info($"[auth] TryResumeSessionAsync ← gate after warm-up: {gate.DescribeState()}", "auth");
             return new AuthOutcome(true, null, snapshot.DisplayName);
         }
         catch (OperationCanceledException)
         {
             return new AuthOutcome(false, null, null);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             gate.Clear(); // fail closed on any unexpected store/dispatch error
+            TraceLog.Error("[auth] TryResumeSessionAsync threw → gate CLEARED (read-only).", ex, "auth");
             return new AuthOutcome(false, null, null);
         }
     }
@@ -135,12 +150,15 @@ public sealed class AuthenticationService(IServiceScopeFactory scopes, Capabilit
         if (!result.IsSuccess)
         {
             gate.Clear();
+            TraceLog.Warn($"[auth] CompleteFirstRunAsync → dispatcher REFUSED ({result.Error}); gate CLEARED (read-only).", "auth");
             return new AuthOutcome(false, result.Error.Code, null);
         }
 
         // First-run opens the Manager shell without a later sign-in, so warm the gate here too (B04c).
+        TraceLog.Info("[auth] CompleteFirstRunAsync → success; warming capability gate + live access.", "auth");
         await gate.RefreshAsync(ct);
         if (liveAccess is not null) await liveAccess.RefreshAsync(ct);
+        TraceLog.Info($"[auth] CompleteFirstRunAsync ← gate after warm-up: {gate.DescribeState()}", "auth");
         return new AuthOutcome(true, null, result.Value!.DisplayName);
     }
 
