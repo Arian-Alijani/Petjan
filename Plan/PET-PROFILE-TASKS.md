@@ -236,7 +236,7 @@ a new `DateTime? NewWeightDateValue`). Keep weight value TextBox. Default to tod
 **Done when:** picking a weight date opens the standard calendar panel like every other date field; no raw
 typing. **Push.**
 
-### ☐ Task 8 — Weight charts fully integrated (manual add + from-visit + consistent)
+### ☑ Task 8 — Weight charts fully integrated (manual add + from-visit + consistent)
 **Current:** `BuildWeight` (VM L359-394) reads `pet.Weights` → `WeightEntry` from `WeightEntry` table.
 Visits also carry a `WeightKg` vital but those are NOT appended to the weight history today.
 **Goal:** the weight chart (summary mini L382 + weight tab L919) must reflect ALL weight sources —

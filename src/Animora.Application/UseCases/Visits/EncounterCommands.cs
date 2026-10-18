@@ -9,6 +9,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Clinical;
 using Animora.Domain.Identity;
+using Animora.Domain.Patients;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Scheduling;
@@ -204,7 +205,7 @@ public sealed class CompleteVisitCommandValidator : IValidator<CompleteVisitComm
 
 public sealed class CompleteVisitCommandHandler(IVisitRepository visits, IMedicalHistoryRepository history,
     IVisitBillingHandoffWriter handoffs, IReceptionQueueRepository queue, IPetRepository pets,
-    ITriageQueries triage, IAppointmentRepository appointments, IClock clock)
+    IWeightEntryRepository weights, ITriageQueries triage, IAppointmentRepository appointments, IClock clock)
     : ICommandHandler<CompleteVisitCommand, EncounterSummaryReadModel>
 {
     public async Task<Result<EncounterSummaryReadModel>> HandleAsync(CompleteVisitCommand c,
@@ -223,6 +224,16 @@ public sealed class CompleteVisitCommandHandler(IVisitRepository visits, IMedica
         history.Add(new MedicalHistoryEntry(context.TenantId, visit.PetId, MedicalHistoryKind.Visit,
             visit.Diagnosis!, completedUtc, visit.DoctorUserId, clock, visit.TreatmentPlan, visit.Id, "Visit",
             id: IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow)));
+        // C01/T8: a weight taken during the encounter also lands in the pet's canonical weight history so
+        // the growth chart has ONE source (WeightEntry). Slot 2 keeps the derived id stable per operation
+        // (slot 0 = history entry, slot 1 = billing handoff). A rejected reading never fails the visit.
+        if (visit.Vitals?.WeightKg is { } visitWeightKg && visitWeightKg > 0m)
+        {
+            var weightEntry = WeightEntry.Record(context.TenantId, visit.PetId, visitWeightKg, completedUtc,
+                visit.DoctorUserId, clock, "ثبت در ویزیت",
+                id: IdGenerator.ForOperation(context.OperationId, 2, clock.UtcNow));
+            if (weightEntry.IsSuccess) weights.Add(weightEntry.Value!);
+        }
         var snapshot = JsonSerializer.Serialize(new { ServiceLines = visit.ServiceLines, Prescriptions = visit.Prescriptions });
         // D03: slot 1 (slot 0 is the history entry) — the server derives the same id for the same completion operation.
         handoffs.Add(IdGenerator.ForOperation(context.OperationId, 1, completedUtc), context.TenantId, visit.Id, visit.OwnerId, visit.PetId, visit.DoctorUserId, completedUtc, snapshot);
