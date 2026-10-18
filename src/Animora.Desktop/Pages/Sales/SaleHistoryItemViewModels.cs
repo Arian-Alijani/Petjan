@@ -114,7 +114,10 @@ public sealed class SaleHistoryRowViewModel : IHistoryRowView
 {
     /// <param name="entry">The ledger entry.</param>
     /// <param name="openInvoice">Opens the unified invoice sheet for <paramref name="entry"/>'s invoice.</param>
-    public SaleHistoryRowViewModel(CashierHistoryEntry entry, Func<string, Task>? openInvoice = null)
+    /// <param name="editInvoice">Opens the same sheet with the intent to edit (draft invoices only).</param>
+    /// <param name="deleteInvoice">Deletes the row's invoice after confirmation (draft invoices only).</param>
+    public SaleHistoryRowViewModel(CashierHistoryEntry entry, Func<string, Task>? openInvoice = null,
+        Func<string, Task>? editInvoice = null, Func<string, Task>? deleteInvoice = null)
     {
         Id = entry.Id;
         InvoiceId = entry.InvoiceId;
@@ -165,6 +168,17 @@ public sealed class SaleHistoryRowViewModel : IHistoryRowView
         OpenCommand = new AsyncRelayCommand(
             () => CanOpen ? openInvoice!(InvoiceId) : Task.CompletedTask,
             () => CanOpen);
+
+        // Edit/delete are offered only on an open draft — the one state the backend lets change; on a posted
+        // invoice the row stays a pure reading/navigation row instead of dangling a button that cannot work.
+        CanManageInvoice = entry.State == InvoiceState.Draft && !string.IsNullOrEmpty(InvoiceId)
+            && (editInvoice is not null || deleteInvoice is not null);
+        EditInvoiceCommand = new AsyncRelayCommand(
+            () => editInvoice is not null ? editInvoice(InvoiceId) : Task.CompletedTask,
+            () => CanManageInvoice && editInvoice is not null);
+        DeleteInvoiceCommand = new AsyncRelayCommand(
+            () => deleteInvoice is not null ? deleteInvoice(InvoiceId) : Task.CompletedTask,
+            () => CanManageInvoice && deleteInvoice is not null);
     }
 
     public string Id { get; }
@@ -242,4 +256,13 @@ public sealed class SaleHistoryRowViewModel : IHistoryRowView
 
     /// <summary>Opens the unified invoice sheet (same screen as the Cashier / Owner sheet).</summary>
     public ICommand OpenCommand { get; }
+
+    /// <summary>True when this row's invoice is still an open draft, so it may be edited or deleted.</summary>
+    public bool CanManageInvoice { get; }
+
+    /// <summary>Opens the invoice for editing (draft only).</summary>
+    public ICommand EditInvoiceCommand { get; }
+
+    /// <summary>Deletes the invoice after confirmation (draft only).</summary>
+    public ICommand DeleteInvoiceCommand { get; }
 }

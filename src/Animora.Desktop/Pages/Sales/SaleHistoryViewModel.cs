@@ -40,6 +40,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     private readonly IHistoryRecordOpener _opener;
     private readonly Action? _onInvoiceChanged;
     private readonly IToastService? _toast;
+    private readonly IDialogService? _dialogs;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(220));
 
     private readonly HashSet<CashierHistoryKind> _selectedKinds = [];
@@ -64,10 +65,13 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     /// History page so a row here opens the exact same screen as صندوق / the Owner sheet.
     /// </param>
     /// <param name="onInvoiceChanged">Raised after the invoice sheet mutates an invoice (page-level refresh).</param>
+    /// <param name="toast">Surfaces a delete failure in plain Persian.</param>
+    /// <param name="dialogs">Asks for confirmation before a row's invoice is deleted.</param>
     public SaleHistoryViewModel(ISalesQueryService service, IHistoryRecordOpener opener,
-        Action? onInvoiceChanged = null, IToastService? toast = null)
+        Action? onInvoiceChanged = null, IToastService? toast = null, IDialogService? dialogs = null)
     {
         _toast = toast;
+        _dialogs = dialogs;
         _service = service;
         _opener = opener;
         _onInvoiceChanged = onInvoiceChanged;
@@ -85,6 +89,57 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
         string.IsNullOrEmpty(invoiceId)
             ? Task.CompletedTask
             : _opener.OpenAsync("Invoice", invoiceId, onChanged: OnInvoiceChanged);
+
+    /// <summary>
+    /// «ویرایش» on a row: the same sheet, which is editable while the invoice is an open draft (the row only
+    /// offers the action in that state). Every save re-reads this ledger through <see cref="OnInvoiceChanged"/>.
+    /// </summary>
+    private Task EditInvoiceAsync(string invoiceId) => OpenInvoiceAsync(invoiceId);
+
+    /// <summary>
+    /// «حذف» on a row: confirm first — deleting a draft removes the invoice and its lines for good — then delete
+    /// through the sales seam. The backend accepts a draft only, so a rejection is reported, never swallowed.
+    /// </summary>
+    private Task DeleteInvoiceAsync(string invoiceId)
+    {
+        if (_dialogs is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _dialogs.ShowModal(new Shared.ConfirmDialogViewModel(
+            _dialogs,
+            "danger",
+            "IconTrash",
+            "حذف فاکتور",
+            "آیا از حذف فاکتور ",
+            $"«{HistoryPresentation.FaText(invoiceId)}»",
+            " اطمینان دارید؟",
+            "فاکتور و اقلام آن به‌طور کامل حذف می‌شود و قابل بازگشت نیست.",
+            "بله، فاکتور را حذف کن",
+            "انصراف",
+            void () => _ = DeleteInvoiceConfirmedAsync(invoiceId)), 480);
+
+        return Task.CompletedTask;
+    }
+
+    private async Task DeleteInvoiceConfirmedAsync(string invoiceId)
+    {
+        try
+        {
+            await _service.DeleteInvoiceAsync(invoiceId);
+            _toast?.Show("فاکتور حذف شد", Tone.Ok);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast?.Show(
+                Animora.Desktop.Pages.Patients.PatientsPresentation.CommandFailureMessage(
+                    ex, "حذف فاکتور ناموفق بود؛ فقط فاکتور پیش‌نویس قابل حذف است"),
+                Tone.Danger);
+        }
+
+        OnInvoiceChanged();
+    }
 
     public RangeObservableCollection<SaleHistoryRowViewModel> Rows { get; } = [];
 
@@ -462,7 +517,8 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
             return;
         }
 
-        Rows.ReplaceAll(page.Items.Select(entry => new SaleHistoryRowViewModel(entry, OpenInvoiceAsync)));
+        Rows.ReplaceAll(page.Items.Select(entry =>
+            new SaleHistoryRowViewModel(entry, OpenInvoiceAsync, EditInvoiceAsync, DeleteInvoiceAsync)));
 
         HasRows = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;
