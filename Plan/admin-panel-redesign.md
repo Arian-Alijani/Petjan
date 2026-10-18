@@ -217,7 +217,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T10 — بازبینی صحت کامپایل به‌صورت دستی (بدون build) `[ ]`
+### T10 — بازبینی صحت کامپایل به‌صورت دستی (بدون build) `[x]`
 **چون `dotnet` نیست:** صحت را دستی چک کن:
 - هر فایل تغییریافته را دوباره بخوان و مطابقت تایپ‌ها/امضاها را تأیید کن.
 - چک‌لیست: namespaceها درست، recordها immutable و سازگار، nullability رعایت‌شده، `EF.Functions.ILike` فقط روی PG استفاده شده (provider موجود PostgreSQL است)، هیچ API ناموجود صدا زده نشده.
