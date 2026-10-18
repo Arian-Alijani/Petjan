@@ -51,6 +51,20 @@
         <Style Selector="Button.miniact.danger:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
         </Style>
+        <!-- small round "+"/entry affordance on KPI + vitals cells (Task 4) -->
+        <Style Selector="Button.kpiadd">
+            <Setter Property="Background" Value="#f0f7f5" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Button.kpiadd:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
         <Style Selector="TextBlock.dt">
             <Setter Property="FontSize" Value="10.5" />
             <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
@@ -301,12 +315,22 @@
                 <UniformGrid Columns="4" Margin="0,0,0,14">
                     <Border Classes="kpicell" Margin="0,0,10,0">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Path Classes="icon" Width="14" Height="14"
-                                      Stroke="{StaticResource Brand600Brush}"
-                                      Data="{StaticResource IconScale}" />
-                                <TextBlock Classes="kl" Text="وزن فعلی" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconScale}" />
+                                    <TextBlock Classes="kl" Text="وزن فعلی" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="kpiadd"
+                                        ToolTip.Tip="ثبت وزن جدید"
+                                        Command="{Binding AddWeightFromKpiCommand}">
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconPlus}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Button>
+                            </Grid>
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Classes="kv" Text="{Binding CurrentWeightText}" />
                                 <TextBlock Text="کیلو" FontSize="11" FontWeight="SemiBold"
@@ -342,12 +366,22 @@
                     </Border>
                     <Border Classes="kpicell">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Path Classes="icon" Width="14" Height="14"
-                                      Stroke="{StaticResource Brand600Brush}"
-                                      Data="{StaticResource IconSyringe}" />
-                                <TextBlock Classes="kl" Text="واکسن بعدی" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconSyringe}" />
+                                    <TextBlock Classes="kl" Text="واکسن بعدی" />
+                                </StackPanel>
+                                <Button Grid.Column="2" Classes="kpiadd"
+                                        ToolTip.Tip="ثبت واکسن"
+                                        Command="{Binding AddVaxCommand}">
+                                    <Path Classes="icon" Width="13" Height="13"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconPlus}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Button>
+                            </Grid>
                             <TextBlock Classes="kv small" Text="{Binding NextVaxDateText}" />
                             <TextBlock Classes="kd" Text="{Binding NextVaxLabelText}" />
                         </StackPanel>
@@ -390,12 +424,24 @@
                         <Border Classes="panel">
                             <StackPanel>
                                 <Border Classes="panelhead">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Path Classes="icon" Width="16" Height="16"
-                                              Stroke="{StaticResource Brand600Brush}"
-                                              Data="{StaticResource IconClipboard}" />
-                                        <TextBlock Classes="panelhead" Text="علائم حیاتی آخرین معاینه" />
-                                    </StackPanel>
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Stroke="{StaticResource Brand600Brush}"
+                                                  Data="{StaticResource IconClipboard}" />
+                                            <TextBlock Classes="panelhead" Text="علائم حیاتی آخرین معاینه" />
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Classes="miniact"
+                                                ToolTip.Tip="ثبت علائم حیاتی در ویزیت"
+                                                Command="{Binding AddVisitCommand}">
+                                            <StackPanel Orientation="Horizontal" Spacing="5">
+                                                <Path Classes="icon" Width="14" Height="14"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconPlus}" />
+                                                <TextBlock Text="ثبت در ویزیت" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
                                 </Border>
                                 <Border Padding="16">
                                     <StackPanel>

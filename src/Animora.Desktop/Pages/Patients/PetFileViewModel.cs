@@ -716,6 +716,17 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         _toast.Show("وزن جدید ثبت شد", Controls.Tone.Ok);
     }
 
+    /// <summary>
+    /// KPI «وزن فعلی» entry affordance (Task 4): jumps to the weight tab and focuses the
+    /// add-weight form so the operator records the value through the real write path.
+    /// </summary>
+    [RelayCommand]
+    private void AddWeightFromKpi()
+    {
+        SelectTab("weight");
+        NewWeightValue = string.Empty;
+    }
+
     [RelayCommand]
     private async Task AddVisitAsync()
     {
