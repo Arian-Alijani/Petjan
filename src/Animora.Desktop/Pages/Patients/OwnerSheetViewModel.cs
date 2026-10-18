@@ -23,7 +23,7 @@ namespace Animora.Desktop.Pages.Patients;
 /// </summary>
 public sealed class OwnerSheetPetRowViewModel
 {
-    public OwnerSheetPetRowViewModel(PetSummary pet)
+    public OwnerSheetPetRowViewModel(PetSummary pet, Func<Task>? openPet = null)
     {
         Pet = pet;
         Name = pet.Name;
@@ -35,6 +35,7 @@ public sealed class OwnerSheetPetRowViewModel
         SubText = $"{SpeciesLabel} · {pet.Breed} · {age.Label}";
         StatusText = PatientsPresentation.StatusText(pet.Status);
         StatusTone = PatientsPresentation.StatusTone(pet.Status);
+        OpenPet = openPet;
     }
 
     public PetSummary Pet { get; }
@@ -46,12 +47,13 @@ public sealed class OwnerSheetPetRowViewModel
     public string SubText { get; }
     public string StatusText { get; }
     public Tone StatusTone { get; }
+    public Func<Task>? OpenPet { get; }
 }
 
 /// <summary>One row of the owner file's «فاکتورها» card — a real invoice registered for this owner.</summary>
 public sealed class OwnerInvoiceRowViewModel
 {
-    public OwnerInvoiceRowViewModel(InvoiceSummary invoice)
+    public OwnerInvoiceRowViewModel(InvoiceSummary invoice, Func<Task>? openInvoice = null)
     {
         Invoice = invoice;
         Id = invoice.Id;
@@ -66,6 +68,7 @@ public sealed class OwnerInvoiceRowViewModel
         DueText = $"مانده {SalePresentation.Money(invoice.Due)}";
         StateText = SalePresentation.StateLabel(invoice.State);
         StateTone = SalePresentation.StateTone(invoice.State);
+        OpenInvoice = openInvoice;
     }
 
     public InvoiceSummary Invoice { get; }
@@ -77,6 +80,7 @@ public sealed class OwnerInvoiceRowViewModel
     public string DueText { get; }
     public string StateText { get; }
     public Tone StateTone { get; }
+    public Func<Task>? OpenInvoice { get; }
 }
 
 /// <summary>One row of «پیامک‌های ارسال‌شده» — a reminder SMS recorded for one of the owner's pets.</summary>
@@ -105,7 +109,7 @@ public sealed class OwnerSmsRowViewModel
 /// <summary>One line of the owner's recent cross-section activity feed (visit / vaccine / invoice / SMS).</summary>
 public sealed class OwnerActivityRowViewModel
 {
-    public OwnerActivityRowViewModel(OwnerActivityEntry entry)
+    public OwnerActivityRowViewModel(OwnerActivityEntry entry, Func<Task>? open = null)
     {
         Entry = entry;
         Title = entry.Title;
@@ -121,6 +125,7 @@ public sealed class OwnerActivityRowViewModel
             OwnerActivityKind.Vaccine => ("IconSyringe", "واکسن", Tone.Ok),
             _ => ("IconClipboard", "ویزیت", Tone.Brand),
         };
+        Open = open;
     }
 
     public OwnerActivityEntry Entry { get; }
@@ -132,6 +137,7 @@ public sealed class OwnerActivityRowViewModel
     public string IconKey { get; }
     public string KindLabel { get; }
     public Tone KindTone { get; }
+    public Func<Task>? Open { get; }
 }
 
 /// <summary>
@@ -278,7 +284,13 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         Activity.Clear();
         foreach (var entry in feed.Entries)
         {
-            Activity.Add(new OwnerActivityRowViewModel(entry));
+            Func<Task>? open = entry.Kind switch
+            {
+                OwnerActivityKind.Invoice when entry.RefId is { Length: > 0 } id => () => OpenInvoiceAsync(id),
+                OwnerActivityKind.Visit when entry.RefId is { Length: > 0 } id => () => _presenter.OpenVisitSheetAsync(id),
+                _ => null,
+            };
+            Activity.Add(new OwnerActivityRowViewModel(entry, open));
         }
 
         VisitsCountText = Fa(feed.VisitCount.ToString());
@@ -327,7 +339,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         Invoices.Clear();
         foreach (var invoice in invoices)
         {
-            Invoices.Add(new OwnerInvoiceRowViewModel(invoice));
+            Invoices.Add(new OwnerInvoiceRowViewModel(invoice, () => OpenInvoiceAsync(invoice.Id)));
         }
 
         InvoicesCountText = Fa(Invoices.Count.ToString());
@@ -359,7 +371,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         Pets.Clear();
         foreach (var pet in owner.Pets)
         {
-            Pets.Add(new OwnerSheetPetRowViewModel(pet));
+            Pets.Add(new OwnerSheetPetRowViewModel(pet, () => _presenter.OpenPetSheetAsync(pet.Id)));
         }
 
         PetsCountText = Fa(owner.Pets.Count.ToString());
@@ -443,6 +455,13 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
 
     [RelayCommand]
     private void Close() => _dialogs.Close();
+
+    private Task OpenInvoiceAsync(string invoiceId)
+    {
+        _dialogs.ShowSheet(new Pages.Sales.InvoiceViewerViewModel(
+            _sales, _toast, _dialogs, _print, _chequePrompt, invoiceId, null, _capabilities), 1040, 720);
+        return Task.CompletedTask;
+    }
 
     [RelayCommand]
     private void AddPet()

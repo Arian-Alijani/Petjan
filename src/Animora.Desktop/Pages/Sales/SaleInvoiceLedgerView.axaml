@@ -290,8 +290,26 @@
                                                 </Border>
                                             </StackPanel>
 
-                                            <TextBlock Grid.Column="2" Classes="led-td"
-                                                       Text="{Binding DateText}" />
+                                            <!-- date on top, who registered it + the clock time underneath -->
+                                            <StackPanel Grid.Column="2" Spacing="1" Margin="12,0"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip.Tip="{Binding CreatedAtText}">
+                                                <TextBlock Text="{Binding DateText}" FontSize="12.5"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Ink2Brush}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="3">
+                                                    <TextBlock Grid.Column="0" Text="{Binding CreatedByText}"
+                                                               FontSize="10.5"
+                                                               Foreground="{StaticResource MutedBrush}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" Text="·" FontSize="10.5"
+                                                               Foreground="{StaticResource Muted2Brush}" />
+                                                    <TextBlock Grid.Column="2" Text="{Binding CreatedTimeText}"
+                                                               FontSize="10.5"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </Grid>
+                                            </StackPanel>
 
                                             <TextBlock Grid.Column="3" Classes="led-td"
                                                        Text="{Binding PetName}" />

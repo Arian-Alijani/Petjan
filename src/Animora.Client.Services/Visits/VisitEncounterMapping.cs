@@ -14,6 +14,51 @@ internal static class VisitEncounterMapping
         new(row.EncounterId, row.PatientName, row.PatientKind, row.DoctorId,
             row.DoctorShortName, row.Subtotal, row.Tax, row.Total, row.CompletedUtc.LocalDateTime);
 
+    /// <summary>
+    /// The read-only viewer snapshot of one visit. Times come out local (the clinic's own clock),
+    /// every optional section stays <see langword="null"/> or empty so the viewer can hide it.
+    /// </summary>
+    public static VisitDetail ToContract(this EncounterEditReadModel row)
+    {
+        var draft = row.Draft;
+        var vitals = row.Vitals;
+        var lines = row.Lines.Select(l => new VisitDetailLine(l.Title, l.Quantity.Value,
+            l.UnitPrice.Minor, (long)(l.Quantity.Value * l.UnitPrice.Minor))).ToArray();
+        var subtotal = (long)lines.Sum(l => l.LineTotal);
+        return new VisitDetail(
+            draft.VisitId,
+            draft.PetName,
+            draft.PetKind,
+            draft.OwnerName,
+            draft.OwnerPhone,
+            draft.DoctorName,
+            draft.DoctorSpecialty,
+            row.Reason.ToString(),
+            row.State.ToString(),
+            row.StartedUtc.LocalDateTime,
+            row.CompletedUtc?.LocalDateTime,
+            row.ChiefComplaint ?? string.Empty,
+            vitals?.WeightKg is { } w ? (double?)w : null,
+            vitals?.TemperatureC is { } t ? (double?)t : null,
+            vitals?.HeartRateBpm,
+            vitals?.RespiratoryRate,
+            vitals?.MucousMembrane,
+            vitals?.Hydration,
+            row.History,
+            row.Exam,
+            row.Diagnosis,
+            row.Plan,
+            lines,
+            row.Radiology.OrderByDescending(r => r.TakenUtc).Select(r => new VisitDetailRadiology(
+                r.Id, r.TakenUtc.LocalDateTime, r.BodyPart, r.Result ?? string.Empty,
+                r.Attachments.Count)).ToArray(),
+            row.Labs.OrderByDescending(l => l.TakenUtc).Select(l => new VisitDetailLab(
+                l.Id, l.TakenUtc.LocalDateTime, l.Description ?? string.Empty,
+                l.Items.Select(i => new VisitDetailLabItem(i.TypeName, i.Value, i.Unit)).ToArray())).ToArray(),
+            subtotal,
+            row.InvoiceId);
+    }
+
     public static RadiologyEntry ToContract(this RadiologyRecord row) =>
         new(row.Id, row.TakenUtc.LocalDateTime, row.BodyPart, row.Result,
             row.Attachments.Select(a => new RadiologyFile(a.FileHash, a.FileName, a.ContentType)).ToArray());

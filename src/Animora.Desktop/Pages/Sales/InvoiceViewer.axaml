@@ -143,6 +143,16 @@
                                        Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
+                    <Border Classes="iv-chip" IsVisible="{Binding HasCreator}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconUser}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding CreatedByText}" FontSize="12" FontWeight="Bold"
+                                       Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding CreatedAtText}" FontSize="11"
+                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
                     <Border Classes="iv-chip" IsVisible="{Binding HasReceipt}">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource OkBrush}"
@@ -493,6 +503,15 @@
                                                                Foreground="{StaticResource MutedBrush}"
                                                                IsVisible="{Binding HasDetail}"
                                                                TextWrapping="Wrap" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="5"
+                                                                IsVisible="{Binding HasActor}">
+                                                        <TextBlock Text="{Binding ActorName}" FontSize="10.5"
+                                                                   Foreground="{StaticResource Muted2Brush}" />
+                                                        <TextBlock Text="·" FontSize="10.5"
+                                                                   Foreground="{StaticResource Muted2Brush}" />
+                                                        <TextBlock Text="{Binding Time}" FontSize="10.5"
+                                                                   Foreground="{StaticResource Muted2Brush}" />
+                                                    </StackPanel>
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>

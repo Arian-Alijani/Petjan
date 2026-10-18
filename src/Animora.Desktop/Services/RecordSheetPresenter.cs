@@ -1,5 +1,6 @@
 using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Pages.Patients;
+using Animora.Desktop.Pages.Visits;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Desktop.Services;
@@ -32,7 +33,7 @@ public sealed class RecordSheetPresenter : IRecordSheetPresenter
         AppTrace.Info($"OpenOwnerSheetAsync(ownerId={ownerId}) — resolving OwnerSheetViewModel and loading…", "patients");
         var viewModel = _services.GetRequiredService<OwnerSheetViewModel>();
         await viewModel.LoadAsync(ownerId);
-        _dialogs.ShowSheet(viewModel, width: 680, height: 760);
+        _dialogs.ShowSheet(viewModel, width: 1120, height: 880);
         AppTrace.Info($"owner sheet presented (ownerId={ownerId}).", "patients");
     }
 
@@ -43,5 +44,14 @@ public sealed class RecordSheetPresenter : IRecordSheetPresenter
         await viewModel.LoadAsync(petId);
         _dialogs.ShowSheet(viewModel, width: 1120, height: 880);
         AppTrace.Info($"pet sheet presented (petId={petId}).", "patients");
+    }
+
+    public async Task OpenVisitSheetAsync(string visitId)
+    {
+        AppTrace.Info($"OpenVisitSheetAsync(visitId={visitId}) — resolving VisitDetailViewModel and loading…", "visits");
+        var viewModel = _services.GetRequiredService<VisitDetailViewModel>();
+        await viewModel.LoadAsync(visitId);
+        _dialogs.ShowSheet(viewModel, width: 980, height: 780);
+        AppTrace.Info($"visit sheet presented (visitId={visitId}).", "visits");
     }
 }

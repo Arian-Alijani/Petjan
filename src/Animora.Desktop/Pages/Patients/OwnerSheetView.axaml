@@ -5,6 +5,7 @@
              x:Class="Animora.Desktop.Pages.Patients.OwnerSheetView"
              x:Name="Root"
              x:DataType="patients:OwnerSheetViewModel"
+             Width="1120" MaxWidth="1120"
              FlowDirection="RightToLeft">
 
     <!-- Owner Sheet — re-draws Animora-UI/patients.html #drawerRoot (.sheet.owner-sheet)

@@ -5,6 +5,7 @@ using Animora.Application.Text;
 using Animora.Application.UseCases.Sales.ReadModels;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Boarding;
+using Animora.Domain.Identity;
 using Animora.Domain.Inventory;
 using Animora.Domain.Patients;
 using Animora.Domain.Sales;
@@ -82,6 +83,7 @@ internal sealed class FinanceInvoiceProjection
     public long DiscountMinor { get; init; }
     public DateTimeOffset? SettledUtc { get; init; }
     public string? DetailJson { get; init; }
+    public string? CreatedByUserId { get; init; }
 
     internal static IQueryable<FinanceInvoiceProjection> Query(AnimoraLocalDbContext db)
     {
@@ -101,7 +103,7 @@ internal sealed class FinanceInvoiceProjection
                 IssuedUtc = i.IssuedUtc, PostedUtc = i.PostedUtc, TotalMinor = i.GrandTotal.Minor,
                 PaidMinor = i.PaidTotal.Minor, DueMinor = i.DueTotal.Minor, Settlement = i.Settlement, ServerOnly = false,
                 FromPeer = false, SubtotalMinor = i.Subtotal.Minor, DiscountMinor = i.DiscountTotal.Minor,
-                SettledUtc = i.SettledUtc, DetailJson = null };
+                SettledUtc = i.SettledUtc, DetailJson = null, CreatedByUserId = i.CreatedByUserId };
         var peer = from i in db.Set<PeerInvoice>().AsNoTracking()
             where i.TenantId == db.CurrentTenantId && !protectedIds.Contains(i.Id)
             join o in db.Set<Owner>() on i.OwnerId equals o.Id into owners
@@ -112,6 +114,7 @@ internal sealed class FinanceInvoiceProjection
                 TotalMinor = i.GrandTotalMinor, PaidMinor = i.PaidTotalMinor, DueMinor = i.DueTotalMinor,
                 Settlement = SettlementStatus.Settled, ServerOnly = !db.Set<Invoice>().Any(l => l.Id == i.Id),
                 FromPeer = true, SubtotalMinor = i.GrandTotalMinor, DiscountMinor = 0, DetailJson = i.DetailJson,
+                CreatedByUserId = null,
                 SettledUtc = i.State == InvoiceState.Paid
                     ? db.Set<PeerPayment>().Where(p => p.TenantId == db.CurrentTenantId && p.InvoiceId == i.Id
                         && p.AmountMinor > 0 && p.Method != PaymentMethod.Credit)
@@ -133,14 +136,16 @@ internal sealed class FinancePaymentProjection
     public long AmountMinor { get; init; }
     public DateTimeOffset ReceivedUtc { get; init; }
     public string? Note { get; init; }
+    public string? ReceivedByUserId { get; init; }
 
     internal static IQueryable<FinancePaymentProjection> Query(AnimoraLocalDbContext db) =>
         db.Set<Payment>().AsNoTracking().Where(p => !db.Set<PeerPayment>().Any(s => s.TenantId == db.CurrentTenantId && s.Id == p.Id))
             .Select(p => new FinancePaymentProjection { Id = p.Id, InvoiceId = p.InvoiceId, Method = p.Method,
-                AmountMinor = p.Amount.Minor, ReceivedUtc = p.ReceivedUtc, Note = p.Note })
+                AmountMinor = p.Amount.Minor, ReceivedUtc = p.ReceivedUtc, Note = p.Note,
+                ReceivedByUserId = p.ReceivedByUserId })
         .Concat(db.Set<PeerPayment>().AsNoTracking().Where(p => p.TenantId == db.CurrentTenantId).Select(p => new FinancePaymentProjection {
             Id = p.Id, InvoiceId = p.InvoiceId, Method = p.Method, AmountMinor = p.AmountMinor,
-            ReceivedUtc = p.ReceivedUtc, Note = null }));
+            ReceivedUtc = p.ReceivedUtc, Note = null, ReceivedByUserId = null }));
 }
 
 /// <summary>Bounded sales projections; global tenant filters apply to every domain set.</summary>
@@ -165,7 +170,7 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             pet == null ? "" : pet.Name, owner == null ? "" : owner.PhonePrimary,
             i.IssuedUtc, i.GrandTotal.Minor, i.DueTotal.Minor, i.Settlement);
 
-    public Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(
+    public async Task<PagedResult<InvoiceSummaryReadModel>> GetInvoicesAsync(
         string? search, int page, int pageSize, CancellationToken ct)
     {
         var q = FinanceInvoiceProjection.Query(db);
@@ -177,15 +182,19 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             q = q.Where(i => EF.Functions.Like(i.Number, "%" + term + "%") ||
                 (i.OwnerId != null && ownerIds.Contains(i.OwnerId)) || EF.Functions.Like(i.OwnerName, "%" + term + "%"));
         }
-        return FinanceInvoiceProjection.Summaries(q.OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id))
+        var paged = await FinanceInvoiceProjection.Summaries(q.OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id))
             .ToPagedAsync(page, pageSize, options.Value, ct);
+        return paged with { Items = await WithCreatorsAsync(paged.Items, ct) };
     }
 
     public async Task<IReadOnlyList<InvoiceSummaryReadModel>> GetOwnerInvoicesAsync(
-        string ownerId, int take, CancellationToken ct) =>
-        await FinanceInvoiceProjection.Summaries(FinanceInvoiceProjection.Query(db).Where(i => i.OwnerId == ownerId)
+        string ownerId, int take, CancellationToken ct)
+    {
+        var rows = await FinanceInvoiceProjection.Summaries(FinanceInvoiceProjection.Query(db).Where(i => i.OwnerId == ownerId)
                 .OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id).Take(Math.Clamp(take, 1, 200)))
             .ToListAsync(ct);
+        return await WithCreatorsAsync(rows, ct);
+    }
 
     public async Task<InvoiceDetailReadModel?> GetInvoiceAsync(string invoiceId, CancellationToken ct)
     {
@@ -193,6 +202,7 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
         var summary = await FinanceInvoiceProjection.Summaries(FinanceInvoiceProjection.Query(db).Where(i => i.Id == invoiceId))
             .FirstOrDefaultAsync(ct);
         if (summary is null) return null;
+        summary = (await WithCreatorsAsync([summary], ct))[0];
 
         if (!await invoice.AnyAsync(ct))
         {
@@ -271,6 +281,74 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
             authoritativePaid ?? scalar.Paid, scalar.DiscountKind, scalar.DiscountValue, lines, payments, adjustments,
             settlement, verdict?.LastErrorCode ?? scalar.SettlementErrorCode, verdict?.ResponsibleRole);
     }
+
+    /// <summary>
+    /// Fills the creator's display name and role for one page of invoices. The creator id is already persisted on
+    /// the invoice, so only the labels are missing: one bounded read over the local invoices joined to their user,
+    /// then one over the staff memberships — never a correlated join inside the paged projection. Peer-cache
+    /// invoices carry no creator id and keep the empty defaults.
+    /// </summary>
+    private async Task<IReadOnlyList<InvoiceSummaryReadModel>> WithCreatorsAsync(
+        IReadOnlyList<InvoiceSummaryReadModel> rows, CancellationToken ct)
+    {
+        if (rows.Count == 0) return rows;
+        var ids = rows.Select(r => r.Id).ToArray();
+        var creators = await (from i in db.Set<Invoice>().AsNoTracking()
+            where ids.Contains(i.Id) && i.CreatedByUserId != ""
+            join u in db.Set<User>().AsNoTracking() on i.CreatedByUserId equals u.Id
+            select new { i.Id, i.CreatedByUserId, u.DisplayName }).ToListAsync(ct);
+        if (creators.Count == 0) return rows;
+        var roles = await RolesAsync(creators.Select(c => c.CreatedByUserId), ct);
+        var byInvoice = new Dictionary<string, (string Name, string? Role)>(StringComparer.Ordinal);
+        foreach (var creator in creators)
+            byInvoice[creator.Id] = (creator.DisplayName, RoleOf(roles, creator.CreatedByUserId));
+        var result = new InvoiceSummaryReadModel[rows.Count];
+        for (var i = 0; i < rows.Count; i++)
+        {
+            result[i] = byInvoice.TryGetValue(rows[i].Id, out var creator)
+                ? rows[i] with { CreatedByName = creator.Name, CreatedByRole = creator.Role }
+                : rows[i];
+        }
+        return result;
+    }
+
+    /// <summary>Fills the actor's display name and role for one page of the cashier ledger (two bounded reads).</summary>
+    private async Task<PagedResult<CashierHistoryReadModel>> WithActorsAsync(
+        PagedResult<CashierHistoryReadModel> page, CancellationToken ct)
+    {
+        var userIds = page.Items.Select(r => r.ActorUserId).Where(id => !string.IsNullOrEmpty(id))
+            .Select(id => id!).Distinct(StringComparer.Ordinal).ToArray();
+        if (userIds.Length == 0) return page;
+        var names = await db.Set<User>().AsNoTracking().Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.DisplayName }).ToListAsync(ct);
+        var roles = await RolesAsync(userIds, ct);
+        var byUser = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var name in names) byUser[name.Id] = name.DisplayName;
+        var items = new CashierHistoryReadModel[page.Items.Count];
+        for (var i = 0; i < items.Length; i++)
+        {
+            var row = page.Items[i];
+            items[i] = row.ActorUserId is { Length: > 0 } id && byUser.TryGetValue(id, out var name)
+                ? row with { ActorName = name, ActorRole = RoleOf(roles, id) }
+                : row;
+        }
+        return page with { Items = items };
+    }
+
+    /// <summary>The role each of the given users holds in this clinic; an active membership wins over a stale one.</summary>
+    private async Task<Dictionary<string, string>> RolesAsync(IEnumerable<string> userIds, CancellationToken ct)
+    {
+        var ids = userIds.Distinct(StringComparer.Ordinal).ToArray();
+        var memberships = await db.Set<StaffMembership>().AsNoTracking().Where(m => ids.Contains(m.UserId))
+            .Select(m => new { m.UserId, m.Role, m.Status }).ToListAsync(ct);
+        var roles = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var membership in memberships.OrderByDescending(m => m.Status))
+            roles[membership.UserId] = membership.Role.ToString();
+        return roles;
+    }
+
+    private static string? RoleOf(IReadOnlyDictionary<string, string> roles, string userId) =>
+        roles.TryGetValue(userId, out var role) ? role : null;
 
     /// <summary>A settlement that can never become accepted on its own — the states a verdict must surface.</summary>
     private static bool IsTerminalRefusal(SettlementState status) =>
@@ -352,6 +430,9 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
                            Id = p.Id, InvoiceId = i.Id, Number = i.Number, OccurredUtc = p.ReceivedUtc,
                            Kind = p.AmountMinor < 0 ? "Refund" : "Payment", AmountMinor = p.AmountMinor,
                            OwnerName = i.OwnerName, State = i.State,
+                           // The payment's recorder is the actor of a money row; a peer-cached payment has no
+                           // recorder column, so the invoice's creator stands in for it.
+                           ActorUserId = p.ReceivedByUserId ?? i.CreatedByUserId,
                        };
         var invoices = from i in displayInvoices
                        where i.PostedUtc != null
@@ -361,6 +442,7 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
                            OccurredUtc = i.PostedUtc ?? i.IssuedUtc,
                            Kind = "Accepted",
                            AmountMinor = 0L, OwnerName = i.OwnerName, State = InvoiceState.Posted,
+                           ActorUserId = i.CreatedByUserId,
                        };
         // An acceptance never changes kind/time when the invoice is later voided. The cancellation is a separate
         // persisted event, emitted from local InvoiceVoidedEvent or the server's recorded credit-note time.
@@ -368,7 +450,8 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
                     where e.TenantId == db.CurrentTenantId && e.EntityType == "Invoice" && e.Title == ActivityEventKeys.InvoiceVoided
                     join i in displayInvoices on e.EntityId equals i.Id
                     select new { Id = e.Id, InvoiceId = i.Id, Number = i.Number, OccurredUtc = e.OccurredUtc,
-                        Kind = "Void", AmountMinor = 0L, OwnerName = i.OwnerName, State = InvoiceState.Void };
+                        Kind = "Void", AmountMinor = 0L, OwnerName = i.OwnerName, State = InvoiceState.Void,
+                        ActorUserId = i.CreatedByUserId };
         var rows = payments.Concat(invoices).Concat(voids);
         if (fromUtc is { } from) rows = rows.Where(r => r.OccurredUtc >= from);
         if (toUtc is { } to) rows = rows.Where(r => r.OccurredUtc < to);
@@ -400,9 +483,10 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
         // The read model is constructed only after the set operation, ordering and paging window are
         // applied — i.e. the final (translatable) projection sits on top of the UNION, never inside a leg.
         var projected = ordered.Select(r => new CashierHistoryReadModel(
-            r.Id, r.InvoiceId, r.Number, r.OccurredUtc, r.Kind, r.AmountMinor, r.OwnerName, r.State));
+            r.Id, r.InvoiceId, r.Number, r.OccurredUtc, r.Kind, r.AmountMinor, r.OwnerName, r.State, r.ActorUserId));
+        var paged = await projected.ToPagedAsync(page, pageSize, options.Value, ct);
         return new CashierHistoryPageReadModel(
-            await projected.ToPagedAsync(page, pageSize, options.Value, ct),
+            await WithActorsAsync(paged, ct),
             totals?.Inflow ?? 0, totals?.Outflow ?? 0);
     }
 

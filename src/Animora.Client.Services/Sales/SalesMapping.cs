@@ -4,6 +4,7 @@ using Animora.Application.UseCases.Sales.ReadModels;
 using Animora.Client.Services.Inventory;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
+using Animora.Domain.Identity;
 using Animora.Domain.Sales;
 using ContractAuditKind = Animora.Contracts.Sales.InvoiceAuditKind;
 using ContractDiscountKind = Animora.Contracts.Sales.DiscountKind;
@@ -72,7 +73,8 @@ internal static class SalesMapping
         new(row.Id, KindOf(row.Kind), StateOf(row.State), row.OwnerName, row.PetName, row.Phone,
             row.TotalMinor, row.DueMinor, ToneOf(row.OwnerId ?? row.Id), FirstChar(row.OwnerName),
             row.Number,
-            tz is null ? row.IssuedUtc.UtcDateTime : TimeZoneInfo.ConvertTime(row.IssuedUtc, tz).DateTime);
+            tz is null ? row.IssuedUtc.UtcDateTime : TimeZoneInfo.ConvertTime(row.IssuedUtc, tz).DateTime,
+            row.CreatedByName ?? string.Empty, row.CreatedByRole ?? string.Empty);
 
     internal static ReadyEncounterRef ToContract(this ReadyForBillingReadModel row, TimeZoneInfo tz)
     {
@@ -97,6 +99,7 @@ internal static class SalesMapping
         for (var i = 0; i < row.Payments.Count; i++) payments[i] = row.Payments[i].ToContract(tz);
 
         var insured = !string.IsNullOrEmpty(row.InsurerId);
+        var creator = CreatorOf(summary);
         return new InvoiceDetail(
             summary.Id,
             summary.State == DomainInvoiceState.Draft ? string.Empty : summary.Number,
@@ -110,8 +113,30 @@ internal static class SalesMapping
             lines, DiscountKindOf(row.DiscountKind), (int)Math.Round(row.DiscountValue),
             payments, row.SubtotalMinor, row.DiscountMinor, EffectiveTaxPercent(row),
             row.TaxMinor, row.InsuranceMinor, summary.TotalMinor, row.PaidMinor, summary.DueMinor,
-            insured, row.DiscountMinor > 0, BuildAudit(row, tz), summary.OwnerId ?? string.Empty, row.IsReadOnly);
+            insured, row.DiscountMinor > 0, BuildAudit(row, tz), summary.OwnerId ?? string.Empty, row.IsReadOnly,
+            creator);
     }
+
+    /// <summary>
+    /// The actor recorded on an invoice's creation: its creator's display name and role, or
+    /// <see cref="ActorRef.System"/> when this device cannot resolve the user (an older or peer-cached row).
+    /// </summary>
+    private static ActorRef CreatorOf(InvoiceSummaryReadModel summary) =>
+        string.IsNullOrWhiteSpace(summary.CreatedByName)
+            ? ActorRef.System
+            : new ActorRef(string.Empty, summary.CreatedByName!, RoleLabel(summary.CreatedByRole),
+                FirstChar(summary.CreatedByName!));
+
+    /// <summary>The Persian role label for a stored <c>StaffRole</c> name; a generic staff label otherwise.</summary>
+    private static string RoleLabel(string? role) => role switch
+    {
+        nameof(StaffRole.Manager) => "مدیر کلینیک",
+        nameof(StaffRole.Doctor) => "پزشک حیوانات",
+        nameof(StaffRole.Cashier) => "صندوق‌دار",
+        nameof(StaffRole.Accountant) => "حسابدار",
+        nameof(StaffRole.Receptionist) => "پذیرش",
+        _ => "کارمند کلینیک",
+    };
 
     private static ContractInvoiceLine ToContract(this InvoiceLineReadModel row, int index)
     {
@@ -138,11 +163,14 @@ internal static class SalesMapping
     /// </summary>
     private static IReadOnlyList<InvoiceAuditEntry> BuildAudit(InvoiceDetailReadModel row, TimeZoneInfo tz)
     {
+        // The «ثبت/صدور» row names the real creator; every later entry is a compensating or money row whose own
+        // actor is not carried by the read model, so it keeps the system actor.
+        var creator = CreatorOf(row.Summary);
         var entries = new List<(DateTimeOffset At, InvoiceAuditEntry Entry)>
         {
             (row.Summary.IssuedUtc, new InvoiceAuditEntry(ContractAuditKind.Created,
                 HhMm(row.Summary.IssuedUtc, tz), "ایجاد فاکتور",
-                $"{PersianFormat.Count(row.Lines.Count)} ردیف — {SourceLabel(row.Summary.Kind)}", ActorRef.System)),
+                $"{PersianFormat.Count(row.Lines.Count)} ردیف — {SourceLabel(row.Summary.Kind)}", creator)),
         };
 
         foreach (var adjustment in row.Adjustments)
@@ -266,10 +294,14 @@ internal static class SalesMapping
     {
         var kind = HistoryKindOf(row.Kind);
         var state = StateOf(row.InvoiceState);
+        var actor = string.IsNullOrWhiteSpace(row.ActorName)
+            ? ActorRef.System
+            : new ActorRef(row.ActorUserId ?? string.Empty, row.ActorName!, RoleLabel(row.ActorRole),
+                FirstChar(row.ActorName!));
         return new CashierHistoryEntry(row.Id, kind, HistoryKindLabel(kind), row.InvoiceId, row.OwnerName,
             string.Empty, Jalali(row.OccurredUtc, tz), HhMm(row.OccurredUtc, tz),
             Math.Abs(row.AmountMinor), Math.Sign(row.AmountMinor), state, StateText(state), string.Empty,
-            ActorRef.System);
+            actor);
     }
 
     internal static CashierHistoryKind HistoryKindOf(string kind) => kind switch

@@ -1,0 +1,303 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Visits.VisitDetailView"
+             x:Name="Root"
+             x:DataType="visits:VisitDetailViewModel"
+             Width="980" MaxWidth="980"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- Section title -->
+        <Style Selector="TextBlock.vd-sec">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="LetterSpacing" Value="0.2" />
+        </Style>
+        <!-- Header meta chip -->
+        <Style Selector="Border.vd-chip">
+            <Setter Property="Background" Value="#66ffffff" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,5" />
+        </Style>
+        <!-- Section card -->
+        <Style Selector="Border.vd-card">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <!-- Vitals cell -->
+        <Style Selector="Border.vd-vital">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+        <!-- A lab/radiology record card -->
+        <Style Selector="Border.vd-reco">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="13" />
+            <Setter Property="Padding" Value="13,11" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style Selector="TextBlock.vd-lbl">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.vd-val">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- ── header ─────────────────────────────────────────────────────── -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+            <StackPanel Grid.Column="0" Spacing="3">
+                <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
+                          Data="{StaticResource IconUser}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding PatientName}" FontSize="12.5" FontWeight="Bold"
+                               Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                    <TextBlock Text="·" Foreground="{StaticResource Muted2Brush}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding OwnerName}" FontSize="12"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+            </StackPanel>
+            <Button Grid.Column="1" Classes="icon-btn" Width="34" Height="34"
+                    Command="{Binding CloseCommand}" ToolTip.Tip="بستن">
+                <Path Classes="icon" Width="16" Height="16"
+                      Stroke="{StaticResource MutedBrush}"
+                      Data="{StaticResource IconX}" />
+            </Button>
+        </Grid>
+
+        <!-- ── meta strip: state · doctor · reason · start/complete · invoice ── -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,4,0">
+                <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,0,0,12">
+                    <controls:Badge Text="{Binding StateLabel}" Tone="{Binding StateTone}" />
+                    <Border Classes="vd-chip" IsVisible="{Binding HasDoctor}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource LilacBrush}"
+                                  Data="{StaticResource IconStetho}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding DoctorText}" FontSize="12" FontWeight="Bold"
+                                       Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="vd-chip" IsVisible="{Binding HasInvoice}">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource OkBrush}"
+                                  Data="{StaticResource IconFile}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding InvoiceText}" FontSize="12" FontWeight="Bold"
+                                       Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- owner contact -->
+                <Border Classes="vd-card" IsVisible="{Binding HasOwner}">
+                    <Grid ColumnDefinitions="*,*">
+                        <StackPanel Grid.Column="0" Spacing="2">
+                            <TextBlock Text="سرپرست" Classes="vd-lbl" />
+                            <TextBlock Text="{Binding OwnerName}" Classes="vd-val" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock Text="تماس" Classes="vd-lbl" />
+                            <TextBlock Text="{Binding OwnerPhone}" Classes="vd-val" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- times -->
+                <Border Classes="vd-card">
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="شروع ویزیت" Classes="vd-lbl" />
+                            <TextBlock Text="{Binding StartedText}" Classes="vd-val" />
+                        </StackPanel>
+                        <StackPanel Spacing="2" IsVisible="{Binding HasCompleted}">
+                            <TextBlock Text="پایان ویزیت" Classes="vd-lbl" />
+                            <TextBlock Text="{Binding CompletedText}" Classes="vd-val" />
+                        </StackPanel>
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="دلیل مراجعه" Classes="vd-lbl" />
+                            <TextBlock Text="{Binding ReasonLabel}" Classes="vd-val" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- vitals -->
+                <Border Classes="vd-card" IsVisible="{Binding HasVitals}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="علائم حیاتی" Classes="vd-sec" />
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                            <Border Classes="vd-vital" Grid.Column="0">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="وزن" Classes="vd-lbl" />
+                                    <TextBlock Text="{Binding WeightText}" Classes="vd-val" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="vd-vital" Grid.Column="1">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="دمای بدن" Classes="vd-lbl" />
+                                    <TextBlock Text="{Binding TemperatureText}" Classes="vd-val" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="vd-vital" Grid.Column="2">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="تپش قلب" Classes="vd-lbl" />
+                                    <TextBlock Text="{Binding PulseText}" Classes="vd-val" />
+                                </StackPanel>
+                            </Border>
+                            <Border Classes="vd-vital" Grid.Column="3">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="تنفس" Classes="vd-lbl" />
+                                    <TextBlock Text="{Binding RespirationText}" Classes="vd-val" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- clinical notes: chief complaint / history / exam / diagnosis / plan -->
+                <Border Classes="vd-card" IsVisible="{Binding HasChiefComplaint}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="شکایت اصلی" Classes="vd-sec" />
+                        <TextBlock Text="{Binding ChiefComplaint}" FontSize="12.5"
+                                   Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="vd-card" IsVisible="{Binding HasHistory}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="شرح حال بیمار" Classes="vd-sec" />
+                        <TextBlock Text="{Binding History}" FontSize="12.5"
+                                   Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="vd-card" IsVisible="{Binding HasExam}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="معاینهٔ فیزیکی" Classes="vd-sec" />
+                        <TextBlock Text="{Binding Exam}" FontSize="12.5"
+                                   Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="vd-card" IsVisible="{Binding HasDiagnosis}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="تشخیص" Classes="vd-sec" />
+                        <TextBlock Text="{Binding Diagnosis}" FontSize="12.5"
+                                   Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="vd-card" IsVisible="{Binding HasPlan}">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="طرح درمان" Classes="vd-sec" />
+                        <TextBlock Text="{Binding Plan}" FontSize="12.5"
+                                   Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <!-- billable lines -->
+                <Border Classes="vd-card" IsVisible="{Binding HasLines}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="خدمات و کالاهای ثبت‌شده" Classes="vd-sec" />
+                        <ItemsControl ItemsSource="{Binding Lines}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="visits:VisitLineRowViewModel">
+                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10" Margin="0,0,0,6">
+                                        <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="12.5"
+                                                   Foreground="{StaticResource Ink2Brush}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Quantity}" Classes="vd-lbl" />
+                                        <TextBlock Grid.Column="2" Text="{Binding UnitPrice}" Classes="vd-lbl" />
+                                        <TextBlock Grid.Column="3" Text="{Binding LineTotal}" FontSize="12.5"
+                                                   FontWeight="Bold" Foreground="{StaticResource InkBrush}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <TextBlock Grid.Column="0" Classes="vd-lbl" Text="جمع کل" />
+                            <TextBlock Grid.Column="1" Text="{Binding SubtotalText}" FontSize="14"
+                                       FontWeight="ExtraBold" Foreground="{StaticResource Brand700Brush}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- radiology -->
+                <Border Classes="vd-card" IsVisible="{Binding HasRadiology}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="رادیولوژی" Classes="vd-sec" />
+                        <ItemsControl ItemsSource="{Binding Radiology}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="visits:VisitRadiologyRowViewModel">
+                                    <Border Classes="vd-reco">
+                                        <StackPanel Spacing="4">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{Binding BodyPart}"
+                                                           FontSize="13" FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding DateText}"
+                                                           FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding Result}" FontSize="12.5"
+                                                       Foreground="{StaticResource Ink2Brush}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding AttachmentText}" FontSize="11"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- labs -->
+                <Border Classes="vd-card" IsVisible="{Binding HasLabs}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="آزمایشات" Classes="vd-sec" />
+                        <ItemsControl ItemsSource="{Binding Labs}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="visits:VisitLabRowViewModel">
+                                    <Border Classes="vd-reco">
+                                        <StackPanel Spacing="4">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="{Binding Description}"
+                                                           FontSize="13" FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding DateText}"
+                                                           FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                            </Grid>
+                                            <ItemsControl ItemsSource="{Binding Items}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{StaticResource Bg2Brush}"
+                                                                CornerRadius="9" Padding="9,5" Margin="0,0,0,4">
+                                                            <TextBlock FontSize="12"
+                                                                       Foreground="{StaticResource Ink2Brush}"
+                                                                       Text="{Binding}" />
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

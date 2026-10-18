@@ -58,7 +58,9 @@ public sealed record VisitSummaryRef(
     double WeightKg,
     double Temperature,
     long Cost,
-    string? InvoiceId = null);
+    string? InvoiceId = null,
+    string History = "",
+    string VisitId = "");
 
 /// <summary>
 /// Minimal read-only vaccination reference for the pet file's vaccinations tab,
@@ -114,6 +116,31 @@ public sealed record OwnerActivityFeed(
 /// <summary>Minimal read-only lab/imaging reference for the documents tab.</summary>
 public sealed record LabSummaryRef(string Name, DateTime Date, string Result, LabStatus Status);
 
+/// <summary>
+/// One laboratory result sheet of a pet, flattened across all its visits for the pet-level
+/// paraclinic read path. <see cref="Title"/> is the recorded description, <see cref="Detail"/>
+/// the joined test values and <see cref="DateJalali"/> the clinic-local Jalali date.
+/// </summary>
+public sealed record LabSummary(
+    string Id,
+    string VisitId,
+    string DateJalali,
+    string Title,
+    string Detail,
+    int ItemCount);
+
+/// <summary>
+/// One radiology study of a pet, flattened across all its visits for the pet-level paraclinic
+/// read path. <see cref="AttachmentCount"/> is the number of stored image/report files.
+/// </summary>
+public sealed record RadiologySummary(
+    string Id,
+    string VisitId,
+    string DateJalali,
+    string BodyPart,
+    string Result,
+    int AttachmentCount);
+
 /// <summary>A stored document reference for the documents tab.</summary>
 public sealed record DocumentRef(string Name, string Size, DateTime Date);
 
@@ -122,7 +149,7 @@ public sealed record DocumentRef(string Name, string Size, DateTime Date);
 /// directory-level <see cref="PetSummary"/> identity with the profile extras the
 /// pet file renders (habitat/behavior/diet/blood/insurance/neutering), the
 /// microchip block, the latest vitals, and the weight / visit / vaccination /
-/// lab / document / surgery collections.
+/// lab / radiology / document / surgery collections.
 /// </summary>
 public sealed record PetDetail(
     string Id,
@@ -148,12 +175,13 @@ public sealed record PetDetail(
     IReadOnlyList<WeightEntry> Weights,
     IReadOnlyList<VisitSummaryRef> Visits,
     IReadOnlyList<VaccinationSummaryRef> Vaccinations,
-    IReadOnlyList<LabSummaryRef> Labs,
+    IReadOnlyList<LabSummary> Labs,
     IReadOnlyList<DocumentRef> Documents,
     IReadOnlyList<SurgeryRef> Surgeries,
     IReadOnlyList<string> Allergies,
     IReadOnlyList<string> ChronicConditions,
-    string? Notes);
+    string? Notes,
+    IReadOnlyList<RadiologySummary> Radiology = null!);
 
 /// <summary>
 /// Full owner record backing the Owner Sheet: the directory-level

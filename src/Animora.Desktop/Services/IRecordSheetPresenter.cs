@@ -19,4 +19,7 @@ public interface IRecordSheetPresenter
 
     /// <summary>Opens the Patient File sheet (reference <c>.pet-sheet</c>, 1120×880) for the given pet id.</summary>
     Task OpenPetSheetAsync(string petId);
+
+    /// <summary>Opens the Visit Detail sheet (980×780) for the given visit id.</summary>
+    Task OpenVisitSheetAsync(string visitId);
 }

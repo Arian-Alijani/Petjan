@@ -36,6 +36,11 @@ public sealed class SaleInvoiceLedgerRowViewModel
             ? "—"
             : PersianNumberFormatter.ToPersianDigits(summary.Number);
         DateText = JalaliText(summary.IssuedAt);
+        CreatedByText = string.IsNullOrWhiteSpace(summary.CreatedByName)
+            ? "ثبت: سیستم"
+            : "ثبت: " + summary.CreatedByName;
+        CreatedAtText = CreatedAtTextOf(summary.IssuedAt);
+        CreatedTimeText = ClockText(summary.IssuedAt);
 
         SourceLabel = summary.Kind == InvoiceKind.Visit ? "از ویزیت" : "فروش مستقیم";
 
@@ -88,6 +93,15 @@ public sealed class SaleInvoiceLedgerRowViewModel
     /// <summary>The issue date as a Persian-digit Jalali <c>yyyy/MM/dd</c> («—» when not issued yet).</summary>
     public string DateText { get; }
 
+    /// <summary>Who created the invoice: «ثبت: مریم رضایی», or «ثبت: سیستم» when this device cannot resolve it.</summary>
+    public string CreatedByText { get; }
+
+    /// <summary>The exact creation instant: Persian-digit Jalali date and clock time («—» when not issued yet).</summary>
+    public string CreatedAtText { get; }
+
+    /// <summary>The creation clock time alone — the muted second line under the date cell.</summary>
+    public string CreatedTimeText { get; }
+
     /// <summary>Where the invoice came from: «از ویزیت» / «از بستری» / «فروش مستقیم».</summary>
     public string SourceLabel { get; }
 
@@ -137,6 +151,25 @@ public sealed class SaleInvoiceLedgerRowViewModel
         var iso = JalaliCalendar.ToIso(JalaliDate.FromDateTime(issued.Value));
         return JalaliCalendar.Short(iso);
     }
+
+    /// <summary>Clinic-local issue instant → Persian-digit Jalali date and clock time, or «—».</summary>
+    private static string CreatedAtTextOf(DateTime? issued)
+    {
+        if (issued is null)
+        {
+            return "—";
+        }
+
+        var iso = JalaliCalendar.ToIso(JalaliDate.FromDateTime(issued.Value));
+        return HistoryPresentation.FaText(JalaliCalendar.Short(iso) + " " +
+            issued.Value.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>Clinic-local issue instant → Persian-digit <c>HH:mm</c>, or «—».</summary>
+    private static string ClockText(DateTime? issued) =>
+        issued is null
+            ? "—"
+            : HistoryPresentation.FaText(issued.Value.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture));
 }
 
 /// <summary>One state-filter chip of the «فاکتور» tab («همه» / «باز» / «تسویه‌شده» / «ابطال و عودت»).</summary>

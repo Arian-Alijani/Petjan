@@ -9,11 +9,17 @@ using Animora.Domain.Results;
 
 namespace Animora.Application.UseCases.Visits;
 
+/// <summary>
+/// Full persisted encounter snapshot: the context draft, vitals, the four note sections, billable
+/// lines, paraclinic records and the lifecycle state/times the read-only visit viewer renders.
+/// </summary>
 public sealed record EncounterEditReadModel(EncounterDraftReadModel Draft, PetVitals? Vitals,
     string History, string Exam, string Diagnosis, string Plan,
     IReadOnlyList<VisitServiceLine> Lines,
     IReadOnlyList<RadiologyRecord> Radiology,
-    IReadOnlyList<LabResult> Labs);
+    IReadOnlyList<LabResult> Labs,
+    VisitState State, DateTimeOffset StartedUtc, DateTimeOffset? CompletedUtc,
+    VisitReason Reason, string? ChiefComplaint, string? InvoiceId);
 
 public sealed record EncounterSummaryReadModel(string EncounterId, string PatientName, string PatientKind,
     string DoctorId, string DoctorShortName, long Subtotal, long Tax, long Total, DateTimeOffset CompletedUtc);
@@ -54,7 +60,9 @@ public sealed class EncounterDraftQueryHandler(IVisitRepository visits, IPetRepo
         var (history, exam) = EncounterNoteSections.Split(visit.DoctorNotes);
         return Result<EncounterEditReadModel>.Ok(new EncounterEditReadModel(draft, visit.Vitals,
             history, exam, visit.Diagnosis ?? string.Empty, visit.TreatmentPlan ?? string.Empty,
-            visit.ServiceLines.ToArray(), visit.Radiology.ToArray(), visit.LabResults.ToArray()));
+            visit.ServiceLines.ToArray(), visit.Radiology.ToArray(), visit.LabResults.ToArray(),
+            visit.State, visit.StartedUtc, visit.CompletedUtc, visit.Reason,
+            visit.ChiefComplaint, visit.InvoiceId));
     }
 }
 

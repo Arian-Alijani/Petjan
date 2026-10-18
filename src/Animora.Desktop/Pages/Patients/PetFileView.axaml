@@ -806,7 +806,16 @@
                                         <DataTemplate x:DataType="patients:VisitRowViewModel">
                                             <Border BorderBrush="{StaticResource Line2Brush}"
                                                     BorderThickness="1" CornerRadius="15" Margin="0,0,0,14"
-                                                    ClipToBounds="True">
+                                                    ClipToBounds="True"
+                                                    Background="{StaticResource PanelBrush}"
+                                                    PointerPressed="OnVisitRowPressed"
+                                                    Tag="{Binding}">
+                                                <Border.Styles>
+                                                    <Style Selector="Border:pointerover">
+                                                        <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+                                                    </Style>
+                                                </Border.Styles>
                                                 <StackPanel>
                                                     <Border Padding="14,12">
                                                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
@@ -1073,6 +1082,49 @@
 
             <!-- ══ DOCS TAB ══ -->
             <StackPanel IsVisible="{Binding IsDocsTab}">
+                <Border Classes="panel" IsVisible="{Binding HasRadiology}">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource LilacBrush}"
+                                      Data="{StaticResource IconScan}" />
+                                <TextBlock Classes="panelhead" Text="رادیولوژی" />
+                            </StackPanel>
+                        </Border>
+                        <Border Padding="16">
+                            <StackPanel Spacing="8">
+                                <ItemsControl ItemsSource="{Binding Radiology}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="patients:RadiologyRowViewModel">
+                                            <Border Padding="13,11" CornerRadius="13" Margin="0,0,0,8"
+                                                    Background="{StaticResource PanelBrush}"
+                                                    BorderBrush="{StaticResource LineBrush}"
+                                                    BorderThickness="1">
+                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                    <Border Width="28" Height="28" CornerRadius="9" Background="White">
+                                                        <Path Classes="icon" Width="14" Height="14"
+                                                              Stroke="{StaticResource LilacBrush}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                              Data="{StaticResource IconScan}" />
+                                                    </Border>
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock FontSize="12.5" FontWeight="ExtraBold">
+                                                            <Run Text="{Binding BodyPart}" /><Run Text=" · " /><Run Text="{Binding DateText}" />
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Result}" FontSize="11.5"
+                                                                   Opacity="0.85" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <Border Classes="panel" IsVisible="{Binding HasLabs}">
                     <StackPanel>
                         <Border Classes="panelhead">
@@ -1080,7 +1132,7 @@
                                 <Path Classes="icon" Width="16" Height="16"
                                       Stroke="{StaticResource Brand600Brush}"
                                       Data="{StaticResource IconFlask}" />
-                                <TextBlock Classes="panelhead" Text="آزمایش‌ها و تصویربرداری" />
+                                <TextBlock Classes="panelhead" Text="آزمایش‌ها" />
                             </StackPanel>
                         </Border>
                         <Border Padding="16">

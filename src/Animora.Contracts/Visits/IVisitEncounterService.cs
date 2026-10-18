@@ -13,6 +13,13 @@ public interface IVisitEncounterService
     /// <summary>Loads the current encounter draft by id (reference <c>S.enc</c>).</summary>
     Task<EncounterDraft> GetAsync(string encounterId);
 
+    /// <summary>
+    /// Loads the complete, read-only snapshot of one visit for the viewer sheet: identity, doctor,
+    /// times, vitals, the four clinical note sections, billable lines and the paraclinic records.
+    /// Returns <see langword="null"/> when the visit does not exist (a deleted row is a null, not a throw).
+    /// </summary>
+    Task<VisitDetail?> GetDetailAsync(string encounterId);
+
     /// <summary>Persists the four vital readings (reference <c>S.enc.vitals</c>).</summary>
     Task SaveVitalsAsync(string encounterId, Vitals vitals);
 

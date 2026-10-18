@@ -112,6 +112,16 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasInsuranceLabel;
 
+    // Who created the invoice and the exact creation instant (audit "who/when").
+    [ObservableProperty]
+    private string _createdByText = string.Empty;
+
+    [ObservableProperty]
+    private string _createdAtText = string.Empty;
+
+    [ObservableProperty]
+    private bool _hasCreator;
+
     [ObservableProperty]
     private string _itemCountText = "۰";
 
@@ -303,6 +313,13 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         InsuranceLabel = detail.InsuranceLabel;
         HasInsuranceLabel = detail.HasInsurance && !string.IsNullOrWhiteSpace(detail.InsuranceLabel);
         ItemCountText = SalePresentation.Fa(detail.Lines.Count);
+
+        // The creation instant comes from the audit's «ایجاد فاکتور» entry — the only place the sheet carries it.
+        var created = detail.Audit.FirstOrDefault(a => a.Kind == InvoiceAuditKind.Created);
+        HasCreator = detail.CreatedBy is { } creator && !string.IsNullOrWhiteSpace(creator.Name)
+            && !string.Equals(creator.UserId, ActorRef.System.UserId, StringComparison.Ordinal);
+        CreatedByText = HasCreator ? "ثبت‌کننده: " + detail.CreatedBy!.Name : string.Empty;
+        CreatedAtText = created is null ? string.Empty : SaleHistoryPresentation.FaText(created.At);
 
         BaseText = SalePresentation.Money(detail.Base);
         DiscountText = "− " + SalePresentation.Money(detail.DiscountAmount);
@@ -754,6 +771,13 @@ public sealed class InvoiceAuditRowViewModel
         Detail = entry.Detail;
         HasDetail = !string.IsNullOrEmpty(entry.Detail);
         Time = SaleHistoryPresentation.FaText(entry.At);
+
+        // The audit "who": a real user, hidden when the row was recorded by the system (or carries no actor).
+        HasActor = entry.Actor is { } actor && !string.IsNullOrWhiteSpace(actor.Name)
+            && !string.Equals(actor.UserId, ActorRef.System.UserId, StringComparison.Ordinal);
+        ActorName = HasActor ? entry.Actor.Name : string.Empty;
+        ActorInitials = HasActor ? entry.Actor.Initials : string.Empty;
+        ActorRole = HasActor ? entry.Actor.RoleLabel : string.Empty;
     }
 
     public string IconKey { get; }
@@ -769,6 +793,18 @@ public sealed class InvoiceAuditRowViewModel
     public bool HasDetail { get; }
 
     public string Time { get; }
+
+    /// <summary>The acting user's display name; empty for a system-recorded entry.</summary>
+    public string ActorName { get; }
+
+    /// <summary>The acting user's initials, for the muted actor chip.</summary>
+    public string ActorInitials { get; }
+
+    /// <summary>The acting user's Persian role label; empty for a system-recorded entry.</summary>
+    public string ActorRole { get; }
+
+    /// <summary>True when a real user performed the action (hidden for <see cref="ActorRef.System"/>).</summary>
+    public bool HasActor { get; }
 }
 
 /// <summary>The audit-kind → icon/tone registry for the viewer's change log.</summary>
