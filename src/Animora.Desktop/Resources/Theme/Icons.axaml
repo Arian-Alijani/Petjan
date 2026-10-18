@@ -83,7 +83,7 @@
     <StreamGeometry x:Key="IconFold">M 0 0 M 24 24 M 0 0 m 11 17 l -5 -5 l 5 -5 M 0 0 m 18 17 l -5 -5 l 5 -5</StreamGeometry>
     <StreamGeometry x:Key="IconArrowUpRight">M 0 0 M 24 24 M 7 7 h 10 v 10 M 7 17 L 17 7</StreamGeometry>
     <StreamGeometry x:Key="IconMoon">M 0 0 M 24 24 M 12 3 a 6 6 0 0 0 9 9 a 9 9 0 1 1 -9 -9 Z</StreamGeometry>
-    <StreamGeometry x:Key="IconBell">M 0 0 M 24 24 M 6 8 a 6 6 0 0 1 12 0 c 0 7 3 9 3 9 H 3 s 3 -2 3 -9 M 10.3 21 a 1.94 1.94 0 0 0 3.4 0</StreamGeometry>
+    <StreamGeometry x:Key="IconBell">M 0 0 M 24 24 M 10.268 21 a 2 2 0 0 0 3.464 0 M 3.262 15.326 A 1 1 0 0 0 4 17 h 16 a 1 1 0 0 0 .74 -1.673 C 19.41 13.956 18 12.499 18 8 A 6 6 0 0 0 6 8 c 0 4.499 -1.411 5.956 -2.738 7.326</StreamGeometry>
     <StreamGeometry x:Key="IconTruck">M 0 0 M 24 24 M 14 18 V 6 a 2 2 0 0 0 -2 -2 H 4 a 2 2 0 0 0 -2 2 v 11 a 1 1 0 0 0 1 1 h 2 M 15 18 H 9 M 19 18 h 2 a 1 1 0 0 0 1 -1 v -3.65 a 1 1 0 0 0 -.22 -.624 l -3.48 -4.35 A 1 1 0 0 0 17.52 8 H 14 M 15 18 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0 M 5 18 a 2 2 0 1 0 4 0 a 2 2 0 1 0 -4 0</StreamGeometry>
 
     <!-- paw-print -->
@@ -91,6 +91,9 @@
 
     <!-- triangle-alert -->
     <StreamGeometry x:Key="IconAlert">M 0 0 M 24 24 M 0 0 m 21.73 18 l -8 -14 a 2 2 0 0 0 -3.48 0 l -8 14 A 2 2 0 0 0 4 21 h 16 a 2 2 0 0 0 1.73 -3 M 12 9 v 4 M 12 17 h .01</StreamGeometry>
+
+    <!-- siren: the «هشدارهای فوری» card mark (urgent, not informational) -->
+    <StreamGeometry x:Key="IconSiren">M 0 0 M 24 24 M 7 18 v -6 a 5 5 0 1 1 10 0 v 6 M 5 21 a 1 1 0 0 0 1 1 h 12 a 1 1 0 0 0 1 -1 v -1 a 2 2 0 0 0 -2 -2 H 7 a 2 2 0 0 0 -2 2 z M 21 12 h 1 M 18.5 4.5 L 18 5 M 2 12 h 1 M 12 2 v 1 M 0 0 m 4.929 4.929 l .707 .707 M 12 12 v 6</StreamGeometry>
     <StreamGeometry x:Key="IconWallet">M 0 0 M 24 24 M 19 7 V 4 a 1 1 0 0 0 -1 -1 H 5 a 2 2 0 0 0 0 4 h 15 a 1 1 0 0 1 1 1 v 4 h -3 a 2 2 0 0 0 0 4 h 3 a 1 1 0 0 0 1 -1 v -2 a 1 1 0 0 0 -1 -1 M 3 5 v 14 a 2 2 0 0 0 2 2 h 15 a 1 1 0 0 0 1 -1 v -4</StreamGeometry>
     <StreamGeometry x:Key="IconCoins">M 0 0 M 24 24 M 2 8 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0 M 18.09 10.37 A 6 6 0 1 1 10.34 18 M 7 6 h 1 v 4 M 0 0 m 16.71 13.88 l .7 .71 l -2.82 2.82</StreamGeometry>
 
