@@ -1,0 +1,38 @@
+@page "/admin/backup"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminBackup Backups
+<h1>@Loc.T("backup.title")</h1><FormError Code="@Error" />
+<p class="hint">@Loc.T("backup.hint")</p>
+@if (Created is not null) { <p class="notice" role="status">@Loc.T("backup.created"): <code dir="ltr">@Created.FileName</code> (@FormatSize(Created.SizeBytes))</p> }
+<EditForm Model="Form" FormName="create-backup" method="post" OnSubmit="Create">
+<ConfirmCheckbox Name="Form.Confirmed" /><button type="submit">@Loc.T("backup.create")</button>
+<p class="hint">@Loc.T("backup.busy")</p></EditForm>
+<h2>@Loc.T("backup.list")</h2>
+@if (Files.Count == 0) { <p>@Loc.T("backup.empty")</p> } else {
+<div class="table-wrap"><table><caption>@Loc.T("backup.list")</caption><thead><tr><th scope="col">@Loc.T("backup.file")</th><th scope="col">@Loc.T("backup.size")</th><th scope="col">@Loc.T("backup.time")</th><th scope="col">@Loc.T("backup.download")</th></tr></thead><tbody>
+@foreach (var f in Files) {
+<tr><td dir="ltr">@f.FileName</td><td>@FormatSize(f.SizeBytes)</td><td dir="ltr">@f.CreatedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+<td><form method="post" action="/admin/backup/download"><AntiforgeryToken /><input type="hidden" name="file" value="@f.FileName" /><button type="submit">@Loc.T("backup.download")</button></form></td></tr>
+}
+</tbody></table></div>
+}
+@code {
+    [SupplyParameterFromForm] public BackupRequestForm? Form { get; set; }
+    private BackupReceipt? Created;
+    private IReadOnlyList<BackupReceipt> Files=[];
+    protected override async Task OnInitializedAsync() { Form??=new(); await Load(); }
+    private async Task Load() { var captured=Error; Files=Capture(await Backups.ListAsync(Cancellation))??[]; Error??=captured; }
+    private async Task Create(EditContext _)
+    {
+        Created=Capture(await Backups.CreateAsync(Form!,Cancellation));
+        var failure=Error; await Load(); Error=failure??Error;
+    }
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1L << 30 => (bytes / (double)(1L << 30)).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " GB",
+        >= 1L << 20 => (bytes / (double)(1L << 20)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + " MB",
+        >= 1L << 10 => (bytes / (double)(1L << 10)).ToString("F0", System.Globalization.CultureInfo.InvariantCulture) + " KB",
+        _ => bytes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " B",
+    };
+}

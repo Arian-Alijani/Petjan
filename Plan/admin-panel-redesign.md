@@ -143,7 +143,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T5 — قابلیت بکاپ کامل دیتابیس (سرور + UI) `[ ]`
+### T5 — قابلیت بکاپ کامل دیتابیس (سرور + UI) `[x]`
 **وضعیت:** هیچ قابلیتی وجود ندارد — باید از صفر ساخته شود.
 **ابتدا بررسی هدفمند:** رشته‌ی اتصال و provider را بفهم:
 `grep -rn "ConnectionString\|UseNpgsql\|DatabaseOptions" src/Animora.Server/Program.cs src/Animora.Persistence.PostgreSql/Options` (فایل `DatabaseOptions` قبلاً در `AdminStatusSnapshotSource` استفاده شده).

@@ -226,6 +226,7 @@ if (app.Services.GetRequiredService<IOptions<ServerOptions>>().Value.AuthCache.T
 // Authentication endpoints (S04) — /auth/login|refresh|logout|device/register under the `auth` rate limit.
 app.MapStaticAssets();
 app.MapAdminAccountEndpoints();
+app.MapAdminBackupEndpoints();
 // App and route pages live in the same RCL, already included by MapRazorComponents.
 app.MapRazorComponents<Animora.Web.Admin.App>().AddInteractiveServerRenderMode()
     .RequireAuthorization(OperatorCookie.Policy).RequireRateLimiting(RateLimitPolicies.Operator);

@@ -26,6 +26,7 @@ public static class AdminMessages
         [ErrorCodes.ValidationFailed.Code]="فیلدهای فرم را بررسی و دوباره تلاش کنید.",
         [ErrorCodes.UsernameExists.Code]="این نام کاربری قبلاً در همین کلینیک ثبت شده است.",
         [ErrorCodes.PasswordPolicyViolation.Code]="رمز عبور سیاست امنیتی را رعایت نمی‌کند (حداقل ۸ کاراکتر، شامل حرف و عدد).",
+        [ErrorCodes.StoreUnavailable.Code]="بکاپ ساخته نشد: ابزار pg_dump روی سرور در دسترس نیست یا اتصال به دیتابیس/نوشتن در پوشهٔ بکاپ ناموفق بود. تنظیمات Admin:PgDumpPath و Admin:BackupDirectory را بررسی کنید.",
         [ErrorCodes.NotFound.Code]="مورد درخواستی پیدا نشد.",
         [ErrorCodes.PermissionDenied.Code]="مجوز انجام این عملیات را ندارید.",
     };

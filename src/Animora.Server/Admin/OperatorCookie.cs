@@ -7,6 +7,11 @@ internal sealed class AdminOptions
 {
     public int SessionMinutes { get; set; }=30;
     public bool RequireHttps { get; set; }=true;
+    /// <summary>Directory the operator-triggered database backups are written to (<c>Admin:BackupDirectory</c>).</summary>
+    public string BackupDirectory { get; set; }=OperatingSystem.IsWindows()
+        ?Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"Animora","backups"):"/var/backups/animora";
+    /// <summary>pg_dump executable (<c>Admin:PgDumpPath</c>); the bare name is resolved through PATH.</summary>
+    public string PgDumpPath { get; set; }="pg_dump";
 }
 internal static class OperatorCookie
 {

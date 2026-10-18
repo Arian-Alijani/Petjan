@@ -48,6 +48,8 @@ internal static class AdminServiceCollectionExtensions
         services.AddScoped<IAdminStatusReader,AdminStatusReader>();services.AddScoped<IAdminLiveLog,AdminLiveLogAdapter>();services.AddScoped<IAdminTenantQueries,AdminTenantQueries>();
         services.AddScoped<IAdminSubscriptionCommands,AdminSubscriptionAdapter>();services.AddScoped<IAdminPlanCommands,AdminPlanAdapter>();
         services.AddScoped<IAdminLicenseCommands,AdminLicenseAdapter>();
-        services.AddScoped<IAdminStaffQueries,AdminStaffAdapter>();services.AddScoped<IAdminStaffCommands,AdminStaffCommandsAdapter>();services.AddScoped<IAdminProductQueries,AdminProductAdapter>();return services;
+        services.AddScoped<IAdminStaffQueries,AdminStaffAdapter>();services.AddScoped<IAdminStaffCommands,AdminStaffCommandsAdapter>();services.AddScoped<IAdminProductQueries,AdminProductAdapter>();
+        services.AddScoped<AdminBackupAdapter>();services.AddScoped<IAdminBackup>(sp=>sp.GetRequiredService<AdminBackupAdapter>());
+        return services;
     }
 }

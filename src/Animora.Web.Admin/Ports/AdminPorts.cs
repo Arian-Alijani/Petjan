@@ -23,6 +23,13 @@ public interface IAdminStaffCommands
     /// <summary>Enables or disables one clinic user. Disabling ends the user's live sessions.</summary>
     Task<Result<MutationReceipt>> SetStaffActiveAsync(string tenantId,SetStaffActiveForm form,CancellationToken ct=default);
 }
+/// <summary>Operator-only full database backup (pg_dump). Files stay on the server; the download is a separate antiforgery-protected POST.</summary>
+public interface IAdminBackup
+{
+    Task<Result<IReadOnlyList<BackupReceipt>>> ListAsync(CancellationToken ct=default);
+    /// <summary>Creates a new full backup. <see cref="BackupRequestForm.Confirmed"/> is mandatory.</summary>
+    Task<Result<BackupReceipt>> CreateAsync(BackupRequestForm form,CancellationToken ct=default);
+}
 public interface IAdminProductQueries
 {
     Task<Result<ProductCatalog>> ListAsync(string tenantId,ProductListQuery query,CancellationToken ct=default);

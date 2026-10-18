@@ -31,6 +31,8 @@ public sealed record ProductSummary(string Id,string Sku,string Name,string Cate
 public sealed record CategoryOption(string Id,string Name);
 public sealed record ProductListQuery(string? Search=null,string? CategoryId=null,string? Stock=null,long? MinPrice=null,long? MaxPrice=null,string? Sort=null,int Page=1,int PageSize=50);
 public sealed record ProductCatalog(AdminPage<ProductSummary> Page,IReadOnlyList<CategoryOption> Categories);
+public sealed class BackupRequestForm { public bool Confirmed { get; set; } }
+public sealed record BackupReceipt(string FileName,long SizeBytes,DateTimeOffset CreatedUtc);
 public sealed record MutationReceipt(string? TemporaryPassword=null,string? TenantId=null);
 public sealed class SubscriptionActionForm
 {
