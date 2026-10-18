@@ -1,0 +1,357 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sales="using:Animora.Desktop.Pages.Sales"
+             x:Class="Animora.Desktop.Pages.Sales.SaleInvoiceLedgerView"
+             x:Name="Root"
+             x:DataType="sales:SaleInvoiceLedgerViewModel"
+             FlowDirection="RightToLeft">
+
+    <!-- «فاکتور» tab — the invoice register. Reads top-down as one scannable table: who the invoice belongs to
+         first, then the invoice number + its source, the date, the patient, the money triplet and the state.
+         The row itself opens the unified invoice sheet; edit/delete sit in the last column and appear only for a
+         draft (the only state the backend lets change). -->
+
+    <UserControl.Styles>
+        <!-- table header cell -->
+        <Style Selector="TextBlock.led-th">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="12,11" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- body cell -->
+        <Style Selector="TextBlock.led-td">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="12,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <!-- the whole row is one click target that opens the invoice sheet -->
+        <Style Selector="Button.led-row">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="MinHeight" Value="58" />
+        </Style>
+        <Style Selector="Button.led-row /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.led-row:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+
+        <!-- row action (edit / delete) — quiet until hovered, so the table stays calm -->
+        <Style Selector="Button.led-act">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.led-act:pointerover">
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="Button.led-act.danger:pointerover">
+            <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
+        </Style>
+
+        <!-- virtualized body: MaxHeight is required, otherwise the page-level ScrollViewer measures with an
+             infinite height and every row is realized (PERFORMANCE.md §6) -->
+        <Style Selector="ListBox.led-body">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MaxHeight" Value="620" />
+        </Style>
+        <Style Selector="ListBox.led-body ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.led-body ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.led-body ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="14">
+
+        <!-- ═══ toolbar ═══ -->
+        <Border Classes="hy-toolbar" Margin="0">
+            <StackPanel Spacing="12">
+
+                <!-- tier 1 · search + the register summary -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                    <Border Grid.Column="0" Classes="hy-search" MaxWidth="460" HorizontalAlignment="Left">
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
+                                  VerticalAlignment="Center"
+                                  Stroke="{StaticResource MutedBrush}"
+                                  Data="{StaticResource IconSearch}" IsHitTestVisible="False" />
+                            <TextBox Grid.Column="1" Classes="hy-search" Text="{Binding SearchText}"
+                                     PlaceholderText="{Binding SearchPlaceholder}"
+                                     MaxLength="80" />
+                            <Button Grid.Column="2" Classes="hy-search-clear"
+                                    IsVisible="{Binding HasSearchValue}"
+                                    Command="{Binding ClearSearchCommand}">
+                                <Path Classes="icon" Width="11" Height="11"
+                                      Stroke="{StaticResource Brand700Brush}"
+                                      Data="{StaticResource IconX}" />
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16"
+                                VerticalAlignment="Center">
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="جمع فاکتورها" FontSize="10.5" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="3">
+                                <TextBlock Text="{Binding TotalText}" FontSize="13"
+                                           FontWeight="ExtraBold" Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="تومان" FontSize="10.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           VerticalAlignment="Bottom" Margin="0,0,0,1" />
+                            </StackPanel>
+                        </StackPanel>
+                        <Border Width="1" Height="26" Background="{StaticResource LineBrush}" />
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="ماندهٔ دریافتنی" FontSize="10.5" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" />
+                            <StackPanel Orientation="Horizontal" Spacing="3">
+                                <TextBlock Text="{Binding DueText}" FontSize="13"
+                                           FontWeight="ExtraBold"
+                                           Foreground="{StaticResource DangerBrush}" />
+                                <TextBlock Text="تومان" FontSize="10.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource MutedBrush}"
+                                           VerticalAlignment="Bottom" Margin="0,0,0,1" />
+                            </StackPanel>
+                        </StackPanel>
+                        <Border Width="1" Height="26" Background="{StaticResource LineBrush}" />
+                        <StackPanel Spacing="1">
+                            <TextBlock Text="باز" FontSize="10.5" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}" />
+                            <TextBlock Text="{Binding OpenCountText}" FontSize="13"
+                                       FontWeight="ExtraBold" Foreground="{StaticResource WarnBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- tier 2 · state chips + count -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"
+                      Margin="0,12,0,0">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7"
+                                Margin="0,-12,0,0" Padding="0,12,0,0"
+                                BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+                        <ItemsControl ItemsSource="{Binding Filters}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="7" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="sales:SaleInvoiceLedgerFilterViewModel">
+                                    <Button Classes="hy-chip" Classes.on="{Binding IsActive}"
+                                            Command="{Binding #Root.((sales:SaleInvoiceLedgerViewModel)DataContext).SetFilterCommand}"
+                                            CommandParameter="{Binding Key}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                            <Border Background="{StaticResource Line2Brush}"
+                                                    CornerRadius="8" Padding="6,0"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding CountText}" FontSize="10.5"
+                                                           FontWeight="Bold"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1" Text="{Binding SummaryText}" FontSize="12"
+                               FontWeight="SemiBold" Foreground="{StaticResource MutedBrush}"
+                               VerticalAlignment="Center" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ register table ═══ -->
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource Line2Brush}"
+                BorderThickness="1" CornerRadius="14" ClipToBounds="True"
+                BoxShadow="{StaticResource ShadowCard}">
+            <StackPanel>
+
+                <Grid ColumnDefinitions="2.4*,1.3*,1*,1*,1.25*,1.15*,1.15*,1.05*,86"
+                      Background="{StaticResource TableHeadBrush}" IsVisible="{Binding HasRows}">
+                    <TextBlock Grid.Column="0" Classes="led-th" Text="مشتری" />
+                    <TextBlock Grid.Column="1" Classes="led-th" Text="شمارهٔ فاکتور" />
+                    <TextBlock Grid.Column="2" Classes="led-th" Text="تاریخ" />
+                    <TextBlock Grid.Column="3" Classes="led-th" Text="حیوان" />
+                    <TextBlock Grid.Column="4" Classes="led-th" Text="مبلغ کل" />
+                    <TextBlock Grid.Column="5" Classes="led-th" Text="پرداخت‌شده" />
+                    <TextBlock Grid.Column="6" Classes="led-th" Text="مانده" />
+                    <TextBlock Grid.Column="7" Classes="led-th" Text="وضعیت" />
+                    <TextBlock Grid.Column="8" Classes="led-th" Text="عملیات"
+                               HorizontalAlignment="Center" />
+                </Grid>
+
+                <!-- empty state -->
+                <StackPanel IsVisible="{Binding IsEmpty}" Spacing="10" Margin="20,54">
+                    <Border Width="60" Height="60" CornerRadius="18"
+                            Background="{StaticResource Brand50Brush}" HorizontalAlignment="Center">
+                        <Path Classes="icon" Width="26" Height="26"
+                              Stroke="{StaticResource Brand700Brush}"
+                              Data="{StaticResource IconReceipt}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="فاکتوری با این مشخصات پیدا نشد" FontSize="14.5" FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" HorizontalAlignment="Center" />
+                    <TextBlock Text="فیلتر وضعیت را عوض کنید یا عبارت جستجو را پاک کنید."
+                               FontSize="12.5" Foreground="{StaticResource MutedBrush}"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+
+                <ListBox Classes="led-body" ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="sales:SaleInvoiceLedgerRowViewModel">
+                            <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
+                                <Grid ColumnDefinitions="2.4*,1.3*,1*,1*,1.25*,1.15*,1.15*,1.05*,86">
+
+                                    <!-- the row opens the invoice sheet; it spans every column but the actions -->
+                                    <Button Grid.Column="0" Grid.ColumnSpan="8" Classes="led-row"
+                                            Command="{Binding OpenCommand}"
+                                            ToolTip.Tip="باز کردن فاکتور">
+                                        <Grid ColumnDefinitions="2.4*,1.3*,1*,1*,1.25*,1.15*,1.15*,1.05*"
+                                              ColumnSpacing="0">
+
+                                            <!-- who: avatar + owner + phone (the first thing the eye lands on) -->
+                                            <Grid Grid.Column="0" ColumnDefinitions="Auto,*"
+                                                  ColumnSpacing="10" Margin="12,9">
+                                                <Border Grid.Column="0" Width="32" Height="32"
+                                                        CornerRadius="10"
+                                                        Background="{Binding AvatarBrush}"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Initial}" FontSize="12"
+                                                               FontWeight="ExtraBold" Foreground="White"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Spacing="1"
+                                                            VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CustomerName}" FontSize="13"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource InkBrush}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                                        <Path Classes="icon" Width="11" Height="11"
+                                                              Stroke="{StaticResource Muted2Brush}"
+                                                              Data="{StaticResource IconPhone}"
+                                                              VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding Phone}" FontSize="11.5"
+                                                                   Foreground="{StaticResource MutedBrush}"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- invoice number + where the sale came from -->
+                                            <StackPanel Grid.Column="1" Spacing="3" Margin="12,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Number}" FontSize="12.5"
+                                                           FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource Brand700Brush}" />
+                                                <Border Background="{StaticResource Bg2Brush}"
+                                                        CornerRadius="7" Padding="7,1"
+                                                        HorizontalAlignment="Left">
+                                                    <TextBlock Text="{Binding SourceLabel}" FontSize="10"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Column="2" Classes="led-td"
+                                                       Text="{Binding DateText}" />
+
+                                            <TextBlock Grid.Column="3" Classes="led-td"
+                                                       Text="{Binding PetName}" />
+
+                                            <StackPanel Grid.Column="4" Spacing="1" Margin="12,0"
+                                                        VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding TotalText}" FontSize="13"
+                                                           FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Text="تومان" FontSize="9.5" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Muted2Brush}" />
+                                            </StackPanel>
+
+                                            <TextBlock Grid.Column="5" Classes="led-td"
+                                                       Text="{Binding PaidText}"
+                                                       Foreground="{StaticResource OkBrush}" />
+
+                                            <TextBlock Grid.Column="6" Classes="led-td"
+                                                       Text="{Binding DueText}"
+                                                       FontWeight="Bold"
+                                                       Foreground="{Binding DueBrush}" />
+
+                                            <Border Grid.Column="7" CornerRadius="20" Padding="9,3"
+                                                    Margin="12,0" HorizontalAlignment="Left"
+                                                    VerticalAlignment="Center"
+                                                    Background="{Binding StateBackgroundBrush}">
+                                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                                    <Ellipse Width="6" Height="6"
+                                                             Fill="{Binding StateBrush}"
+                                                             VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding StateLabel}" FontSize="11"
+                                                               FontWeight="Bold"
+                                                               Foreground="{Binding StateBrush}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </Button>
+
+                                    <!-- actions: only on a draft, the one state that can still change -->
+                                    <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="5"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                IsVisible="{Binding IsDraft}">
+                                        <Button Classes="led-act" ToolTip.Tip="ویرایش فاکتور"
+                                                Command="{Binding EditCommand}">
+                                            <Path Classes="icon" Width="13" Height="13"
+                                                  Stroke="{StaticResource Brand700Brush}"
+                                                  Data="{StaticResource IconEdit}" />
+                                        </Button>
+                                        <Button Classes="led-act danger" ToolTip.Tip="حذف فاکتور"
+                                                Command="{Binding DeleteCommand}">
+                                            <Path Classes="icon" Width="12" Height="12"
+                                                  Stroke="{StaticResource DangerBrush}"
+                                                  Data="{StaticResource IconTrash}" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

@@ -101,6 +101,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
         History = new SaleHistoryViewModel(service, historyOpener, NotifyInvoicesChanged, toast);
+        Invoices = new SaleInvoiceLedgerViewModel(service, historyOpener, toast, dialogs, NotifyInvoicesChanged);
         Rates = new ServiceRatesViewModel(serviceRates, toast, dialogs, changes);
 
         UseLoadStatus(ReloadPageAsync);
@@ -112,10 +113,18 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         // The page is a singleton for the app's lifetime, so the subscription is intentionally never released.
         _ = changes.Subscribe(domain =>
         {
-            if (IsCurrentPage && IsHistoryTab
-                && domain is DataDomain.History or DataDomain.Sales or DataDomain.Cashier)
+            if (!IsCurrentPage || domain is not (DataDomain.History or DataDomain.Sales or DataDomain.Cashier))
+            {
+                return;
+            }
+
+            if (IsHistoryTab)
             {
                 History.Refresh();
+            }
+            else if (IsInvoicesTab)
+            {
+                Invoices.Refresh();
             }
         });
     }
@@ -127,17 +136,25 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     /// </summary>
     public SaleHistoryViewModel History { get; }
 
+    /// <summary>
+    /// The «فاکتور» tab's ViewModel — the invoice register (every invoice with its customer, source, date,
+    /// money triplet and state, plus edit/delete for an open draft). Loads lazily on first activation.
+    /// </summary>
+    public SaleInvoiceLedgerViewModel Invoices { get; }
+
     /// <summary>The «نرخ خدمات» tab's ViewModel (clinic + boarding service rates); loads lazily on first activation.</summary>
     public ServiceRatesViewModel Rates { get; }
 
     public bool IsCashierTab => _workspace == "cashier";
 
+    public bool IsInvoicesTab => _workspace == "invoices";
+
     public bool IsHistoryTab => _workspace == "history";
 
     public bool IsRatesTab => _workspace == "rates";
 
-    /// <summary>True on the tabs whose toolbar sits flush under the tab row (history, rates).</summary>
-    public bool IsFlushTab => IsHistoryTab || IsRatesTab;
+    /// <summary>True on the tabs whose toolbar sits flush under the tab row (invoices, history, rates).</summary>
+    public bool IsFlushTab => IsInvoicesTab || IsHistoryTab || IsRatesTab;
 
     public ObservableCollection<SaleSegmentViewModel> Segments { get; } = [];
 
@@ -357,11 +374,16 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
         _workspace = key;
         OnPropertyChanged(nameof(IsCashierTab));
+        OnPropertyChanged(nameof(IsInvoicesTab));
         OnPropertyChanged(nameof(IsHistoryTab));
         OnPropertyChanged(nameof(IsRatesTab));
         OnPropertyChanged(nameof(IsFlushTab));
 
-        if (IsHistoryTab)
+        if (IsInvoicesTab)
+        {
+            Invoices.EnsureLoaded();
+        }
+        else if (IsHistoryTab)
         {
             History.EnsureLoaded();
         }
@@ -710,6 +732,9 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             RenderSidebar();
             await RefreshKpisAsync();
 
+            // The register tab (if it was ever opened) shows the same invoices — keep it in step.
+            Invoices.Refresh();
+
             if (currentId is not null)
             {
                 var detail = await _service.GetInvoiceAsync(currentId);
@@ -760,6 +785,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     {
         if (!IsLoadInFlight) _ = ReloadPageAsync();
         if (IsHistoryTab) History.Refresh();
+        if (IsInvoicesTab) Invoices.Refresh();
     }
 
     private bool _pageLoaded;
