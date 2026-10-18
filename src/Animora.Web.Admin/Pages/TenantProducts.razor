@@ -14,13 +14,16 @@
 </select></label>
 <label>@Loc.T("prod.minPrice") <input name="minPrice" type="number" min="0" step="1" value="@MinPrice" dir="ltr" /></label>
 <label>@Loc.T("prod.maxPrice") <input name="maxPrice" type="number" min="0" step="1" value="@MaxPrice" dir="ltr" /></label>
+<label>@Loc.T("prod.sort") <select name="sort">
+@foreach (var s in new[] { "name", "sales", "stock-asc", "price-desc" }) { <option value="@s" selected="@(string.Equals(Sort ?? "name", s, StringComparison.Ordinal))">@Loc.T("prod.sort." + s)</option> }
+</select></label>
 <button type="submit">@Loc.T("common.filter")</button></div></form>
 @if (Catalog is not null) {
 <table><caption>@Loc.T("prod.caption")</caption><thead><tr><th scope="col">@Loc.T("prod.sku")</th><th scope="col">@Loc.T("common.name")</th><th scope="col">@Loc.T("prod.category")</th>
-<th scope="col">@Loc.T("prod.kind")</th><th scope="col">@Loc.T("prod.price")</th><th scope="col">@Loc.T("prod.onHand")</th><th scope="col">@Loc.T("prod.reorder")</th><th scope="col">@Loc.T("prod.stock")</th></tr></thead><tbody>
+<th scope="col">@Loc.T("prod.kind")</th><th scope="col">@Loc.T("prod.price")</th><th scope="col">@Loc.T("prod.sales")</th><th scope="col">@Loc.T("prod.onHand")</th><th scope="col">@Loc.T("prod.reorder")</th><th scope="col">@Loc.T("prod.stock")</th></tr></thead><tbody>
 @foreach (var p in Catalog.Page.Items) {
 <tr><td dir="ltr">@p.Sku</td><td>@p.Name @if (!p.Active) { <span class="badge">@Loc.T("prod.inactive")</span> }</td><td>@p.CategoryName</td><td>@p.Kind</td>
-<td dir="ltr">@p.PriceMinor.ToString("N0") @p.Currency</td><td dir="ltr">@p.OnHand.ToString("0.###")</td><td dir="ltr">@p.ReorderLevel.ToString("0.###")</td>
+<td dir="ltr">@p.PriceMinor.ToString("N0") @p.Currency</td><td dir="ltr">@p.SalesQty.ToString("0.###")</td><td dir="ltr">@p.OnHand.ToString("0.###")</td><td dir="ltr">@p.ReorderLevel.ToString("0.###")</td>
 <td><StatusBadge Status="@Loc.T("prod.stock." + p.StockState)" /></td></tr>
 }
 </tbody></table><Pager Page="Catalog.Page.Page" PageSize="Catalog.Page.PageSize" Total="Catalog.Page.Total" BaseUrl="@FilterUrl" />
@@ -32,9 +35,10 @@
     [SupplyParameterFromQuery] public string? Stock { get; set; }
     [SupplyParameterFromQuery] public long? MinPrice { get; set; }
     [SupplyParameterFromQuery] public long? MaxPrice { get; set; }
+    [SupplyParameterFromQuery] public string? Sort { get; set; }
     [SupplyParameterFromQuery] public int Page { get; set; }=1;
     [SupplyParameterFromQuery] public int PageSize { get; set; }=50;
     private ProductCatalog? Catalog;
-    private string FilterUrl=>$"/admin/tenants/{Id}/products?search={Uri.EscapeDataString(Search??"")}&categoryId={Uri.EscapeDataString(CategoryId??"")}&stock={Uri.EscapeDataString(Stock??"")}&minPrice={MinPrice}&maxPrice={MaxPrice}";
-    protected override async Task OnParametersSetAsync()=>Catalog=Capture(await Queries.ListAsync(Id,new(Search,CategoryId,Stock,MinPrice,MaxPrice,Page,PageSize),Cancellation));
+    private string FilterUrl=>$"/admin/tenants/{Id}/products?search={Uri.EscapeDataString(Search??"")}&categoryId={Uri.EscapeDataString(CategoryId??"")}&stock={Uri.EscapeDataString(Stock??"")}&minPrice={MinPrice}&maxPrice={MaxPrice}&sort={Uri.EscapeDataString(Sort??"")}";
+    protected override async Task OnParametersSetAsync()=>Catalog=Capture(await Queries.ListAsync(Id,new(Search,CategoryId,Stock,MinPrice,MaxPrice,Sort,Page,PageSize),Cancellation));
 }

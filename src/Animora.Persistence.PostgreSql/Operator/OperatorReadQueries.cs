@@ -10,9 +10,10 @@ public sealed record OperatorPage<T>(IReadOnlyList<T> Items,int Page,int Size,lo
 public sealed record OperatorTenantDetail(Tenant Tenant,Subscription? Subscription,int Seats,int Devices,int Licenses,long GrantSequence,IReadOnlyList<SubscriptionEvent> Events);
 public sealed record OperatorStaffRow(string MembershipId,string UserId,string Name,string UserName,StaffRole Role,bool Active,int Devices);
 public sealed record OperatorProductRow(string Id,string Sku,string Name,string CategoryId,string CategoryName,ProductKind Kind,bool Active,bool TrackStock,
-    long PriceMinor,string Currency,decimal OnHand,decimal ReorderLevel,string StockState);
+    long PriceMinor,string Currency,decimal OnHand,decimal ReorderLevel,string StockState,decimal SalesQty);
 public sealed record OperatorCategoryRow(string Id,string Name);
-public sealed record OperatorProductFilter(string? Search,string? CategoryId,string? Stock,long? MinPrice,long? MaxPrice);
+/// <summary>Product filter for the operator console. <paramref name="Sort"/>: <c>name</c> (default), <c>sales</c> (best-selling first), <c>stock-asc</c> (lowest stock first), <c>price-desc</c>.</summary>
+public sealed record OperatorProductFilter(string? Search,string? CategoryId,string? Stock,long? MinPrice,long? MaxPrice,string? Sort=null);
 public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock)
 {
     public Task<bool> SessionValidAsync(string id, string stamp, CancellationToken ct = default) => db.Accounts.AsNoTracking()
@@ -70,6 +71,8 @@ public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock
     }
     /// <summary>Stock-state buckets accepted by <see cref="ProductsAsync"/>.</summary>
     public static readonly string[] StockStates=["out","low","ok"];
+    /// <summary>Sort keys accepted by <see cref="ProductsAsync"/> (empty/unknown = by name).</summary>
+    public static readonly string[] ProductSorts=["name","sales","stock-asc","price-desc"];
     /// <summary>One clinic's staff roster (memberships joined to users through a tenant-bound context), or <see langword="null"/> when the tenant does not exist.</summary>
     public async Task<OperatorPage<OperatorStaffRow>?> StaffAsync(string tenantId,string? role,string? search,int page,int size,CancellationToken ct)
     {
@@ -105,7 +108,9 @@ public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock
         if(filter.MaxPrice is { } max) products=products.Where(p=>p.DefaultSalePrice.Minor<=max);
         var projected=products.Select(p=>new { p.Id,p.Sku,p.Name,p.CategoryId,p.Kind,p.IsActive,p.TrackStock,
             Price=p.DefaultSalePrice.Minor,Currency=p.DefaultSalePrice.Currency,Reorder=p.ReorderLevel.Value,
-            OnHand=tenant.StockMovementSet.Where(m=>m.ProductId==p.Id).Sum(m=>(decimal?)m.Quantity.Value)??0m });
+            OnHand=tenant.StockMovementSet.Where(m=>m.ProductId==p.Id).Sum(m=>(decimal?)m.Quantity.Value)??0m,
+            // Units sold = absolute value of the (negatively-signed) Sale ledger entries, so best-selling ranking is ledger-derived (never stored).
+            SalesQty=-(tenant.StockMovementSet.Where(m=>m.ProductId==p.Id&&m.Kind==MovementKind.Sale).Sum(m=>(decimal?)m.Quantity.Value)??0m) });
         projected=filter.Stock switch
         {
             "out"=>projected.Where(x=>x.TrackStock&&x.OnHand<=0m),
@@ -114,12 +119,19 @@ public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock
             _=>projected,
         };
         long total=await projected.LongCountAsync(ct).ConfigureAwait(false);
-        var items=await projected.OrderBy(x=>x.Name).ThenBy(x=>x.Id).Skip((page-1)*size).Take(size).ToListAsync(ct).ConfigureAwait(false);
+        var ordered=filter.Sort switch
+        {
+            "sales"=>projected.OrderByDescending(x=>x.SalesQty).ThenBy(x=>x.Name).ThenBy(x=>x.Id),
+            "stock-asc"=>projected.OrderBy(x=>x.OnHand).ThenBy(x=>x.Name).ThenBy(x=>x.Id),
+            "price-desc"=>projected.OrderByDescending(x=>x.Price).ThenBy(x=>x.Name).ThenBy(x=>x.Id),
+            _=>projected.OrderBy(x=>x.Name).ThenBy(x=>x.Id),
+        };
+        var items=await ordered.Skip((page-1)*size).Take(size).ToListAsync(ct).ConfigureAwait(false);
         var categories=await tenant.ProductCategorySet.AsNoTracking().Where(c=>c.TenantId==tenantId).OrderBy(c=>c.SortOrder).ThenBy(c=>c.DisplayName)
             .Take(500).Select(c=>new OperatorCategoryRow(c.Id,c.DisplayName)).ToListAsync(ct).ConfigureAwait(false);
         var names=categories.ToDictionary(c=>c.Id,c=>c.Name);
         var rows=items.Select(x=>new OperatorProductRow(x.Id,x.Sku,x.Name,x.CategoryId,names.GetValueOrDefault(x.CategoryId,""),x.Kind,x.IsActive,x.TrackStock,x.Price,x.Currency,
-            x.OnHand,x.Reorder,!x.TrackStock?"untracked":x.OnHand<=0m?"out":x.OnHand<=x.Reorder?"low":"ok")).ToArray();
+            x.OnHand,x.Reorder,!x.TrackStock?"untracked":x.OnHand<=0m?"out":x.OnHand<=x.Reorder?"low":"ok",x.SalesQty)).ToArray();
         return (new OperatorPage<OperatorProductRow>(rows,page,size,total),categories);
     }
 }

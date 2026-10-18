@@ -27,9 +27,9 @@ public sealed record LicenseKeySet(IReadOnlyList<PublicLicenseKey> Keys);
 public sealed record StaffAccountSummary(string MembershipId,string UserId,string Name,string UserName,string Role,bool Active,int Devices);
 public sealed record StaffListQuery(string? Role=null,string? Search=null,int Page=1,int PageSize=50);
 public sealed record ProductSummary(string Id,string Sku,string Name,string CategoryName,string Kind,bool Active,long PriceMinor,string Currency,
-    decimal OnHand,decimal ReorderLevel,string StockState);
+    decimal OnHand,decimal ReorderLevel,string StockState,decimal SalesQty);
 public sealed record CategoryOption(string Id,string Name);
-public sealed record ProductListQuery(string? Search=null,string? CategoryId=null,string? Stock=null,long? MinPrice=null,long? MaxPrice=null,int Page=1,int PageSize=50);
+public sealed record ProductListQuery(string? Search=null,string? CategoryId=null,string? Stock=null,long? MinPrice=null,long? MaxPrice=null,string? Sort=null,int Page=1,int PageSize=50);
 public sealed record ProductCatalog(AdminPage<ProductSummary> Page,IReadOnlyList<CategoryOption> Categories);
 public sealed record MutationReceipt(string? TemporaryPassword=null,string? TenantId=null);
 public sealed class SubscriptionActionForm

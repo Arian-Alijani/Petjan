@@ -176,6 +176,12 @@ public static class AdminStrings
         ["prod.onHand"] = ("On hand", "موجودی"),
         ["prod.reorder"] = ("Reorder level", "نقطه سفارش"),
         ["prod.inactive"] = ("Retired", "غیرفعال"),
+        ["prod.sales"] = ("Units sold", "تعداد فروش"),
+        ["prod.sort"] = ("Sort by", "مرتب‌سازی"),
+        ["prod.sort.name"] = ("Name (A–Z)", "نام (الفبایی)"),
+        ["prod.sort.sales"] = ("Best-selling", "پرفروش‌ترین"),
+        ["prod.sort.stock-asc"] = ("Lowest stock", "کم‌موجودترین"),
+        ["prod.sort.price-desc"] = ("Highest price", "گران‌ترین"),
     };
 
     /// <summary>Resolves <paramref name="key"/> for <paramref name="lang"/> (<c>fa</c>/<c>en</c>); unknown keys return the key.</summary>
