@@ -394,6 +394,10 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<ICurrentUserContext, CurrentUserContextService>();
         services.AddSingleton<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<INavigationService, NavigationService>();
+        // Keeps the local session's idle-timeout alive from real user input, so the shell never drops to the
+        // fail-closed read-only banner (empty sidebar) while the operator is actively working — the session used
+        // to lock 30 min after sign-in because ISessionService.TouchAsync was never called on activity.
+        services.AddSingleton<SessionActivityService>();
         services.AddSingleton<IDataChangeNotifier, DataChangeNotifier>();
 
         // Device-level (pre-login) preferences: «مرا بخاطر بسپار» (auto-restore the last session on next launch)

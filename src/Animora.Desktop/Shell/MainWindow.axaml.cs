@@ -24,22 +24,37 @@ public partial class MainWindow : Window
         [Key.D8] = 8, [Key.NumPad8] = 8,
     };
 
+    private readonly SessionActivityService _activity;
+
     // The real app shell (Phase 05). Composed from the DI-injected
     // MainWindowViewModel, which owns the sidebar/topbar/navigation.
     public MainWindow(
         MainWindowViewModel viewModel,
         ToastService toastService,
-        DialogService dialogService)
+        DialogService dialogService,
+        SessionActivityService activity)
     {
         InitializeComponent();
         DataContext = viewModel;
         Toast.Attach(toastService);
         dialogService.Attach(Modal, Drawer, Sheet);
+        _activity = activity;
 
         // Global hotkeys are handled by tunneling so they fire regardless of
         // which descendant currently holds focus.
         AddHandler(KeyDownEvent, OnShellKeyDown, RoutingStrategies.Tunnel);
+
+        // Real pointer/keyboard interaction on the shell keeps the local session's idle-timeout alive, so the
+        // capability gate never fails closed to the read-only shell while the operator is actively working.
+        // Tunneling + handledEventsToo so the ping still fires no matter which descendant handles the event.
+        AddHandler(PointerPressedEvent, OnShellPointerActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(KeyDownEvent, OnShellKeyActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
     }
+
+    // Any real user input is an activity signal; the service throttles and forwards it to the session.
+    private void OnShellPointerActivity(object? sender, PointerPressedEventArgs e) => _activity.Ping();
+
+    private void OnShellKeyActivity(object? sender, KeyEventArgs e) => _activity.Ping();
 
     private bool _closeForReal;
 
