@@ -286,9 +286,9 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     [ObservableProperty]
     private string _purchaseView = "invoices";
 
-    public bool IsPurchaseInvoicesView => _purchaseView == "invoices";
+    public bool IsPurchaseInvoicesView => PurchaseView == "invoices";
 
-    public bool IsSupplierRegisterView => _purchaseView == "suppliers";
+    public bool IsSupplierRegisterView => PurchaseView == "suppliers";
 
     partial void OnPurchaseViewChanged(string value)
     {
@@ -301,7 +301,7 @@ public sealed partial class InventoryPageViewModel : PageViewModelBase
     private void SetPurchaseView(string? key)
     {
         var next = key == "suppliers" ? "suppliers" : "invoices";
-        if (next == _purchaseView)
+        if (next == PurchaseView)
         {
             return;
         }

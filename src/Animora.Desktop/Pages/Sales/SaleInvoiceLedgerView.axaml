@@ -155,38 +155,39 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- tier 2 · state chips + count -->
+                <!-- tier 2 · state chips + count (a hairline separates the two tiers) -->
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12"
                       Margin="0,12,0,0">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="7"
-                                Margin="0,-12,0,0" Padding="0,12,0,0"
-                                BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0">
-                        <ItemsControl ItemsSource="{Binding Filters}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="7" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="sales:SaleInvoiceLedgerFilterViewModel">
-                                    <Button Classes="hy-chip" Classes.on="{Binding IsActive}"
-                                            Command="{Binding #Root.((sales:SaleInvoiceLedgerViewModel)DataContext).SetFilterCommand}"
-                                            CommandParameter="{Binding Key}">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-                                            <Border Background="{StaticResource Line2Brush}"
-                                                    CornerRadius="8" Padding="6,0"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding CountText}" FontSize="10.5"
-                                                           FontWeight="Bold"
-                                                           Foreground="{StaticResource MutedBrush}" />
-                                            </Border>
-                                        </StackPanel>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
+                    <Border Grid.Column="0" BorderBrush="{StaticResource Line2Brush}"
+                            BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,-12,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <ItemsControl ItemsSource="{Binding Filters}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" Spacing="7" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="sales:SaleInvoiceLedgerFilterViewModel">
+                                        <Button Classes="hy-chip" Classes.on="{Binding IsActive}"
+                                                Command="{Binding #Root.((sales:SaleInvoiceLedgerViewModel)DataContext).SetFilterCommand}"
+                                                CommandParameter="{Binding Key}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                                <Border Background="{StaticResource Line2Brush}"
+                                                        CornerRadius="8" Padding="6,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CountText}" FontSize="10.5"
+                                                               FontWeight="Bold"
+                                                               Foreground="{StaticResource MutedBrush}" />
+                                                </Border>
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
 
                     <TextBlock Grid.Column="1" Text="{Binding SummaryText}" FontSize="12"
                                FontWeight="SemiBold" Foreground="{StaticResource MutedBrush}"
