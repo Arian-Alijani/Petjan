@@ -217,7 +217,7 @@
                                                 Background="{StaticResource Bg2Brush}" BorderThickness="0"
                                                 IsVisible="{Binding HasQuery}"
                                                 Command="{Binding ClearQueryCommand}" ToolTip.Tip="پاک کردن">
-                                            <Path Classes="icon" Width="11" Height="11"
+                                            <Path Classes="icon" Width="12" Height="12"
                                                   Stroke="{StaticResource MutedBrush}" StrokeThickness="3"
                                                   Data="{StaticResource IconX}" />
                                         </Button>
@@ -274,7 +274,7 @@
                                                                     </Border>
                                                                 </Grid>
                                                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" Margin="0,4,0,0">
-                                                                    <Path Classes="icon" Width="13" Height="13"
+                                                                    <Path Classes="icon" Width="14" Height="14"
                                                                           Stroke="{StaticResource MutedBrush}"
                                                                           Data="{StaticResource IconUsers}" />
                                                                     <TextBlock Grid.Column="1" Text="{Binding OwnerName}" FontSize="11.5"
@@ -310,7 +310,7 @@
                                     <Button Classes="pat-new"
                                             Command="{Binding BeginAddPatientCommand}">
                                         <StackPanel Orientation="Horizontal" Spacing="7">
-                                            <Path Classes="icon" Width="15" Height="15"
+                                            <Path Classes="icon" Width="16" Height="16"
                                                   Stroke="{Binding $parent[Button].Foreground}"
                                                   Data="{StaticResource IconPlus}" />
                                             <TextBlock Text="بیمار جدیدی ثبت کنید" />
@@ -608,7 +608,7 @@
                                         HorizontalContentAlignment="Center"
                                         Command="{Binding SubmitCommand}">
                                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                                        <Path Classes="icon" Width="17" Height="17" Stroke="White"
+                                        <Path Classes="icon" Width="18" Height="18" Stroke="White"
                                               Data="{StaticResource IconCheck}" />
                                         <TextBlock Text="{Binding SubmitLabel}" />
                                     </StackPanel>

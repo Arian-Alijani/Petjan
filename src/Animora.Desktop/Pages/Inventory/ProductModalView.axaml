@@ -1,5 +1,6 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:inv="using:Animora.Desktop.Pages.Inventory"
              x:Class="Animora.Desktop.Pages.Inventory.ProductModalView"
              x:Name="Root"
@@ -353,25 +354,25 @@
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto">
                             <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
                                 <TextBlock Classes="fld" Text="موجودی فعلی" />
-                                <TextBox Classes="inp" IsReadOnly="True" HorizontalAlignment="Left" MinWidth="120" Text="{Binding SingleStockText, Mode=OneWay}"
+                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="9" Classes="inp" IsReadOnly="True" HorizontalAlignment="Left" MinWidth="120" Text="{Binding SingleStockText, Mode=OneWay}"
                                          ToolTip.Tip="موجودی فقط با «تغییر موجودی» تغییر می‌کند" />
                             </StackPanel>
                             <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
                                 <TextBlock Classes="fld" Text="نقطه سفارش" />
-                                <TextBox Classes="inp" Text="{Binding SingleReorderText}" />
+                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="9" Classes="inp" Text="{Binding SingleReorderText}" />
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
                                 <TextBlock Classes="fld" Text="قیمت خرید (تومان)" />
-                                <TextBox Classes="inp" Text="{Binding SingleCostText}" />
+                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding SingleCostText}" />
                             </StackPanel>
                             <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
                                 <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
-                                <TextBox Classes="inp" Text="{Binding SinglePriceText}" />
+                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding SinglePriceText}" />
                             </StackPanel>
                         </Grid>
                         <StackPanel Margin="0,0,0,4">
                             <TextBlock Classes="fld" Text="تاریخ انقضا (اختیاری)" />
-                            <TextBox Classes="inp" Text="{Binding SingleExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
+                            <TextBox controls:InputGuard.Kind="Date" MaxLength="10" Classes="inp" Text="{Binding SingleExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
                         </StackPanel>
 
                         <!-- convert hint (.convert-hint) -->
@@ -497,7 +498,7 @@
                                                             BorderThickness="0" Foreground="{StaticResource MutedBrush}"
                                                             Command="{Binding #Root.((inv:ProductModalViewModel)DataContext).RemoveOptionCommand}"
                                                             CommandParameter="{Binding}" ToolTip.Tip="حذف">
-                                                        <Path Classes="icon" Width="10" Height="10"
+                                                        <Path Classes="icon" Width="12" Height="12"
                                                               Stroke="{StaticResource MutedBrush}"
                                                               Data="{StaticResource IconX}"
                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -553,7 +554,7 @@
                                                     ToolTip.Tip="حذف تنوع"
                                                     Command="{Binding #Root.((inv:ProductModalViewModel)DataContext).DeleteVariantCommand}"
                                                     CommandParameter="{Binding}">
-                                                <Path Classes="icon" Width="15" Height="15"
+                                                <Path Classes="icon" Width="16" Height="16"
                                                       Stroke="{StaticResource DangerBrush}" Data="{StaticResource IconTrash}" />
                                             </Button>
                                         </Grid>
@@ -561,26 +562,26 @@
                                         <Grid ColumnDefinitions="*,*" ColumnSpacing="12" RowDefinitions="Auto,Auto">
                                             <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
                                                 <TextBlock Classes="fld" Text="موجودی فعلی" />
-                                                <TextBox Classes="inp" IsReadOnly="True" HorizontalAlignment="Left" MinWidth="120" Text="{Binding StockText, Mode=OneWay}"
+                                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="9" Classes="inp" IsReadOnly="True" HorizontalAlignment="Left" MinWidth="120" Text="{Binding StockText, Mode=OneWay}"
                                          ToolTip.Tip="موجودی فقط با «تغییر موجودی» تغییر می‌کند" />
                                             </StackPanel>
                                             <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,10">
                                                 <TextBlock Classes="fld" Text="نقطه سفارش" />
-                                                <TextBox Classes="inp" Text="{Binding ReorderText}" />
+                                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="9" Classes="inp" Text="{Binding ReorderText}" />
                                             </StackPanel>
                                             <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,10">
                                                 <TextBlock Classes="fld" Text="قیمت خرید (تومان)" />
-                                                <TextBox Classes="inp" Text="{Binding CostText}" />
+                                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding CostText}" />
                                             </StackPanel>
                                             <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
                                                 <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
-                                                <TextBox Classes="inp" Text="{Binding PriceText}" />
+                                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding PriceText}" />
                                             </StackPanel>
                                         </Grid>
 
                                         <StackPanel>
                                             <TextBlock Classes="fld" Text="تاریخ انقضا (اختیاری)" />
-                                            <TextBox Classes="inp" Text="{Binding ExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
+                                            <TextBox controls:InputGuard.Kind="Date" MaxLength="10" Classes="inp" Text="{Binding ExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>
@@ -730,7 +731,7 @@
             <Grid ColumnDefinitions="Auto,Auto,*">
                 <Button Grid.Column="0" Classes="primary" Command="{Binding SaveCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
                         <TextBlock Text="ذخیره تغییرات" VerticalAlignment="Center" />
                     </StackPanel>
@@ -740,7 +741,7 @@
                 <Button Grid.Column="2" Classes="danger-ghost" HorizontalAlignment="Left"
                         Command="{Binding DeleteCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource DangerBrush}"
                               Data="{StaticResource IconTrash}" VerticalAlignment="Center" />
                         <TextBlock Text="حذف کالا" VerticalAlignment="Center" />
                     </StackPanel>

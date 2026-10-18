@@ -13,7 +13,7 @@ public partial class SidebarView : UserControl
     /// remain perfectly column-aligned while expanded) and simply translates as
     /// one, tweened by a matching transform Transition.
     ///
-    /// Geometry: compact rail = 76px, Border padding 14+14 ⇒ 48px content;
+    /// Geometry: compact rail = 72px, Border padding 12+12 ⇒ 48px content;
     /// Button padding 12+12 ⇒ 24px content row. An 18px icon right-anchored in
     /// that 24px row has its centre 9px from the right edge, i.e. at x=15 from
     /// the left; the row centre is x=12, so a 3px shift toward the leading

@@ -51,15 +51,20 @@ public sealed record WeightRowViewModel(
 public sealed record VaxRowViewModel(
     string Name, string SubText, string NextText, string BadgeText, Controls.Tone BadgeTone, string IconClass);
 
-/// <summary>One visit accordion entry (.tl-item).</summary>
+/// <summary>One visit accordion entry (.tl-item). The optional <paramref name="OpenVisit"/> opens the exact visit.</summary>
 public sealed record VisitRowViewModel(
     string Type, string Reason, string DateText, string Vet, string DotClass,
-    string Exam, string Diagnosis, IReadOnlyList<string> Prescriptions, string StatsText);
+    string Exam, string Diagnosis, IReadOnlyList<string> Prescriptions, string StatsText,
+    Func<Task>? OpenVisit = null);
 
 /// <summary>One lab/imaging alert row (documents tab) with pre-resolved palette.</summary>
 public sealed record LabRowViewModel(
     string Name, string Result, string DateText,
     Avalonia.Media.IBrush Background, Avalonia.Media.IBrush Border, Avalonia.Media.IBrush Foreground);
+
+/// <summary>One radiology study row for the documents tab.</summary>
+public sealed record RadiologyRowViewModel(
+    string BodyPart, string Result, string DateText);
 
 /// <summary>One stored document row (.doc-row).</summary>
 public sealed record DocRowViewModel(string Name, string Meta);
@@ -200,7 +205,9 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     // ---- docs tab ----
     public bool HasLabs => Labs.Count > 0;
+    public bool HasRadiology => Radiology.Count > 0;
     public RangeObservableCollection<LabRowViewModel> Labs { get; } = [];
+    public RangeObservableCollection<RadiologyRowViewModel> Radiology { get; } = [];
     public RangeObservableCollection<DocRowViewModel> Documents { get; } = [];
     public bool HasDocuments => Documents.Count > 0;
     public string DocsEmptyText { get; } = "مدرکی بارگذاری نشده است";
@@ -463,7 +470,8 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             Visits.Add(new VisitRowViewModel(
                 v.Type, v.Reason, JalaliDate.FromDateTime(v.Date).ToString("short"), v.Vet,
                 PatientsPresentation.VisitDotVax(v.Type), v.Exam, v.Diagnosis, v.Prescriptions,
-                VisitStatsText(v)));
+                VisitStatsText(v),
+                () => _presenter.OpenVisitSheetAsync(v.VisitId)));
         }
 
         OnPropertyChanged(nameof(HasVisits));
@@ -499,15 +507,19 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     {
         Labs.ReplaceAll(pet.Labs.Select(l =>
         {
-            var (bg, border, fg) = AlertPalette(ToneClass(PatientsPresentation.LabTone(l.Status)));
-            return new LabRowViewModel(l.Name, l.Result,
-                JalaliDate.FromDateTime(l.Date).ToString("short"), bg, border, fg);
+            var (bg, border, fg) = AlertPalette(ToneClass(Tone.Info));
+            return new LabRowViewModel(l.Title, l.Detail,
+                l.DateJalali, bg, border, fg);
         }));
+
+        Radiology.ReplaceAll(pet.Radiology.Select(r =>
+            new RadiologyRowViewModel(r.BodyPart, r.Result, r.DateJalali)));
 
         Documents.ReplaceAll(pet.Documents.Select(d =>
             new DocRowViewModel(d.Name, $"{d.Size} · {JalaliDate.FromDateTime(d.Date).ToString("short")}")));
 
         OnPropertyChanged(nameof(HasLabs));
+        OnPropertyChanged(nameof(HasRadiology));
         OnPropertyChanged(nameof(HasDocuments));
     }
 

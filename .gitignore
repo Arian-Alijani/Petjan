@@ -47,3 +47,6 @@ Database-Sampel/*.bak
 Animora-UI/*.srcmap.json
 .sandbox-sdk-install.log
 .sandbox-reinstall.log
+
+# Local agent workspace data (session memory, caches) — never part of the product.
+.workbuddy-ai/

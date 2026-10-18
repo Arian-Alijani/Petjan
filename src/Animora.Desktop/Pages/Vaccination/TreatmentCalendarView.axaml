@@ -86,13 +86,13 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <Button Classes="mini" Command="{Binding PreviousMonthCommand}" ToolTip.Tip="ماه قبل">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource MutedBrush}"
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
                                   Data="{StaticResource IconChevronRight}" />
                         </Button>
                         <TextBlock Text="{Binding MonthTitle}" FontSize="16" FontWeight="ExtraBold" MinWidth="130"
                                    TextAlignment="Center" VerticalAlignment="Center" />
                         <Button Classes="mini" Command="{Binding NextMonthCommand}" ToolTip.Tip="ماه بعد">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource MutedBrush}"
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource MutedBrush}"
                                   Data="{StaticResource IconChevronLeft}" />
                         </Button>
                         <Button Classes="outline" Content="امروز" Command="{Binding GoTodayCommand}" />
@@ -247,7 +247,7 @@
                                             <Run Text="{Binding PetName}" FontWeight="Bold" /><Run Text=" · " /><Run Text="{Binding SpeciesText}" /><Run Text=" · سرپرست: " /><Run Text="{Binding OwnerName}" />
                                         </TextBlock>
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Path Classes="icon" Width="13" Height="13" Stroke="{Binding Brush}"
+                                            <Path Classes="icon" Width="14" Height="14" Stroke="{Binding Brush}"
                                                   Data="{Binding KindIconKey, Converter={StaticResource IconKeyConverter}}" />
                                             <TextBlock Text="{Binding KindLabel}" FontSize="11.5" FontWeight="Bold"
                                                        Foreground="{Binding Brush}" />
@@ -268,14 +268,14 @@
                                             Command="{Binding #Root.((vx:TreatmentCalendarViewModel)DataContext).MarkDoneCommand}"
                                             CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource OkBrush}"
+                                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource OkBrush}"
                                                   Data="{StaticResource IconCheckCircle}" />
                                             <TextBlock Text="انجام شد" />
                                         </StackPanel>
                                     </Button>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center"
                                                 IsVisible="{Binding IsDone}">
-                                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource OkBrush}"
+                                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource OkBrush}"
                                               Data="{StaticResource IconCheckCircle}" />
                                         <TextBlock Text="انجام‌شده" FontSize="12" FontWeight="Bold" Foreground="{StaticResource OkBrush}" />
                                     </StackPanel>

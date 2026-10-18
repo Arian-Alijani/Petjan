@@ -136,16 +136,17 @@ public sealed class PurchaseDirectoryQueries(AnimoraLocalDbContext db) : IPurcha
     /// </summary>
     private async Task<Dictionary<string, SupplierStat>> BuildStatsAsync(string[] supplierIds, CancellationToken ct)
     {
+        // Read the receipts as aggregates (lines auto-included) and total them in memory — a nested money
+        // projection (Quantity × UnitCost through the rounding boundary) is not translatable to SQL.
         var posted = await db.Set<GoodsReceipt>().AsNoTracking()
             .Where(r => r.State == GoodsReceiptState.Posted && supplierIds.Contains(r.SupplierId))
-            .Select(r => new { r.SupplierId, r.ReceivedUtc, Lines = r.Lines.Select(l => new { l.Quantity, l.UnitCost }) })
             .ToListAsync(ct);
 
         var stats = new Dictionary<string, SupplierStat>(StringComparer.Ordinal);
         foreach (var r in posted)
         {
             var total = 0L;
-            foreach (var line in r.Lines) total += line.UnitCost.ApplyPercent(line.Quantity.Value * 100m).Minor;
+            foreach (var line in r.Lines) total += line.LineCost.Minor;
 
             var stat = stats.TryGetValue(r.SupplierId, out var existing) ? existing : new SupplierStat();
             stat.ReceiptCount++;

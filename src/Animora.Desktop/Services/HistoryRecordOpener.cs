@@ -59,8 +59,9 @@ public sealed class HistoryRecordOpener(
                 return Task.CompletedTask;
 
             case "Visit":
-                navigation.NavigateTo<VisitsTriagePageViewModel>();
-                return Task.CompletedTask;
+                return string.IsNullOrWhiteSpace(entityId)
+                    ? Task.CompletedTask
+                    : sheets.OpenVisitSheetAsync(entityId);
 
             case "Appointment":
                 navigation.NavigateTo<AppointmentsCalendarViewModel>();

@@ -119,6 +119,9 @@
             <Setter Property="SelectionBrush" Value="{StaticResource Brand400Brush}" />
             <Setter Property="SelectionForegroundBrush" Value="{StaticResource InkBrush}" />
             <Setter Property="PlaceholderForeground" Value="{StaticResource MutedBrush}" />
+            <!-- App-wide length cap: no field accepts an unbounded string. A page that needs a tighter
+                 limit sets TextBox.MaxLength or controls:InputGuard.MaxLength, which win over this style. -->
+            <Setter Property="MaxLength" Value="400" />
         </Style>
         <!-- Fluent sets Foreground again on hover/focus/disabled. Override those
              states too, not just the resting control, for every text/number field. -->

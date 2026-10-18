@@ -161,7 +161,7 @@
         <!-- ◂ نوع حیوان (wizard only) -->
         <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,4,0,12"
               IsVisible="{Binding ShowSectionTitles}">
-            <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                   Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconPaw}" />
             <TextBlock Grid.Column="1" Classes="frt" Text="نوع حیوان" />
             <Rectangle Grid.Column="2" Classes="frtrule" />
@@ -264,7 +264,7 @@
         <!-- ◂ میکروچیپ و وضعیت (wizard only) -->
         <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8" Margin="0,6,0,12"
               IsVisible="{Binding ShowSectionTitles}">
-            <Path Grid.Column="0" Classes="icon" Width="15" Height="15"
+            <Path Grid.Column="0" Classes="icon" Width="16" Height="16"
                   Stroke="{StaticResource Brand600Brush}" Data="{StaticResource IconCpu}" />
             <TextBlock Grid.Column="1" Classes="frt" Text="میکروچیپ و وضعیت" />
             <Rectangle Grid.Column="2" Classes="frtrule" />

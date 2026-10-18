@@ -118,7 +118,7 @@
                                                                 Command="{Binding #Root.((visits:VisitEncounterViewModel)DataContext).OpenAttachmentCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand700Brush}"
+                                                                <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
                                                                       Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
                                                                       VerticalAlignment="Center" />
                                                                 <TextBlock Text="{Binding Name}" FontSize="11.5" FontWeight="Bold" MaxWidth="170"

@@ -50,7 +50,7 @@
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                 <StackPanel Spacing="6">
                     <TextBlock Classes="sm-lbl" Text="مبلغ (تومان)" />
-                    <TextBox Classes="sm-inp" Text="{Binding AmountText}" PlaceholderText="۱۲۰۰۰۰۰" TextAlignment="Right" />
+                    <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="sm-inp" Text="{Binding AmountText}" PlaceholderText="۱۲۰۰۰۰۰" TextAlignment="Right" />
                     <TextBlock Text="{Binding AmountPreview}" FontSize="11.5" FontWeight="SemiBold"
                                Foreground="{StaticResource Brand700Brush}" />
                 </StackPanel>

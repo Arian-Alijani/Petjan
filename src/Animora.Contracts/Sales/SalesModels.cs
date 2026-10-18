@@ -186,7 +186,9 @@ public sealed record InvoiceSummary(
     string AvatarTone,
     string PetInitial,
     string Number = "",
-    DateTime? IssuedAt = null);
+    DateTime? IssuedAt = null,
+    string CreatedByName = "",
+    string CreatedByRole = "");
 
 /// <summary>
 /// One line of an invoice, mirroring what <c>renderLine</c> renders: its title,
@@ -269,7 +271,8 @@ public sealed record InvoiceDetail(
     bool HasDiscount,
     IReadOnlyList<InvoiceAuditEntry> Audit,
     string OwnerId = "",
-    bool IsReadOnly = false);
+    bool IsReadOnly = false,
+    ActorRef? CreatedBy = null);
 
 /// <summary>
 /// One catalog entry offered by the picker, mirroring the reference's

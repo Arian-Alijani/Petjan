@@ -5,6 +5,7 @@
              x:Class="Animora.Desktop.Pages.Patients.OwnerSheetView"
              x:Name="Root"
              x:DataType="patients:OwnerSheetViewModel"
+             Width="1120" MaxWidth="1120"
              FlowDirection="RightToLeft">
 
     <!-- Owner Sheet — re-draws Animora-UI/patients.html #drawerRoot (.sheet.owner-sheet)
@@ -154,7 +155,7 @@
                                 <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
                                         BorderBrush="#24FFFFFF" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
                                               Data="{StaticResource IconUser}" />
                                         <TextBlock Text="{Binding GenderLabel}" FontSize="11.5"
                                                    FontWeight="SemiBold" Foreground="#eaf6f3" />
@@ -163,7 +164,7 @@
                                 <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
                                         BorderBrush="#24FFFFFF" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
                                               Data="{StaticResource IconHistory}" />
                                         <TextBlock Text="{Binding SinceText}" FontSize="11.5"
                                                    FontWeight="SemiBold" Foreground="#eaf6f3" />
@@ -173,7 +174,7 @@
                                         Background="#2E88D6AB" BorderBrush="#4C58D6AB" BorderThickness="1"
                                         IsVisible="{Binding IsEditing}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#c9f4e5"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#c9f4e5"
                                               Data="{StaticResource IconEdit}" />
                                         <TextBlock Text="حالت ویرایش" FontSize="11.5"
                                                    FontWeight="SemiBold" Foreground="#c9f4e5" />
@@ -355,7 +356,7 @@
                             </StackPanel>
                             <Button Grid.Column="1" Classes="odbtn odsm" Command="{Binding AddPetCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="icon" Width="13" Height="13"
+                                    <Path Classes="icon" Width="14" Height="14"
                                           Stroke="{Binding $parent[Button].Foreground}"
                                           Data="{StaticResource IconPlus}" />
                                     <TextBlock Text="افزودن حیوان" />
@@ -399,8 +400,8 @@
                                                               Data="{StaticResource IconTrash}"
                                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                     </Button>
-                                                    <Path Grid.Column="4" Classes="icon" Width="15"
-                                                          Height="15"
+                                                    <Path Grid.Column="4" Classes="icon" Width="16"
+                                                          Height="16"
                                                           Stroke="{StaticResource Muted2Brush}"
                                                           Data="{StaticResource IconChevronLeft}"
                                                           VerticalAlignment="Center" />
@@ -473,7 +474,7 @@
                                                     <controls:Badge Grid.Column="3" Text="{Binding StateText}"
                                                                     Tone="{Binding StateTone}"
                                                                     VerticalAlignment="Center" />
-                                                    <Path Grid.Column="4" Classes="icon" Width="15" Height="15"
+                                                    <Path Grid.Column="4" Classes="icon" Width="16" Height="16"
                                                           Stroke="{StaticResource Muted2Brush}"
                                                           Data="{StaticResource IconChevronLeft}"
                                                           VerticalAlignment="Center" />
@@ -617,7 +618,7 @@
                                                 <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="13">
                                                     <Border Grid.Column="0" Width="36" Height="36" CornerRadius="11"
                                                             Background="{StaticResource Bg2Brush}">
-                                                        <Path Classes="icon" Width="17" Height="17"
+                                                        <Path Classes="icon" Width="18" Height="18"
                                                               Stroke="{StaticResource Ink2Brush}"
                                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
                                                               HorizontalAlignment="Center"
@@ -671,7 +672,7 @@
                         IsVisible="{Binding IsEditing}" Width="210">
                     <StackPanel Orientation="Horizontal" Spacing="7"
                                 HorizontalAlignment="Center">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconCheck}" />
                         <TextBlock Text="ذخیره تغییرات" />
                     </StackPanel>
@@ -684,7 +685,7 @@
                         IsVisible="{Binding IsViewing}" Width="210">
                     <StackPanel Orientation="Horizontal" Spacing="7"
                                 HorizontalAlignment="Center">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconEdit}" />
                         <TextBlock Text="ویرایش اطلاعات" />
                     </StackPanel>
@@ -697,7 +698,7 @@
                         IsVisible="{Binding IsViewing}" Width="150" ToolTip.Tip="حذف سرپرست و همه حیوانات او">
                     <StackPanel Orientation="Horizontal" Spacing="7"
                                 HorizontalAlignment="Center">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource DangerBrush}"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource DangerBrush}"
                               Data="{StaticResource IconTrash}" />
                         <TextBlock Text="حذف سرپرست" />
                     </StackPanel>

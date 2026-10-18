@@ -49,8 +49,8 @@
                         BorderBrush="{StaticResource Brand100Brush}">
                     <Path x:Name="IconPath"
                           Classes="icon"
-                          Width="17"
-                          Height="17"
+                          Width="18"
+                          Height="18"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
                           Stroke="{StaticResource Brand600Brush}" />

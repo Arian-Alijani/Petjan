@@ -147,7 +147,7 @@
                                         Background="#2E88D6AB" BorderBrush="#4C58D6AB"
                                         BorderThickness="1">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#c9f4e5"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#c9f4e5"
                                               Data="{StaticResource IconPulse}" />
                                         <TextBlock Text="{Binding HeroStatusText}" FontSize="11.5"
                                                    FontWeight="SemiBold" Foreground="#c9f4e5" />
@@ -156,7 +156,7 @@
                                 <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
                                         BorderBrush="#24FFFFFF" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
                                               Data="{StaticResource IconCake}" />
                                         <TextBlock Text="{Binding AgeText}" FontSize="11.5"
                                                    FontWeight="SemiBold" Foreground="#eaf6f3" />
@@ -165,7 +165,7 @@
                                 <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
                                         BorderBrush="#24FFFFFF" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
                                               Data="{StaticResource IconScale}" />
                                         <TextBlock Text="{Binding WeightChipText}" FontSize="11.5"
                                                    FontWeight="SemiBold" Foreground="#eaf6f3" />
@@ -175,7 +175,7 @@
                                         BorderBrush="#24FFFFFF" BorderThickness="1"
                                         IsVisible="{Binding HasNextVaxChip}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
                                               Data="{StaticResource IconSyringe}" />
                                         <TextBlock Text="{Binding NextVaxChipText}" FontSize="11.5"
                                                    FontWeight="SemiBold" Foreground="#eaf6f3" />
@@ -241,7 +241,7 @@
                                                        FontSize="10" FontWeight="ExtraBold"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
-                                        <Path Classes="icon" Width="13" Height="13" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
                                               Data="{StaticResource IconChevronLeft}" />
                                     </StackPanel>
                                 </Button>
@@ -278,7 +278,7 @@
                                     </Style>
                                 </Button.Styles>
                                 <StackPanel Orientation="Horizontal" Spacing="7">
-                                    <Path Classes="icon" Width="15" Height="15"
+                                    <Path Classes="icon" Width="16" Height="16"
                                           Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
                                     <TextBlock Text="{Binding Label}" />
                                     <Border Background="#0F000000" CornerRadius="20" Padding="6,1"
@@ -302,7 +302,7 @@
                     <Border Classes="kpicell" Margin="0,0,10,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Path Classes="icon" Width="13" Height="13"
+                                <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{StaticResource Brand600Brush}"
                                       Data="{StaticResource IconScale}" />
                                 <TextBlock Classes="kl" Text="وزن فعلی" />
@@ -319,7 +319,7 @@
                     <Border Classes="kpicell" Margin="0,0,10,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Path Classes="icon" Width="13" Height="13"
+                                <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{StaticResource Brand600Brush}"
                                       Data="{StaticResource IconCake}" />
                                 <TextBlock Classes="kl" Text="سن" />
@@ -331,7 +331,7 @@
                     <Border Classes="kpicell" Margin="0,0,10,0">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Path Classes="icon" Width="13" Height="13"
+                                <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{StaticResource Brand600Brush}"
                                       Data="{StaticResource IconHistory}" />
                                 <TextBlock Classes="kl" Text="آخرین ویزیت" />
@@ -343,7 +343,7 @@
                     <Border Classes="kpicell">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Path Classes="icon" Width="13" Height="13"
+                                <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{StaticResource Brand600Brush}"
                                       Data="{StaticResource IconSyringe}" />
                                 <TextBlock Classes="kl" Text="واکسن بعدی" />
@@ -481,7 +481,7 @@
                             <StackPanel>
                                 <Border Classes="panelhead">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Path Classes="icon" Width="15" Height="15"
+                                        <Path Classes="icon" Width="16" Height="16"
                                               Stroke="{StaticResource Brand600Brush}"
                                               Data="{StaticResource IconUser}" />
                                         <TextBlock Classes="panelhead" Text="سرپرست" />
@@ -509,7 +509,7 @@
                                             <Button Grid.Column="0" Classes="miniact" Command="{Binding CallOwnerCommand}">
                                                 <StackPanel Orientation="Horizontal" Spacing="6"
                                                             HorizontalAlignment="Center">
-                                                    <Path Classes="icon" Width="13" Height="13"
+                                                    <Path Classes="icon" Width="14" Height="14"
                                                           Stroke="{Binding $parent[Button].Foreground}"
                                                           Data="{StaticResource IconPhone}" />
                                                     <TextBlock Text="تماس" />
@@ -519,7 +519,7 @@
                                                     Command="{Binding BackToOwnerCommand}">
                                                 <StackPanel Orientation="Horizontal" Spacing="6"
                                                             HorizontalAlignment="Center">
-                                                    <Path Classes="icon" Width="13" Height="13"
+                                                    <Path Classes="icon" Width="14" Height="14"
                                                           Stroke="{Binding $parent[Button].Foreground}"
                                                           Data="{StaticResource IconFile}" />
                                                     <TextBlock Text="پرونده سرپرست" />
@@ -535,7 +535,7 @@
                             <StackPanel>
                                 <Border Classes="panelhead">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <Path Classes="icon" Width="15" Height="15"
+                                        <Path Classes="icon" Width="16" Height="16"
                                               Stroke="{StaticResource Brand600Brush}"
                                               Data="{StaticResource IconClipboard}" />
                                         <TextBlock Classes="panelhead" Text="یادداشت" />
@@ -567,7 +567,7 @@
                                                 IsVisible="{Binding IsEditingInfo}">
                                         <Button Classes="miniact" Command="{Binding SaveInfoCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                                <Path Classes="icon" Width="13" Height="13"
+                                                <Path Classes="icon" Width="14" Height="14"
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       Data="{StaticResource IconCheck}" />
                                                 <TextBlock Text="ذخیره" />
@@ -575,7 +575,7 @@
                                         </Button>
                                         <Button Classes="miniact" Command="{Binding CancelInfoEditCommand}">
                                             <StackPanel Orientation="Horizontal" Spacing="5">
-                                                <Path Classes="icon" Width="13" Height="13"
+                                                <Path Classes="icon" Width="14" Height="14"
                                                       Stroke="{Binding $parent[Button].Foreground}"
                                                       Data="{StaticResource IconX}" />
                                                 <TextBlock Text="انصراف" />
@@ -585,7 +585,7 @@
                                     <Button Classes="miniact" Command="{Binding EditInfoCommand}"
                                             IsVisible="{Binding !IsEditingInfo}">
                                         <StackPanel Orientation="Horizontal" Spacing="5">
-                                            <Path Classes="icon" Width="13" Height="13"
+                                            <Path Classes="icon" Width="14" Height="14"
                                                   Stroke="{Binding $parent[Button].Foreground}"
                                                   Data="{StaticResource IconEdit}" />
                                             <TextBlock Text="ویرایش" />
@@ -594,7 +594,7 @@
                                     <Button Classes="miniact danger" Command="{Binding DeleteCommand}"
                                             IsVisible="{Binding !IsEditingInfo}" ToolTip.Tip="حذف پرونده بیمار">
                                         <StackPanel Orientation="Horizontal" Spacing="5">
-                                            <Path Classes="icon" Width="13" Height="13"
+                                            <Path Classes="icon" Width="14" Height="14"
                                                   Stroke="{StaticResource DangerBrush}"
                                                   Data="{StaticResource IconTrash}" />
                                             <TextBlock Text="حذف بیمار" />
@@ -671,7 +671,7 @@
                                                 <Button Grid.Column="2" Classes="miniact"
                                                         Command="{Binding CopyMicrochipCommand}">
                                                     <StackPanel Orientation="Horizontal" Spacing="5">
-                                                        <Path Classes="icon" Width="13" Height="13"
+                                                        <Path Classes="icon" Width="14" Height="14"
                                                               Stroke="{Binding $parent[Button].Foreground}"
                                                               Data="{StaticResource IconCopy}" />
                                                         <TextBlock Text="کپی" />
@@ -786,7 +786,7 @@
                                 <Button Grid.Column="2" Classes="miniact"
                                         Command="{Binding AddVisitCommand}">
                                     <StackPanel Orientation="Horizontal" Spacing="5">
-                                        <Path Classes="icon" Width="13" Height="13"
+                                        <Path Classes="icon" Width="14" Height="14"
                                               Stroke="{Binding $parent[Button].Foreground}"
                                               Data="{StaticResource IconPlus}" />
                                         <TextBlock Text="ثبت ویزیت" />
@@ -806,7 +806,16 @@
                                         <DataTemplate x:DataType="patients:VisitRowViewModel">
                                             <Border BorderBrush="{StaticResource Line2Brush}"
                                                     BorderThickness="1" CornerRadius="15" Margin="0,0,0,14"
-                                                    ClipToBounds="True">
+                                                    ClipToBounds="True"
+                                                    Background="{StaticResource PanelBrush}"
+                                                    PointerPressed="OnVisitRowPressed"
+                                                    Tag="{Binding}">
+                                                <Border.Styles>
+                                                    <Style Selector="Border:pointerover">
+                                                        <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+                                                        <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+                                                    </Style>
+                                                </Border.Styles>
                                                 <StackPanel>
                                                     <Border Padding="14,12">
                                                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
@@ -1021,7 +1030,7 @@
                                 </StackPanel>
                                 <Button Grid.Column="2" Classes="miniact" Command="{Binding AddVaxCommand}">
                                     <StackPanel Orientation="Horizontal" Spacing="5">
-                                        <Path Classes="icon" Width="13" Height="13"
+                                        <Path Classes="icon" Width="14" Height="14"
                                               Stroke="{Binding $parent[Button].Foreground}"
                                               Data="{StaticResource IconPlus}" />
                                         <TextBlock Text="ثبت واکسن" />
@@ -1073,6 +1082,49 @@
 
             <!-- ══ DOCS TAB ══ -->
             <StackPanel IsVisible="{Binding IsDocsTab}">
+                <Border Classes="panel" IsVisible="{Binding HasRadiology}">
+                    <StackPanel>
+                        <Border Classes="panelhead">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Path Classes="icon" Width="16" Height="16"
+                                      Stroke="{StaticResource LilacBrush}"
+                                      Data="{StaticResource IconScan}" />
+                                <TextBlock Classes="panelhead" Text="رادیولوژی" />
+                            </StackPanel>
+                        </Border>
+                        <Border Padding="16">
+                            <StackPanel Spacing="8">
+                                <ItemsControl ItemsSource="{Binding Radiology}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="patients:RadiologyRowViewModel">
+                                            <Border Padding="13,11" CornerRadius="13" Margin="0,0,0,8"
+                                                    Background="{StaticResource PanelBrush}"
+                                                    BorderBrush="{StaticResource LineBrush}"
+                                                    BorderThickness="1">
+                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                    <Border Width="28" Height="28" CornerRadius="9" Background="White">
+                                                        <Path Classes="icon" Width="14" Height="14"
+                                                              Stroke="{StaticResource LilacBrush}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                              Data="{StaticResource IconScan}" />
+                                                    </Border>
+                                                    <StackPanel Spacing="2">
+                                                        <TextBlock FontSize="12.5" FontWeight="ExtraBold">
+                                                            <Run Text="{Binding BodyPart}" /><Run Text=" · " /><Run Text="{Binding DateText}" />
+                                                        </TextBlock>
+                                                        <TextBlock Text="{Binding Result}" FontSize="11.5"
+                                                                   Opacity="0.85" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <Border Classes="panel" IsVisible="{Binding HasLabs}">
                     <StackPanel>
                         <Border Classes="panelhead">
@@ -1080,7 +1132,7 @@
                                 <Path Classes="icon" Width="16" Height="16"
                                       Stroke="{StaticResource Brand600Brush}"
                                       Data="{StaticResource IconFlask}" />
-                                <TextBlock Classes="panelhead" Text="آزمایش‌ها و تصویربرداری" />
+                                <TextBlock Classes="panelhead" Text="آزمایش‌ها" />
                             </StackPanel>
                         </Border>
                         <Border Padding="16">

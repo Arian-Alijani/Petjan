@@ -440,6 +440,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IRecordSheetPresenter, RecordSheetPresenter>();
         services.AddTransient<OwnerSheetViewModel>();
         services.AddTransient<PetFileViewModel>();
+        services.AddTransient<VisitDetailViewModel>();
 
         // Unified History: one seam that turns any history-feed row (main page + the
         // Vaccination/Boarding/Sales tabs) into the same record screen the rest of the

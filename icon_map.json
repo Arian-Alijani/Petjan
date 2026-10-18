@@ -1,0 +1,325 @@
+{
+ "IconDashboard": [
+  "layout-dashboard"
+ ],
+ "IconCalendar": [
+  "calendar"
+ ],
+ "IconCalendarPlus": [
+  "calendar-plus"
+ ],
+ "IconUsers": [
+  "users"
+ ],
+ "IconClipboard": [
+  "clipboard-list",
+  "clipboard"
+ ],
+ "IconSyringe": [
+  "syringe"
+ ],
+ "IconHome": [
+  "house",
+  "home"
+ ],
+ "IconCart": [
+  "shopping-cart"
+ ],
+ "IconBox": [
+  "package"
+ ],
+ "IconReceipt": [
+  "receipt-text",
+  "receipt"
+ ],
+ "IconChart": [
+  "chart-column",
+  "bar-chart-3",
+  "chart-no-axes-column"
+ ],
+ "IconCheque": [
+  "banknote"
+ ],
+ "IconClock": [
+  "clock"
+ ],
+ "IconTimeline": [
+  "waypoints"
+ ],
+ "IconHourglass": [
+  "hourglass"
+ ],
+ "IconShield": [
+  "shield-check",
+  "shield"
+ ],
+ "IconPlus": [
+  "plus"
+ ],
+ "IconCheck": [
+  "check"
+ ],
+ "IconX": [
+  "x"
+ ],
+ "IconCheckCircle": [
+  "circle-check",
+  "check-circle"
+ ],
+ "IconEye": [
+  "eye"
+ ],
+ "IconSearch": [
+  "search"
+ ],
+ "IconEdit": [
+  "square-pen",
+  "pencil"
+ ],
+ "IconTrash": [
+  "trash-2"
+ ],
+ "IconMore": [
+  "ellipsis-vertical"
+ ],
+ "IconFilter": [
+  "funnel",
+  "filter"
+ ],
+ "IconChevronDown": [
+  "chevron-down"
+ ],
+ "IconChevronLeft": [
+  "chevron-left"
+ ],
+ "IconChevronRight": [
+  "chevron-right"
+ ],
+ "IconMenu": [
+  "menu"
+ ],
+ "IconFold": [
+  "chevrons-left"
+ ],
+ "IconArrowUpRight": [
+  "arrow-up-right"
+ ],
+ "IconMoon": [
+  "moon"
+ ],
+ "IconBell": [
+  "bell"
+ ],
+ "IconTruck": [
+  "truck"
+ ],
+ "IconPaw": [
+  "paw-print"
+ ],
+ "IconAlert": [
+  "triangle-alert",
+  "alert-triangle"
+ ],
+ "IconWallet": [
+  "wallet"
+ ],
+ "IconCoins": [
+  "coins"
+ ],
+ "IconFile": [
+  "file-text",
+  "file"
+ ],
+ "IconBriefcase": [
+  "briefcase"
+ ],
+ "IconDog": [
+  "dog"
+ ],
+ "IconCat": [
+  "cat"
+ ],
+ "IconBird": [
+  "bird"
+ ],
+ "IconRabbit": [
+  "rabbit"
+ ],
+ "IconPhone": [
+  "phone"
+ ],
+ "IconMobile": [
+  "smartphone"
+ ],
+ "IconIdCard": [
+  "id-card"
+ ],
+ "IconPin": [
+  "map-pin"
+ ],
+ "IconDownload": [
+  "download"
+ ],
+ "IconList": [
+  "list"
+ ],
+ "IconGrid": [
+  "layout-grid"
+ ],
+ "IconMore2": [
+  "circle-ellipsis"
+ ],
+ "IconInfo": [
+  "info"
+ ],
+ "IconCake": [
+  "cake"
+ ],
+ "IconPalette": [
+  "palette"
+ ],
+ "IconSmile": [
+  "smile"
+ ],
+ "IconCpu": [
+  "cpu"
+ ],
+ "IconBarcode": [
+  "barcode"
+ ],
+ "IconThermo": [
+  "thermometer"
+ ],
+ "IconPulse": [
+  "activity"
+ ],
+ "IconLungs": [
+  "lungs"
+ ],
+ "IconStetho": [
+  "stethoscope"
+ ],
+ "IconScalpel": [
+  "scalpel",
+  "slice"
+ ],
+ "IconFolder": [
+  "folder"
+ ],
+ "IconUpload": [
+  "upload"
+ ],
+ "IconUser": [
+  "user"
+ ],
+ "IconSms": [
+  "message-square"
+ ],
+ "IconShare": [
+  "share-2"
+ ],
+ "IconMicroscope": [
+  "microscope"
+ ],
+ "IconTrend": [
+  "trending-up"
+ ],
+ "IconHistory": [
+  "history"
+ ],
+ "IconScale": [
+  "scale"
+ ],
+ "IconFlask": [
+  "flask-conical"
+ ],
+ "IconTag": [
+  "tag"
+ ],
+ "IconHome2": [
+  "house"
+ ],
+ "IconBowl": [
+  "soup"
+ ],
+ "IconRows": [
+  "rows-3",
+  "rows-2"
+ ],
+ "IconPrinter": [
+  "printer"
+ ],
+ "IconCopy": [
+  "copy"
+ ],
+ "IconTools": [
+  "wrench"
+ ],
+ "IconScissors": [
+  "scissors"
+ ],
+ "IconPlay": [
+  "play"
+ ],
+ "IconBulb": [
+  "lightbulb"
+ ],
+ "IconBank": [
+  "landmark"
+ ],
+ "IconBone": [
+  "bone"
+ ],
+ "IconBath": [
+  "bath"
+ ],
+ "IconRefresh": [
+  "refresh-cw"
+ ],
+ "IconLayers": [
+  "layers"
+ ],
+ "IconArrowDownLeft": [
+  "arrow-down-left"
+ ],
+ "IconCreditCard": [
+  "credit-card"
+ ],
+ "IconDollar": [
+  "dollar-sign"
+ ],
+ "IconImage": [
+  "image"
+ ],
+ "IconTrendUp": [
+  "trending-up"
+ ],
+ "IconTrendDown": [
+  "trending-down"
+ ],
+ "IconPercent": [
+  "percent"
+ ],
+ "IconTarget": [
+  "target"
+ ],
+ "IconPieChart": [
+  "chart-pie",
+  "pie-chart"
+ ],
+ "IconPiggy": [
+  "piggy-bank"
+ ],
+ "IconSpark": [
+  "sparkles"
+ ],
+ "IconMegaphone": [
+  "megaphone"
+ ],
+ "IconSync": [
+  "refresh-ccw"
+ ],
+ "IconCloud": [
+  "cloud"
+ ]
+}

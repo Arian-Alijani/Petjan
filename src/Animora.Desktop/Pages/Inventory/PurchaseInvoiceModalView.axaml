@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:inv="using:Animora.Desktop.Pages.Inventory"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:pur="using:Animora.Contracts.Purchasing"
              x:Class="Animora.Desktop.Pages.Inventory.PurchaseInvoiceModalView"
              x:Name="Root"
@@ -107,13 +108,25 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
                         </StackPanel>
-                        <StackPanel Grid.Column="0" IsVisible="{Binding IsNewSupplier}">
-                            <TextBlock Classes="fld" Text="نام تأمین‌کنندهٔ جدید" />
-                            <TextBox Classes="inp" Text="{Binding NewSupplierName}" PlaceholderText="مثلاً: دارو پخش البرز" />
+                        <StackPanel Grid.Column="0" IsVisible="{Binding IsNewSupplier}" Spacing="8">
+                            <StackPanel>
+                                <TextBlock Classes="fld" Text="نام تأمین‌کنندهٔ جدید" />
+                                <TextBox Classes="inp" Text="{Binding NewSupplierName}"
+                                         PlaceholderText="مثلاً: دارو پخش البرز"
+                                         controls:InputGuard.MaxLength="128" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Classes="fld" Text="شمارهٔ تماس تأمین‌کننده (اختیاری)" />
+                                <TextBox Classes="inp" Text="{Binding NewSupplierPhone}"
+                                         PlaceholderText="مثلاً: ۰۲۱۱۲۳۴۵۶۷۸"
+                                         controls:InputGuard.Kind="Phone"
+                                         controls:InputGuard.MaxLength="20" />
+                            </StackPanel>
                         </StackPanel>
                         <StackPanel Grid.Column="1">
                             <TextBlock Classes="fld" Text="شمارهٔ فاکتور تأمین‌کننده (اختیاری)" />
-                            <TextBox Classes="inp" Text="{Binding InvoiceReference}" FontFamily="monospace" />
+                            <TextBox Classes="inp" Text="{Binding InvoiceReference}" FontFamily="monospace"
+                                     controls:InputGuard.MaxLength="40" />
                         </StackPanel>
                     </Grid>
                 </StackPanel>
@@ -181,7 +194,7 @@
                                 </StackPanel>
                                 <StackPanel Grid.Column="3">
                                     <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
-                                    <TextBox Classes="inp" Text="{Binding NewSalePriceText}" PlaceholderText="۰" />
+                                    <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding NewSalePriceText}" PlaceholderText="۰" />
                                 </StackPanel>
                             </Grid>
                             <StackPanel Orientation="Horizontal" Spacing="8">
@@ -225,9 +238,9 @@
                                                     <TextBlock Text="{Binding Sub}" FontSize="11"
                                                                Foreground="{StaticResource MutedBrush}" />
                                                 </StackPanel>
-                                                <TextBox Grid.Column="1" Classes="inp" Margin="6,8"
+                                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="6" Grid.Column="1" Classes="inp" Margin="6,8"
                                                          Text="{Binding QtyText}" TextAlignment="Center" />
-                                                <TextBox Grid.Column="2" Classes="inp" Margin="6,8"
+                                                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Grid.Column="2" Classes="inp" Margin="6,8"
                                                          Text="{Binding CostText}" TextAlignment="Right" />
                                                 <TextBlock Grid.Column="3" Margin="6,8" VerticalAlignment="Center"
                                                            Text="{Binding LineTotalText}" FontSize="13" FontWeight="ExtraBold"
@@ -279,7 +292,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Classes="primary" Command="{Binding RecordCommand}" IsEnabled="{Binding !IsSaving}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="White"
+                        <Path Classes="icon" Width="16" Height="16" Stroke="White"
                               Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
                         <TextBlock Text="ثبت فاکتور خرید" VerticalAlignment="Center" />
                     </StackPanel>

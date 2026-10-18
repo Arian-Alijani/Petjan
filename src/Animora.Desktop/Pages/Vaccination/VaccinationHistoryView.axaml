@@ -29,7 +29,7 @@
                             <Button Grid.Column="2" Classes="hy-search-clear"
                                     IsVisible="{Binding HasSearchValue}"
                                     Command="{Binding ClearSearchCommand}">
-                                <Path Classes="icon" Width="11" Height="11"
+                                <Path Classes="icon" Width="12" Height="12"
                                       Stroke="{StaticResource Brand700Brush}"
                                       Data="{StaticResource IconX}" />
                             </Button>
@@ -137,7 +137,7 @@
 
                         <Button Classes="hy-pager" Command="{Binding ResetFiltersCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <Path Classes="icon" Width="13" Height="13"
+                                <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{Binding $parent[Button].Foreground}"
                                       Data="{StaticResource IconRefresh}" />
                                 <TextBlock Text="بازنشانی" />
@@ -196,7 +196,7 @@
                             <Button Grid.Column="1" Classes="hy-pager" Command="{Binding PrevPageCommand}"
                                     IsEnabled="{Binding HasPrev}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Path Classes="icon" Width="13" Height="13"
+                                    <Path Classes="icon" Width="14" Height="14"
                                           Stroke="{Binding $parent[Button].Foreground}"
                                           Data="{StaticResource IconChevronRight}" />
                                     <TextBlock Text="قبلی" />
@@ -211,7 +211,7 @@
                                     Command="{Binding NextPageCommand}" IsEnabled="{Binding HasNext}">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="بعدی" />
-                                    <Path Classes="icon" Width="13" Height="13"
+                                    <Path Classes="icon" Width="14" Height="14"
                                           Stroke="{Binding $parent[Button].Foreground}"
                                           Data="{StaticResource IconChevronLeft}" />
                                 </StackPanel>

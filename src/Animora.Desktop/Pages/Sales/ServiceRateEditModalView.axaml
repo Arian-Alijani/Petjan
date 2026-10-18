@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:sales="using:Animora.Desktop.Pages.Sales"
              x:Class="Animora.Desktop.Pages.Sales.ServiceRateEditModalView"
              x:Name="Root"
@@ -71,7 +72,7 @@
 
             <StackPanel Spacing="6">
                 <TextBlock Classes="sm-lbl" Text="نرخ (تومان)" />
-                <TextBox Classes="sm-inp" Text="{Binding PriceText}" PlaceholderText="۰" TextAlignment="Right" />
+                <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="sm-inp" Text="{Binding PriceText}" PlaceholderText="۰" TextAlignment="Right" />
             </StackPanel>
 
             <StackPanel Spacing="6" IsVisible="{Binding ShowBilling}">

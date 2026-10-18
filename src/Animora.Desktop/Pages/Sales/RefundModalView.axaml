@@ -1,5 +1,6 @@
 ﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:sales="using:Animora.Desktop.Pages.Sales"
              x:Class="Animora.Desktop.Pages.Sales.RefundModalView"
              x:Name="Root"
@@ -66,7 +67,7 @@
             <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="1.5"
                     CornerRadius="12" Background="{StaticResource PanelBrush}">
                 <Grid ColumnDefinitions="*,Auto">
-                    <TextBox Grid.Column="0" Text="{Binding AmountText}" MinHeight="0"
+                    <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Grid.Column="0" Text="{Binding AmountText}" MinHeight="0"
                              Padding="48,12,16,12" FontSize="17" FontWeight="ExtraBold"
                              BorderThickness="0" Background="Transparent"
                              TextAlignment="Right" VerticalContentAlignment="Center" />

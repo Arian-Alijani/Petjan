@@ -227,7 +227,8 @@ public sealed class CapabilityGateService : ICapabilityGate
                     var decision = await permissions.EvaluateAsync(code, subject, resource: null, ct).ConfigureAwait(false);
                     if (!decision.Allowed)
                     {
-                        TraceLog.Debug($"[gate] code='{code}' offline-Allowed but RBAC/policy DENIED ({decision.Error}) ⇒ Denied.", "gate");
+                        TraceLog.Debug($"[gate] code='{code}' offline-Allowed but RBAC/policy DENIED " +
+                            $"({decision.DeniedByRule ?? "policy"}) ⇒ Denied.", "gate");
                         state = CapabilityState.Denied; // B04a RBAC/policy/overlay.
                     }
                 }

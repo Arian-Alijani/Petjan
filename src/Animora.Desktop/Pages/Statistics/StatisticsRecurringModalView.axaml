@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:Animora.Desktop.Controls"
              xmlns:st="using:Animora.Desktop.Pages.Statistics"
              x:Class="Animora.Desktop.Pages.Statistics.StatisticsRecurringModalView"
              x:Name="Root"
@@ -45,13 +46,13 @@
             <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                 <StackPanel Spacing="6">
                     <TextBlock Classes="sm-lbl" Text="مبلغ ماهانه (تومان)" />
-                    <TextBox Classes="sm-inp" Text="{Binding AmountText}" PlaceholderText="۱۵۰۰۰۰۰۰" TextAlignment="Right" />
+                    <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="sm-inp" Text="{Binding AmountText}" PlaceholderText="۱۵۰۰۰۰۰۰" TextAlignment="Right" />
                     <TextBlock Text="{Binding AmountPreview}" FontSize="11.5" FontWeight="SemiBold"
                                Foreground="{StaticResource Brand700Brush}" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="6">
                     <TextBlock Classes="sm-lbl" Text="روز سررسید در ماه شمسی (۱ تا ۳۱)" />
-                    <TextBox Classes="sm-inp" Text="{Binding DayText}" PlaceholderText="۱" TextAlignment="Right" />
+                    <TextBox controls:InputGuard.Kind="Digits" MaxLength="2" Classes="sm-inp" Text="{Binding DayText}" PlaceholderText="۱" TextAlignment="Right" />
                 </StackPanel>
             </Grid>
             <StackPanel Spacing="6">

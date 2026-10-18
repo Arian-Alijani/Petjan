@@ -265,7 +265,7 @@
                                     ToolTip.Tip="فیلتر گونه">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <TextBlock Text="{Binding SpeciesLabelText}" VerticalAlignment="Center" />
-                                    <Path Classes="icon" Width="13" Height="13"
+                                    <Path Classes="icon" Width="14" Height="14"
                                           Stroke="{StaticResource MutedBrush}" Data="{StaticResource IconChevronDown}" />
                                 </StackPanel>
                             </Button>

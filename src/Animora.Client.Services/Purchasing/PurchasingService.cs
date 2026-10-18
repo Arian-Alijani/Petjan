@@ -122,7 +122,8 @@ public sealed class PurchasingService(IServiceScopeFactory scopes) : IPurchasing
             {
                 if (string.IsNullOrWhiteSpace(request.NewSupplierName))
                     return new PurchaseRecordResult(false, ErrorCodes.ValidationFailed.Code, string.Empty);
-                supplierId = await SendAsync(new CreateSupplierCommand(request.NewSupplierName));
+                supplierId = await SendAsync(new CreateSupplierCommand(
+                    request.NewSupplierName, Phone: CleanPhone(request.NewSupplierPhone)));
             }
 
             await using var scope = scopes.CreateAsyncScope();

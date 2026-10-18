@@ -232,7 +232,7 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Border Classes="chip">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand600Brush}"
+                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand600Brush}"
                               Data="{StaticResource IconUsers}" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding OwnerName}" FontSize="11.5"
                                    Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
@@ -240,7 +240,7 @@
                 </Border>
                 <Border Classes="chip">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource Brand600Brush}"
+                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand600Brush}"
                               Data="{StaticResource IconPhone}" VerticalAlignment="Center" />
                         <TextBlock Text="{Binding OwnerPhoneText}" FontSize="11.5"
                                    Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center" />
@@ -351,7 +351,7 @@
                                                     IsVisible="{Binding IsRemovable}"
                                                     Command="{Binding #Root.((boarding:StayDetailModalViewModel)DataContext).RemoveItemCommand}"
                                                     CommandParameter="{Binding Index}" ToolTip.Tip="حذف">
-                                                <Path Classes="icon" Width="13" Height="13" Stroke="{StaticResource MutedBrush}"
+                                                <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource MutedBrush}"
                                                       Data="{StaticResource IconX}" HorizontalAlignment="Center"
                                                       VerticalAlignment="Center" />
                                             </Button>
@@ -433,14 +433,14 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsDone}">
                         <Button Classes="ghost" Command="{Binding PrintCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Ink2Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
                                       Data="{StaticResource IconPrinter}" VerticalAlignment="Center" />
                                 <TextBlock Text="چاپ" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Classes="outline" Command="{Binding GotoCashierCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource InkBrush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource InkBrush}"
                                       Data="{StaticResource IconReceipt}" VerticalAlignment="Center" />
                                 <TextBlock Text="صندوق" VerticalAlignment="Center" />
                             </StackPanel>
@@ -451,14 +451,14 @@
                     <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsDone}">
                         <Button Classes="ghost" Command="{Binding PrintCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource Ink2Brush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Ink2Brush}"
                                       Data="{StaticResource IconPrinter}" VerticalAlignment="Center" />
                                 <TextBlock Text="چاپ" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Classes="outline" Command="{Binding CheckoutCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Path Classes="icon" Width="15" Height="15" Stroke="{StaticResource InkBrush}"
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource InkBrush}"
                                       Data="{StaticResource IconHome}" VerticalAlignment="Center" />
                                 <TextBlock Text="تخلیه و پایان" VerticalAlignment="Center" />
                             </StackPanel>

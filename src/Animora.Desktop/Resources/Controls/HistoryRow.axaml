@@ -22,7 +22,7 @@
         <!-- Column header — a template so it needs no DataContext. -->
         <ControlTemplate x:Key="HistoryLedgerHeadTemplate" TargetType="ContentControl">
             <Border Classes="hy-ledger-head">
-                <Grid ColumnDefinitions="36,80,*,150,130,120,120,110" ColumnSpacing="0">
+                <Grid ColumnDefinitions="36,80,*,150,130,120,120,110,76" ColumnSpacing="0">
                     <TextBlock Grid.Column="0" Classes="hcol-head" />
                     <TextBlock Grid.Column="1" Classes="hcol-head" Text="زمان" />
                     <TextBlock Grid.Column="2" Classes="hcol-head" Text="رویداد" />
@@ -31,66 +31,93 @@
                     <TextBlock Grid.Column="5" Classes="hcol-head" Text="مبلغ" />
                     <TextBlock Grid.Column="6" Classes="hcol-head" Text="وضعیت" />
                     <TextBlock Grid.Column="7" Classes="hcol-head" Text="دسته" />
+                    <!-- action column: unlabelled on purpose — only invoice rows fill it, so a surface
+                         without row actions keeps a quiet empty gutter instead of a dangling header -->
+                    <TextBlock Grid.Column="8" Classes="hcol-head" />
                 </Grid>
             </Border>
         </ControlTemplate>
 
         <!-- The clickable event row. -->
         <DataTemplate x:Key="HistoryRowTemplate" x:DataType="hy:IHistoryRowView">
-            <Button Classes="hy-row-btn" Command="{Binding OpenCommand}" ToolTip.Tip="{Binding Title}">
-                <Border Classes="hy-row">
-                    <Grid ColumnDefinitions="36,80,*,150,130,120,120,110" ColumnSpacing="0">
-                        <!-- kind icon badge -->
-                        <Border Grid.Column="0" Classes="hy-cat-badge" Background="{Binding BadgeBrush}"
-                                HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <Path Classes="icon" Width="15" Height="15" Stroke="{Binding BadgeIconBrush}"
-                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <!-- time -->
-                        <TextBlock Grid.Column="1" Text="{Binding Time}" FontSize="12" Margin="4,0"
-                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
-                        <!-- title + detail -->
-                        <StackPanel Grid.Column="2" Margin="4,0" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding Detail}" FontSize="11.5"
-                                       Foreground="{StaticResource MutedBrush}" IsVisible="{Binding HasDetail}"
-                                       TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                        <!-- entity / party -->
-                        <TextBlock Grid.Column="3" Text="{Binding Entity}" Margin="4,0" FontSize="12"
-                                   Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" />
-                        <!-- کاربر / انجام‌دهنده (actor) -->
-                        <StackPanel Grid.Column="4" Margin="4,0" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ActorName}" FontSize="12.5" FontWeight="SemiBold"
-                                       Foreground="{StaticResource Ink2Brush}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding ActorRole}" FontSize="11"
-                                       Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                        <!-- signed amount -->
-                        <TextBlock Grid.Column="5" Text="{Binding AmountText}" Margin="4,0" FontSize="13"
-                                   FontWeight="Bold" Foreground="{Binding AmountBrush}" VerticalAlignment="Center" />
-                        <!-- status chip -->
-                        <Border Grid.Column="6" Classes="hy-status" Background="{Binding StatusBgBrush}"
-                                HorizontalAlignment="Left" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <Ellipse Classes="hy-status-dot" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding StatusLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                           Foreground="{Binding StatusBrush}" />
+            <Grid>
+                <Button Classes="hy-row-btn" Command="{Binding OpenCommand}" ToolTip.Tip="{Binding Title}">
+                    <Border Classes="hy-row">
+                        <Grid ColumnDefinitions="36,80,*,150,130,120,120,110,76" ColumnSpacing="0">
+                            <!-- kind icon badge -->
+                            <Border Grid.Column="0" Classes="hy-cat-badge" Background="{Binding BadgeBrush}"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Path Classes="icon" Width="16" Height="16" Stroke="{Binding BadgeIconBrush}"
+                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <!-- time -->
+                            <TextBlock Grid.Column="1" Text="{Binding Time}" FontSize="12" Margin="4,0"
+                                       Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                            <!-- title + detail -->
+                            <StackPanel Grid.Column="2" Margin="4,0" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Detail}" FontSize="11.5"
+                                           Foreground="{StaticResource MutedBrush}" IsVisible="{Binding HasDetail}"
+                                           TextTrimming="CharacterEllipsis" />
                             </StackPanel>
-                        </Border>
-                        <!-- category pill -->
-                        <Border Grid.Column="7" Classes="hy-cat-pill" BorderBrush="{Binding CategoryColorBrush}"
-                                Background="{Binding CategoryBgBrush}" HorizontalAlignment="Left"
-                                VerticalAlignment="Center">
-                            <TextBlock Text="{Binding CategoryLabel}" FontSize="11" FontWeight="Bold"
-                                       Foreground="{Binding CategoryColorBrush}" />
-                        </Border>
-                    </Grid>
-                </Border>
-            </Button>
+                            <!-- entity / party -->
+                            <TextBlock Grid.Column="3" Text="{Binding Entity}" Margin="4,0" FontSize="12"
+                                       Foreground="{StaticResource Ink2Brush}" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <!-- کاربر / انجام‌دهنده (actor) -->
+                            <StackPanel Grid.Column="4" Margin="4,0" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ActorName}" FontSize="12.5" FontWeight="SemiBold"
+                                           Foreground="{StaticResource Ink2Brush}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding ActorRole}" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <!-- signed amount -->
+                            <TextBlock Grid.Column="5" Text="{Binding AmountText}" Margin="4,0" FontSize="13"
+                                       FontWeight="Bold" Foreground="{Binding AmountBrush}" VerticalAlignment="Center" />
+                            <!-- status chip -->
+                            <Border Grid.Column="6" Classes="hy-status" Background="{Binding StatusBgBrush}"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <Ellipse Classes="hy-status-dot" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding StatusLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                               Foreground="{Binding StatusBrush}" />
+                                </StackPanel>
+                            </Border>
+                            <!-- category pill -->
+                            <Border Grid.Column="7" Classes="hy-cat-pill" BorderBrush="{Binding CategoryColorBrush}"
+                                    Background="{Binding CategoryBgBrush}" HorizontalAlignment="Left"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding CategoryLabel}" FontSize="11" FontWeight="Bold"
+                                           Foreground="{Binding CategoryColorBrush}" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Button>
+
+                <!-- Row actions (invoice rows only): they sit OVER the row's action column, outside the
+                     clickable button, so «ویرایش»/«حذف» never open the record by accident. The overlay grid
+                     has no background, so every other cell still clicks through to the row button. -->
+                <Grid ColumnDefinitions="36,80,*,150,130,120,120,110,76"
+                      IsVisible="{Binding CanManageInvoice}">
+                    <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="4"
+                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Button Classes="hy-act" ToolTip.Tip="ویرایش فاکتور"
+                                Command="{Binding EditInvoiceCommand}">
+                            <Path Classes="icon" Width="12" Height="12"
+                                  Stroke="{StaticResource Brand700Brush}"
+                                  Data="{StaticResource IconEdit}" />
+                        </Button>
+                        <Button Classes="hy-act danger" ToolTip.Tip="حذف فاکتور"
+                                Command="{Binding DeleteInvoiceCommand}">
+                            <Path Classes="icon" Width="12" Height="12"
+                                  Stroke="{StaticResource DangerBrush}"
+                                  Data="{StaticResource IconTrash}" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Grid>
         </DataTemplate>
     </Styles.Resources>
 
@@ -268,6 +295,27 @@
     <Style Selector="Button.hy-row-btn:disabled /template/ ContentPresenter">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <!-- ═══ Row action buttons (.hy-act) — invoice edit/delete in the ledger's last column.
+           Quiet at rest (hairline only), so the ledger stays a reading surface; they colour on hover. ═══ -->
+    <Style Selector="Button.hy-act">
+        <Setter Property="Width" Value="27" />
+        <Setter Property="Height" Value="27" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.hy-act:pointerover">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+    </Style>
+    <Style Selector="Button.hy-act.danger:pointerover">
+        <Setter Property="Background" Value="{StaticResource DangerBgBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource DangerBrush}" />
     </Style>
 
     <!-- ═══ Category icon badge (.hy-cat-badge) + category pill (.hy-cat-pill) ═══ -->

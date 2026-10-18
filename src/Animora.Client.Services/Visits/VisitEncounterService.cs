@@ -6,6 +6,7 @@ using Animora.Application.Security;
 using Animora.Application.UseCases.Visits;
 using Animora.Contracts.Visits;
 using Animora.Domain.Clinical;
+using Animora.Domain.Results;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Client.Services.Visits;
@@ -16,6 +17,13 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
 {
     public async Task<EncounterDraft> GetAsync(string encounterId) =>
         (await QueryAsync(new EncounterDraftQuery(encounterId))).Draft.ToContract();
+
+    public async Task<VisitDetail?> GetDetailAsync(string encounterId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(encounterId);
+        var result = await QueryDetailAsync(new EncounterDraftQuery(encounterId));
+        return result?.ToContract();
+    }
 
     public Task SaveVitalsAsync(string encounterId, Vitals vitals)
     {
@@ -135,6 +143,25 @@ public sealed class VisitEncounterService(IServiceScopeFactory scopes, Operation
         if (context.IsFailure) throw new ServiceException(context.Error);
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
+        return result.Value!;
+    }
+
+    /// <summary>
+    /// The visit-viewer seam: a missing visit (<c>VISIT_NOT_FOUND</c>) is a <see langword="null"/> result, not a
+    /// service fault — the caller (pet/owner profile) simply has no such record to show.
+    /// </summary>
+    private async Task<EncounterEditReadModel?> QueryDetailAsync(EncounterDraftQuery query)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>().BuildQueryContext();
+        if (context.IsFailure) throw new ServiceException(context.Error);
+        var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().QueryAsync(query, context.Value!);
+        if (result.IsFailure)
+        {
+            return result.Error != ErrorCodes.VisitNotFound
+                ? throw new ServiceException(result.Error)
+                : null;
+        }
         return result.Value!;
     }
 

@@ -135,3 +135,60 @@ public sealed record LabEntry(
     DateTime TakenAt,
     string? Description,
     IReadOnlyList<LabItem> Items);
+
+/// <summary>
+/// Complete, read-only snapshot of one visit for the visit viewer sheet: identity and ownership,
+/// the attending doctor, lifecycle state and clinic-local times, triage vitals (including the
+/// membrane/hydration notes the encounter wizard records), the four tagged clinical note sections,
+/// billable lines and the paraclinic records. Every string is raw data — Persian labels and
+/// formatting belong to the Desktop layer.
+/// </summary>
+public sealed record VisitDetail(
+    string Id,
+    string PatientName,
+    string PatientKind,
+    string OwnerName,
+    string OwnerPhone,
+    string DoctorName,
+    string DoctorSpecialty,
+    string Reason,
+    string State,
+    DateTime StartedAt,
+    DateTime? CompletedAt,
+    string ChiefComplaint,
+    double? WeightKg,
+    double? TemperatureC,
+    int? PulseBpm,
+    int? RespirationRate,
+    string? MucousMembrane,
+    string? Hydration,
+    string History,
+    string Exam,
+    string Diagnosis,
+    string Plan,
+    IReadOnlyList<VisitDetailLine> Lines,
+    IReadOnlyList<VisitDetailRadiology> Radiology,
+    IReadOnlyList<VisitDetailLab> Labs,
+    long Subtotal,
+    string? InvoiceId);
+
+/// <summary>One billable line of a <see cref="VisitDetail"/>: title, quantity, unit price and line total (Rial).</summary>
+public sealed record VisitDetailLine(string Title, decimal Quantity, long UnitPrice, long LineTotal);
+
+/// <summary>One radiology study of a <see cref="VisitDetail"/>; <see cref="AttachmentCount"/> is the stored file count.</summary>
+public sealed record VisitDetailRadiology(
+    string Id,
+    DateTime TakenAt,
+    string BodyPart,
+    string Result,
+    int AttachmentCount);
+
+/// <summary>One laboratory result sheet of a <see cref="VisitDetail"/> with its measured values.</summary>
+public sealed record VisitDetailLab(
+    string Id,
+    DateTime TakenAt,
+    string Description,
+    IReadOnlyList<VisitDetailLabItem> Items);
+
+/// <summary>One measured value of a <see cref="VisitDetailLab"/>.</summary>
+public sealed record VisitDetailLabItem(string Name, string Value, string? Unit);

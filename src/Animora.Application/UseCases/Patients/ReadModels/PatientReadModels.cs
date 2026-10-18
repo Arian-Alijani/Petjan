@@ -56,7 +56,25 @@ public sealed record PetDetailReadModel(
     PetStatus Status, string OwnerId, DateTimeOffset? BirthDateUtc, bool IsNeutered, string? MicrochipCode,
     DateTimeOffset? MicrochipImplantUtc, string? AllergyNotes, string? ChronicNotes,
     IReadOnlyList<PetWeightReadModel> Weights,
-    IReadOnlyList<PetVisitReadModel>? Visits = null);
+    IReadOnlyList<PetVisitReadModel>? Visits = null,
+    IReadOnlyList<LabSummaryReadModel>? Labs = null,
+    IReadOnlyList<RadiologySummaryReadModel>? Radiology = null);
+
+/// <summary>
+/// One laboratory result sheet flattened from a visit's JSON <c>LabResults</c> column for the
+/// pet-level paraclinic read path. <paramref name="DateJalali"/> is already clinic-local and
+/// formatted <c>yyyy/MM/dd</c>; <paramref name="Items"/> are the display-ready test values.
+/// </summary>
+public sealed record LabSummaryReadModel(
+    string Id, string VisitId, string DateJalali, string? Description, IReadOnlyList<string> Items);
+
+/// <summary>
+/// One radiology study flattened from a visit's JSON <c>Radiology</c> column for the pet-level
+/// paraclinic read path. <paramref name="DateJalali"/> is already clinic-local and formatted
+/// <c>yyyy/MM/dd</c>; <paramref name="AttachmentCount"/> is the stored file count.
+/// </summary>
+public sealed record RadiologySummaryReadModel(
+    string Id, string VisitId, string DateJalali, string BodyPart, string? Result, int AttachmentCount);
 
 /// <summary>
 /// One non-cancelled visit of a pet for the pet-file Visits tab. <paramref name="ReasonCode"/> is the
