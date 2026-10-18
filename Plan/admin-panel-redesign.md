@@ -81,13 +81,13 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 > وضعیت‌ها: `[ ]` در انتظار · `[~]` در حال انجام · `[x]` انجام‌شده.
 > بعد از هر تسک `[x]` → **اجرای اجباری `scripts/git/push.sh`**.
 
-### T0 — راه‌اندازی برنچ و این پلن `[ ]`
+### T0 — راه‌اندازی برنچ و این پلن `[x]`
 - مطمئن شو روی برنچ درست هستی. این فایل پلن را commit و push کن (اولین پوش = تست سلامت اسکریپت/کردنشیال).
 - **پوش:** `scripts/git/push.sh "docs(plan): add admin panel redesign plan"`
 
 ---
 
-### T1 — بازنویسی منطق خواندن داده‌ی کلینیک‌ها (سرور) `[ ]`
+### T1 — بازنویسی منطق خواندن داده‌ی کلینیک‌ها (سرور) `[x]`
 **فایل:** `src/Animora.Persistence.PostgreSql/Operator/OperatorReadQueries.cs` → متد `TenantsAsync` (خطوط ۲۰–۳۲).
 **مشکل فعلی:** سرچ فقط `Code.Contains` و `DisplayName.Contains` (case-sensitive در PG)، مرتب فقط `OrderBy(Code)`.
 **کار دقیق:**
@@ -99,7 +99,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T2 — افزودن مرتب‌سازی محصولات بر اساس فروش + بهبود خواندن محصولات `[ ]`
+### T2 — افزودن مرتب‌سازی محصولات بر اساس فروش + بهبود خواندن محصولات `[x]`
 **فایل‌ها:**
 - `src/Animora.Persistence.PostgreSql/Operator/OperatorReadQueries.cs` → `ProductsAsync` (خطوط ۹۳–۱۲۲) و رکورد `OperatorProductRow`/`OperatorProductFilter` (خطوط ۱۲–۱۵).
 - `src/Animora.Web.Admin/Models/AdminModels.cs` → `ProductSummary`, `ProductListQuery`.
@@ -118,7 +118,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T3 — قابلیت فعال/غیرفعال‌سازی و مدیریت کامل کاربر کلینیک (staff) `[ ]`
+### T3 — قابلیت فعال/غیرفعال‌سازی و مدیریت کامل کاربر کلینیک (staff) `[x]`
 **هدف:** کاربر خواست بتواند کاربران را فعال/غیرفعال کند و «یک یوزر کاملاً آماده» بسازد. فعلاً فقط Create + ResetPassword وجود دارد (`IAdminStaffCommands`).
 **ابتدا بررسی هدفمند:** سرویس زیربنایی `ClinicStaffAdministration` را بخوان تا ببینی چه متدهایی برای enable/disable دارد:
 `grep -rn "class ClinicStaffAdministration" src && sed -n ... ` سپس فایل را باز کن.
