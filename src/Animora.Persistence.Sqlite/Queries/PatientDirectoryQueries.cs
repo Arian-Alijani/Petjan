@@ -256,7 +256,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             v.Id, v.Reason.ToString(), v.CompletedUtc ?? v.StartedUtc,
             names.GetValueOrDefault(v.DoctorUserId, string.Empty), v.ChiefComplaint, v.DoctorNotes, v.Diagnosis,
             v.Prescriptions.Select(p => p.DrugName).ToList(), v.Vitals?.WeightKg, v.Vitals?.TemperatureC,
-            SubtotalOf(v), v.InvoiceId)).ToList();
+            SubtotalOf(v), v.InvoiceId, v.Vitals?.HeartRateBpm, v.Vitals?.RespiratoryRate)).ToList();
     }
 
     private static long SubtotalOf(Visit v)

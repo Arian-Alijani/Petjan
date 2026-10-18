@@ -36,16 +36,26 @@ internal static class PatientsMapping
             m.Pets.Select(p => p.ToSummary()).ToList());
     }
 
-    public static PetDetail ToDetail(this PetDetailReadModel m) => new(
-        m.Id, m.Id, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "", MapGender(m.Gender),
-        Tone(m.Id), MapStatus(m.Status), m.OwnerId, m.BirthDateUtc?.UtcDateTime,
-        Habitat: "", Behavior: "", Diet: "", BloodType: null, Neutered: m.IsNeutered, NeuteredDate: null,
-        Insurance: null,
-        new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, null, null),
-        new PetVitals(0, 0, 0, ""),
-        m.Weights.Select(w => new WeightEntry(w.MeasuredUtc.UtcDateTime, (double)w.WeightKg)).ToList(),
-        Visits: (m.Visits ?? []).Select(ToVisitRef).ToList(), Vaccinations: [], Labs: [], Documents: [], Surgeries: [],
-        Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null);
+    public static PetDetail ToDetail(this PetDetailReadModel m)
+    {
+        // Last-exam vitals come from the newest non-cancelled visit (visits are already newest-first in the
+        // read model). BCS has no domain source yet, so it stays "—" (empty) — the VM renders the dash.
+        var newest = (m.Visits ?? []).FirstOrDefault();
+        var vitals = newest is null
+            ? new PetVitals(0, 0, 0, "")
+            : new PetVitals((double)(newest.TemperatureC ?? 0m), newest.PulseBpm ?? 0, newest.RespRate ?? 0, "");
+
+        return new(
+            m.Id, m.Id, m.Name, MapSpecies(m.Species), m.Breed ?? "", m.Color ?? "", MapGender(m.Gender),
+            Tone(m.Id), MapStatus(m.Status), m.OwnerId, m.BirthDateUtc?.UtcDateTime,
+            Habitat: "", Behavior: "", Diet: "", BloodType: null, Neutered: m.IsNeutered, NeuteredDate: null,
+            Insurance: null,
+            new MicrochipInfo(m.MicrochipCode, m.MicrochipImplantUtc?.UtcDateTime, null, null),
+            vitals,
+            m.Weights.Select(w => new WeightEntry(w.MeasuredUtc.UtcDateTime, (double)w.WeightKg)).ToList(),
+            Visits: (m.Visits ?? []).Select(ToVisitRef).ToList(), Vaccinations: [], Labs: [], Documents: [], Surgeries: [],
+            Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null);
+    }
 
     private static VisitSummaryRef ToVisitRef(PetVisitReadModel v)
     {

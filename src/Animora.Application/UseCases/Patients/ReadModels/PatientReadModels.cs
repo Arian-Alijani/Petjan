@@ -84,7 +84,7 @@ public sealed record RadiologySummaryReadModel(
 public sealed record PetVisitReadModel(
     string Id, string ReasonCode, DateTimeOffset OccurredUtc, string DoctorName, string? ChiefComplaint,
     string? DoctorNotes, string? Diagnosis, IReadOnlyList<string> Prescriptions, decimal? WeightKg,
-    decimal? TemperatureC, long Total, string? InvoiceId);
+    decimal? TemperatureC, long Total, string? InvoiceId, int? PulseBpm = null, int? RespRate = null);
 
 /// <summary>One appended weight reading for the pet-file chart/rows.</summary>
 public sealed record PetWeightReadModel(DateTimeOffset MeasuredUtc, decimal WeightKg);

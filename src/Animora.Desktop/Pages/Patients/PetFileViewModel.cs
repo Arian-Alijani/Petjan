@@ -396,10 +396,18 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private void BuildVitals(PetDetail pet)
     {
         Vitals.Clear();
-        Vitals.Add(new VitalCellViewModel("دما", "IconThermo", Fa(Number(pet.Vitals.Temperature)), "°C"));
-        Vitals.Add(new VitalCellViewModel("ضربان", "IconPulse", Fa(pet.Vitals.Pulse.ToString()), "bpm"));
-        Vitals.Add(new VitalCellViewModel("تنفس", "IconLungs", Fa(pet.Vitals.Respiration.ToString()), "/min"));
-        Vitals.Add(new VitalCellViewModel("BCS", "IconScale", pet.Vitals.BodyConditionScore, string.Empty));
+        // Vitals belong to an exam: a pet with no visit (or a visit that recorded none) shows "—", never "۰".
+        var hasExam = pet.Visits.Count > 0
+            && (pet.Vitals.Temperature > 0 || pet.Vitals.Pulse > 0 || pet.Vitals.Respiration > 0);
+        Vitals.Add(new VitalCellViewModel("دما", "IconThermo",
+            hasExam ? Fa(Number(pet.Vitals.Temperature)) : "—", "°C"));
+        Vitals.Add(new VitalCellViewModel("ضربان", "IconPulse",
+            hasExam ? Fa(pet.Vitals.Pulse.ToString()) : "—", "bpm"));
+        Vitals.Add(new VitalCellViewModel("تنفس", "IconLungs",
+            hasExam ? Fa(pet.Vitals.Respiration.ToString()) : "—", "/min"));
+        Vitals.Add(new VitalCellViewModel("BCS", "IconScale",
+            hasExam && !string.IsNullOrWhiteSpace(pet.Vitals.BodyConditionScore) ? pet.Vitals.BodyConditionScore : "—",
+            string.Empty));
     }
 
     private void BuildAlerts(PetDetail pet)

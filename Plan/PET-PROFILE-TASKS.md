@@ -94,7 +94,7 @@ rule: no long full test). Fix all errors + warnings you introduce.
 
 ## Tasks (status: ☐ todo / ☑ done)
 
-### ☐ Task 1 — Summary tab: show LAST-EXAM vitals (not zeros)
+### ☑ Task 1 — Summary tab: show LAST-EXAM vitals (not zeros)
 **Problem:** "علائم حیاتی آخرین معاینه" panel always shows 0/0/0/empty because `ToDetail` hardcodes
 `PetVitals(0,0,0,"")`.
 **Fix layers:**
