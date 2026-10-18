@@ -29,7 +29,7 @@
 @if (operation=="seats") { <label>@Loc.T("op.seats") <InputNumber @bind-Value="Form.Seats" /></label> }
 @if (operation=="plan") { <label>@Loc.T("op.planCode") <InputText @bind-Value="Form.PlanCode" maxlength="32" dir="ltr" /></label> }
 @if (operation is "suspend" or "cancel" or "reduce") { <ConfirmCheckbox Name="Form.Confirmed" /> }
-<button type="submit" class="@(operation is "suspend" or "cancel" ? "danger" : "")">@Loc.T("op." + operation)</button></fieldset></EditForm>
+<button type="submit" class="@((operation is "suspend" or "cancel") ? "danger" : "")">@Loc.T("op." + operation)</button></fieldset></EditForm>
 }
 }
 <div class="table-wrap"><table><caption>@Loc.T("tenant.events")</caption><thead><tr><th scope="col">@Loc.T("tenant.event")</th><th scope="col">@Loc.T("tenant.time")</th></tr></thead><tbody>

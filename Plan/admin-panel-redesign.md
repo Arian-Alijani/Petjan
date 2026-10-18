@@ -206,7 +206,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T9 — ثبت نهایی DI و بازبینی هماهنگی لایه‌ها `[ ]`
+### T9 — ثبت نهایی DI و بازبینی هماهنگی لایه‌ها `[x]`
 **فایل:** `src/Animora.Server/Admin/AdminServiceCollectionExtensions.cs` و در صورت نیاز `Program.cs` / `NavMenu.razor`.
 **کار دقیق:**
 - مطمئن شو هر پورت/adapter جدید (`IAdminBackup` و هر چیز اضافه‌شده) در `AddAnimoraAdmin` register شده.
