@@ -61,6 +61,7 @@ public sealed class CreateStaffAdminForm
     public bool Confirmed { get; set; }
 }
 public sealed class ResetStaffPasswordForm { public string UserId { get; set; }=""; public bool Confirmed { get; set; } }
+public sealed class SetStaffActiveForm { public string UserId { get; set; }=""; public bool Active { get; set; } public bool Confirmed { get; set; } }
 public sealed class PlanActionForm { public string Id { get; set; }=""; public string Stamp { get; set; }=""; }
 public sealed class KeyActionForm { public string Stamp { get; set; }=""; public bool Confirmed { get; set; } }
 

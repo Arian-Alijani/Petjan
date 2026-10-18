@@ -25,6 +25,12 @@ public sealed class ClinicStaffAdministration(AnimoraOperatorDbContext db, ICloc
     /// <summary>Audit action: the operator reset a clinic account's password.</summary>
     public const string PasswordResetAction = "staff.password_reset";
 
+    /// <summary>Audit action: the operator enabled a clinic account.</summary>
+    public const string EnabledAction = "staff.enabled";
+
+    /// <summary>Audit action: the operator disabled a clinic account.</summary>
+    public const string DisabledAction = "staff.disabled";
+
     private const int MaxName = 200;
     private const int MaxUserName = 64;
 
@@ -120,6 +126,42 @@ public sealed class ClinicStaffAdministration(AnimoraOperatorDbContext db, ICloc
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
         await tx.CommitAsync(ct).ConfigureAwait(false);
         return Result<string>.Ok(password);
+    }
+
+    /// <summary>
+    /// Enables or disables ONE clinic user (owner or staff). Disabling rotates the security stamp so the user's live sessions end.
+    /// The user must hold a non-deleted membership in the clinic; lookups run through the tenant-bound context, so a user id of
+    /// another clinic can never be touched. Idempotent: setting the state it already has still succeeds (and is still audited).
+    /// </summary>
+    public async Task<Result> SetActiveAsync(string tenantId, string userId, bool active, ActorRef actor, string correlationId,
+        CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        if (string.IsNullOrWhiteSpace(tenantId) || tenantId.Length > 26 || string.IsNullOrWhiteSpace(userId) || userId.Length > 26)
+        {
+            return Result.Fail(ErrorCodes.ValidationFailed);
+        }
+
+        await using IDbContextTransaction tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+        if (!await db.StaffMemberships.AsNoTracking().AnyAsync(m => m.TenantId == tenantId && m.UserId == userId && !m.Deleted, ct).ConfigureAwait(false))
+        {
+            return Result.Fail(ErrorCodes.NotFound);
+        }
+
+        await using var tenant = TenantBoundContext.Create(db, tenantId, clock);
+        await tenant.Database.UseTransactionAsync(tx.GetDbTransaction(), ct).ConfigureAwait(false);
+        User? user = await tenant.Users.SingleOrDefaultAsync(u => u.Id == userId, ct).ConfigureAwait(false);
+        if (user is null)
+        {
+            return Result.Fail(ErrorCodes.NotFound);
+        }
+
+        if (active) { user.Enable(); } else { user.Disable(); }
+        AddAudits(tenant, tenantId, actor, active ? EnabledAction : DisabledAction, correlationId, user.Id, ("role", "-"));
+        await tenant.SaveChangesAsync(ct).ConfigureAwait(false);
+        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+        return Result.Ok();
     }
 
     private void AddAudits(Context.AnimoraServerDbContext tenant, string tenantId, ActorRef actor, string action, string correlationId,

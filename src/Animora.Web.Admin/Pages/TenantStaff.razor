@@ -12,10 +12,14 @@
 </select></label><button type="submit">@Loc.T("common.filter")</button></form>
 @if (Rows is not null) {
 <table><caption>@Loc.T("staff.caption")</caption><thead><tr><th scope="col">@Loc.T("staff.name")</th><th scope="col">@Loc.T("staff.username")</th><th scope="col">@Loc.T("staff.role")</th>
-<th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("staff.devices")</th><th scope="col">@Loc.T("staff.resetPassword")</th></tr></thead><tbody>
+<th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("staff.devices")</th><th scope="col">@Loc.T("staff.activeToggle")</th><th scope="col">@Loc.T("staff.resetPassword")</th></tr></thead><tbody>
 @foreach (var row in Rows.Items) {
 <tr><td>@row.Name</td><td dir="ltr">@row.UserName</td><td>@Loc.T("role." + row.Role)</td>
 <td><StatusBadge Status="@(row.Active ? Loc.T("staff.active") : Loc.T("staff.inactive"))" /></td><td>@row.Devices</td>
+<td><EditForm Model="ActiveForm" FormName="@($"active-{row.UserId}")" method="post" OnSubmit="SetActive">
+<input type="hidden" name="ActiveForm.UserId" value="@row.UserId" />
+<input type="hidden" name="ActiveForm.Active" value="@((!row.Active).ToString().ToLowerInvariant())" />
+<ConfirmCheckbox Name="ActiveForm.Confirmed" /><button type="submit" class="@(row.Active ? "danger" : "")" title="@Loc.T("staff.activeHint")">@Loc.T(row.Active ? "staff.disable" : "staff.enable")</button></EditForm></td>
 <td><EditForm Model="ResetForm" FormName="@($"reset-{row.UserId}")" method="post" OnSubmit="Reset">
 <input type="hidden" name="ResetForm.UserId" value="@row.UserId" />
 <ConfirmCheckbox Name="ResetForm.Confirmed" /><button type="submit" title="@Loc.T("staff.resetHint")">@Loc.T("staff.resetPassword")</button></EditForm></td></tr>
@@ -36,10 +40,11 @@
     [SupplyParameterFromQuery] public int PageSize { get; set; }=50;
     [SupplyParameterFromForm] public CreateStaffAdminForm? CreateForm { get; set; }
     [SupplyParameterFromForm] public ResetStaffPasswordForm? ResetForm { get; set; }
+    [SupplyParameterFromForm] public SetStaffActiveForm? ActiveForm { get; set; }
     private static readonly string[] Roles=["Manager","Doctor","Receptionist","Cashier","Accountant"];
     private AdminPage<StaffAccountSummary>? Rows; private MutationReceipt? Receipt;
     private string FilterUrl=>$"/admin/tenants/{Id}/staff?search={Uri.EscapeDataString(Search??"")}&role={Uri.EscapeDataString(Role??"")}";
-    protected override async Task OnInitializedAsync() { CreateForm??=new(); ResetForm??=new(); await Load(); }
+    protected override async Task OnInitializedAsync() { CreateForm??=new(); ResetForm??=new(); ActiveForm??=new(); await Load(); }
     private async Task Load() { var captured=Error; Rows=Capture(await Queries.ListAsync(Id,new(Role,Search,Page,PageSize),Cancellation)); Error??=captured; }
     private async Task Create(EditContext _)
     {
@@ -49,6 +54,11 @@
     private async Task Reset(EditContext _)
     {
         Receipt=Capture(await Commands.ResetStaffPasswordAsync(Id,ResetForm!,Cancellation));
+        var failure=Error; await Load(); Error=failure??Error;
+    }
+    private async Task SetActive(EditContext _)
+    {
+        Capture(await Commands.SetStaffActiveAsync(Id,ActiveForm!,Cancellation));
         var failure=Error; await Load(); Error=failure??Error;
     }
 }
