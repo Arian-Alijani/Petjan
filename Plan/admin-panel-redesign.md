@@ -131,7 +131,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T4 — صفحه‌ی ساخت کلینیک + اکانت دمو/معمولی (TenantNew) `[ ]`
+### T4 — صفحه‌ی ساخت کلینیک + اکانت دمو/معمولی (TenantNew) `[x]`
 **فایل‌ها:** `src/Animora.Web.Admin/Pages/TenantNew.razor`, `Models/AdminModels.cs` (`CreateTenantForm`), `AdminSubscriptionAdapter.CreateTenantAsync`.
 **موجود:** `CreateTenantForm` فیلدهای Code, Name, OwnerUserName, OwnerName, PlanCode, Seats, StartTrial, IdempotencyKey دارد؛ adapter به `ProvisioningEngine.ProvisionAsync` وصل است و رمز موقت owner را یک‌بار برمی‌گرداند.
 **کار دقیق:**

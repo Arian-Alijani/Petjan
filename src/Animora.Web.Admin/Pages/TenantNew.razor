@@ -2,24 +2,55 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminSubscriptionCommands Commands
+@inject IAdminPlanCommands Plans
 <h1>@Loc.T("new.title")</h1><FormError Code="@Error" />
 @if (Receipt is not null) {
-<p>Tenant created: <a href="@($"/admin/tenants/{Receipt.TenantId}")">@Receipt.TenantId</a></p>
-@if (Receipt.TemporaryPassword is { } password) { <p class="secret">Temporary password (shown once): <code>@password</code></p> }
+<section class="card" aria-live="polite">
+<p>@Loc.T("new.created"): <a href="@($"/admin/tenants/{Receipt.TenantId}")">@Form!.Name (<span dir="ltr">@Form.Code</span>)</a></p>
+@if (Receipt.TemporaryPassword is { } password) { <p class="secret">@Loc.T("tenant.tempPassword"): <code>@password</code></p>
+<p class="hint">@Loc.T("new.ownerHint"): <code dir="ltr">@Form.OwnerUserName</code></p> }
+<p><a href="@($"/admin/tenants/{Receipt.TenantId}/staff")">@Loc.T("tenant.staffLink")</a></p>
+</section>
 } else {
 <EditForm Model="Form" FormName="create-tenant" method="post" Enhance OnSubmit="Submit">
 <input type="hidden" name="Form.IdempotencyKey" value="@Form!.IdempotencyKey" />
-<label>Tenant code <InputText @bind-Value="Form.Code" maxlength="32" /></label>
-<label>Clinic name <InputText @bind-Value="Form.Name" maxlength="200" /></label>
-<label>Owner username <InputText @bind-Value="Form.OwnerUserName" maxlength="64" /></label>
-<label>Owner name <InputText @bind-Value="Form.OwnerName" maxlength="200" /></label>
-<label>Plan code <InputText @bind-Value="Form.PlanCode" maxlength="32" /></label>
-<label>Seats override <InputNumber @bind-Value="Form.Seats" /></label>
-<label>Start trial <InputCheckbox @bind-Value="Form.StartTrial" /></label><button type="submit">Create tenant</button></EditForm>
+<fieldset><legend>@Loc.T("new.clinic")</legend>
+<label>@Loc.T("new.code") <InputText @bind-Value="Form.Code" maxlength="32" dir="ltr" required="required" /></label>
+<label>@Loc.T("new.name") <InputText @bind-Value="Form.Name" maxlength="200" required="required" /></label>
+</fieldset>
+<fieldset><legend>@Loc.T("new.owner")</legend>
+<label>@Loc.T("new.ownerUser") <InputText @bind-Value="Form.OwnerUserName" maxlength="64" dir="ltr" required="required" /></label>
+<label>@Loc.T("new.ownerName") <InputText @bind-Value="Form.OwnerName" maxlength="200" required="required" /></label>
+</fieldset>
+<fieldset><legend>@Loc.T("new.subscription")</legend>
+<label>@Loc.T("new.plan")
+@if (PlanOptions.Count > 0) { <InputSelect @bind-Value="Form.PlanCode">@foreach (var p in PlanOptions) { <option value="@p.Code">@p.Name (@p.Code) — @Loc.T("new.planSeats"): @p.Seats</option> }</InputSelect> }
+else { <InputText @bind-Value="Form.PlanCode" maxlength="32" dir="ltr" required="required" /> }
+</label>
+<label>@Loc.T("new.seats") <InputNumber @bind-Value="Form.Seats" min="1" max="1000" /></label>
+<p class="hint">@Loc.T("new.seatsHint")</p>
+<label><InputCheckbox @bind-Value="Form.StartTrial" /> @Loc.T("new.demo")</label>
+<p class="hint">@Loc.T("new.demoHint")</p>
+</fieldset>
+<button type="submit">@Loc.T("tenants.create")</button></EditForm>
 }
 @code {
     [SupplyParameterFromForm] public CreateTenantForm? Form { get; set; }
     private MutationReceipt? Receipt;
-    protected override void OnInitialized()=>Form??=new();
-    private async Task Submit(EditContext _)=>Receipt=Capture(await Commands.CreateTenantAsync(Form!,Form!.IdempotencyKey,Cancellation));
+    private IReadOnlyList<PlanSummary> PlanOptions=[];
+    protected override async Task OnInitializedAsync()
+    {
+        Form??=new();
+        var plans=Capture(await Plans.ListAsync(1,100,Cancellation));
+        PlanOptions=plans?.Items.Where(p=>p.Active).OrderBy(p=>p.Name).ToList()??[];
+        // Make sure the preselected plan is a real one; otherwise the select would silently post the first option.
+        if(PlanOptions.Count>0&&!PlanOptions.Any(p=>p.Code==Form.PlanCode)&&Form.PlanCode=="standard") Form.PlanCode=PlanOptions[0].Code;
+    }
+    private async Task Submit(EditContext _)
+    {
+        var f=Form!;
+        f.Code=f.Code.Trim(); f.Name=f.Name.Trim(); f.OwnerUserName=f.OwnerUserName.Trim(); f.OwnerName=f.OwnerName.Trim();
+        if(f.Code.Length==0||f.Name.Length==0||f.OwnerUserName.Length==0||f.OwnerName.Length==0||f.PlanCode.Length==0) { Error=ErrorCodes.ValidationFailed.Code; return; }
+        Receipt=Capture(await Commands.CreateTenantAsync(f,f.IdempotencyKey,Cancellation));
+    }
 }
