@@ -167,7 +167,7 @@ Dashboard, Tenants, TenantDetail, TenantStaff, TenantProducts, TenantLicenses, T
 
 ---
 
-### T6 — بازطراحی کامل CSS/UX (shell، جداول، کارت‌ها، فرم‌ها، لاگ) `[ ]`
+### T6 — بازطراحی کامل CSS/UX (shell، جداول، کارت‌ها، فرم‌ها، لاگ) `[x]`
 **فایل:** `src/Animora.Web.Admin/wwwroot/admin.css` (بازنویسی/گسترش از ۷۵ خط).
 **اصول:** سبک، بدون وابستگی خارجی، بدون JS اضافی، RTL-aware با **logical properties** (همان سبک فعلی)، فونت Vazirmatn موجود، پالت موجود (`--brand`, `--ok`, `--warn`, `--danger`).
 **کار دقیق:**

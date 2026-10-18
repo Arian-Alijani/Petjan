@@ -1,15 +1,15 @@
 <nav class="sidebar" aria-label="@Loc.T("nav.main")">
-<a href="/admin">@Loc.T("nav.dashboard")</a>
-<a href="/admin/tenants">@Loc.T("nav.tenants")</a>
-<a href="/admin/tenants/new">@Loc.T("nav.newTenant")</a>
-<a href="/admin/plans">@Loc.T("nav.plans")</a>
-<a href="/admin/licensing/keys">@Loc.T("nav.keys")</a>
-<a href="/admin/provisioning">@Loc.T("nav.provisioning")</a>
-<a href="/admin/website-clients">@Loc.T("nav.websiteClients")</a>
-<a href="/admin/files/mismatches">@Loc.T("nav.mismatches")</a>
-<a href="/admin/audit">@Loc.T("nav.audit")</a>
-<a href="/admin/system">@Loc.T("nav.system")</a>
-<a href="/admin/logs">@Loc.T("nav.logs")</a>
-<a href="/admin/backup">@Loc.T("nav.backup")</a>
-<a href="/admin/account/change-password">@Loc.T("nav.changePassword")</a>
+<NavLink href="/admin" Match="NavLinkMatch.All">@Loc.T("nav.dashboard")</NavLink>
+<NavLink href="/admin/tenants" Match="NavLinkMatch.All">@Loc.T("nav.tenants")</NavLink>
+<NavLink href="/admin/tenants/new" Match="NavLinkMatch.All">@Loc.T("nav.newTenant")</NavLink>
+<NavLink href="/admin/plans">@Loc.T("nav.plans")</NavLink>
+<NavLink href="/admin/licensing/keys">@Loc.T("nav.keys")</NavLink>
+<NavLink href="/admin/provisioning">@Loc.T("nav.provisioning")</NavLink>
+<NavLink href="/admin/website-clients">@Loc.T("nav.websiteClients")</NavLink>
+<NavLink href="/admin/files/mismatches">@Loc.T("nav.mismatches")</NavLink>
+<NavLink href="/admin/audit">@Loc.T("nav.audit")</NavLink>
+<NavLink href="/admin/system">@Loc.T("nav.system")</NavLink>
+<NavLink href="/admin/logs">@Loc.T("nav.logs")</NavLink>
+<NavLink href="/admin/backup">@Loc.T("nav.backup")</NavLink>
+<NavLink href="/admin/account/change-password">@Loc.T("nav.changePassword")</NavLink>
 <form method="post" action="/admin/account/logout"><AntiforgeryToken /><button type="submit" class="ghost">@Loc.T("nav.signOut")</button></form></nav>
