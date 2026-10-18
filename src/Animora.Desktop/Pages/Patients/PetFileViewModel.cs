@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Patients;
+using Animora.Contracts.Visits;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Sales.Shared;
+using Animora.Desktop.Pages.Visits;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
 using Avalonia.Media;
@@ -85,6 +87,8 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IToastService _toast;
     private readonly IDataChangeNotifier _changes;
+    private readonly IVisitsTriageService _triage;
+    private readonly INavigationService _navigation;
 
     private PetDetail? _pet;
     private OwnerDetail? _owner;
@@ -110,13 +114,17 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         IRecordSheetPresenter presenter,
         IDialogService dialogs,
         IToastService toast,
-        IDataChangeNotifier changes)
+        IDataChangeNotifier changes,
+        IVisitsTriageService triage,
+        INavigationService navigation)
     {
         _patients = patients;
         _changes = changes;
         _presenter = presenter;
         _dialogs = dialogs;
         _toast = toast;
+        _triage = triage;
+        _navigation = navigation;
         Title = "پرونده بیمار";
         Eyebrow = "بیماران و سرپرستان";
         Breadcrumbs.Add("مدیریت کلینیک");
@@ -674,7 +682,45 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     }
 
     [RelayCommand]
-    private void AddVisit() => _toast.Show("فرم ثبت ویزیت جدید (نمونه طراحی)", Controls.Tone.Info);
+    private async Task AddVisitAsync()
+    {
+        if (_pet is null)
+        {
+            return;
+        }
+
+        // The exact pet is bound by id, so the encounter is tied to THIS record (no name lookup).
+        var pet = _pet;
+        var ownerName = _owner is null ? "—" : $"{_owner.FirstName} {_owner.LastName}".Trim();
+        var ownerPhone = _owner?.Mobile1 ?? string.Empty;
+        var kind = string.IsNullOrWhiteSpace(pet.Breed) ? pet.Species.ToString() : pet.Breed.Trim();
+        var request = new NewVisitRequest(
+            DoctorId: string.Empty, // filled in by the picker on confirm
+            PatientName: pet.Name,
+            PatientKind: kind,
+            OwnerName: ownerName,
+            OwnerPhone: ownerPhone,
+            PatientIconKey: VisitsPresentation.IconKeyForKind(kind),
+            IsNewPatient: false,
+            TypeId: "visit",
+            IsUrgent: false,
+            Note: string.Empty,
+            PatientId: pet.Id);
+
+        var picker = new PickDoctorModalViewModel(
+            _triage,
+            _dialogs,
+            pet.Name,
+            request,
+            async draft =>
+            {
+                _toast.Show($"ویزیت « {draft.PatientName} » آغاز شد.", Controls.Tone.Ok);
+                await _navigation.NavigateToAsync<VisitEncounterViewModel>(vm => vm.LoadAsync(draft));
+            });
+
+        _dialogs.ShowModal(picker, 520);
+        await picker.LoadAsync();
+    }
 
     [RelayCommand]
     private void AddVax() => _toast.Show("فرم ثبت واکسن جدید (نمونه طراحی)", Controls.Tone.Info);

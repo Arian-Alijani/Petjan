@@ -115,7 +115,7 @@ rule: no long full test). Fix all errors + warnings you introduce.
 **Done when:** opening a pet with a completed visit shows that visit's temp/pulse/resp; a pet with no
 visit shows "—" cleanly. **Push.**
 
-### ☐ Task 2 — "ثبت ویزیت" button → real, UX-polished visit start with doctor selection
+### ☑ Task 2 — "ثبت ویزیت" button → real, UX-polished visit start with doctor selection
 **Problem:** `AddVisit` (VM L668) is a toast stub. Button appears in hero (axaml L188-197) and visits tab
 (L786-794).
 **Fix:**

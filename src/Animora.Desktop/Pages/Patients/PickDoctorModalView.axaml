@@ -1,0 +1,144 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:patients="using:Animora.Desktop.Pages.Patients"
+             xmlns:visits="using:Animora.Desktop.Pages.Visits"
+             x:Class="Animora.Desktop.Pages.Patients.PickDoctorModalView"
+             x:Name="Root"
+             x:DataType="patients:PickDoctorModalViewModel"
+             Width="520"
+             MaxWidth="520"
+             FlowDirection="RightToLeft">
+
+    <!-- Doctor picker for «ثبت ویزیت» — professional RTL sheet listing the clinic's
+         doctors as selectable cards, matching the pet-file sheet visual language. -->
+    <UserControl.Styles>
+        <Style Selector="TextBlock.pd-lbl">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="Button.pd-btn">
+            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.pd-doc">
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.pd-doc:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="Border.pd-doc.on">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel>
+        <!-- head -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" Margin="22,20,22,8">
+            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="13"
+                    Background="{StaticResource Brand50Brush}">
+                <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                      Data="{StaticResource IconSyringe}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                <TextBlock Text="ثبت ویزیت" FontSize="17" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" />
+                <TextBlock FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}">
+                    <Run Text="پزشک معالج را برای پرونده " />
+                    <Run Text="{Binding PetName}" FontWeight="Bold" />
+                    <Run Text=" انتخاب کنید." />
+                </TextBlock>
+            </StackPanel>
+        </Grid>
+
+        <!-- body -->
+        <StackPanel Margin="22,4,22,12" Spacing="10">
+            <TextBlock Classes="pd-lbl" Text="پزشک معالج" />
+
+            <TextBlock Text="در حال بارگذاری فهرست پزشکان…" FontSize="12.5"
+                       Foreground="{StaticResource MutedBrush}" IsVisible="{Binding IsLoading}" />
+
+            <TextBlock Text="{Binding ErrorText}" FontSize="12.5"
+                       Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap"
+                       IsVisible="{Binding HasError}" />
+
+            <TextBlock Text="پزشکی در این مرکز ثبت نشده است." FontSize="12.5"
+                       Foreground="{StaticResource MutedBrush}" IsVisible="{Binding HasNoDoctors}" />
+
+            <ScrollViewer MaxHeight="320" IsVisible="{Binding HasDoctors}">
+                <ItemsControl ItemsSource="{Binding Doctors}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="8" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="visits:DoctorTileViewModel">
+                            <Border Classes="pd-doc" Classes.on="{Binding IsSelected}"
+                                    Command="{Binding #Root.((patients:PickDoctorModalViewModel)DataContext).SelectDoctorCommand}"
+                                    CommandParameter="{Binding}">
+                                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                                    <Border Grid.Column="0" Width="42" Height="42" CornerRadius="12"
+                                            Background="{Binding AvatarBrush}">
+                                        <TextBlock Text="{Binding Initials}" FontSize="14" FontWeight="ExtraBold"
+                                                   Foreground="White"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="Bold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Specialty}" FontSize="11.5"
+                                                   Foreground="{StaticResource MutedBrush}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="5"
+                                                VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="13" Height="13"
+                                              Stroke="{StaticResource MutedBrush}"
+                                              Data="{StaticResource IconCalendar}" />
+                                        <TextBlock Text="{Binding MetricCount}" FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Ink2Brush}" />
+                                    </StackPanel>
+                                    <Path Grid.Column="3" Classes="icon" Width="18" Height="18"
+                                          Stroke="{StaticResource Brand600Brush}"
+                                          Data="{StaticResource IconCheckCircle}"
+                                          VerticalAlignment="Center"
+                                          IsVisible="{Binding IsSelected}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </StackPanel>
+
+        <!-- foot -->
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                    Margin="20,12,20,18">
+            <Button Classes="outline pd-btn" Content="انصراف" Command="{Binding CancelCommand}" />
+            <Button Classes="pd-btn" Command="{Binding ConfirmCommand}" IsEnabled="{Binding CanConfirm}">
+                <Button.Styles>
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+                        <Setter Property="Foreground" Value="White" />
+                        <Setter Property="BorderThickness" Value="0" />
+                    </Style>
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="{StaticResource Brand700Brush}" />
+                    </Style>
+                </Button.Styles>
+                <TextBlock Text="{Binding ConfirmText}" />
+            </Button>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

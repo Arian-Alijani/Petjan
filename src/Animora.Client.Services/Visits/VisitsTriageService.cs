@@ -115,7 +115,7 @@ public sealed class VisitsTriageService(
         ArgumentNullException.ThrowIfNull(request);
         return (await SendAsync(new StartNewVisitCommand(request.DoctorId, request.PatientName,
             request.PatientKind, request.OwnerName, request.OwnerPhone, request.TypeId,
-            request.IsUrgent, request.Note), null)).ToContract();
+            request.IsUrgent, request.Note, request.PatientId), null)).ToContract();
     }
 
     private async Task<TOut> QueryAsync<TModel, TOut>(IQuery<TModel> query, Func<TModel, TOut> map)

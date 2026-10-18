@@ -96,7 +96,8 @@ public sealed record NewVisitRequest(
     bool IsNewPatient,
     string TypeId,
     bool IsUrgent,
-    string Note);
+    string Note,
+    string? PatientId = null);
 
 /// <summary>
 /// The clinical encounter draft handed to the wizard (Phase 11), mirroring

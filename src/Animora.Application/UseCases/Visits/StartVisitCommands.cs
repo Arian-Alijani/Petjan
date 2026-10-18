@@ -128,7 +128,7 @@ public sealed class StartVisitFromTicketCommandHandler(
 [RequiresPermission(PermissionCodes.VisitsWrite)]
 [Auditable(AuditCategory.Clinical, CommandTypes.VisitsVisitStart)]
 public sealed record StartNewVisitCommand(string DoctorId, string PatientName, string PatientKind,
-    string OwnerName, string OwnerPhone, string TypeId, bool IsUrgent, string Note)
+    string OwnerName, string OwnerPhone, string TypeId, bool IsUrgent, string Note, string? PatientId = null)
     : ICommand<EncounterDraftReadModel>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.VisitsVisitStart;
@@ -175,8 +175,20 @@ public sealed class StartNewVisitCommandHandler(
         // otherwise register a distinct record so two animals' histories never merge (V08). A code/chip
         // selector for explicit disambiguation is a UI follow-up.
         var species = PetSpeciesParser.Parse(c.PatientKind);
-        var sameName = await pets.ListByOwnerAndNameAsync(owner.Id, c.PatientName, ct);
-        var pet = sameName.Count == 1 && sameName[0].Species == species ? sameName[0] : null;
+        // When the caller knows the exact pet (the pet file's «ثبت ویزیت»), bind to it directly — no name lookup,
+        // so the encounter is tied to THIS pet id and a same-named sibling can never be picked by mistake.
+        Pet? pet = null;
+        if (!string.IsNullOrWhiteSpace(c.PatientId))
+        {
+            pet = await pets.FindAsync(c.PatientId, ct);
+            if (pet is null || pet.OwnerId != owner.Id)
+                return Result<EncounterDraftReadModel>.Fail(ErrorCodes.PetNotFound);
+        }
+        else
+        {
+            var sameName = await pets.ListByOwnerAndNameAsync(owner.Id, c.PatientName, ct);
+            pet = sameName.Count == 1 && sameName[0].Species == species ? sameName[0] : null;
+        }
         if (pet is null)
         {
             pet = Pet.Register(context.TenantId, owner.Id, c.PatientName, species, clock,
