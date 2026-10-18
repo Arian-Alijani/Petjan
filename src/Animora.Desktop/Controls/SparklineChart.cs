@@ -75,17 +75,24 @@ public sealed class SparklineChart : Control
         if (size.Width <= Inset * 2 || size.Height <= Inset * 2) return;
 
         if (_line is null || _builtFor != size || !ReferenceEquals(_builtPoints, points)) Rebuild(points, size);
-        if (_pen is null || !ReferenceEquals(_pen.Brush, stroke) || _pen.Thickness != StrokeThickness)
-            _pen = new Pen(stroke, StrokeThickness, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        // Rebuild always assigns both geometries together; capture them as locals so the compiler
+        // can prove non-null at the draw calls below (and so a draw can never see a half-built state).
+        var line = _line;
+        var area = _area;
+        if (line is null) return;
+
+        var pen = _pen;
+        if (pen is null || !ReferenceEquals(pen.Brush, stroke) || pen.Thickness != StrokeThickness)
+            _pen = pen = new Pen(stroke, StrokeThickness, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         if (!ReferenceEquals(_areaBrushSource, stroke))
         {
             _areaBrushSource = stroke;
             _areaBrush = BuildAreaBrush(stroke);
         }
 
-        if (_areaBrush is not null && _area is not null) context.DrawGeometry(_areaBrush, null, _area);
-        context.DrawGeometry(null, _pen, _line);
-        context.DrawEllipse(Brushes.White, _pen, _end, DotRadius, DotRadius);
+        if (_areaBrush is not null && area is not null) context.DrawGeometry(_areaBrush, null, area);
+        context.DrawGeometry(null, pen, line);
+        context.DrawEllipse(Brushes.White, pen, _end, DotRadius, DotRadius);
     }
 
     private void Rebuild(IReadOnlyList<double> points, Size size)
