@@ -29,7 +29,7 @@ public sealed class JournalOrderingTests(PgFixture pg) : IClassFixture<PgFixture
         await Exec(c, JournalSqlTemplates.CaptureFunction + JournalSqlTemplates.AssignFunction + JournalSqlTemplates.DeferredTrigger);
         var d = new SyncEntityDescriptor("Product", typeof(Animora.Domain.Inventory.Product), "TestRoots", []);
         await Exec(c, JournalSqlTemplates.CaptureTrigger(d, "TestRoots", "Id", false));
-        await Exec(c, JournalSqlTemplates.CaptureTrigger(d, "TestChildren", "OwnerId", true));
+        await Exec(c, JournalSqlTemplates.DeferrableChildCaptureTrigger(d, new("TestChildren", "OwnerId", false)));
         return c;
     }
     private static async Task Exec(NpgsqlConnection c, string sql)
@@ -109,4 +109,54 @@ public sealed class JournalOrderingTests(PgFixture pg) : IClassFixture<PgFixture
         await Exec(c, "UPDATE \"TestRoots\" SET \"Value\"='y'");
         Assert.Equal(1, await Scalar(c, "SELECT count(*) FROM \"TenantJournal\" WHERE \"Epoch\"=2 AND \"ChangeSequence\"=2"));
     }
+    [PgFact]
+    public async Task DeferredChildren_AllowEitherSqlOrder_WithFinalJournalToken()
+    {
+        await using var c = await Setup();
+        await Exec(c, "INSERT INTO \"TestRoots\" VALUES ('r','A',gen_random_uuid(),'x'); INSERT INTO \"TestChildren\" VALUES ('child','r','a')");
+        foreach (var childFirst in new[] { true, false })
+        {
+            await using var tx = await c.BeginTransactionAsync();
+            await Exec(c, """
+                SET CONSTRAINTS "trg_TestChildren_journal" DEFERRED;
+                CREATE TEMP TABLE original_version ON COMMIT DROP AS SELECT "Version" FROM "TestRoots" WHERE "Id"='r';
+                """);
+            if (childFirst) await Exec(c, "UPDATE \"TestChildren\" SET \"Value\"='changed'");
+            Assert.Equal(1, await Scalar(c, """
+                WITH updated AS (UPDATE "TestRoots" SET "Value"='changed', "Version"=gen_random_uuid()
+                  WHERE "Id"='r' AND "Version"=(SELECT "Version" FROM original_version) RETURNING 1)
+                SELECT count(*) FROM updated
+                """));
+            if (!childFirst) await Exec(c, "UPDATE \"TestChildren\" SET \"Value\"='changed'");
+            await Exec(c, "SET CONSTRAINTS \"trg_TestChildren_journal\" IMMEDIATE");
+            // Other deferred events (sequence assignment) have NOT been flushed here.
+            Assert.True(await Scalar(c, "SELECT count(*) FROM \"TenantJournal\" WHERE \"ChangeSequence\" IS NULL") > 0);
+            await tx.CommitAsync();
+            Assert.Equal(1, await Scalar(c, """
+                SELECT count(*) FROM "TenantJournal" j JOIN "TestRoots" r ON r."Id"=j."EntityId"
+                WHERE j."ChangeSequence"=(SELECT "LastSequence" FROM "TenantFeedState" WHERE "TenantId"='A')
+                  AND j."Version"=r."Version"
+                """));
+        }
+    }
+
+    [PgFact]
+    public async Task DirectChildSql_RemainsImmediate_AndMovingChildInvalidatesBothRoots()
+    {
+        await using var c = await Setup();
+        await Exec(c, """
+            INSERT INTO "TestRoots" VALUES ('r','A',gen_random_uuid(),'x'),('s','A',gen_random_uuid(),'y');
+            INSERT INTO "TestChildren" VALUES ('child','r','a');
+            """);
+        await using var tx = await c.BeginTransactionAsync();
+        await Exec(c, """
+            CREATE TEMP TABLE previous_versions ON COMMIT DROP AS SELECT "Id", "Version" FROM "TestRoots";
+            UPDATE "TestChildren" SET "OwnerId"='s' WHERE "Id"='child';
+            """);
+        Assert.Equal(2, await Scalar(c, """
+            SELECT count(*) FROM "TestRoots" r JOIN previous_versions p ON r."Id"=p."Id" WHERE r."Version"<>p."Version"
+            """));
+        await tx.CommitAsync();
+    }
+
 }

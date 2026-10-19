@@ -120,6 +120,30 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<FileUploadChunk> FileUploadChunks => Set<FileUploadChunk>();
     public DbSet<BlobRef> BlobRefs => Set<BlobRef>();
 
+    /// <inheritdoc />
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        using var scope = AggregateSaveScope.Create(this);
+        if (scope is null) return base.SaveChanges(acceptAllChangesOnSuccess);
+        scope.Begin();
+        var saved = base.SaveChanges(acceptAllChangesOnSuccess: false);
+        scope.Complete();
+        if (acceptAllChangesOnSuccess) ChangeTracker.AcceptAllChanges();
+        return saved;
+    }
+
+    /// <inheritdoc />
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        await using var scope = AggregateSaveScope.Create(this);
+        if (scope is null) return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
+        await scope.BeginAsync(cancellationToken).ConfigureAwait(false);
+        var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+        await scope.CompleteAsync(cancellationToken).ConfigureAwait(false);
+        if (acceptAllChangesOnSuccess) ChangeTracker.AcceptAllChanges();
+        return saved;
+    }
+
     /// <summary>
     /// Server schema is created exclusively by hand-authored SQL migrations (see Migrations/Server), so the
     /// EF model snapshot is tooling metadata only and is never used to derive DDL at runtime. EF's

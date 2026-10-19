@@ -74,6 +74,15 @@ public static class JournalSqlTemplates
         $"CREATE TRIGGER {Quote("trg_" + table + "_journal")} AFTER INSERT OR UPDATE OR DELETE ON public.{Quote(table)} " +
         $"FOR EACH ROW EXECUTE FUNCTION public.animora_journal_capture('{d.Name}', '{d.Table}', '{rootColumn}', '{(child ? "child" : "root")}');";
 
+    /// <summary>
+    /// Immediate for direct SQL by default; EF defers these within one atomic SaveChanges scope.
+    /// Keep CaptureTrigger unchanged so historical migration 109 retains its original SQL.
+    /// </summary>
+    public static string DeferrableChildCaptureTrigger(SyncEntityDescriptor descriptor, SyncChildDescriptor child) =>
+        $"CREATE CONSTRAINT TRIGGER {Quote("trg_" + child.Table + "_journal")} " +
+        $"AFTER INSERT OR UPDATE OR DELETE ON public.{Quote(child.Table)} DEFERRABLE INITIALLY IMMEDIATE " +
+        $"FOR EACH ROW EXECUTE FUNCTION public.animora_journal_capture('{descriptor.Name}', '{descriptor.Table}', '{child.RootIdColumn}', 'child');";
+
     internal static string Quote(string identifier)
     {
         if (string.IsNullOrEmpty(identifier) || !identifier.All(c => char.IsAsciiLetterOrDigit(c) || c == '_'))
