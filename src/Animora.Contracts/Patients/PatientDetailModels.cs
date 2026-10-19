@@ -141,7 +141,12 @@ public sealed record RadiologySummary(
     string Result,
     int AttachmentCount);
 
-/// <summary>\n/// A stored document reference for the documents tab. <see cref=\"Id\"/> is the underlying\n/// <c>DocumentReference</c> id and <see cref=\"Hash\"/> its content-addressed store key — both\n/// optional so existing positional callers keep compiling, and both required to download the payload.\n/// </summary>\npublic sealed record DocumentRef(string Name, string Size, DateTime Date, string? Id = null, string? Hash = null);
+/// <summary>
+/// A stored document reference for the documents tab. <see cref=\"Id\"/> is the underlying
+/// <c>DocumentReference</c> id and <see cref=\"Hash\"/> its content-addressed store key — both
+/// optional so existing positional callers keep compiling, and both required to download the payload.
+/// </summary>
+public sealed record DocumentRef(string Name, string Size, DateTime Date, string? Id = null, string? Hash = null);
 
 /// <summary>
 /// Full pet record backing the Pet File screen, plus its owner id. Combines the
