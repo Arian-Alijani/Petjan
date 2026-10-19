@@ -30,13 +30,18 @@ internal static class Program
             case "correctness":
                 return await Correctness.CorrectnessRunner.RunAsync(options, cts.Token);
             case "capacity":
-                Console.Error.WriteLine("capacity suite not yet wired (task T6).");
-                return 2;
+                return await Capacity.CapacityRunner.RunAsync(options, cts.Token);
             case "all":
             {
+                // Correctness first: do not load a server that already fails functionally.
                 var rc = await Correctness.CorrectnessRunner.RunAsync(options, cts.Token);
-                Console.Error.WriteLine("capacity suite not yet wired (task T6).");
-                return rc != 0 ? rc : 2;
+                if (rc != 0)
+                {
+                    Console.Error.WriteLine("correctness failed — capacity run skipped.");
+                    return rc;
+                }
+
+                return await Capacity.CapacityRunner.RunAsync(options, cts.Token);
             }
             default:
                 Console.Error.WriteLine($"unknown mode '{mode}'. Use: preflight | correctness | capacity | all");

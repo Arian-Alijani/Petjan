@@ -28,6 +28,21 @@ public sealed class LiveTestOptions
     /// <summary>Per-request timeout seconds.</summary>
     public int RequestTimeoutSeconds { get; set; } = 30;
 
+    /// <summary>
+    /// Maximum distinct devices (logins) the capacity run uses. The licence caps devices per tenant (seats × 2), so
+    /// concurrency above this value is produced by several virtual users sharing one device session.
+    /// </summary>
+    public int MaxDevices { get; set; } = 8;
+
+    /// <summary>Capacity: a level is "unhealthy" when its p95 latency exceeds this many milliseconds.</summary>
+    public double P95LimitMs { get; set; } = 2000;
+
+    /// <summary>Capacity: run only profiles whose name contains this text (case-insensitive).</summary>
+    public string ProfileFilter { get; set; } = "";
+
+    /// <summary>Capacity: allow a tenant code that does not look like a test tenant (default refuses, to protect real clinics).</summary>
+    public bool AllowAnyTenant { get; set; }
+
     /// <summary>Concurrency levels (virtual clients) to ramp through during capacity runs.</summary>
     public int[] ConcurrencyLevels { get; set; } = [1, 2, 4, 8, 16, 32];
 
@@ -107,6 +122,10 @@ public sealed class LiveTestOptions
         o.ScenarioFilter = Env("ANIMORA_LT_FILTER", o.ScenarioFilter);
         if (Env("ANIMORA_LT_KEEP_GOING", "") is "1" or "true" or "yes") o.StopOnFirstFailure = false;
 
+        o.ProfileFilter = Env("ANIMORA_LT_PROFILES", o.ProfileFilter);
+        if (Env("ANIMORA_LT_ALLOW_ANY_TENANT", "") is "1" or "true" or "yes") o.AllowAnyTenant = true;
+        if (int.TryParse(Env("ANIMORA_LT_MAX_DEVICES", ""), out var devices) && devices > 0) o.MaxDevices = devices;
+        if (double.TryParse(Env("ANIMORA_LT_P95_LIMIT_MS", ""), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var p95) && p95 > 0) o.P95LimitMs = p95;
         if (int.TryParse(Env("ANIMORA_LT_REQUESTS", ""), out var reqs) && reqs > 0) o.RequestsPerLevel = reqs;
         var levels = Env("ANIMORA_LT_LEVELS", "");
         if (!string.IsNullOrWhiteSpace(levels))

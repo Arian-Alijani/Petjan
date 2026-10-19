@@ -122,7 +122,8 @@ Goal: watch the server's real hardware during load, read-only, non-invasive.
   only; report notes "server-side metrics unavailable".
 - Push: `scripts/git/push.sh "feat(livetest): read-only remote server hardware monitor"`.
 
-## T6 — Capacity load profiles + report  [ ]
+## T6 — Capacity load profiles + report  [x] DONE
+Implemented `Capacity/LoadProfiles.cs` (4 profiles: reception-day, sales-rush, inventory-receipt, sync-pull; device pool, shared sessions beyond licence cap), `CapacityAnalysis.cs` (health judge + CPU/RAM/PG-conn limiter diagnosis + "upgrade X" hint), `CapacityRunner.cs` (ramp, cooldown, stop-at-first-broken-level, test-tenant guard, partial report on Ctrl+C), `Reporting/CapacityReport.cs` (English MD + JSON with time series), `capacity`/`all` wired in Program.cs. Back-pressure 503/429 = ExpectedBusy.
 Goal: realistic concurrent load → capacity reference, correlated with hardware.
 - `Capacity/LoadProfiles.cs`: reuse `LoadRunner` + `ProfileResult` + `CapacityReport`
   from `tests/Animora.Server.Tests/Capacity/CapacityProfiles.cs` (link the file via
@@ -172,6 +173,6 @@ Goal: realistic concurrent load → capacity reference, correlated with hardware
 | T3 auth+client | x |
 | T4 correctness | x |
 | T5 monitor | x |
-| T6 load+report | |
+| T6 load+report | x |
 | T7 scripts+readme | |
 | T8 cleanup | |
