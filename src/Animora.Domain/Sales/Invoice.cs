@@ -525,6 +525,17 @@ public sealed class Invoice : AggregateRoot
                 $"Invoice '{Id}' has a negative grand total {GrandTotal.Minor}.");
         }
 
+        // A zero grand total has lines but no money to recognise. Balanced double-entry accounting cannot
+        // record it — the ledger rule drops every zero-amount line and is then left with a journal entry
+        // of zero lines (JOURNAL_TOO_FEW_LINES). Refuse it here, at the domain invariant, with a precise
+        // operator-facing code instead of letting it fail deep in the server's posting layer and jam sync.
+        if (GrandTotal.Minor == 0L)
+        {
+            return Result.Fail(
+                ErrorCodes.InvoiceNonPositiveTotal,
+                $"Invoice '{Id}' has a zero grand total; price the lines before posting.");
+        }
+
         var moved = Transition(InvoiceState.Posted);
         if (moved.IsFailure)
         {

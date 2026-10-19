@@ -84,6 +84,10 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
 
         // The domain is the sole total authority; no submitted total participates in this command.
         invoice.RecalculateTotals();
+        // Fail fast on a zero-total invoice before burning an invoice-number sequence on a post the domain
+        // (and the ledger) will reject anyway: a zero grand total yields a journal with no lines
+        // (JOURNAL_TOO_FEW_LINES). Post() enforces the same invariant; this only answers earlier and cleaner.
+        if (invoice.GrandTotal.Minor == 0L) return Result<Unit>.Fail(ErrorCodes.InvoiceNonPositiveTotal);
         var number = await numbers.AllocateAsync(context.TenantId, invoice.IssuedUtc, ct);
         var numbered = invoice.AssignInvoiceNumber(number);
         if (numbered.IsFailure) return Result<Unit>.Fail(numbered.Error, numbered.Detail);
