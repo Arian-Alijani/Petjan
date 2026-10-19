@@ -15,7 +15,7 @@
   no progress at risk → **no PR** (per instruction); work is committed **directly on `main`** via `scripts/git/push.sh`.
 - **Task number in every commit subject is REQUIRED** (`… : T<n> …`).
 - **Local sandbox build/test is FORBIDDEN** → all builds/tests run on GitHub Actions via `scripts/ci/gh-ci.sh`.
-- **Progress:** T1–T9 ☑ (committed). **T10a ☑ done + pushed.** **T10b ☑ done + pushed.** Remaining: **T11, T12**.
+- **Progress:** T1–T10b ☑. **T11 ☑ done + pushed** (CI green: core build run 39205060550). Remaining: **T12**.
 
 ---
 
@@ -391,7 +391,7 @@ the docs list, opens via the OS viewer, and the read path surfaces it after relo
 (uploaded in a visit) already show via T10a. **Push** (scope: `--scope core` build to catch Contracts/App/Persistence;
 then `--scope desktop`).
 
-### ☐ Task 11 — Build/verify via GitHub Actions (local build FORBIDDEN)
+### ☑ Task 11 — Build/verify via GitHub Actions (local build FORBIDDEN)
 - **Run all builds/tests ONLY on GitHub Actions:** `scripts/ci/gh-ci.sh` (writes `ci.params`, pushes to a
   scratch `ci/**` branch, workflow `animora-ci.yml` runs it). Desktop Avalonia XAML errors only surface on a
   real build, so this IS the check.
@@ -401,7 +401,7 @@ then `--scope desktop`).
   Light + fast where possible; skip the PostgreSQL lane unless a test needs it (`--postgres false`).
 - Resolve ALL new errors + warnings the run reports; re-run until green. **No full-solution local test.**
 - `scripts/git/push.sh "fix(patients): T11 …"` for each fix round.
-**Done when:** CI green for the touched scopes. **Push.**
+**Done:** `--scope core --action build-only` GREEN (run 39205060550). Three real breaks found & fixed by the CI lane: (1) literal `\n` corruption in the `DocumentRef` XML doc, (2) a pre-existing stray duplicated tail fragment in `PatientsService.cs` (CS0116/CS1022), (3) `PetSpecies` ambiguity from a whole-namespace `using` → replaced with the `DocumentKind` alias. **Pushed.**
 
 ### ☐ Task 12 (FINAL) — Delete this plan file
 - `rm Plan/PET-PROFILE-TASKS.md` (leave the `Plan/.gitkeep`). Touch nothing else, no roadmap edits.
