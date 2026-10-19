@@ -1,12 +1,14 @@
 <nav class="pager" aria-label="@Loc.T("common.pagination")">
-@if(Page>1) { <a href="@Url(Page-1)" rel="prev">@Loc.T("common.previous")</a> }
-<span>@Loc.T("common.page") @Page</span>
-@if((long)Page*PageSize<Total) { <a href="@Url(Page+1)" rel="next">@Loc.T("common.next")</a> }
+@if(Page>1) { <a href="@Url(1)" rel="first">@Loc.T("common.first")</a> <a href="@Url(Page-1)" rel="prev">@Loc.T("common.previous")</a> }
+<span>@Loc.T("common.page") @Page @Loc.T("common.of") @LastPage</span>
+@if(Page<LastPage) { <a href="@Url(Page+1)" rel="next">@Loc.T("common.next")</a> <a href="@Url(LastPage)" rel="last">@Loc.T("common.last")</a> }
 </nav>
 @code {
     [Parameter] public int Page { get; set; }=1;
     [Parameter] public int PageSize { get; set; }=50;
     [Parameter] public long Total { get; set; }
     [Parameter] public string BaseUrl { get; set; }="/admin/tenants";
+    // Total number of pages (at least 1) given the current page size.
+    private int LastPage=>PageSize<=0?1:(int)Math.Max(1,(Total+PageSize-1)/PageSize);
     private string Url(int page)=>$"{BaseUrl}{(BaseUrl.Contains('?')?"&":"?")}page={page}&pageSize={PageSize}";
 }
