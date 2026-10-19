@@ -312,7 +312,8 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var cc = await provider.BuildCommandContextAsync(null, null, null, default);
         if (cc.IsFailure) throw new ServiceException(cc.Error);
         var cmd = new UpdateOwnerCommand(owner.Id, $"{owner.FirstName} {owner.LastName}".Trim(),
-            owner.Mobile1, owner.Gender.ToDomain(), owner.Mobile2, owner.NationalId, owner.Address);
+            owner.Mobile1, owner.Gender.ToDomain(), owner.Mobile2, owner.NationalId, owner.Address,
+            PhoneLandline: owner.Phone, Referral: owner.Referral);
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetOwnerAsync(owner.Id))!;

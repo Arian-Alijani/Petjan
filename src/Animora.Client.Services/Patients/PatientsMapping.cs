@@ -24,7 +24,7 @@ internal static class PatientsMapping
     {
         var (first, last) = SplitName(m.FullName);
         return new OwnerSummary(m.Id, m.Id /*File*/, first, last, MapOwnerGender(m.Gender),
-            m.PhonePrimary, m.PhoneSecondary, Phone: null, m.NationalId ?? "", m.Address, Referral: null,
+            m.PhonePrimary, m.PhoneSecondary, Phone: m.PhoneLandline, m.NationalId ?? "", m.Address, Referral: m.Referral,
             m.RegisteredUtc.UtcDateTime, Tone(m.Id), Tags: [], PetCount: m.PetCount);
     }
 

@@ -795,6 +795,8 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.Property<string>("FullName").IsRequired().HasColumnType("text");
                 b.Property<string>("PhonePrimary").IsRequired().HasColumnType("text");
                 b.Property<string>("PhoneSecondary").HasColumnType("text");
+                b.Property<string>("PhoneLandline").HasMaxLength(40).HasColumnType("character varying(40)");
+                b.Property<string>("Referral").HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<string>("NationalId").HasColumnType("text");
                 b.Property<string>("Email").HasColumnType("text");
                 b.Property<string>("Address").HasColumnType("text");

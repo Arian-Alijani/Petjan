@@ -171,6 +171,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     [ObservableProperty] private bool _editIsFemale;
     [ObservableProperty] private string _editMobile1 = string.Empty;
     [ObservableProperty] private string _editMobile2 = string.Empty;
+    [ObservableProperty] private string _editPhone = string.Empty;
     [ObservableProperty] private string _editAddress = string.Empty;
     [ObservableProperty] private string _editReferral = string.Empty;
 
@@ -406,6 +407,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         EditIsFemale = owner.Gender == OwnerGender.Female;
         EditMobile1 = owner.Mobile1;
         EditMobile2 = owner.Mobile2 ?? string.Empty;
+        EditPhone = owner.Phone ?? string.Empty;
         EditAddress = owner.Address ?? string.Empty;
         EditReferral = owner.Referral ?? PatientsPresentation.Referrals[0];
     }
@@ -442,6 +444,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
             Gender = EditIsFemale ? OwnerGender.Female : OwnerGender.Male,
             Mobile1 = EditMobile1.Trim(),
             Mobile2 = NullIfBlank(EditMobile2),
+            Phone = NullIfBlank(EditPhone),
             Address = NullIfBlank(EditAddress),
             Referral = NullIfBlank(EditReferral),
         };

@@ -11,7 +11,8 @@ public sealed record PetSummaryReadModel(
 /// <summary>Directory row for an owner with the joined pet count.</summary>
 public sealed record OwnerSummaryReadModel(
     string Id, string FullName, string PhonePrimary, string? PhoneSecondary, string? NationalId,
-    string? Address, OwnerGender Gender, DateTimeOffset RegisteredUtc, int PetCount);
+    string? Address, OwnerGender Gender, DateTimeOffset RegisteredUtc, int PetCount,
+    string? PhoneLandline = null, string? Referral = null);
 
 /// <summary>
 /// Stable server-side sort order for the directory projections. Pushed into the SQL
