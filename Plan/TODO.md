@@ -21,7 +21,13 @@ See KNOWLEDGE §1. (No push needed; already pushed.)
 - [x] Write `Plan/TODO.md` (this file).
 - [x] Pushed.
 
-## T2 — Project scaffold  [ ]
+## T2 — Project scaffold  [x] DONE
+Created `tests/Animora.LiveTest/` console project, added to `Animora.sln`, builds 0W/0E.
+Real client-stack refs; SSH monitor = shell-out (no new pkg). Reused LoadRunner/
+ProfileResult as Npgsql-free `Capacity/LoadHarness.cs` (linking the CI file pulled Npgsql).
+`Program.cs` CLI (preflight|correctness|capacity|all) + `Config/LiveTestOptions.cs`.
+Detail below retained for reference.
+### (original T2 detail)
 Goal: new console project wired into solution, builds clean (new project only; no
 full-solution long build — rule).
 - Create `tests/Animora.LiveTest/Animora.LiveTest.csproj` (net10.0, exe). Reference
@@ -158,7 +164,7 @@ Goal: realistic concurrent load → capacity reference, correlated with hardware
 |---|---|
 | T0 branch sync | x |
 | T1 plan files | x |
-| T2 scaffold | |
+| T2 scaffold | x |
 | T3 auth+client | |
 | T4 correctness | |
 | T5 monitor | |
