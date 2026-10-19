@@ -324,12 +324,12 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
             foreach (var a in pet.Allergies)
             {
-                EditAllergies.Add(new AlertRowEditViewModel(a, EditAllergies.Remove));
+                EditAllergies.Add(new AlertRowEditViewModel(a, r => EditAllergies.Remove(r)));
             }
 
             foreach (var c in pet.ChronicConditions)
             {
-                EditChronic.Add(new AlertRowEditViewModel(c, EditChronic.Remove));
+                EditChronic.Add(new AlertRowEditViewModel(c, r => EditChronic.Remove(r)));
             }
         }
         catch (InvalidOperationException)
@@ -340,11 +340,11 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
 
     /// <summary>Adds an empty allergy row in the encounter's clinical-context section (Task 3).</summary>
     [RelayCommand]
-    private void AddVisitAllergy() => EditAllergies.Add(new AlertRowEditViewModel(string.Empty, EditAllergies.Remove));
+    private void AddVisitAllergy() => EditAllergies.Add(new AlertRowEditViewModel(string.Empty, r => EditAllergies.Remove(r)));
 
     /// <summary>Adds an empty chronic-condition row in the encounter's clinical-context section (Task 3).</summary>
     [RelayCommand]
-    private void AddVisitChronic() => EditChronic.Add(new AlertRowEditViewModel(string.Empty, EditChronic.Remove));
+    private void AddVisitChronic() => EditChronic.Add(new AlertRowEditViewModel(string.Empty, r => EditChronic.Remove(r)));
 
     /// <summary>Opens the radiology form sheet over the encounter («رادیولوژی»).</summary>
     [RelayCommand]
@@ -856,5 +856,6 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         AtMinutes: 0,
         DurationMinutes: 0,
         Note: string.Empty,
-        SourceTicketId: string.Empty);
+        SourceTicketId: string.Empty,
+        PetId: string.Empty);
 }

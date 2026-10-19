@@ -132,4 +132,5 @@ public sealed record EncounterDraft(
     int AtMinutes,
     int DurationMinutes,
     string Note,
-    string SourceTicketId);
+    string SourceTicketId,
+    string PetId);

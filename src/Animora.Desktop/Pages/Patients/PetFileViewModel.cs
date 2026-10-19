@@ -96,6 +96,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private readonly Animora.Contracts.Vaccination.IVaccinationService _vaccination;
     private readonly IFileLauncher _files;
     private OwnerDetail? _owner;
+    private PetDetail? _pet;
 
     [ObservableProperty] private PetTabViewModel? _selectedTab;
     [ObservableProperty] private bool _isEditingInfo;
@@ -643,7 +644,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         rows.Clear();
         foreach (var value in values)
         {
-            rows.Add(new AlertRowEditViewModel(value, rows.Remove));
+            rows.Add(new AlertRowEditViewModel(value, r => rows.Remove(r)));
         }
     }
 
@@ -670,11 +671,11 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     /// <summary>Adds an empty allergy row to the info-tab alerts editor (Task 3).</summary>
     [RelayCommand]
-    private void AddEditAllergy() => EditAllergies.Add(new AlertRowEditViewModel(string.Empty, EditAllergies.Remove));
+    private void AddEditAllergy() => EditAllergies.Add(new AlertRowEditViewModel(string.Empty, r => EditAllergies.Remove(r)));
 
     /// <summary>Adds an empty chronic-condition row to the info-tab alerts editor (Task 3).</summary>
     [RelayCommand]
-    private void AddEditChronic() => EditChronic.Add(new AlertRowEditViewModel(string.Empty, EditChronic.Remove));
+    private void AddEditChronic() => EditChronic.Add(new AlertRowEditViewModel(string.Empty, r => EditChronic.Remove(r)));
 
     /// <summary>Radio-pill gender picker for the info edit pane: "female" | "male" | "unknown" (Task 6).</summary>
     [RelayCommand]

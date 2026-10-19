@@ -30,9 +30,9 @@
     }
     private static string FormatSize(long bytes) => bytes switch
     {
-        >= 1L << 30 => (bytes / (double)(1L << 30)).ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " GB",
-        >= 1L << 20 => (bytes / (double)(1L << 20)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + " MB",
-        >= 1L << 10 => (bytes / (double)(1L << 10)).ToString("F0", System.Globalization.CultureInfo.InvariantCulture) + " KB",
-        _ => bytes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " B",
+        >= 1L << 30 => (bytes / (double)(1L << 30)).ToString("F2", global::System.Globalization.CultureInfo.InvariantCulture) + " GB",
+        >= 1L << 20 => (bytes / (double)(1L << 20)).ToString("F1", global::System.Globalization.CultureInfo.InvariantCulture) + " MB",
+        >= 1L << 10 => (bytes / (double)(1L << 10)).ToString("F0", global::System.Globalization.CultureInfo.InvariantCulture) + " KB",
+        _ => bytes.ToString(global::System.Globalization.CultureInfo.InvariantCulture) + " B",
     };
 }

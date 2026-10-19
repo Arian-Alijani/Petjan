@@ -46,7 +46,7 @@ internal static class VisitsMapping
             row.DoctorName, row.DoctorSpecialty, Initial(row.DoctorName), AccentFor(row.DoctorId),
             row.PetName, row.PetKind, Icon(row.PetKind), row.OwnerName, row.OwnerPhone,
             row.TypeId, type?.Label ?? row.TypeId, type?.Accent ?? "#0d9488",
-            row.IsUrgent, row.IsSynthetic, row.AtMinutes, row.DurationMinutes, row.Note, row.SourceTicketId);
+            row.IsUrgent, row.IsSynthetic, row.AtMinutes, row.DurationMinutes, row.Note, row.SourceTicketId, row.PetId);
     }
 
     // First user-perceived character (text element), so a leading surrogate pair / combining sequence is never split.

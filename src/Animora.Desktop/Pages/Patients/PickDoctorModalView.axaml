@@ -24,7 +24,7 @@
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Border.pd-doc">
+        <Style Selector="Button.pd-doc">
             <Setter Property="CornerRadius" Value="14" />
             <Setter Property="Padding" Value="12" />
             <Setter Property="Background" Value="White" />
@@ -32,10 +32,10 @@
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
-        <Style Selector="Border.pd-doc:pointerover">
+        <Style Selector="Button.pd-doc:pointerover">
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
         </Style>
-        <Style Selector="Border.pd-doc.on">
+        <Style Selector="Button.pd-doc.on">
             <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
             <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
         </Style>
@@ -84,7 +84,7 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="visits:DoctorTileViewModel">
-                            <Border Classes="pd-doc" Classes.on="{Binding IsSelected}"
+                            <Button Classes="pd-doc" Classes.on="{Binding IsSelected}"
                                     Command="{Binding #Root.((patients:PickDoctorModalViewModel)DataContext).SelectDoctorCommand}"
                                     CommandParameter="{Binding}">
                                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
@@ -115,7 +115,7 @@
                                           VerticalAlignment="Center"
                                           IsVisible="{Binding IsSelected}" />
                                 </Grid>
-                            </Border>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
