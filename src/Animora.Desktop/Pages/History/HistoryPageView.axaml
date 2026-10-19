@@ -68,84 +68,88 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- tier 2 · kind chips + date range + sort/page controls -->
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,12,0,0">
-                    <StackPanel Grid.Column="0">
-                        <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
-                                Padding="0,12,0,0" Margin="0,-12,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <Button Classes="hy-chip" Classes.on="{Binding AreAllKindsActive}"
-                                        Margin="0,0,7,0" ToolTip.Tip="فعال‌سازی همهٔ فیلترها"
-                                        Command="{Binding SelectAllKindsCommand}">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="14" Height="14"
-                                              Stroke="{Binding $parent[Button].Foreground}"
-                                              Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
-                                        <TextBlock Text="همه" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
+                <!-- tier 2 · kind chips (wrap) + controls (wrap).
+                     Rows wrap to the toolbar width instead of colliding: the chips
+                     row is a full-width WrapPanel and the date/sort/page controls
+                     sit on their own wrapping row, so nothing overlaps even when
+                     the window is narrow or the chip taxonomy is long. -->
+                <StackPanel Spacing="10" Margin="0,12,0,0">
+                    <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0"
+                            Padding="0,12,0,0" Margin="0,-12,0,0">
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Button Grid.Column="0" Classes="hy-chip" Classes.on="{Binding AreAllKindsActive}"
+                                    Margin="0,0,7,7" ToolTip.Tip="فعال‌سازی همهٔ فیلترها"
+                                    VerticalAlignment="Top" Command="{Binding SelectAllKindsCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <Path Classes="icon" Width="14" Height="14"
+                                          Stroke="{Binding $parent[Button].Foreground}"
+                                          Data="{StaticResource IconCheck}" VerticalAlignment="Center" />
+                                    <TextBlock Text="همه" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
 
-                                <ItemsControl ItemsSource="{Binding CategoryChips}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel Orientation="Horizontal" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="hy:HistoryCategoryChipViewModel">
-                                            <Button Classes="hy-cat-chip" Classes.on="{Binding IsActive}"
-                                                    Margin="0,0,7,0" ToolTip.Tip="{Binding Label}"
-                                                    Background="{Binding ChipBackground}"
-                                                    BorderBrush="{Binding ChipBorder}"
-                                                    Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).ToggleCategoryCommand}"
-                                                    CommandParameter="{Binding Kind}">
-                                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                                    <Path Classes="icon" Width="14" Height="14"
-                                                          Stroke="{Binding ColorBrush}"
-                                                          Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
-                                                          VerticalAlignment="Center" />
-                                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
-                                                               Foreground="{Binding LabelBrush}" />
-                                                </StackPanel>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                            <ItemsControl Grid.Column="1" ItemsSource="{Binding CategoryChips}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="hy:HistoryCategoryChipViewModel">
+                                        <Button Classes="hy-cat-chip" Classes.on="{Binding IsActive}"
+                                                Margin="0,0,7,7" ToolTip.Tip="{Binding Label}"
+                                                Background="{Binding ChipBackground}"
+                                                BorderBrush="{Binding ChipBorder}"
+                                                Command="{Binding #Root.((hy:HistoryPageViewModel)DataContext).ToggleCategoryCommand}"
+                                                CommandParameter="{Binding Kind}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Path Classes="icon" Width="14" Height="14"
+                                                      Stroke="{Binding ColorBrush}"
+                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}"
+                                                      VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Label}" VerticalAlignment="Center"
+                                                           Foreground="{Binding LabelBrush}" />
+                                            </StackPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <controls:JalaliDatePicker Width="140" DateValue="{Binding FromDate, Mode=TwoWay}"
+                    <WrapPanel Orientation="Horizontal">
+                        <controls:JalaliDatePicker Width="140" Margin="0,0,8,8"
+                                                   DateValue="{Binding FromDate, Mode=TwoWay}"
                                                    ToolTip.Tip="از تاریخ" />
                         <TextBlock Text="تا" FontSize="12" Foreground="{StaticResource MutedBrush}"
-                                   VerticalAlignment="Center" />
-                        <controls:JalaliDatePicker Width="140" DateValue="{Binding ToDate, Mode=TwoWay}"
+                                   Margin="0,0,8,8" VerticalAlignment="Center" />
+                        <controls:JalaliDatePicker Width="140" Margin="0,0,8,8"
+                                                   DateValue="{Binding ToDate, Mode=TwoWay}"
                                                    ToolTip.Tip="تا تاریخ" />
-                        <Button Classes="hy-pager" Padding="10,7" Command="{Binding ClearRangeCommand}"
-                                ToolTip.Tip="حذف بازهٔ تاریخ">
+                        <Button Classes="hy-pager" Padding="10,7" Margin="0,0,8,8"
+                                Command="{Binding ClearRangeCommand}" ToolTip.Tip="حذف بازهٔ تاریخ">
                             <Path Classes="icon" Width="12" Height="12"
                                   Stroke="{Binding $parent[Button].Foreground}"
                                   Data="{StaticResource IconX}" />
                         </Button>
 
-                        <Border Classes="hy-toolbar-sep" />
+                        <Border Classes="hy-toolbar-sep" Margin="0,0,8,8" VerticalAlignment="Center" />
 
-                        <ComboBox Classes="hy-select" MinWidth="150" SelectedIndex="{Binding SortIndex}"
-                                  ToolTip.Tip="مرتب‌سازی">
+                        <ComboBox Classes="hy-select" MinWidth="150" Margin="0,0,8,8"
+                                  SelectedIndex="{Binding SortIndex}" ToolTip.Tip="مرتب‌سازی">
                             <ComboBoxItem Content="جدیدترین" />
                             <ComboBoxItem Content="قدیمی‌ترین" />
                             <ComboBoxItem Content="بیشترین مبلغ" />
                             <ComboBoxItem Content="کمترین مبلغ" />
                         </ComboBox>
-                        <ComboBox Classes="hy-select" MinWidth="110" SelectedIndex="{Binding PageSizeIndex}"
-                                  ToolTip.Tip="تعداد رکورد در صفحه">
+                        <ComboBox Classes="hy-select" MinWidth="110" Margin="0,0,8,8"
+                                  SelectedIndex="{Binding PageSizeIndex}" ToolTip.Tip="تعداد رکورد در صفحه">
                             <ComboBoxItem Content="۲۵ رکورد" />
                             <ComboBoxItem Content="۵۰ رکورد" />
                             <ComboBoxItem Content="۱۰۰ رکورد" />
                         </ComboBox>
 
-                        <Button Classes="hy-pager" Command="{Binding ResetFiltersCommand}">
+                        <Button Classes="hy-pager" Margin="0,0,0,8" Command="{Binding ResetFiltersCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <Path Classes="icon" Width="14" Height="14"
                                       Stroke="{Binding $parent[Button].Foreground}"
@@ -153,8 +157,8 @@
                                 <TextBlock Text="بازنشانی" />
                             </StackPanel>
                         </Button>
-                    </StackPanel>
-                </Grid>
+                    </WrapPanel>
+                </StackPanel>
             </StackPanel>
         </Border>
 
