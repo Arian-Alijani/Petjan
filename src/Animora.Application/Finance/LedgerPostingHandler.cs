@@ -15,7 +15,7 @@ namespace Animora.Application.Finance;
 public sealed class LedgerPostingHandler(
     IPeriodRepository periods, IJournalNumberAllocator numbers, ILedgerRepository ledger,
     IInvoiceRepository invoices, IPurchasingRepository purchasing, IStockMovementRepository movements,
-    IPaymentRepository payments,
+    IPaymentRepository payments, IAccountingPeriodBoundaryResolver periodBoundaries,
     ICorrelationContext correlation, IClock clock) :
     IDomainEventHandler<InvoicePostedEvent>, IDomainEventHandler<InvoiceVoidedEvent>,
     IDomainEventHandler<PaymentRegisteredEvent>, IDomainEventHandler<InvoiceRefundedEvent>,
@@ -28,7 +28,18 @@ public sealed class LedgerPostingHandler(
     {
         var period = await periods.FindContainingAsync(e.OccurredAtUtc, ct).ConfigureAwait(false);
         if (period is null)
-            return Result.Fail(ErrorCodes.PeriodNotFound, $"No period contains {e.OccurredAtUtc:O}");
+        {
+            // Standard open-period provisioning: no closed book spans this instant, so the clinic
+            // simply never opened the calendar month it falls in. Mature ledgers auto-open the
+            // containing period on first post rather than refusing the entry; the operator only ever
+            // *closes* a period deliberately (finance.period.close), never opens one by hand. The
+            // boundary resolver yields the exact Jalali-month code and UTC bounds the first-run
+            // seeder would have produced, so the lazily-created period is indistinguishable from a
+            // seeded one and the invoice/expense number allocators stay consistent.
+            var provisioned = await ProvisionContainingPeriodAsync(e, ct).ConfigureAwait(false);
+            if (provisioned.IsFailure) return provisioned.ToResult();
+            period = provisioned.Value!;
+        }
         if (AccountingPeriod.EnsurePostable(period).IsFailure)
         {
             period = await periods.FindNextOpenAsync(period.EndUtc, ct).ConfigureAwait(false);
@@ -43,6 +54,41 @@ public sealed class LedgerPostingHandler(
         if (posted.IsFailure) return posted.ToResult();
         ledger.Add(posted.Value!);
         return Result.Ok();
+    }
+
+    /// <summary>
+    /// Lazily opens the accounting period that contains <paramref name="e"/>'s instant, when none
+    /// exists yet. The boundary is computed by the platform calendar resolver (the same authority the
+    /// first-run seeder uses), so the new period's code and UTC range match a seeded one exactly.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This only runs when <see cref="IPeriodRepository.FindContainingAsync"/> found <i>no</i> period
+    /// spanning the instant, so the new open month can never overlap an existing closed/locked book:
+    /// had a closed period contained the instant it would have been found, and the caller's
+    /// <see cref="AccountingPeriod.EnsurePostable"/> branch would have rolled the entry into the next
+    /// open period (A-RULE 003) instead of reaching here.
+    /// </para>
+    /// <para>
+    /// Idempotency guard: a row with the resolved code may already exist (a concurrent post that won
+    /// the <c>(TenantId, PeriodCode)</c> unique index, or a seeded row the resolver re-derives); it is
+    /// reused rather than inserting a duplicate that the index would reject.
+    /// </para>
+    /// </remarks>
+    private async Task<Result<AccountingPeriod>> ProvisionContainingPeriodAsync(DomainEvent e, CancellationToken ct)
+    {
+        var boundary = periodBoundaries.Resolve(e.OccurredAtUtc);
+
+        // Idempotency: a period with this code may already exist (concurrent post, or a seeded row
+        // whose window the resolver re-derives); reuse it rather than inserting a duplicate.
+        var existingByCode = await periods.FindByCodeAsync(boundary.PeriodCode, ct).ConfigureAwait(false);
+        if (existingByCode is not null) return Result<AccountingPeriod>.Ok(existingByCode);
+
+        var created = AccountingPeriod.Create(e.TenantId, boundary.PeriodCode, boundary.StartUtc, boundary.EndUtc);
+        if (created.IsFailure) return created;
+
+        periods.Add(created.Value!);
+        return created;
     }
 
     public async Task<Result> HandleAsync(InvoicePostedEvent e, CancellationToken ct)

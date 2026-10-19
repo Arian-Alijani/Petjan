@@ -1,5 +1,6 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Finance;
+using Animora.Application.Ports;
 using Animora.Domain.Events;
 using Animora.Persistence.PostgreSql.Repositories;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,10 @@ public static class FinancialEventsServiceCollectionExtensions
 {
     public static IServiceCollection AddAnimoraServerFinancialEvents(this IServiceCollection services)
     {
+        // On-demand accounting-period provisioning: when a financial event falls in a month the
+        // clinic never opened, the ledger auto-opens that Jalali month rather than refusing the post
+        // (PERIOD_NOT_FOUND). Closing a period remains a deliberate operator action.
+        services.TryAddScoped<IAccountingPeriodBoundaryResolver, JalaliMonthPeriodBoundaryResolver>();
         services.TryAddScoped<LedgerPostingHandler>();
         services.Replace(ServiceDescriptor.Scoped<IDomainEventDispatcher, ServerDomainEventDispatcher>());
         services.TryAddScoped<IServerFinancialEventProcessor, ServerFinancialEventProcessor>();

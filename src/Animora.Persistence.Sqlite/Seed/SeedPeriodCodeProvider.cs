@@ -1,4 +1,5 @@
 using System.Globalization;
+using Animora.Application.Ports;
 
 namespace Animora.Persistence.Sqlite.Seed;
 
@@ -19,7 +20,7 @@ public interface ISeedPeriodCodeProvider
 /// the platform <see cref="PersianCalendar"/> — never by formatting a Gregorian date. The code is
 /// <c>yyyy-MM</c> of the Jalali month (opaque to the domain); the range is the month's real UTC bounds.
 /// </summary>
-public sealed class PersianMonthPeriodCodeProvider : ISeedPeriodCodeProvider
+public sealed class PersianMonthPeriodCodeProvider : ISeedPeriodCodeProvider, IAccountingPeriodBoundaryResolver
 {
     private static readonly PersianCalendar Calendar = new();
     private readonly TimeZoneInfo _zone = ResolveZone();
@@ -35,6 +36,17 @@ public sealed class PersianMonthPeriodCodeProvider : ISeedPeriodCodeProvider
             : Calendar.ToDateTime(year, month + 1, 1, 0, 0, 0, 0);
         var code = string.Create(CultureInfo.InvariantCulture, $"{year:D4}-{month:D2}");
         return new SeedPeriod(code, ToUtc(start), ToUtc(end));
+    }
+
+    /// <summary>
+    /// On-demand period provisioning (<see cref="IAccountingPeriodBoundaryResolver"/>) reuses the
+    /// identical Jalali-month computation as seeding, so a lazily-opened period and a seeded one are
+    /// byte-for-byte the same code and UTC range.
+    /// </summary>
+    public AccountingPeriodBoundary Resolve(DateTimeOffset occurredUtc)
+    {
+        var period = For(occurredUtc);
+        return new AccountingPeriodBoundary(period.PeriodCode, period.StartUtc, period.EndUtc);
     }
 
     private DateTimeOffset ToUtc(DateTime localMidnight) =>

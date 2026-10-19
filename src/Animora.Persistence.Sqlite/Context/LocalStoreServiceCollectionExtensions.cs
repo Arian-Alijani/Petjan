@@ -190,7 +190,11 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddDomainEventHandler<DomainEvent, ActivityFeedHandler>();
 
         // First-run reference seeding (A10c); invoked by the startup path, never by the desktop directly.
-        services.AddSingleton<ISeedPeriodCodeProvider, PersianMonthPeriodCodeProvider>();
+        services.AddSingleton<PersianMonthPeriodCodeProvider>();
+        services.AddSingleton<ISeedPeriodCodeProvider>(sp => sp.GetRequiredService<PersianMonthPeriodCodeProvider>());
+        // On-demand accounting-period provisioning (LedgerPostingHandler) shares the very same Jalali
+        // calendar authority as first-run seeding, so a lazily-opened month matches a seeded one exactly.
+        services.AddSingleton<IAccountingPeriodBoundaryResolver>(sp => sp.GetRequiredService<PersianMonthPeriodCodeProvider>());
         services.AddScoped<LocalSeeder>();
         // C01: deterministic sample owners/pets, applied behind LocalStoreOptions.SeedSampleData.
         services.AddScoped<PatientsSampleData>();
