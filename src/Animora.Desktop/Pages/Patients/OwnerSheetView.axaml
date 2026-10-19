@@ -204,8 +204,9 @@
                                 <Border Classes="odrow">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="نام" />
-                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditFirstName}"
-                                                   IsVisible="{Binding IsEditing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditFirstName}" Width="240"
+                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding FirstName}"
                                                    IsVisible="{Binding IsViewing}" />
                                     </Grid>
@@ -213,8 +214,9 @@
                                 <Border Classes="odrow">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="نام خانوادگی" />
-                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding EditLastName}"
-                                                   IsVisible="{Binding IsEditing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditLastName}" Width="240"
+                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
                                         <TextBlock Grid.Column="1" Classes="odv" Text="{Binding LastName}"
                                                    IsVisible="{Binding IsViewing}" />
                                     </Grid>
@@ -297,8 +299,11 @@
                                 <Border Classes="odrow copyable" Tag="{Binding PhoneText}" PointerPressed="OnCopyRowPressed">
                                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="تلفن ثابت" />
-                                        <!-- Read-only: the domain Owner has no landline field, so an edit box would silently drop input. -->
-                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding PhoneText}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <TextBox Grid.Column="1" Text="{Binding EditPhone}" Width="240"
+                                                 HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                 FontSize="12.5" Padding="10,7" CornerRadius="9" />
                                         <Path Grid.Column="2" Classes="icon copyicon" Width="14" Height="14"
                                               Stroke="{StaticResource Muted2Brush}" VerticalAlignment="Center"
                                               IsVisible="{Binding IsViewing}"
@@ -334,7 +339,12 @@
                                 <Border Classes="odrow">
                                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                                         <TextBlock Grid.Column="0" Classes="odk" Text="نحوه آشنایی" />
-                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding ReferralText}" />
+                                        <TextBlock Grid.Column="1" Classes="odv" Text="{Binding ReferralText}"
+                                                   IsVisible="{Binding IsViewing}" />
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding Referrals}"
+                                                  SelectedItem="{Binding EditReferral}" Width="240"
+                                                  HorizontalAlignment="Left" IsVisible="{Binding IsEditing}"
+                                                  FontSize="12.5" CornerRadius="9" />
                                     </Grid>
                                 </Border>
                             </StackPanel>

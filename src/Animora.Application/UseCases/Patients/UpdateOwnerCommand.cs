@@ -15,7 +15,8 @@ namespace Animora.Application.UseCases.Patients;
 [RequiresPermission(PermissionCodes.PatientsOwnerEdit)]
 [Auditable(AuditCategory.Clinical, "patients.owner.update")]
 public sealed record UpdateOwnerCommand(string OwnerId, string FullName, string PhonePrimary,
-    OwnerGender Gender, string? PhoneSecondary, string? NationalId, string? Address)
+    OwnerGender Gender, string? PhoneSecondary, string? NationalId, string? Address,
+    string? PhoneLandline = null, string? Referral = null)
     : ICommand<Unit>, IJournaledCommand
 {
     public string CommandTypeName => CommandTypes.PatientsOwnerUpdate;
@@ -43,7 +44,8 @@ public sealed class UpdateOwnerCommandHandler(IOwnerRepository owners) : IComman
         var owner = await owners.FindAsync(c.OwnerId, ct);
         if (owner is null) return Result<Unit>.Fail(ErrorCodes.OwnerNotFound);
         owner.UpdateContactDetails(c.FullName, c.PhonePrimary, c.PhoneSecondary, c.NationalId,
-            email: owner.Email, address: c.Address, city: owner.City, gender: c.Gender, notes: owner.Notes);   // preserve fields this command does not own
+            email: owner.Email, address: c.Address, city: owner.City, gender: c.Gender, notes: owner.Notes,
+            phoneLandline: c.PhoneLandline, referral: c.Referral);   // preserve fields this command does not own
         return Result<Unit>.Ok(Unit.Value);   // TransactionBehavior commits the tracked change.
     }
 }

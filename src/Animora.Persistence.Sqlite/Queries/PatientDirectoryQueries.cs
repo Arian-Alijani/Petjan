@@ -81,7 +81,8 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
                 o.RegisteredUtc,
-                db.Set<Pet>().Count(p => p.OwnerId == o.Id)));
+                db.Set<Pet>().Count(p => p.OwnerId == o.Id),
+                o.PhoneLandline, o.Referral));
         var result = await projected.ToPagedAsync(page, pageSize, Options, ct);
         TraceLog.Info($"SQL GetOwnersAsync ← {result.Items.Count} rows, TotalCount={result.TotalCount} (of Owners table for tenant).", "sql.patients");
         return result;
@@ -184,7 +185,8 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .Where(o => o.Id == ownerId)
             .Select(o => new OwnerSummaryReadModel(
                 o.Id, o.FullName, o.PhonePrimary, o.PhoneSecondary, o.NationalId, o.Address, o.Gender,
-                o.RegisteredUtc, db.Set<Pet>().Count(p => p.OwnerId == o.Id)))
+                o.RegisteredUtc, db.Set<Pet>().Count(p => p.OwnerId == o.Id),
+                o.PhoneLandline, o.Referral))
             .FirstOrDefaultAsync(ct);
         if (owner is null)
         {

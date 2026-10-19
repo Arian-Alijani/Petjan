@@ -10,6 +10,8 @@ public sealed class OwnerConfiguration : IEntityTypeConfiguration<Owner>
     {
         builder.HasKey(e => e.Id);
         builder.Property(e => e.SearchKey).IsRequired();
+        builder.Property(e => e.PhoneLandline).HasMaxLength(40);
+        builder.Property(e => e.Referral).HasMaxLength(200);
         builder.HasIndex(e => new { e.TenantId, e.PhonePrimary }).HasDatabaseName("IX_Owners_TenantId_Phone");
         builder.HasIndex(e => new { e.TenantId, e.FullName }).HasDatabaseName("IX_Owners_TenantId_FullName");
         builder.HasIndex(e => new { e.TenantId, e.SearchKey }).HasDatabaseName("IX_Owners_TenantId_SearchKey");

@@ -40,6 +40,12 @@ public sealed class Owner : AggregateRoot
     /// <summary>Optional secondary number, normalized the same way.</summary>
     public string? PhoneSecondary { get; private set; }
 
+    /// <summary>Optional landline number, normalized by <see cref="NormalizePhone"/>.</summary>
+    public string? PhoneLandline { get; private set; }
+
+    /// <summary>Optional free-form "how the client found the clinic" referral note.</summary>
+    public string? Referral { get; private set; }
+
     /// <summary>Iranian national id, when the client supplied one.</summary>
     public string? NationalId { get; private set; }
 
@@ -112,19 +118,26 @@ public sealed class Owner : AggregateRoot
         string? address = null,
         string? city = null,
         OwnerGender? gender = null,
-        string? notes = null)
+        string? notes = null,
+        string? phoneLandline = null,
+        string? referral = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
 
         FullName = fullName.Trim();
         PhonePrimary = NormalizePrimaryPhone(phonePrimary);
         PhoneSecondary = string.IsNullOrWhiteSpace(phoneSecondary) ? null : NormalizePhone(phoneSecondary);
+        // A landline is normalized to digits like the mobiles; a digitless value folds to "not recorded".
+        PhoneLandline = string.IsNullOrWhiteSpace(phoneLandline) || NormalizePhone(phoneLandline).Length == 0
+            ? null
+            : NormalizePhone(phoneLandline);
         NationalId = Clean(nationalId);
         Email = Clean(email);
         Address = Clean(address);
         City = Clean(city);
         Gender = gender ?? Gender;
         Notes = Clean(notes);
+        Referral = Clean(referral);
     }
 
     /// <summary>Blocks the client. Idempotent: the original reason is kept.</summary>

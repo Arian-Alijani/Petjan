@@ -2377,6 +2377,10 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PhoneLandline")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PhonePrimary")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2384,6 +2388,10 @@ namespace Animora.Persistence.Sqlite.Migrations
 
                     b.Property<string>("PhoneSecondary")
                         .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Referral")
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<long>("RegisteredUtc")
