@@ -158,7 +158,7 @@ Added `scripts/perf/live-correctness.sh`, `live-capacity.sh`, shared `_livetest-
 - Build only the new project to confirm green (no full/long build).
 - Push: `scripts/git/push.sh "docs(livetest): runner scripts + English README"`.
 
-## T8 — Final cleanup  [ ]
+## T8 — Final cleanup  [x] DONE
 - Delete `Plan/TODO.md` AND `Plan/KNOWLEDGE.md` (remove the whole `Plan/` working
   set). Touch nothing else; no roadmap edits.
 - Push: `scripts/git/push.sh "chore(plan): remove completed live-test plan files"`.
@@ -176,4 +176,4 @@ Added `scripts/perf/live-correctness.sh`, `live-capacity.sh`, shared `_livetest-
 | T5 monitor | x |
 | T6 load+report | x |
 | T7 scripts+readme | x |
-| T8 cleanup | |
+| T8 cleanup | x |
