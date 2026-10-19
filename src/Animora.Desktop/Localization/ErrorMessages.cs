@@ -45,6 +45,7 @@ public static class ErrorMessages
         ["INVOICE_INVALID_TRANSITION"] = "تغییر وضعیت فاکتور در این مرحله مجاز نیست.",
         ["INVOICE_EMPTY"] = "فاکتور بدون ردیف قابل ثبت نیست.",
         ["INVOICE_NEGATIVE_TOTAL"] = "جمع فاکتور نمی‌تواند منفی باشد.",
+        ["INVOICE_NON_POSITIVE_TOTAL"] = "جمع فاکتور صفر است؛ پیش از ثبت، برای ردیف‌ها قیمت تعیین کنید.",
         ["INVOICE_OWNER_REQUIRED"] = "انتخاب مشتری برای این فاکتور الزامی است.",
         ["INVOICE_VOID_AFTER_PAYMENT"] = "فاکتور دارای پرداخت است؛ ابتدا پرداخت‌ها را برگشت دهید.",
         ["INVOICE_LINE_INDEX_STALE"] = "فاکتور در این بین تغییر کرده است؛ ردیف‌ها دوباره بارگذاری شد.",
@@ -89,6 +90,9 @@ public static class ErrorMessages
         // callers keep their own context-specific fallback for those.
         ["STORE_UNAVAILABLE"] = "پایگاه داده در دسترس نیست؛ کمی بعد دوباره تلاش کنید.",
         ["PERIOD_CLOSED"] = "دورهٔ مالی بسته شده است.",
+        // Safety net: the ledger refuses a journal with fewer than two lines — in practice this means a
+        // zero-total invoice reached posting. Surface a human message instead of the raw accounting code.
+        ["JOURNAL_TOO_FEW_LINES"] = "این فاکتور مبلغ قابل ثبتی ندارد؛ برای ردیف‌ها قیمت تعیین کنید و دوباره تلاش کنید.",
 
         // Medication / vaccine plans («دارو و واکسن»)
         ["TREATMENT_PLAN_NOT_FOUND"] = "برنامهٔ موردنظر پیدا نشد؛ فهرست را بازخوانی کنید.",

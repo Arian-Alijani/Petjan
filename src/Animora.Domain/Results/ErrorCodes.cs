@@ -441,6 +441,14 @@ public static class ErrorCodes
     public static readonly ErrorCode InvoiceEmpty =
         new("INVOICE_EMPTY", ErrorCode.Validation);
 
+    /// <summary>
+    /// The invoice has lines but its grand total is zero, so there is no money to post. Every line is
+    /// free (or discounts cancel the charge out), which a balanced double-entry journal cannot record —
+    /// it would produce an entry with no lines. The operator must price the lines before posting.
+    /// </summary>
+    public static readonly ErrorCode InvoiceNonPositiveTotal =
+        new("INVOICE_NON_POSITIVE_TOTAL", ErrorCode.Validation);
+
     /// <summary>Money was already received, so the invoice must be refunded rather than voided.</summary>
     public static readonly ErrorCode InvoiceVoidAfterPayment =
         new("INVOICE_VOID_AFTER_PAYMENT", ErrorCode.Conflict);
