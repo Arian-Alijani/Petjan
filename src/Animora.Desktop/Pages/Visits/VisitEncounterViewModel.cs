@@ -858,16 +858,3 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         Note: string.Empty,
         SourceTicketId: string.Empty);
 }
-
-        OwnerName: string.Empty,
-        OwnerPhone: string.Empty,
-        TypeId: "visit",
-        TypeLabel: "ویزیت عمومی",
-        TypeAccent: "#0d9488",
-        IsUrgent: false,
-        IsSynthetic: false,
-        AtMinutes: 0,
-        DurationMinutes: 0,
-        Note: string.Empty,
-        SourceTicketId: string.Empty);
-}
