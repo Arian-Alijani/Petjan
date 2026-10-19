@@ -147,7 +147,8 @@ Goal: realistic concurrent load → capacity reference, correlated with hardware
   post-run cleanup. Never run against real-clinic tenants.
 - Push: `scripts/git/push.sh "feat(livetest): realistic load profiles + correlated capacity report"`.
 
-## T7 — Runner scripts + README  [ ]
+## T7 — Runner scripts + README  [x] DONE
+Added `scripts/perf/live-correctness.sh`, `live-capacity.sh`, shared `_livetest-common.sh`, and English `tests/Animora.LiveTest/README.md`. Per rule: no build/test run in sandbox; CI builds the project (scope `core`).
 - `scripts/perf/live-capacity.sh` + `scripts/perf/live-correctness.sh`: thin wrappers
   (`dotnet run --project tests/Animora.LiveTest -- <mode>`), read env, print artifact
   paths. English comments.
@@ -174,5 +175,5 @@ Goal: realistic concurrent load → capacity reference, correlated with hardware
 | T4 correctness | x |
 | T5 monitor | x |
 | T6 load+report | x |
-| T7 scripts+readme | |
+| T7 scripts+readme | x |
 | T8 cleanup | |
