@@ -52,6 +52,8 @@ CORE_PROJECTS=(
   "src/Animora.Client.Services/Animora.Client.Services.csproj"
   "src/Animora.Sync.Abstractions/Animora.Sync.Abstractions.csproj"
   "src/Animora.Sync.Custom/Animora.Sync.Custom.csproj"
+  # Operator-run live-server test console (build-only gate; never executed by CI).
+  "tests/Animora.LiveTest/Animora.LiveTest.csproj"
 )
 
 # -----------------------------------------------------------------------------

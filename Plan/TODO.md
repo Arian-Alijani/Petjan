@@ -69,7 +69,9 @@ Goal: one simulated desktop that logs in to the live server and holds a real ses
 - Safety: uses the dedicated test tenant only. No destructive calls here.
 - Push: `scripts/git/push.sh "feat(livetest): live auth + virtual client over real transport"`.
 
-## T4 — Correctness / sync scenarios  [ ]
+## T4 — Correctness / sync scenarios  [x] DONE
+Implemented `Correctness/` (ScenarioContext, Fixtures, 8 scenario files = 36 scenarios: Protocol, Patients, Reception/Appointments/Visits/Vaccination, Boarding, Inventory, Purchasing, Sales/Cashier, Finance/Cheques), `CorrectnessRunner`, `Reporting/CorrectnessReport.cs` (Markdown+JSON), wired `correctness|all` in Program.cs, env `ANIMORA_LT_FILTER` / `ANIMORA_LT_KEEP_GOING`. Project added to CI `core` scope (`scripts/ci/_projects.sh`) so GitHub Actions builds it.
+Detail retained below.
 Goal: real create+edit per feature, 2-client convergence, conflict, offline-queue,
 idempotent retry. Find every desync/error.
 - For each feature below, add `Correctness/<Feature>Scenario.cs`. Build the real
@@ -167,7 +169,7 @@ Goal: realistic concurrent load → capacity reference, correlated with hardware
 | T1 plan files | x |
 | T2 scaffold | x |
 | T3 auth+client | x |
-| T4 correctness | |
+| T4 correctness | x |
 | T5 monitor | |
 | T6 load+report | |
 | T7 scripts+readme | |

@@ -19,19 +19,25 @@ internal static class Program
 
         Console.WriteLine($"Animora LiveTest — mode '{mode}' — server {options.ServerBaseUrl}");
 
+        // Ctrl+C stops the run gracefully so the report is still written and cleanup still runs.
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+
         switch (mode)
         {
             case "preflight":
                 return await PreflightAsync(options);
             case "correctness":
-                Console.Error.WriteLine("correctness suite not yet wired (task T4).");
-                return 2;
+                return await Correctness.CorrectnessRunner.RunAsync(options, cts.Token);
             case "capacity":
                 Console.Error.WriteLine("capacity suite not yet wired (task T6).");
                 return 2;
             case "all":
-                Console.Error.WriteLine("correctness/capacity suites not yet wired (tasks T4/T6).");
-                return 2;
+            {
+                var rc = await Correctness.CorrectnessRunner.RunAsync(options, cts.Token);
+                Console.Error.WriteLine("capacity suite not yet wired (task T6).");
+                return rc != 0 ? rc : 2;
+            }
             default:
                 Console.Error.WriteLine($"unknown mode '{mode}'. Use: preflight | correctness | capacity | all");
                 return 64;

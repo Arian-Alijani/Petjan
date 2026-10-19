@@ -37,6 +37,12 @@ public sealed class LiveTestOptions
     /// <summary>Seconds of cooldown between concurrency levels (lets the server settle).</summary>
     public int CooldownSeconds { get; set; } = 5;
 
+    /// <summary>Correctness mode: stop at the first FAIL/ERROR (default) or keep going and report everything.</summary>
+    public bool StopOnFirstFailure { get; set; } = true;
+
+    /// <summary>Correctness mode: run only scenarios whose "Feature/Name" contains this text (case-insensitive).</summary>
+    public string ScenarioFilter { get; set; } = "";
+
     /// <summary>Output directory for English reports (Markdown + JSON).</summary>
     public string OutputDir { get; set; } = "artifacts/live-test";
 
@@ -98,6 +104,8 @@ public sealed class LiveTestOptions
         o.Username = Env("ANIMORA_LT_USER", o.Username);
         o.Password = Env("ANIMORA_LT_PASSWORD", o.Password);
         o.OutputDir = Env("ANIMORA_LT_OUTPUT", o.OutputDir);
+        o.ScenarioFilter = Env("ANIMORA_LT_FILTER", o.ScenarioFilter);
+        if (Env("ANIMORA_LT_KEEP_GOING", "") is "1" or "true" or "yes") o.StopOnFirstFailure = false;
 
         if (int.TryParse(Env("ANIMORA_LT_REQUESTS", ""), out var reqs) && reqs > 0) o.RequestsPerLevel = reqs;
         var levels = Env("ANIMORA_LT_LEVELS", "");
