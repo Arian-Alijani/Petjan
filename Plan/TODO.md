@@ -103,7 +103,8 @@ idempotent retry. Find every desync/error.
   (op id, command type, settlement outcome, error code, both clients' versions).
 - Push: `scripts/git/push.sh "feat(livetest): per-feature correctness + sync scenarios"`.
 
-## T5 — Remote hardware monitor  [ ]
+## T5 — Remote hardware monitor  [x] DONE
+Implemented `Capacity/RemoteMonitor.cs` (one long-lived read-only `ssh sh -s` session streaming CPU/load/RAM/swap/established sockets/service RSS/PG conns by state), `MonitorModels.cs`, `MonitorAnalysis.cs` (`HealthProbe` for `/health/ready` without SSH + window `Summarize`). Failure of the monitor never fails a load run.
 Goal: watch the server's real hardware during load, read-only, non-invasive.
 - `Capacity/RemoteMonitor.cs`: if `Ssh.Enabled`, spawn background sampler that every
   ~1s runs over `ssh user@188.212.99.234`:
@@ -170,7 +171,7 @@ Goal: realistic concurrent load → capacity reference, correlated with hardware
 | T2 scaffold | x |
 | T3 auth+client | x |
 | T4 correctness | x |
-| T5 monitor | |
+| T5 monitor | x |
 | T6 load+report | |
 | T7 scripts+readme | |
 | T8 cleanup | |
