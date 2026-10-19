@@ -48,7 +48,8 @@ full-solution long build — rule).
   `dotnet build tests/Animora.LiveTest/Animora.LiveTest.csproj -c Debug`.
 - Push: `scripts/git/push.sh "feat(livetest): scaffold live-server test console"`.
 
-## T3 — Live auth + VirtualClient  [ ]
+## T3 — Live auth + VirtualClient  [x] DONE
+Implemented `Client/VirtualClient.cs` (login, device label, refresh, `BuildEnvelope` via real `CommandFingerprint`, `SubmitAsync/SubmitWithRetryAsync/SubmitBatchAsync` via real `HttpCommandTransport`, `PullAsync` via real `SyncFeedClient` into in-memory `ReplicaView`), `MemorySessionStore`, `SubmitOutcome/PullResult`, `Client/Preflight.cs` (health→login→licence→manifest→logout). Wired `preflight` in Program.cs.
 Goal: one simulated desktop that logs in to the live server and holds a real session.
 - Read exact shapes first (targeted): `src/Animora.Server/Auth/AuthEndpoints.cs`
   (LoginAsync request/response), `ServerEndpointOptions.cs`,
@@ -165,7 +166,7 @@ Goal: realistic concurrent load → capacity reference, correlated with hardware
 | T0 branch sync | x |
 | T1 plan files | x |
 | T2 scaffold | x |
-| T3 auth+client | |
+| T3 auth+client | x |
 | T4 correctness | |
 | T5 monitor | |
 | T6 load+report | |

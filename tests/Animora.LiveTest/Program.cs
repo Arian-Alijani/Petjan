@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using Animora.LiveTest.Config;
 
 namespace Animora.LiveTest;
@@ -40,54 +39,8 @@ internal static class Program
     }
 
     /// <summary>
-    /// Read-only reachability check: GET /health/ready. Prints a clear PASS/FAIL summary so the
-    /// operator confirms connectivity before any heavy run. Auth is validated in task T3.
+    /// Read-only connectivity + auth check (health → login → licence → sync manifest → logout). Prints a PASS/FAIL
+    /// line per step so the operator confirms the whole path before any heavy run.
     /// </summary>
-    private static async Task<int> PreflightAsync(LiveTestOptions options)
-    {
-        var problems = options.Validate(requiresAuth: false);
-        if (problems.Count > 0)
-        {
-            foreach (var p in problems) Console.Error.WriteLine($"  config: {p}");
-            return 78;
-        }
-
-        using var http = new HttpClient
-        {
-            BaseAddress = new Uri(options.ServerBaseUrl.TrimEnd('/') + "/"),
-            Timeout = TimeSpan.FromSeconds(options.RequestTimeoutSeconds),
-        };
-
-        try
-        {
-            using var resp = await http.GetAsync("health/ready");
-            var body = await resp.Content.ReadAsStringAsync();
-            string status = "unknown";
-            try
-            {
-                var doc = await resp.Content.ReadFromJsonAsync<HealthBody>();
-                status = doc?.Status ?? "unknown";
-            }
-            catch { /* non-JSON body is still reported via raw text below */ }
-
-            Console.WriteLine($"  /health/ready → HTTP {(int)resp.StatusCode} status='{status}'");
-            if (resp.IsSuccessStatusCode && (status is "ready" or "degraded"))
-            {
-                Console.WriteLine("PREFLIGHT PASS — server reachable and ready.");
-                return 0;
-            }
-
-            Console.Error.WriteLine($"PREFLIGHT FAIL — server not ready. Body: {Trim(body)}");
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"PREFLIGHT FAIL — cannot reach {options.ServerBaseUrl}: {ex.Message}");
-            return 1;
-        }
-    }
-
-    private static string Trim(string s) => s.Length <= 300 ? s : s[..300] + "…";
-
-    private sealed record HealthBody(string? Status);
+    private static Task<int> PreflightAsync(LiveTestOptions options) => Client.Preflight.RunAsync(options);
 }
