@@ -482,6 +482,3 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         (scope.ServiceProvider.GetRequiredService<IDispatcher>(),
          scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>());
 }
-eProvider.GetRequiredService<IDispatcher>(),
-         scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>());
-}
