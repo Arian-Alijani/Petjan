@@ -5,12 +5,12 @@ using Animora.Application.UseCases.Patients;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Vaccination;
 using Animora.Application.UseCases.Patients.ReadModels;
-using Animora.Domain.Patients;
 using Animora.Domain.Results;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
 using Microsoft.Extensions.DependencyInjection;
 using CWeightEntry = Animora.Contracts.Patients.WeightEntry;
+using DocumentKind = Animora.Domain.Patients.DocumentKind;
 
 namespace Animora.Client.Services.Patients;
 
