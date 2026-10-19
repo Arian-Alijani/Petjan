@@ -62,7 +62,8 @@ public sealed record PetDetailReadModel(
     IReadOnlyList<PetVaccinationReadModel>? Vaccinations = null,
     string? Habitat = null, string? Behavior = null, string? Diet = null, string? BloodType = null,
     string? Insurance = null, string? MicrochipVendor = null, string? MicrochipLocation = null,
-    DateTimeOffset? NeuteredUtc = null);
+    DateTimeOffset? NeuteredUtc = null,
+    IReadOnlyList<PetDocumentReadModel>? Documents = null);
 
 /// <summary>
 /// One laboratory result sheet flattened from a visit's JSON <c>LabResults</c> column for the
@@ -92,6 +93,14 @@ public sealed record PetVisitReadModel(
 
 /// <summary>One appended weight reading for the pet-file chart/rows.</summary>
 public sealed record PetWeightReadModel(DateTimeOffset MeasuredUtc, decimal WeightKg);
+
+/// <summary>
+/// One stored file of a pet for the pet-file documents tab (Task 10b). <paramref name="Id"/> is the
+/// <c>DocumentReference</c> id; <paramref name="ContentHashSha256"/> is the content-addressed store key used to
+/// open the payload, so the row can be downloaded without a second metadata read.
+/// </summary>
+public sealed record PetDocumentReadModel(
+    string Id, string Title, int Kind, long SizeBytes, DateTimeOffset UploadedUtc, string ContentHashSha256);
 
 /// <summary>
 /// One recorded vaccine dose of a pet for the pet-file vaccinations tab (Task 9). <paramref name="AdministeredUtc"/>

@@ -68,8 +68,12 @@ public sealed record LabRowViewModel(
 public sealed record RadiologyRowViewModel(
     string BodyPart, string Result, string DateText);
 
-/// <summary>One stored document row (.doc-row).</summary>
-public sealed record DocRowViewModel(string Name, string Meta);
+/// <summary>
+/// One stored document row (.doc-row). <paramref name="Id"/> is the backing <c>DocumentReference</c> id and
+/// <paramref name="Hash"/> its content-addressed store key — the handle the download command resolves
+/// (Task 10b). Both stay optional so an older row shape still constructs.
+/// </summary>
+public sealed record DocRowViewModel(string Name, string Meta, string? Id = null, string? Hash = null);
 
 /// <summary>One surgical-history alert row.</summary>
 public sealed record SurgeryRowViewModel(string Title, string Surgeon);
@@ -90,6 +94,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
     private readonly IVisitsTriageService _triage;
     private readonly INavigationService _navigation;
     private readonly Animora.Contracts.Vaccination.IVaccinationService _vaccination;
+    private readonly IFileLauncher _files;
     private OwnerDetail? _owner;
 
     [ObservableProperty] private PetTabViewModel? _selectedTab;
@@ -133,7 +138,8 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         IDataChangeNotifier changes,
         IVisitsTriageService triage,
         INavigationService navigation,
-        Animora.Contracts.Vaccination.IVaccinationService vaccination)
+        Animora.Contracts.Vaccination.IVaccinationService vaccination,
+        IFileLauncher files)
     {
         _patients = patients;
         _changes = changes;
@@ -143,6 +149,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         _triage = triage;
         _navigation = navigation;
         _vaccination = vaccination;
+        _files = files;
         Title = "پرونده بیمار";
         Eyebrow = "بیماران و سرپرستان";
         Breadcrumbs.Add("مدیریت کلینیک");
@@ -557,7 +564,9 @@ public sealed partial class PetFileViewModel : PageViewModelBase
             new RadiologyRowViewModel(r.BodyPart, r.Result, r.DateJalali)));
 
         Documents.ReplaceAll(pet.Documents.Select(d =>
-            new DocRowViewModel(d.Name, $"{d.Size} · {JalaliDate.FromDateTime(d.Date).ToString("short")}")));
+            new DocRowViewModel(d.Name,
+                $"{HumanSize(d.Size)} · {JalaliDate.FromDateTime(d.Date).ToString("short")}",
+                d.Id, d.Hash)));
 
         OnPropertyChanged(nameof(HasLabs));
         OnPropertyChanged(nameof(HasRadiology));
@@ -884,12 +893,139 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         }
     }
 
+    /// <summary>
+    /// Opens a stored file with the OS viewer (Task 10b): the payload is read from the content-addressed
+    /// store by its hash, copied to a temp file, and only passive image/document types are ever launched.
+    /// </summary>
     [RelayCommand]
-    private void DownloadDoc(DocRowViewModel? doc) =>
-        _toast.Show("دانلود فایل (نمونه طراحی)", Controls.Tone.Info);
+    private async Task DownloadDocAsync(DocRowViewModel? doc)
+    {
+        if (doc is null)
+        {
+            return;
+        }
 
+        if (string.IsNullOrWhiteSpace(doc.Hash))
+        {
+            _toast.Show("این مدرک فایل ذخیره‌شده‌ای ندارد.", Controls.Tone.Danger);
+            return;
+        }
+
+        if (!ParaclinicPresentation.IsViewable(doc.Name))
+        {
+            _toast.Show("این نوع فایل از داخل برنامه باز نمی‌شود.", Controls.Tone.Danger);
+            return;
+        }
+
+        try
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "Animora", "Documents");
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir,
+                $"{doc.Hash[..Math.Min(12, doc.Hash.Length)]}-{ParaclinicPresentation.SafeFileName(doc.Name)}");
+            if (!File.Exists(path))
+            {
+                await using var source = await _patients.OpenPetDocumentAsync(doc.Hash);
+                if (source is null)
+                {
+                    _toast.Show("فایل مدرک پیدا نشد یا قابل خواندن نیست.", Controls.Tone.Danger);
+                    return;
+                }
+
+                await using var target = File.Create(path);
+                await source.CopyToAsync(target);
+            }
+
+            if (!_files.Open(path))
+            {
+                _toast.Show("برنامه‌ای برای باز کردن این فایل پیدا نشد.", Controls.Tone.Danger);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, "باز کردن مدرک انجام نشد؛ دوباره تلاش کنید"),
+                Controls.Tone.Danger);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _toast.Show("باز کردن مدرک ممکن نشد.", Controls.Tone.Danger);
+        }
+    }
+
+    /// <summary>
+    /// Uploads one or more files to the pet's document list (Task 10b): each picked file is size-checked,
+    /// stored, and recorded as a journaled document reference; the file then shows in the docs tab.
+    /// </summary>
     [RelayCommand]
-    private void UploadDoc() => _toast.Show("بارگذاری فایل (نمونه طراحی)", Controls.Tone.Info);
+    private async Task UploadDocAsync()
+    {
+        if (_pet is null)
+        {
+            return;
+        }
+
+        var petId = _pet.Id;
+        IReadOnlyList<PickedFile> picked;
+        try
+        {
+            picked = await _dialogs.PickFilesAsync("انتخاب مدرک", ParaclinicPresentation.AttachmentPatterns);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException)
+        {
+            _toast.Show("انتخاب فایل ممکن نشد.", Controls.Tone.Danger);
+            return;
+        }
+
+        if (picked.Count == 0)
+        {
+            return;
+        }
+
+        var uploaded = 0;
+        string? failure = null;
+        foreach (var file in picked)
+        {
+            if (file.Size is { } size && size > ParaclinicPresentation.MaxAttachmentBytes)
+            {
+                failure ??= "حجم فایل بیشتر از حد مجاز است.";
+                continue;
+            }
+
+            try
+            {
+                await using var stream = await file.OpenReadAsync();
+                await _patients.AddPetDocumentAsync(petId,
+                    Path.GetFileNameWithoutExtension(file.Name), file.Name, stream,
+                    ParaclinicPresentation.ContentTypeFor(file.Name));
+                uploaded++;
+            }
+            catch (InvalidOperationException ex)
+            {
+                failure ??= PatientsPresentation.CommandFailureMessage(ex, "بارگذاری مدرک انجام نشد.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                failure ??= "خواندن فایل انتخاب‌شده ممکن نشد.";
+            }
+        }
+
+        if (uploaded > 0)
+        {
+            _changes.Notify(DataDomain.Patients, DataDomain.Dashboard, DataDomain.History);
+            var refreshed = await _patients.GetPetAsync(petId);
+            if (refreshed is not null)
+            {
+                Apply(refreshed);
+            }
+
+            _toast.Show($"{Fa(uploaded.ToString())} مدرک بارگذاری شد", Controls.Tone.Ok);
+        }
+
+        if (failure is not null)
+        {
+            _toast.Show(failure, Controls.Tone.Danger);
+        }
+    }
 
     [RelayCommand]
     private void CallOwner()
@@ -1037,6 +1173,23 @@ public sealed partial class PetFileViewModel : PageViewModelBase
 
     private static string WeightValue(WeightEntry[] ordered) =>
         ordered.Length == 0 ? "—" : Fa(Number(ordered[^1].WeightKg));
+
+    /// <summary>
+    /// Renders a stored file size for a row caption: bytes → «۱۲ KB» / «۱٫۲ MB» with Persian digits.
+    /// The raw contract string is a byte count, never a label, so it is always formatted here.
+    /// </summary>
+    private static string HumanSize(string? size)
+    {
+        if (!long.TryParse(size, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var bytes) || bytes <= 0)
+        {
+            return "—";
+        }
+
+        return bytes < 1024 ? Fa($"{bytes} B")
+            : bytes < 1024 * 1024 ? Fa($"{Number(bytes / 1024d)} KB")
+            : Fa($"{Number(bytes / (1024d * 1024d))} MB");
+    }
 
     private static string Number(double value) =>
         value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);

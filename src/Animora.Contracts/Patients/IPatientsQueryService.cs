@@ -60,6 +60,19 @@ public interface IPatientsQueryService
     /// <summary>Appends a weight measurement to a pet's growth history; returns the updated record.</summary>
     Task<PetDetail> AddWeightEntryAsync(string petId, WeightEntry entry);
 
+    /// <summary>
+    /// Stores a file for a pet: the bytes go into the local content-addressed store and a journaled
+    /// <c>DocumentReference</c> row records the metadata, so the file survives reload, shows in the documents
+    /// tab, replicates to peers, and can be re-opened by its content hash. Returns the updated pet record.
+    /// </summary>
+    Task<PetDetail> AddPetDocumentAsync(string petId, string title, string fileName, Stream content, string contentType);
+
+    /// <summary>
+    /// Opens the stored payload of a pet document by its <paramref name="contentHashSha256"/>; null when the
+    /// file is no longer in the local store. The caller owns and disposes the returned stream.
+    /// </summary>
+    Task<Stream?> OpenPetDocumentAsync(string contentHashSha256);
+
     /// <summary>Creates a new pet under an existing owner; returns the created record.</summary>
     Task<PetDetail> CreatePetAsync(string ownerId, NewPetRequest request);
 

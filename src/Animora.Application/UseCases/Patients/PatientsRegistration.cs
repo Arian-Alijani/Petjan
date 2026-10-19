@@ -31,6 +31,8 @@ public static class PatientsRegistration
             .AddCommand<DeletePetCommand, Unit, DeletePetCommandHandler>()
             .AddValidator<DeletePetCommand, DeletePetCommandValidator>()
             .AddCommand<DeleteOwnerCommand, Unit, DeleteOwnerCommandHandler>()
-            .AddValidator<DeleteOwnerCommand, DeleteOwnerCommandValidator>();
+            .AddValidator<DeleteOwnerCommand, DeleteOwnerCommandValidator>()
+            .AddCommand<AddPetDocumentCommand, string, AddPetDocumentCommandHandler>()
+            .AddValidator<AddPetDocumentCommand, AddPetDocumentCommandValidator>();
     }
 }

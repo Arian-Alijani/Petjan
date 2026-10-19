@@ -5,6 +5,7 @@ using Animora.Application.UseCases.Patients;
 using Animora.Application.UseCases.Sales;
 using Animora.Application.UseCases.Vaccination;
 using Animora.Application.UseCases.Patients.ReadModels;
+using Animora.Domain.Patients;
 using Animora.Domain.Results;
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Patients;
@@ -369,6 +370,75 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var r = await dispatcher.SendAsync(cmd, cc.Value!);
         if (r.IsFailure) throw new ServiceException(r.Error);
         return (await GetPetAsync(petId))!;
+    }
+
+    public async Task<PetDetail> AddPetDocumentAsync(
+        string petId, string title, string fileName, Stream content, string contentType)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(petId);
+        ArgumentNullException.ThrowIfNull(content);
+        var name = Path.GetFileName(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        // 1) bytes first: content-addressed, deduplicated, local-only (mirrors the visit attachment design).
+        // The stream is buffered so the size is exact even for a non-seekable picker stream.
+        string hash;
+        long size;
+        using var buffered = new MemoryStream();
+        await content.CopyToAsync(buffered);
+        size = buffered.Length;
+        buffered.Position = 0;
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            var stored = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>().PutAsync(buffered, default);
+            if (stored.IsFailure) throw new ServiceException(stored.Error);
+            hash = stored.Value!;
+        }
+
+        // 2) then the journaled metadata row, so the file replicates and shows in the pet file.
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            var (dispatcher, provider) = Resolve(scope);
+            var cc = await provider.BuildCommandContextAsync(null, null, null, default);
+            if (cc.IsFailure) throw new ServiceException(cc.Error);
+            var cmd = new AddPetDocumentCommand(petId, Title(title, name), KindFor(name, contentType), hash, size, hash);
+            var r = await dispatcher.SendAsync(cmd, cc.Value!);
+            if (r.IsFailure) throw new ServiceException(r.Error);
+        }
+
+        return (await GetPetAsync(petId))!;
+    }
+
+    public async Task<Stream?> OpenPetDocumentAsync(string contentHashSha256)
+    {
+        if (string.IsNullOrWhiteSpace(contentHashSha256)) return null;
+        await using var scope = scopes.CreateAsyncScope();
+        var opened = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>()
+            .OpenAsync(contentHashSha256, default);
+        // A missing/damaged payload is a display concern (toast), not a fault — report it as null.
+        return opened.IsFailure ? null : opened.Value;
+    }
+
+    /// <summary>Uses the caller's title when given, otherwise the file name — so a row always has a label.</summary>
+    private static string Title(string? title, string fileName) =>
+        string.IsNullOrWhiteSpace(title) ? fileName : title.Trim();
+
+    /// <summary>Category picked from the content type / file extension so uploads land in the right tab group.</summary>
+    private static DocumentKind KindFor(string fileName, string? contentType)
+    {
+        if (!string.IsNullOrWhiteSpace(contentType))
+        {
+            var type = contentType.Split(';')[0].Trim().ToLowerInvariant();
+            if (type.StartsWith("image/", StringComparison.Ordinal)) return DocumentKind.Imaging;
+            if (type == "application/pdf") return DocumentKind.Lab;
+        }
+
+        return Path.GetExtension(fileName).ToLowerInvariant() switch
+        {
+            ".pdf" => DocumentKind.Lab,
+            ".dcm" or ".jpg" or ".jpeg" or ".png" or ".bmp" or ".gif" or ".webp" or ".tif" or ".tiff" => DocumentKind.Imaging,
+            _ => DocumentKind.Other,
+        };
     }
 
     // Deletes are soft (tombstone) and return nothing — the record is gone from every read after

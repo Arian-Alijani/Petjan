@@ -79,6 +79,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.AddScoped<IPetRepository, PetRepository>();
         // C01: append-only weight-history writes.
         services.AddScoped<IWeightEntryRepository, WeightEntryRepository>();
+        // T10b: stored-file metadata writes (bytes live in ILocalFileStore).
+        services.AddScoped<IDocumentReferenceRepository, DocumentReferenceRepository>();
         // C01: projection reads backing the Patients directory + detail screens (Application port, impl here).
         services.TryAddScoped<IPatientDirectoryQueries, PatientDirectoryQueries>();
         services.TryAddScoped<IReceptionQueueQueries, ReceptionQueueQueries>();

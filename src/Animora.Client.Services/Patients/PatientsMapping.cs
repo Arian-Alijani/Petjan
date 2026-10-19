@@ -58,7 +58,9 @@ internal static class PatientsMapping
             Vaccinations: (m.Vaccinations ?? []).Select(ToVaccinationRef).ToList(),
             // Task 10: paraclinic read path — labs + radiology flattened from the pet's visits (was [] and dropped).
             Labs: (m.Labs ?? []).Select(ToLabSummary).ToList(),
-            Documents: [], Surgeries: [],
+            // Task 10b: the real stored-file list from DocumentReference (was hardcoded []).
+            Documents: (m.Documents ?? []).Select(ToDocumentRef).ToList(),
+            Surgeries: [],
             Allergies: Split(m.AllergyNotes), ChronicConditions: Split(m.ChronicNotes), Notes: null,
             Radiology: (m.Radiology ?? []).Select(ToRadiologySummary).ToList());
     }
@@ -67,6 +69,14 @@ internal static class PatientsMapping
     private static LabSummary ToLabSummary(LabSummaryReadModel l) => new(
         l.Id, l.VisitId, l.DateJalali, l.Description ?? string.Empty,
         string.Join("\n", l.Items), l.Items.Count);
+
+    /// <summary>
+    /// One stored file → the pet-file documents row (Task 10b). <c>Size</c> carries the raw byte count as a
+    /// string (the VM renders the human label); id + hash are the resolvable download handle.
+    /// </summary>
+    private static DocumentRef ToDocumentRef(PetDocumentReadModel d) => new(
+        d.Title, d.SizeBytes.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        d.UploadedUtc.UtcDateTime, d.Id, d.ContentHashSha256);
 
     /// <summary>One visit-flattened radiology study → the pet-file documents row (previously dropped entirely).</summary>
     private static RadiologySummary ToRadiologySummary(RadiologySummaryReadModel r) => new(

@@ -232,8 +232,9 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
         var visits = await GetPetVisitsAsync(petId, ct);
         var vaccinations = await GetPetVaccinationsAsync(petId, ct);
         var (labs, radiology) = await GetPetParaclinicAsync(petId, ct);
+        var documents = await GetPetDocumentsAsync(petId, ct);
 
-        TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}, vaccinations={vaccinations.Count}, labs={labs.Count}, radiology={radiology.Count}.", "sql.patients");
+        TraceLog.Info($"SQL GetPetAsync ← Ok: pet='{pet.Name}', ownerId={pet.OwnerId}, weights={weights.Count}, visits={visits.Count}, vaccinations={vaccinations.Count}, labs={labs.Count}, radiology={radiology.Count}, documents={documents.Count}.", "sql.patients");
         return new PetDetailReadModel(pet.Id, pet.Name, pet.Species, pet.Breed, pet.Color, pet.Gender,
             pet.Status, pet.OwnerId, pet.BirthDateUtc, pet.IsNeutered, pet.MicrochipCode,
             pet.MicrochipImplantUtc, pet.AllergyNotes, pet.ChronicNotes, weights, visits,
@@ -241,8 +242,25 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             Vaccinations: vaccinations,
             Habitat: pet.Habitat, Behavior: pet.Behavior, Diet: pet.Diet, BloodType: pet.BloodType,
             Insurance: pet.Insurance, MicrochipVendor: pet.MicrochipVendor,
-            MicrochipLocation: pet.MicrochipLocation, NeuteredUtc: pet.NeuteredUtc);
+            MicrochipLocation: pet.MicrochipLocation, NeuteredUtc: pet.NeuteredUtc,
+            Documents: documents);
     }
+
+    private const int PetDocumentTake = 100;
+
+    /// <summary>
+    /// The pet's stored files (Task 10b), newest upload first, from the <c>DocumentReferences</c> table — the
+    /// table existing since migration 001, so no schema change is needed. The soft-delete filter is applied
+    /// automatically by ModelConventions, exactly like every other projection here.
+    /// </summary>
+    private async Task<IReadOnlyList<PetDocumentReadModel>> GetPetDocumentsAsync(string petId, CancellationToken ct) =>
+        await db.Set<DocumentReference>().AsNoTracking()
+            .Where(d => d.PetId == petId)
+            .OrderByDescending(d => d.UploadedUtc).ThenBy(d => d.Id)
+            .Take(PetDocumentTake)
+            .Select(d => new PetDocumentReadModel(
+                d.Id, d.Title, (int)d.Kind, d.SizeBytes, d.UploadedUtc, d.ContentHashSha256))
+            .ToListAsync(ct);
 
     /// <summary>
     /// Flattens the pet's visits' JSON <c>LabResults</c>/<c>Radiology</c> columns into pet-level paraclinic

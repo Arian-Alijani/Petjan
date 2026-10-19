@@ -13,6 +13,7 @@ public static class ClinicalPersistenceServiceCollectionExtensions
         services.TryAddScoped<IOwnerRepository, OwnerRepository>();
         services.TryAddScoped<IPetRepository, PetRepository>();
         services.TryAddScoped<IWeightEntryRepository, WeightEntryRepository>();
+        services.TryAddScoped<IDocumentReferenceRepository, DocumentReferenceRepository>();
         services.TryAddScoped<IMedicalHistoryRepository, MedicalHistoryRepository>();
         services.TryAddScoped<IReceptionQueueRepository, ReceptionQueueRepository>();
         services.TryAddScoped<IReceptionQueueQueries, ReceptionQueueQueries>();

@@ -15,7 +15,7 @@
   no progress at risk → **no PR** (per instruction); work is committed **directly on `main`** via `scripts/git/push.sh`.
 - **Task number in every commit subject is REQUIRED** (`… : T<n> …`).
 - **Local sandbox build/test is FORBIDDEN** → all builds/tests run on GitHub Actions via `scripts/ci/gh-ci.sh`.
-- **Progress:** T1–T9 ☑ (committed). **T10a ☑ done + pushed.** Remaining: **T10b, T11, T12**.
+- **Progress:** T1–T9 ☑ (committed). **T10a ☑ done + pushed.** **T10b ☑ done + pushed.** Remaining: **T11, T12**.
 
 ---
 
@@ -305,7 +305,20 @@ read path, then add path).
   `(m.Radiology ?? []).Select(ToRadiologySummary)` (was dropped). `Documents` still `[]` → T10b.
 **Done:** anything recorded in a visit's paraclinic step now shows in the docs tab. **Pushed.**
 
-### ☐ Task 10b — Documents tab: stored files list + manual add/upload + download
+### ☑ Task 10b — Documents tab: stored files list + manual add/upload + download
+**Status: DONE + pushed.** Implemented option **A** exactly:
+- Read model: `PetDocumentReadModel(Id,Title,Kind,SizeBytes,UploadedUtc,ContentHashSha256)` +
+  `PetDetailReadModel.Documents`; filled in `PatientDirectoryQueries.GetPetAsync` via new
+  `GetPetDocumentsAsync` (`DocumentReferences` where `PetId==petId`, newest first, `PetDocumentTake=100`; soft-delete
+  filter automatic — no schema change).
+- Contract: `DocumentRef(Name,Size,Date,Id=null,Hash=null)`; mapped by `PatientsMapping.ToDocumentRef` (was `[]`).
+- Seams: `IPatientsQueryService.AddPetDocumentAsync` / `OpenPetDocumentAsync`; impl in `PatientsService` buffers the
+  stream (exact size), `ILocalFileStore.PutAsync` → hash, then dispatches the journaled `AddPetDocumentCommand`.
+- Command: `AddPetDocumentCommand` (+validator, +`CommandTypes.PatientsPetDocumentAdd`, +`PatientsRegistration`,
+  +`IDocumentReferenceRepository` port + Sqlite/Postgres repos + both DI regs) calls `DocumentReference.Attach`.
+- VM: `DocRowViewModel(Name,Meta,Id,Hash)`; real `UploadDocAsync` (pick → size cap `MaxAttachmentBytes` → upload →
+  notify → reload) and `DownloadDocAsync` (hash → temp file → `IFileLauncher`, guarded by `IsViewable`);
+  `HumanSize` byte→ Persian label. XAML bindings already existed.
 **VERIFIED infra already exists — reuse it, do NOT invent a store:**
 - **Metadata table + entity already exist:** `Animora.Domain.Patients.DocumentReference` (fields `OwnerId?`,
   `PetId?`, `VisitId?`, `Title`, `Kind`=enum `DocumentKind{Lab,Imaging,Prescription,Consent,Invoice,Other}`,
