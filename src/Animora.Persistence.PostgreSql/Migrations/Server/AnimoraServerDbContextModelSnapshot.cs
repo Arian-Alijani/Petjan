@@ -831,6 +831,14 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.Property<string>("Color").HasColumnType("text");
                 b.Property<string>("MicrochipCode").HasColumnType("text");
                 b.Property<DateTimeOffset?>("MicrochipImplantUtc").HasColumnType("timestamp with time zone");
+                b.Property<string>("MicrochipVendor").HasColumnType("text");
+                b.Property<string>("MicrochipLocation").HasColumnType("text");
+                b.Property<string>("Habitat").HasColumnType("text");
+                b.Property<string>("Behavior").HasColumnType("text");
+                b.Property<string>("Diet").HasColumnType("text");
+                b.Property<string>("BloodType").HasColumnType("text");
+                b.Property<string>("Insurance").HasColumnType("text");
+                b.Property<DateTimeOffset?>("NeuteredUtc").HasColumnType("timestamp with time zone");
                 b.Property<int>("Status").HasColumnType("integer");
                 b.Property<string>("AllergyNotes").HasColumnType("text");
                 b.Property<string>("ChronicNotes").HasColumnType("text");
