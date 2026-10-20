@@ -587,7 +587,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Acceptance:** statistics publish runs on the UI thread even when `LoadAsync` is invoked from a background
   context; UI-thread entry still works unchanged. No behaviour change for the current UI-thread caller.
 
-## [ ] T52 · UI-03 — Make global exception hooks idempotent across sign-out (Low, handler leak)
+## [x] T52 · UI-03 — Make global exception hooks idempotent across sign-out (Low, handler leak)
 - **File:** `src/Animora.Desktop/App.axaml.cs` — `OnFrameworkInitializationCompleted`
   (`RegisterProcessHooks`, `Dispatcher.UIThread.UnhandledException += …`) and `OnProfileSignedOut` (rebuilds
   provider, then `GetRequiredService<GlobalExceptionHandler>().RegisterProcessHooks()` again).

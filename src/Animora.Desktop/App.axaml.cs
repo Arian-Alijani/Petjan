@@ -243,6 +243,9 @@ public partial class App : global::Avalonia.Application
                 else if (previous is IDisposable disposable) disposable.Dispose();
             });
             Services = ConfigureServices();
+            // UI-03: the previous provider's GlobalExceptionHandler was disposed above (which unsubscribed its process-global
+            // hooks), so this registers exactly one live set; the Dispatcher.UnhandledException lambda from startup is
+            // subscribed once and always resolves the CURRENT handler, so it must not be re-added here.
             Services.GetRequiredService<GlobalExceptionHandler>().RegisterProcessHooks();
             DataTemplates.Add(Services.GetRequiredService<ViewLocator>());
             var login = CreateLoginWindow(desktop);

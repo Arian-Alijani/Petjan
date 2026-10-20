@@ -36,6 +36,13 @@ public sealed class GlobalExceptionHandler(
 
     public LocalStoreDiagnostics? Diagnostics { get; set; }
 
+    /// <summary>
+    /// Subscribes the process-global crash hooks. UI-03: idempotent per instance (<c>Interlocked</c> guard) AND balanced
+    /// across provider rebuilds — the DI container disposes this singleton on sign-out, and <see cref="Dispose"/> removes
+    /// both delegates, so a sign-in/out cycle never leaves a stale multicast subscriber rooting a disposed provider. The
+    /// ordering contract is therefore "dispose the previous provider, THEN register on the new one" (see
+    /// <c>App.OnProfileSignedOut</c>).
+    /// </summary>
     public void RegisterProcessHooks()
     {
         if (Interlocked.Exchange(ref _registered, 1) != 0) return;
