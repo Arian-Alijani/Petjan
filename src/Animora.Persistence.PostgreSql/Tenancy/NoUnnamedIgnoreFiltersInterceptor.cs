@@ -9,6 +9,11 @@ namespace Animora.Persistence.PostgreSql.Tenancy;
 /// Bans the unnamed <c>IgnoreQueryFilters()</c> overload (it would disable the tenant filter
 /// together with soft-delete). Named overloads are allowed, except one naming the
 /// <c>"Tenant"</c> filter when the caller is not an operator.
+/// <para><b>ISO-03 — breadth of the operator bypass.</b> <see cref="ITenantContext.IsOperator"/> is a single boolean that, for the whole
+/// context it is set on, lets ANY query name <c>IgnoreQueryFilters(["Tenant"])</c> and read across every tenant. Code running with an
+/// operator context therefore <i>is</i> the tenant wall and must be reviewed/audited as such: keep operator-context code paths minimal,
+/// operator-authenticated and audited, and prefer a tenant-bound context (see <c>TenantBoundContext</c>) whenever one clinic's data is
+/// the target — e.g. the per-tenant backup export (BAK-02) deliberately reads through a bound context, never through this bypass.</para>
 /// </summary>
 public sealed class NoUnnamedIgnoreFiltersInterceptor(ITenantContext tenantContext) : IQueryExpressionInterceptor
 {

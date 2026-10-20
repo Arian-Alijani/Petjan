@@ -48,6 +48,15 @@ public sealed class TenantProvisioner(
             return Result<ProvisionedTenant>.Fail(ErrorCodes.ValidationFailed, "required field missing");
         }
 
+        // ISO-04: provisioning re-binds the scope's tenant context to the NEW tenant, which would silently clobber a binding the caller
+        // (or a pooled/reused scope) already relied on. The "dedicated scope per call" rule is therefore enforced, not just documented:
+        // an already-bound context is a programming error and fails loudly before any state is touched.
+        if (tenantContext.TenantId is not null)
+        {
+            throw new InvalidOperationException(
+                "TenantProvisioner requires a dedicated scope with an unbound tenant context (ISO-04); this scope is already bound.");
+        }
+
         string code = TenantDirectory.NormalizeCode(tenantCode);
         if (code.Length > MaxCodeLength || !code.All(static c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
         {

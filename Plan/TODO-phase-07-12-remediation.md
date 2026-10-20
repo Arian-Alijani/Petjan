@@ -456,7 +456,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Acceptance:** the context exposes only the by-id lookup (no weaker-key query); the invariant is
   documented at the declaration site referencing ISO-01. No behaviour change if already id-only.
 
-## [ ] T44 · ISO-03 + ISO-04 — Document operator-bypass breadth & provisioning scope invariant (Low, doc/guard)
+## [x] T44 · ISO-03 + ISO-04 — Document operator-bypass breadth & provisioning scope invariant (Low, doc/guard)
 - **Files:** `src/Animora.Persistence.PostgreSql/Tenancy/NoUnnamedIgnoreFiltersInterceptor.cs`
   (`QueryCompilationStarting` — `IgnoreQueryFilters(["Tenant"])` allowed when `IsOperator`);
   `src/Animora.Persistence.PostgreSql/Identity/TenantProvisioner.cs` (`CreateTenantWithOwnerAsync` binds the
