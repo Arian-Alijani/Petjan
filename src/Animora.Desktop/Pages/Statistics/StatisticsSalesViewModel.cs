@@ -75,11 +75,14 @@ public sealed partial class StatisticsSalesViewModel(IStatisticsQueryService ser
         await Task.WhenAll(seriesTask, productsTask, sourcesTask, overviewTask);
 
         var series = seriesTask.Result;
-        PublishSales(series);
-        PublishProducts(productsTask.Result);
-        PublishSources(sourcesTask.Result);
-        PublishInvoices(overviewTask.Result.Current);
-        IsEmpty = !HasSales && !HasProducts && !HasSources && !HasInvoices;
+        await PublishOnUiAsync(() =>
+        {
+            PublishSales(series);
+            PublishProducts(productsTask.Result);
+            PublishSources(sourcesTask.Result);
+            PublishInvoices(overviewTask.Result.Current);
+            IsEmpty = !HasSales && !HasProducts && !HasSources && !HasInvoices;
+        });
     }
 
     private void PublishSales(IReadOnlyList<StatisticsSeriesPoint> series)

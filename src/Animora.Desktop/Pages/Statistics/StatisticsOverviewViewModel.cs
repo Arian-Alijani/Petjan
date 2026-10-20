@@ -62,11 +62,14 @@ public sealed partial class StatisticsOverviewViewModel(IStatisticsQueryService 
         var series = seriesTask.Result;
         var sources = sourcesTask.Result;
 
-        Kpis.ReplaceAll(BuildKpis(overview));
-        PublishTrend(series);
-        PublishSources(sources);
-        IsEmpty = overview.Current.InvoiceCount == 0 && overview.Current.ExpenseMinor == 0 && overview.Current.VisitCount == 0
-                  && series.All(p => p.RevenueMinor == 0 && p.ExpenseMinor == 0);
+        await PublishOnUiAsync(() =>
+        {
+            Kpis.ReplaceAll(BuildKpis(overview));
+            PublishTrend(series);
+            PublishSources(sources);
+            IsEmpty = overview.Current.InvoiceCount == 0 && overview.Current.ExpenseMinor == 0 && overview.Current.VisitCount == 0
+                      && series.All(p => p.RevenueMinor == 0 && p.ExpenseMinor == 0);
+        });
     }
 
     internal static IEnumerable<StatisticsKpi> BuildKpis(StatisticsOverview o)

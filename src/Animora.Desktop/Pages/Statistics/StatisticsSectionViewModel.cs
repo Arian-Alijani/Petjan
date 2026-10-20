@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Animora.Contracts.Statistics;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Animora.Desktop.Pages.Statistics;
@@ -68,10 +69,13 @@ public abstract partial class StatisticsSectionViewModel : ObservableObject
         {
             await LoadCoreAsync(range, ct);
             ct.ThrowIfCancellationRequested();
-            _loadedKey = key;
-            HasError = false;
-            ErrorMessage = string.Empty;
-            HasData = true;
+            await PublishOnUiAsync(() =>
+            {
+                _loadedKey = key;
+                HasError = false;
+                ErrorMessage = string.Empty;
+                HasData = true;
+            });
             return true;
         }
         catch (OperationCanceledException)
@@ -80,18 +84,42 @@ public abstract partial class StatisticsSectionViewModel : ObservableObject
         }
         catch (StatisticsQueryException ex)
         {
-            Fail(ex.UserMessage);
+            await PublishOnUiAsync(() => Fail(ex.UserMessage));
             return false;
         }
         catch (Exception)
         {
-            Fail("بارگذاری آمار انجام نشد؛ دوباره تلاش کنید.");
+            await PublishOnUiAsync(() => Fail("بارگذاری آمار انجام نشد؛ دوباره تلاش کنید."));
             return false;
         }
         finally
         {
-            IsLoading = false;
+            PostToUi(() => IsLoading = false);
         }
+    }
+
+    /// <summary>
+    /// UI-02: runs <paramref name="publish"/> (every mutation of bound properties / <c>RangeObservableCollection</c>s) on the
+    /// UI thread regardless of the caller's context. Inline when already on the UI thread (the normal path — no extra hop),
+    /// marshalled with <see cref="Dispatcher.InvokeAsync(Action)"/> otherwise, so a non-UI caller (sync-change bridge,
+    /// timer) can never trigger an Avalonia cross-thread collection-change crash.
+    /// </summary>
+    protected static Task PublishOnUiAsync(Action publish)
+    {
+        ArgumentNullException.ThrowIfNull(publish);
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            publish();
+            return Task.CompletedTask;
+        }
+
+        return Dispatcher.UIThread.InvokeAsync(publish).GetTask();
+    }
+
+    private static void PostToUi(Action action)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) action();
+        else Dispatcher.UIThread.Post(action);
     }
 
     /// <summary>Queries and publishes the section's data; sets <see cref="IsEmpty"/>. Throws on failure.</summary>

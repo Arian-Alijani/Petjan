@@ -571,7 +571,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
   navigating back reloads correctly. Light pages keep their warm behaviour. Reason about which collections
   are the big ones; no functional regression.
 
-## [ ] T46 · UI-02 — Guard Statistics publish onto the UI thread (Medium, thread affinity)
+## [x] T46 · UI-02 — Guard Statistics publish onto the UI thread (Medium, thread affinity)
 - **File:** `src/Animora.Desktop/Pages/Statistics/StatisticsSectionViewModel.cs` (and the concrete section
   VMs, e.g. `StatisticsClientsViewModel.LoadCoreAsync`): after `await Task.WhenAll(...)` the continuation
   calls `PublishStats`/`PublishSpecies` which mutate `[ObservableProperty]` + `RangeObservableCollection`

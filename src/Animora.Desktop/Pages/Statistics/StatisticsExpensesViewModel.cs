@@ -120,10 +120,13 @@ public sealed partial class StatisticsExpensesViewModel : StatisticsSectionViewM
         var recurringTask = _service.GetRecurringExpensesAsync(ct);
         await Task.WhenAll(statsTask, pageTask, recurringTask);
 
-        PublishStats(statsTask.Result);
-        PublishPage(pageTask.Result, append: false);
-        PublishRecurring(recurringTask.Result);
-        IsEmpty = false; // the screen always offers «ثبت هزینه» and the fixed-expense panel, even with an empty ledger
+        await PublishOnUiAsync(() =>
+        {
+            PublishStats(statsTask.Result);
+            PublishPage(pageTask.Result, append: false);
+            PublishRecurring(recurringTask.Result);
+            IsEmpty = false; // the screen always offers «ثبت هزینه» and the fixed-expense panel, even with an empty ledger
+        });
     }
 
     private void PublishStats(ExpenseStats stats)

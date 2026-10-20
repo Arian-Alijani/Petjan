@@ -85,11 +85,14 @@ public sealed partial class StatisticsClientsViewModel(IStatisticsQueryService s
 
         var stats = statsTask.Result;
         var series = seriesTask.Result;
-        PublishStats(stats);
-        PublishSpecies(speciesTask.Result);
-        PublishTopClients(topTask.Result);
-        PublishVisits(series);
-        IsEmpty = stats.TotalOwners == 0 && speciesTask.Result.Count == 0 && topTask.Result.Count == 0;
+        await PublishOnUiAsync(() =>
+        {
+            PublishStats(stats);
+            PublishSpecies(speciesTask.Result);
+            PublishTopClients(topTask.Result);
+            PublishVisits(series);
+            IsEmpty = stats.TotalOwners == 0 && speciesTask.Result.Count == 0 && topTask.Result.Count == 0;
+        });
     }
 
     private void PublishStats(ClientStats stats)
