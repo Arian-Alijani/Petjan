@@ -142,6 +142,9 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
     {
         OnPropertyChanged(nameof(ShowPaymentPanel));
         OnPropertyChanged(nameof(PayAmountWatermark));
+        // The invoice's line set just changed, so the selected item's remaining stock may have too.
+        OnPropertyChanged(nameof(CanAddLine));
+        AddLineCommand.NotifyCanExecuteChanged();
     }
 
     private readonly Debouncer _searchDebounce = new(System.TimeSpan.FromMilliseconds(160));
@@ -667,11 +670,61 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
 
     // ── Inline add-line / discount / insurance ──────────────────────────
 
-    [RelayCommand]
+    /// <summary>
+    /// Whole units of the selected catalog item still addable to the open invoice: its on-hand units minus
+    /// the quantity already on the invoice (matched by title, since detail lines carry no catalog id). Untracked
+    /// goods/services are unlimited. This is the single stock gate the «افزودن» button and command share.
+    /// </summary>
+    private int SelectedRemainingUnits()
+    {
+        var option = SelectedCatalogOption;
+        if (option is null || !option.TracksStock)
+        {
+            return int.MaxValue;
+        }
+
+        var onInvoice = 0;
+        if (Detail is not null)
+        {
+            foreach (var line in Detail.Detail.Lines)
+            {
+                if (line.Kind == CashierLineKind.Item &&
+                    string.Equals(line.Title, option.Title, System.StringComparison.Ordinal))
+                {
+                    onInvoice += line.Quantity;
+                }
+            }
+        }
+
+        return System.Math.Max(0, option.AvailableUnits - onInvoice);
+    }
+
+    /// <summary>True when a catalog item is selected and at least one more unit can be added.</summary>
+    public bool CanAddLine =>
+        Detail is { IsEditable: true } && SelectedCatalogOption is not null && SelectedRemainingUnits() > 0;
+
+    partial void OnSelectedCatalogOptionChanged(CashierCatalogOptionViewModel? value)
+    {
+        OnPropertyChanged(nameof(CanAddLine));
+        AddLineCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAddLine))]
     private async Task AddLine()
     {
         if (Detail is null || SelectedCatalogOption is null)
         {
+            return;
+        }
+
+        // Stock gate: never let a stock-tracked good be added beyond what is on hand, even on rapid clicks.
+        if (SelectedRemainingUnits() <= 0)
+        {
+            _toast.Show(
+                SelectedCatalogOption.AvailableUnits <= 0
+                    ? $"«{SelectedCatalogOption.Title}» موجودی ندارد و قابل افزودن نیست"
+                    : $"موجودی «{SelectedCatalogOption.Title}» کافی نیست؛ همهٔ {CashierPresentation.Fa(SelectedCatalogOption.AvailableUnits)} عدد موجود در فاکتور هست",
+                Tone.Danger);
             return;
         }
 

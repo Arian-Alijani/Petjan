@@ -291,8 +291,22 @@ public sealed record CatalogItem(
     string IconKey,
     long? OnHandScaled = null)
 {
+    /// <summary>Stock is stored scaled by 1000 (R-B23); one sellable unit is 1000 scaled.</summary>
+    public const long StockScale = 1000L;
+
+    /// <summary>True when this item's stock is tracked (a non-service good with a real on-hand figure).</summary>
+    public bool TracksStock => Kind == "item" && OnHandScaled is not null;
+
     /// <summary>Null stock denotes a stock-free service or untracked product, never an unavailable item.</summary>
     public bool IsOutOfStock => Kind == "item" && OnHandScaled is <= 0;
+
+    /// <summary>
+    /// Whole sellable units currently on hand (floored). Untracked goods/services return
+    /// <see cref="int.MaxValue"/> so callers treat them as unlimited.
+    /// </summary>
+    public int AvailableUnits => TracksStock
+        ? (int)System.Math.Max(0, OnHandScaled!.Value / StockScale)
+        : int.MaxValue;
 }
 
 /// <summary>

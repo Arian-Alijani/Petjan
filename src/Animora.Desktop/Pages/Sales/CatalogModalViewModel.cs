@@ -44,6 +44,12 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     private readonly List<RecentItemRef> _recent = [];
     private readonly List<CatalogItem> _visible = [];
 
+    // Units already added to the destination (invoice / stay / encounter) during this open session,
+    // per catalog item id. Combined with the item's on-hand figure this caps how many of a
+    // stock-tracked good can be added before the picker reloads with a fresh on-hand snapshot, so a
+    // 2-in-stock product can never be added more than twice from a single open drawer.
+    private readonly Dictionary<string, int> _sessionAdded = [];
+
     // Non-null = «pick one item» mode (e.g. choosing a stock item for a medication reminder): no price, the
     // drawer closes after the pick and nothing is added to any invoice.
     private readonly CatalogPickerOptions? _picker;
@@ -143,6 +149,25 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
     public void CancelPendingRefresh() => _loadGeneration++;
 
+    /// <summary>
+    /// Whole units of <paramref name="item"/> still addable right now: its on-hand units minus whatever
+    /// has already been added in this session. Untracked goods/services are unlimited. This is the single
+    /// stock gate every add path (row, recent chip, keyboard «اینتر») consults.
+    /// </summary>
+    private int RemainingUnits(CatalogItem item)
+    {
+        if (!item.TracksStock)
+        {
+            return int.MaxValue;
+        }
+
+        var used = _sessionAdded.TryGetValue(item.Id, out var n) ? n : 0;
+        return Math.Max(0, item.AvailableUnits - used);
+    }
+
+    /// <summary>True when at least one more unit of <paramref name="item"/> can be added.</summary>
+    private bool CanAdd(CatalogItem item) => RemainingUnits(item) > 0;
+
     private async Task LoadAsync()
     {
         var generation = ++_loadGeneration;
@@ -150,6 +175,10 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         if (generation != _loadGeneration) return;
         _all.Clear();
         _all.AddRange(snapshot.Items);
+
+        // The reloaded snapshot already reflects every persisted add, so the per-session tally resets:
+        // remaining availability is read straight off the fresh on-hand figures again.
+        _sessionAdded.Clear();
 
         _filterRefs.Clear();
         _filterRefs.AddRange(snapshot.Filters);
@@ -237,7 +266,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         {
             var (bg, fg) = SalePresentation.LineTagBrushes(
                 _visible[i].Kind == "svc" ? InvoiceLineKind.Service : InvoiceLineKind.Item, false);
-            built.Add(new CatalogRowViewModel(_visible[i], bg, fg, q)
+            built.Add(new CatalogRowViewModel(_visible[i], bg, fg, q, CanAdd(_visible[i]))
             {
                 IsHighlighted = i == HighlightIndex,
             });
@@ -254,7 +283,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
                 var item = _all.FirstOrDefault(x => x.Kind == r.Kind && x.Id == r.Ref);
                 if (item is not null)
                 {
-                    chips.Add(new CatalogRecentChipViewModel(item));
+                    chips.Add(new CatalogRecentChipViewModel(item, CanAdd(item)));
                 }
             }
         }
@@ -315,6 +344,19 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
+        // Stock gate (applies on every add surface that uses this picker — invoice, stay, encounter, …):
+        // a stock-tracked good can never be added beyond what is on hand. Once exhausted the add is
+        // refused with a toast instead of silently stacking an unavailable unit onto the destination.
+        if (!CanAdd(item))
+        {
+            _toast.Show(
+                item.AvailableUnits <= 0
+                    ? $"«{item.Title}» موجودی ندارد و قابل افزودن نیست"
+                    : $"موجودی «{item.Title}» کافی نیست؛ همهٔ {SalePresentation.Fa(item.AvailableUnits)} عدد موجود افزوده شد",
+                Tone.Danger);
+            return;
+        }
+
         try
         {
             await _addItem(item);
@@ -336,9 +378,44 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             return;
         }
 
+        // Count this unit against the item's on-hand so the next add sees one fewer remaining, then
+        // refresh the add-buttons so a row/chip greys out the moment its stock is exhausted.
+        if (item.TracksStock)
+        {
+            _sessionAdded[item.Id] = (_sessionAdded.TryGetValue(item.Id, out var n) ? n : 0) + 1;
+            RefreshAddability(item.Id);
+        }
+
         _toast.Show($"«{item.Title}» به {_addedToLabel} افزوده شد", Tone.Ok);
         _onChanged?.Invoke();
         PromoteRecent(item);
+    }
+
+    /// <summary>Re-evaluates the stock gate for the given item on every visible row and recent chip.</summary>
+    private void RefreshAddability(string itemId)
+    {
+        var item = _all.FirstOrDefault(x => x.Id == itemId);
+        if (item is null)
+        {
+            return;
+        }
+
+        var canAdd = CanAdd(item);
+        foreach (var row in Rows)
+        {
+            if (row.Id == itemId)
+            {
+                row.CanAdd = canAdd;
+            }
+        }
+
+        foreach (var chip in Recent)
+        {
+            if (chip.Id == itemId)
+            {
+                chip.CanAdd = canAdd;
+            }
+        }
     }
 
     [RelayCommand]
@@ -372,7 +449,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         Recent.ReplaceAll(_recent
             .Select(r => _all.FirstOrDefault(x => x.Kind == r.Kind && x.Id == r.Ref))
             .Where(x => x is not null)
-            .Select(x => new CatalogRecentChipViewModel(x!)));
+            .Select(x => new CatalogRecentChipViewModel(x!, CanAdd(x!))));
         OnPropertyChanged(nameof(HasRecent));
     }
 
@@ -416,15 +493,16 @@ public sealed partial class CatalogFilterViewModel : ObservableObject
 }
 
 /// <summary>One recent-item chip (mirrors <c>.cat-recent-chip</c>).</summary>
-public sealed class CatalogRecentChipViewModel
+public sealed partial class CatalogRecentChipViewModel : ObservableObject
 {
-    public CatalogRecentChipViewModel(CatalogItem item)
+    public CatalogRecentChipViewModel(CatalogItem item, bool canAdd = true)
     {
         Id = item.Id;
         Title = item.Title;
         IconKey = item.IconKey;
         IsItem = item.Kind == "item";
         IsOutOfStock = item.IsOutOfStock;
+        _canAdd = canAdd && !item.IsOutOfStock;
         (IcoBackground, IcoForeground) = SalePresentation.LineTagBrushes(
             IsItem ? InvoiceLineKind.Item : InvoiceLineKind.Service, false);
         if (IsOutOfStock)
@@ -440,6 +518,14 @@ public sealed class CatalogRecentChipViewModel
     public bool IsItem { get; }
 
     public bool IsOutOfStock { get; }
+
+    /// <summary>False once the item is out of stock / fully consumed this session: the chip greys out and its tap is disabled.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUnavailable))]
+    private bool _canAdd;
+
+    /// <summary>True when the chip must read as unavailable (grey style + disabled), covering both no-stock and exhausted-this-session.</summary>
+    public bool IsUnavailable => IsOutOfStock || !CanAdd;
 
     public IBrush TextForeground => IsOutOfStock
         ? BrushCache.Solid("#667085") : BrushCache.Solid("#101828");
@@ -458,7 +544,7 @@ public sealed partial class CatalogRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isHighlighted;
 
-    public CatalogRowViewModel(CatalogItem item, IBrush icoBackground, IBrush icoForeground, string query)
+    public CatalogRowViewModel(CatalogItem item, IBrush icoBackground, IBrush icoForeground, string query, bool canAdd = true)
     {
         Id = item.Id;
         IconKey = item.IconKey;
@@ -467,6 +553,7 @@ public sealed partial class CatalogRowViewModel : ObservableObject
         KindLabel = IsItem ? "کالا" : "خدمت";
         PriceText = SalePresentation.Money(item.Price);
         IsOutOfStock = item.IsOutOfStock;
+        _canAdd = canAdd && !item.IsOutOfStock;
         IcoBackground = IsOutOfStock ? SalePresentation.PlaceholderAvatarBrush() : icoBackground;
         IcoForeground = IsOutOfStock ? SalePresentation.PlaceholderAvatarForeground() : icoForeground;
 
@@ -504,6 +591,15 @@ public sealed partial class CatalogRowViewModel : ObservableObject
 
     public bool IsOutOfStock { get; }
 
+    /// <summary>False once the item is out of stock / fully consumed this session: the row greys out and its tap is disabled.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsUnavailable))]
+    [NotifyPropertyChangedFor(nameof(AddBackground))]
+    private bool _canAdd;
+
+    /// <summary>True when the row must read as unavailable (grey style + disabled), covering both no-stock and exhausted-this-session.</summary>
+    public bool IsUnavailable => IsOutOfStock || !CanAdd;
+
     public IBrush TextForeground => IsOutOfStock
         ? BrushCache.Solid("#667085") : BrushCache.Solid("#101828");
 
@@ -511,7 +607,7 @@ public sealed partial class CatalogRowViewModel : ObservableObject
 
     public string PriceText { get; }
 
-    public IBrush AddBackground => IsOutOfStock
+    public IBrush AddBackground => IsUnavailable
         ? SalePresentation.PlaceholderAvatarForeground() : BrushCache.Solid("#0e9384");
 
     public IBrush IcoBackground { get; }

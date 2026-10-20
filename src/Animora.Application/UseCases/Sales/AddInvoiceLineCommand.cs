@@ -39,6 +39,23 @@ public sealed class AddInvoiceLineCommandHandler(IInvoiceRepository invoices, IS
         if (found.IsFailure) return Result<Unit>.Fail(found.Error);
         var item = await data.FindCatalogEntryAsync(c.CatalogItemId, ct);
         if (item is null) return Result<Unit>.Fail(ErrorCodes.NotFound);
+
+        // Server-side stock gate (defense in depth behind the UI add-buttons): a stock-tracked variant can
+        // never be stacked onto a draft beyond what is on hand. Sums the quantity of the same variant already
+        // on this invoice and rejects the add when (existing + requested) would exceed the on-hand units.
+        if (item.TrackStock && item.VariantId is not null)
+        {
+            const long stockScale = 1000L;
+            var alreadyOnInvoice = found.Value!.Lines
+                .Where(l => l.VariantId == item.VariantId)
+                .Sum(l => l.Quantity.Value);
+            var requestedScaled = (long)System.Math.Ceiling((alreadyOnInvoice + c.Quantity) * stockScale);
+            if (requestedScaled > item.OnHandScaled)
+            {
+                return Result<Unit>.Fail(ErrorCodes.InsufficientStock);
+            }
+        }
+
         // Line id = OperationId: Edit/Remove commands address a line by id (ExpectedLineId); it must match on the server.
         var line = new InvoiceLine(context.OperationId, item.Kind, item.Id,
             item.ProductId, item.VariantId, item.Title, new Quantity(c.Quantity, item.UnitCode),
