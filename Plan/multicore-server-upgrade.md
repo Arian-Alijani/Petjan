@@ -147,7 +147,7 @@ widened by cores to protect the Postgres connection budget; explicit `Server:Wor
 **Verify:** build 0/0 (docs don't affect build, but run once after T1-T4 combined if not already).
 **PUSH:** `scripts/git/push.sh "docs(server): document multi-core / hardware-aware scaling model"`
 
-### [ ] T6 — Final verification sweep
+### [x] T6 — Final verification sweep
 **Do:** one `scripts/sandbox/build.sh full` → confirm 0 warnings / 0 errors. Confirm no new
 analyzer warnings. Confirm admission/pool invariants intact (DB pool sums still ≤ validator budget;
 gates still separate). Do NOT run the long test suite. If a heavy fix was needed, it was already
