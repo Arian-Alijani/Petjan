@@ -375,7 +375,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   keying connection is provably excluded from any SQL trace/log. Encryption still opens the DB.
 - **Depends on:** reachable only when encryption is enabled (SQL-01). Do after/with T14.
 
-## [ ] T17 · SQL-04 — Set store-wide NoTracking default + fix the 3 non-opted queries (Low, perf)
+## [x] T17 · SQL-04 — Set store-wide NoTracking default + fix the 3 non-opted queries (Low, perf)
 - **File:** `src/Animora.Persistence.Sqlite/Context/AnimoraLocalDbContext.cs` (no `QueryTrackingBehavior`
   set today). Query files: `src/Animora.Persistence.Sqlite/Queries/**` (24 of 27 use `AsNoTracking`; 3 don't).
 - **Fix:**
@@ -391,7 +391,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** DbContext defaults to NoTracking; write paths explicitly `AsTracking()`; the 3 outlier
   queries confirmed read-only. No behavioural change to writes.
 
-## [ ] T18 · SQL-05 — Cache the pragma array in the connection interceptor (Low, micro-perf)
+## [x] T18 · SQL-05 — Cache the pragma array in the connection interceptor (Low, micro-perf)
 - **File:** `src/Animora.Persistence.Sqlite/Context/SqliteConnectionInterceptor.cs` — `Pragmas()` builds a
   fresh `string[]` (+ interpolated busy-timeout) on every `ConnectionOpened`.
 - **Fix:** build the array **once** in the singleton (busy-timeout depends only on startup-fixed options),
@@ -638,8 +638,8 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T14 | SQL-01 | High | [ ] |
 | T15 | SQL-02 | High | [ ] |
 | T16 | SQL-03 | Med | [ ] |
-| T17 | SQL-04 | Low | [ ] |
-| T18 | SQL-05 | Low | [ ] |
+| T17 | SQL-04 | Low | [x] |
+| T18 | SQL-05 | Low | [x] |
 | T19 | INF-01 | High | [x] |
 | T20 | INF-02 | Med | [x] |
 | T21 | INF-03 | Med | [x] |

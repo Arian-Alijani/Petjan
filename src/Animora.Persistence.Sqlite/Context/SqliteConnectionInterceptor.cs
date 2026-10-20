@@ -15,10 +15,17 @@ public sealed class SqliteConnectionInterceptor(
     IOptions<LocalStoreOptions> options, IStoreKeyProvider keys, IStoreEncryptionProvider encryption)
     : DbConnectionInterceptor
 {
+    // SQL-05: the pragma set depends only on startup-fixed options, so it is built once (no per-open array/string allocation).
+    private readonly string[] _pragmas =
+    [
+        "PRAGMA journal_mode=WAL;", "PRAGMA synchronous=NORMAL;",
+        $"PRAGMA busy_timeout={Math.Clamp(options.Value.BusyTimeoutMs, 0, 60000)};", "PRAGMA foreign_keys=ON;"
+    ];
+
     public override void ConnectionOpened(DbConnection connection, ConnectionEndEventData eventData)
     {
         ApplyKey(connection);
-        foreach (var pragma in Pragmas())
+        foreach (var pragma in _pragmas)
         {
             using var command = connection.CreateCommand();
             command.CommandText = pragma;
@@ -30,7 +37,7 @@ public sealed class SqliteConnectionInterceptor(
         CancellationToken cancellationToken = default)
     {
         ApplyKey(connection);
-        foreach (var pragma in Pragmas())
+        foreach (var pragma in _pragmas)
         {
             await using var command = connection.CreateCommand();
             command.CommandText = pragma;
@@ -45,7 +52,7 @@ public sealed class SqliteConnectionInterceptor(
     {
         ApplyKey(connection);
         if (!sessionPragmas) return;
-        foreach (var pragma in Pragmas())
+        foreach (var pragma in _pragmas)
         {
             using var command = connection.CreateCommand();
             command.CommandText = pragma;
@@ -62,10 +69,4 @@ public sealed class SqliteConnectionInterceptor(
             throw new InvalidOperationException($"{ErrorCodes.StoreKeyUnavailable.Code}: no store key available.");
         encryption.Apply((SqliteConnection)connection, key);
     }
-
-    private string[] Pragmas() =>
-    [
-        "PRAGMA journal_mode=WAL;", "PRAGMA synchronous=NORMAL;",
-        $"PRAGMA busy_timeout={Math.Clamp(options.Value.BusyTimeoutMs, 0, 60000)};", "PRAGMA foreign_keys=ON;"
-    ];
 }

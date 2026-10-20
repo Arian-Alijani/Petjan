@@ -20,6 +20,12 @@ public sealed class AnimoraLocalDbContext(
     private static readonly OwnerSearchKeyProvider OwnerSearchKeys = new();
     private static readonly PetSearchKeyProvider PetSearchKeys = new();
 
+    // SQL-04: NoTracking is the store-wide default for EVERY context built over this model (DI factory, maintenance-bound
+    // contexts, probes). Load-then-save paths opt in explicitly with .AsTracking() (e.g. CommandJournal.ApplySettlementAsync,
+    // ReleaseAsync, OutboxClaim.Complete/Fail); read projections stay allocation-light without per-query AsNoTracking.
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
+        optionsBuilder.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Domain events and immutable child records are not independent tables.
