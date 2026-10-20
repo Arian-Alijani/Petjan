@@ -280,6 +280,7 @@ public partial class App : global::Avalonia.Application
         {
             var ready = await InitializeLocalStoreAsync();
             Diagnostics.AppTrace.Milestone($"local store ready={ready}", Program.StartupTimer.Elapsed);
+            if (ready) await HydrateClinicTimeZoneAsync(); // INF-05: pre-hydrate so the sync zone getter never queries on the UI thread
             Services.GetRequiredService<MaintenanceScheduler>().Start();
             Services.GetRequiredService<SyncSchedulerHostedService>().Start(); // dormant unless a server is configured
             Services.GetService<LiveAccessRefreshService>()?.Start(); // active-session access changes, independent of state-sync/backoff
@@ -301,6 +302,20 @@ public partial class App : global::Avalonia.Application
             {
                 // The window is gone; nothing left to report to.
             }
+        }
+    }
+
+    private static async Task HydrateClinicTimeZoneAsync()
+    {
+        try
+        {
+            await Services.GetRequiredService<Animora.Application.Ports.IClinicTimeZoneProvider>()
+                .GetClinicTimeZoneAsync().AsTask().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Non-fatal: the provider serves the default zone and re-hydrates in the background on first use.
+            Diagnostics.AppTrace.Milestone($"clinic time zone pre-hydrate skipped: {ex.GetType().Name}", Program.StartupTimer.Elapsed);
         }
     }
 

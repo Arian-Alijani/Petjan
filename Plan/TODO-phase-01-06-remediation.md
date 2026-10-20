@@ -463,7 +463,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   lettered (recoverable) with the existing warning retained; no infinite tight retry loop.
 - **Heavy-fix note:** if it needs a new outbox status + migration, push separately.
 
-## [ ] T23 · INF-05 — Avoid sync DB work on caller/UI thread in clock/TZ providers (Low, perf)
+## [x] T23 · INF-05 — Avoid sync DB work on caller/UI thread in clock/TZ providers (Low, perf)
 - **Files:** `src/Animora.Infrastructure.Local/Time/ClinicTimeZoneProvider.cs` (`GetClinicTimeZone()` sync
   path opens scope+DbContext + EF query on cache miss), `Time/MonotonicClock.cs` (`EnsureLoaded`/`Persist`).
 - **Fix:** ensure the async hydrate wins so the sync `GetClinicTimeZone()` never blocks on SQLite from the
@@ -644,7 +644,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T20 | INF-02 | Med | [ ] |
 | T21 | INF-03 | Med | [ ] |
 | T22 | INF-04 | Low | [ ] |
-| T23 | INF-05 | Low | [ ] |
+| T23 | INF-05 | Low | [x] |
 | T24 | SYN-01 | High | [ ] |
 | T25 | SYN-02 | High | [ ] |
 | T26 | SYN-05 | Med | [x] |
