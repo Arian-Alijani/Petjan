@@ -67,6 +67,48 @@ public static class ServerModelConventions
     }
 
     /// <summary>
+    /// ISO-02 model-build guard: the tenant wall is keyed on inheritance (<see cref="SyncableEntity"/> gets the <c>Tenant</c> filter +
+    /// stamping from <see cref="ApplyTenancy"/>), so a future table modelled as a plain entity that nonetheless carries a
+    /// <c>TenantId</c> would silently escape both. This fails startup instead: every mapped, non-owned entity with a property
+    /// named <c>TenantId</c> (or ending in <c>TenantId</c>) must either derive <see cref="SyncableEntity"/>, declare an explicit
+    /// <c>Tenant</c> query filter (the hand-filtered non-syncable stores — counters, refresh tokens, outbox, feed, files, …), or be
+    /// named in <paramref name="allowedTenantBearingTypes"/> (a deliberate, reviewed cross-tenant exception). Call it AFTER the explicit
+    /// per-entity filters are declared (tail of <c>OnModelCreating</c>).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">An entity carries a tenant key but escapes the Tenant filter.</exception>
+    public static void AssertTenantBearingEntitiesAreFiltered(
+        ModelBuilder modelBuilder, IReadOnlySet<Type>? allowedTenantBearingTypes = null)
+    {
+        ArgumentNullException.ThrowIfNull(modelBuilder);
+
+        foreach (IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            Type clrType = entityType.ClrType;
+            if (entityType.IsOwned() || typeof(SyncableEntity).IsAssignableFrom(clrType)) continue;
+            if (allowedTenantBearingTypes?.Contains(clrType) == true) continue;
+
+            bool carriesTenantKey = false;
+            foreach (IMutableProperty property in entityType.GetProperties())
+            {
+                if (property.Name.EndsWith("TenantId", StringComparison.Ordinal)) { carriesTenantKey = true; break; }
+            }
+            if (!carriesTenantKey) continue;
+
+            // Filters are declared on the hierarchy root only.
+            bool filtered = false;
+            foreach (var filter in entityType.GetRootType().GetDeclaredQueryFilters())
+            {
+                if (filter.Key == TenantFilterName) { filtered = true; break; }
+            }
+            if (!filtered)
+                throw new InvalidOperationException(
+                    $"Entity {clrType} carries a tenant key but does not derive SyncableEntity and declares no '{TenantFilterName}' " +
+                    "query filter — it would escape the Tenant filter/stamping (ISO-02). Derive SyncableEntity, add the explicit " +
+                    "Tenant filter, or list it in the reviewed allowlist.");
+        }
+    }
+
+    /// <summary>
     /// Adds an index whose first column is <c>TenantId</c>, followed by <paramref name="columns"/>,
     /// named <c>IX_&lt;Table&gt;_TenantId_&lt;Cols&gt;</c>.
     /// </summary>

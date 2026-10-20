@@ -414,7 +414,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 
 # Report 08 — Multi-Tenant Isolation (`src/Animora.Persistence.PostgreSql/{Conventions,Identity,Tenancy}/**`)
 
-## [ ] T41 · ISO-02 — Assert "tenant data ⇒ SyncableEntity" at model build (Medium, isolation latent)
+## [x] T41 · ISO-02 — Assert "tenant data ⇒ SyncableEntity" at model build (Medium, isolation latent)
 - **File:** `src/Animora.Persistence.PostgreSql/Conventions/ServerModelConventions.cs` — `ApplyTenancy`
   (l.40–48 iterates `modelBuilder.Model.GetEntityTypes()`, applies the `Tenant` filter + stamping **only**
   to types assignable to `SyncableEntity`, l.48 `if (!typeof(SyncableEntity).IsAssignableFrom(clrType)) continue;`).

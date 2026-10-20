@@ -199,5 +199,10 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<CommandIdMapEntry>()
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
+
+        // ISO-02: fail startup if any tenant-bearing entity (TenantId property) escaped both SyncableEntity and an explicit Tenant filter.
+        // Keep this LAST so every explicit per-entity filter above is already declared. The allowlist is empty on purpose: the keyless
+        // cross-tenant lookups (UserLookupEntry, TenantDirectory) live in their own separate contexts, never in this model.
+        ServerModelConventions.AssertTenantBearingEntitiesAreFiltered(modelBuilder);
     }
 }
