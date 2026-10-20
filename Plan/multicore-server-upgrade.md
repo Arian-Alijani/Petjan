@@ -83,7 +83,7 @@ memory cap.
 **Verify:** `scripts/sandbox/build.sh full` = 0/0.
 **PUSH:** `scripts/git/push.sh "perf(server): enable Server GC for multi-core throughput"`
 
-### [ ] T2 — Add a single CPU-awareness helper
+### [x] T2 — Add a single CPU-awareness helper
 **New file:** `src/Animora.Server/Hosting/CpuTopology.cs` (internal static).
 **Do:** expose `CpuTopology.LogicalCores` = `Math.Max(1, Environment.ProcessorCount)` (this value
 already honors container/cgroup CPU quota in .NET — document that in the summary). Add helpers used
