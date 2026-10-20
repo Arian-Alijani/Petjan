@@ -226,8 +226,10 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
     /// <summary>Maps a failed server response to its wire error code, falling back to the HTTP status when the body has none.</summary>
     private static async Task<ServiceException> ServerFailureAsync(HttpResponseMessage response, CancellationToken ct = default)
     {
-        var code = await OnlineApi.ReadErrorCodeAsync(response, ct).ConfigureAwait(false);
-        if (code is not null) return new ServiceException(code, CategoryOf(response.StatusCode));
+        var (code, category) = await OnlineApi.ReadErrorAsync(response, ct).ConfigureAwait(false);
+        // CW-04: prefer the server-carried authoritative category; fall back to the local status-based
+        // derivation only when the server omitted it (older peer).
+        if (code is not null) return new ServiceException(code, category ?? CategoryOf(response.StatusCode));
         return response.StatusCode switch
         {
             HttpStatusCode.Unauthorized => new ServiceException(ErrorCodes.SessionExpired),

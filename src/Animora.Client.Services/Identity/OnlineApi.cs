@@ -71,6 +71,19 @@ public sealed class OnlineApi(IHttpClientFactory httpFactory, ServerEndpointOpti
         return string.IsNullOrWhiteSpace(error?.Code) ? null : error.Code;
     }
 
+    /// <summary>
+    /// CW-04: the stable <c>code</c> plus the authoritative <c>Category</c> of a <see cref="WireApiError"/> body.
+    /// <paramref name="Category"/> is the server-carried domain category when present (newer servers), else
+    /// <see langword="null"/> so the caller can fall back to its local status-based derivation (older servers).
+    /// Both are <see langword="null"/> when the body is not a <see cref="WireApiError"/>.
+    /// </summary>
+    public static async Task<(string? Code, string? Category)> ReadErrorAsync(HttpResponseMessage response, CancellationToken ct = default)
+    {
+        var error = await ReadAsync<WireApiError>(response, ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(error?.Code)) return (null, null);
+        return (error.Code, string.IsNullOrWhiteSpace(error.Category) ? null : error.Category);
+    }
+
     /// <summary>True for statuses that mean "try again later / server unreachable" rather than a definitive answer.</summary>
     public static bool IsTransient(HttpStatusCode status) => (int)status is 408 or 429 or >= 500;
 }

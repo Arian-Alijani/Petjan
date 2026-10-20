@@ -124,7 +124,7 @@ internal sealed class SyncTenantBoundFilter : IEndpointFilter
         var correlationId = CorrelationHeader.Resolve(http);
         CorrelationHeader.Echo(http, correlationId);
         return ValueTask.FromResult<object?>(Results.Json(
-            new WireApiError(ErrorCodes.SessionExpired.Code, null, [], correlationId),
+            new WireApiError(ErrorCodes.SessionExpired.Code, null, [], correlationId, Category: ErrorCodes.SessionExpired.Category),
             statusCode: StatusCodes.Status401Unauthorized));
     }
 }

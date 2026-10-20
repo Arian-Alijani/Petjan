@@ -44,7 +44,7 @@ internal sealed class EntitlementMiddleware(RequestDelegate next)
         // Preserve explicit revocation; other denials remain the stable entitlement response.
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         await context.Response.WriteAsJsonAsync(
-            new WireApiError(result.Error == ErrorCodes.LicenseRevoked ? ErrorCodes.LicenseRevoked.Code : ErrorCodes.EntitlementRequired.Code, result.Detail, [], correlationId),
+            new WireApiError(result.Error == ErrorCodes.LicenseRevoked ? ErrorCodes.LicenseRevoked.Code : ErrorCodes.EntitlementRequired.Code, result.Detail, [], correlationId, Category: result.Error.Category),
             context.RequestAborted).ConfigureAwait(false);
     }
 }

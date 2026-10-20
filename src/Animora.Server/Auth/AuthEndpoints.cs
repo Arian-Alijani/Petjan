@@ -74,7 +74,7 @@ internal static class AuthEndpoints
         CorrelationHeader.Echo(http, correlationId);
 
         // Only the stable error code is exposed: detail text could differentiate "wrong tenant" from "wrong user".
-        var body = new WireApiError(error.Code, null, NoFields, correlationId);
+        var body = new WireApiError(error.Code, null, NoFields, correlationId, Category: error.Category);
         return Results.Json(body, statusCode: StatusFor(error));
     }
 

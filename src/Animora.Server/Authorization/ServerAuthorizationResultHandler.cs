@@ -80,6 +80,6 @@ internal sealed class ServerAuthorizationResultHandler : IAuthorizationMiddlewar
         context.Response.StatusCode = error.Code == ErrorCodes.SessionExpired.Code
             ? StatusCodes.Status401Unauthorized
             : StatusCodes.Status403Forbidden;
-        return context.Response.WriteAsJsonAsync(new WireApiError(error.Code, null, [], correlationId), context.RequestAborted);
+        return context.Response.WriteAsJsonAsync(new WireApiError(error.Code, null, [], correlationId, Category: error.Category), context.RequestAborted);
     }
 }

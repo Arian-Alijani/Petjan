@@ -42,7 +42,7 @@ internal static class DeviceEndpoints
     {
         string correlationId = CorrelationHeader.Resolve(http);
         CorrelationHeader.Echo(http, correlationId);
-        return Results.Json(new WireApiError(error.Code, null, [], correlationId), statusCode: StatusFor(error));
+        return Results.Json(new WireApiError(error.Code, null, [], correlationId, Category: error.Category), statusCode: StatusFor(error));
     }
 
     private static IResult Ok<T>(HttpContext http, T body)

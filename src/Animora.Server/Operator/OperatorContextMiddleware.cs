@@ -49,6 +49,6 @@ internal sealed class OperatorContextMiddleware(RequestDelegate next)
     private static Task Failure(HttpContext http, int status, ErrorCode error)
     {
         http.Response.StatusCode = status;
-        return http.Response.WriteAsJsonAsync(new WireApiError(error.Code, null, [], CorrelationHeader.Resolve(http)), http.RequestAborted);
+        return http.Response.WriteAsJsonAsync(new WireApiError(error.Code, null, [], CorrelationHeader.Resolve(http), Category: error.Category), http.RequestAborted);
     }
 }

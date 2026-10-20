@@ -71,7 +71,7 @@ internal static class StaffEndpoints
     {
         string correlationId = CorrelationHeader.Resolve(http);
         CorrelationHeader.Echo(http, correlationId);
-        return Results.Json(new WireApiError(error.Code, null, [], correlationId), statusCode: StatusFor(error));
+        return Results.Json(new WireApiError(error.Code, null, [], correlationId, Category: error.Category), statusCode: StatusFor(error));
     }
 
     private static IResult NoContent(HttpContext http)

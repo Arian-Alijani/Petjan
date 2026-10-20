@@ -154,7 +154,7 @@ internal static class OperatorEndpoints
         int.TryParse(http.Request.Query[key], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? Math.Clamp(value, min, max) : fallback;
     internal static IResult ToHttp(Result result, HttpContext http) => result.IsSuccess ? Results.NoContent() : Failure(result.Error, http);
     internal static IResult Failure(ErrorCode error, HttpContext http) => Results.Json(
-        new WireApiError(error.Code, null, [], CorrelationHeader.Resolve(http)), statusCode: error == ErrorCodes.ConcurrencyConflict ? 412 :
+        new WireApiError(error.Code, null, [], CorrelationHeader.Resolve(http), Category: error.Category), statusCode: error == ErrorCodes.ConcurrencyConflict ? 412 :
             error == ErrorCodes.OperatorCredentialsInvalid ? 401 : error.Category switch
             { ErrorCode.NotFound => 404, ErrorCode.Validation => 400, ErrorCode.Forbidden => 403, _ => 409 });
 }

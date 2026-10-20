@@ -302,7 +302,15 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Note:** `Plan/reports/00-INDEX.md` is a report file — correcting a factual count in it is fine (it is
   not the final-deletion file). Do NOT modify the 01–06 report *findings* content.
 
-## [ ] T13 · CW-04 — Carry error `Category` on the wire (Low, inconsistency)
+## [x] T13 · CW-04 — Carry error `Category` on the wire (Low, inconsistency)
+> **DONE (2026-10-20).** Added optional nullable `string? Category = null` to `WireApiError` (additive — v1
+> peers still deserialize). Populated `Category: error.Category` at all 10 server mapping sites that carry a
+> domain `ErrorCode` (CommandEndpoints, ServerAuthorizationResultHandler, TenantContextMiddleware,
+> Auth/Device/Staff endpoints, EntitlementMiddleware, OperatorContextMiddleware, OperatorEndpoints,
+> SyncEndpoints). Raw-string-only sites (ServerBusy / rate-limit / file) legitimately leave it null. Client:
+> added `OnlineApi.ReadErrorAsync` returning `(code, category?)`; `UserProfileService.ServerFailureAsync` now
+> prefers the wire category and falls back to its local status-based `CategoryOf` only when null (older servers).
+> No breaking JSON change.
 - **Files:** domain `src/Animora.Domain/Results/ErrorCode.cs` (`record struct ErrorCode(string Code, string Category)`);
   wire `src/Animora.Contracts.Wire/Errors/WireApiError.cs` (currently `Code` only) and
   `src/Animora.Contracts.Wire/Commands/SettlementResult.cs` (`string? ErrorCode`).
@@ -650,7 +658,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T10 | APP-05 | Low | [x] |
 | T11 | CW-01/02/05 | High | [x] |
 | T12 | CW-03 | Med | [x] |
-| T13 | CW-04 | Low | [ ] |
+| T13 | CW-04 | Low | [x] |
 | T14 | SQL-01 | High | [ ] |
 | T15 | SQL-02 | High | [ ] |
 | T16 | SQL-03 | Med | [ ] |

@@ -131,7 +131,7 @@ internal sealed class TenantContextMiddleware(RequestDelegate next)
 
         // Only the stable code is exposed; detail text could distinguish "wrong tenant" from "wrong user".
         return context.Response.WriteAsJsonAsync(
-            new WireApiError(error.Code, null, [], correlationId),
+            new WireApiError(error.Code, null, [], correlationId, Category: error.Category),
             context.RequestAborted);
     }
 }

@@ -136,6 +136,6 @@ internal static class CommandEndpoints
             context.Response.Headers["X-Animora-Supported-Versions"] = "1,2";
         string correlation = context.Response.Headers[CorrelationHeader.Name].ToString();
         if (string.IsNullOrWhiteSpace(correlation)) correlation = CorrelationHeader.Resolve(context);
-        return Results.Json(new WireApiError(failure.Error.Code, failure.Detail, [], correlation), statusCode: status);
+        return Results.Json(new WireApiError(failure.Error.Code, failure.Detail, [], correlation, Category: failure.Error.Category), statusCode: status);
     }
 }
