@@ -4028,6 +4028,32 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("ClockHighWaters", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.CommandIdRemap", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LocalId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ServerId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("TenantId", "LocalId");
+
+                    b.HasIndex("CreatedAtUtc")
+                        .HasDatabaseName("IX_CommandIdRemaps_CreatedAtUtc");
+
+                    b.ToTable("CommandIdRemaps", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.DailyFinanceFact", b =>
                 {
                     b.Property<string>("Id")

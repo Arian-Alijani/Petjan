@@ -75,7 +75,7 @@ public sealed record RetentionPolicy(int OutboxRetentionDays, int ActivityRetent
 }
 
 /// <summary>Rows removed by one <see cref="ILocalStoreMaintenance.CompactAsync"/> pass.</summary>
-public sealed record CompactionSummary(int OutboxDeleted, int ActivityDeleted)
+public sealed record CompactionSummary(int OutboxDeleted, int ActivityDeleted, int IdRemapDeleted = 0)
 {
-    public int Total => OutboxDeleted + ActivityDeleted;
+    public int Total => OutboxDeleted + ActivityDeleted + IdRemapDeleted;
 }

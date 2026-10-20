@@ -438,8 +438,13 @@ public sealed class LocalStoreMaintenance(
                 "DELETE FROM ActivityEvents WHERE Id IN (SELECT Id FROM ActivityEvents WHERE OccurredUtc < {0} LIMIT {1});",
                 [activityCutoff], policy.BatchSize, ct);
 
-            var summary = new CompactionSummary(outbox, activity);
-            await LogAsync(StoreMaintenanceKind.Compact, $"outbox: {outbox}, activity: {activity}", ct);
+            // SYN-01: provisional->server id mappings only matter while a dependent of the creator is unsettled; they age out with the outbox window.
+            var remaps = await DeleteInBatchesAsync(
+                "DELETE FROM CommandIdRemaps WHERE rowid IN (SELECT rowid FROM CommandIdRemaps WHERE CreatedAtUtc < {0} LIMIT {1});",
+                [outboxCutoff], policy.BatchSize, ct);
+
+            var summary = new CompactionSummary(outbox, activity, remaps);
+            await LogAsync(StoreMaintenanceKind.Compact, $"outbox: {outbox}, activity: {activity}, idRemap: {remaps}", ct);
             return Result<CompactionSummary>.Ok(summary);
         }
         catch (Exception ex) when (IsStoreFailure(ex))

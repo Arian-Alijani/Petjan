@@ -534,7 +534,13 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 > RecurringExpense(+Payment)/StockMovement/PurchaseOrder/GoodsReceipt). Do not try to add money to the
 > pull feed — the correct fix for SYN-02 is a settlement→business-state reconciliation pass.
 
-## [ ] T24 · SYN-01 — Persist the provisional→server id map (High, sync design)
+## [x] T24 · SYN-01 — Persist the provisional→server id map (High, sync design)
+> **DONE (2026-10-20).** New port `ICommandIdRemapStore` (Application) + SQLite `CommandIdRemapStore` (singleton, own
+> scope per call) over new local-only table `CommandIdRemaps (TenantId, LocalId, ServerId, CreatedAtUtc)` — migration
+> `039_CommandIdRemap` (+ snapshot; physical head was 038, not 033 as the plan text said). `CommandIdRemapService` is now
+> write-through (`Register` -> memory + DB, failures logged never thrown) with the `ConcurrentDictionary` as L1, hydrated
+> once per tenant per process on first Resolve/Rewrite/Register; callers and the no-store (offline/unit) composition are
+> unchanged. Retention: `CompactAsync` prunes remap rows with the outbox window (also reported in `CompactionSummary`).
 - **File:** `src/Animora.Sync.Custom/CommandIdRemapService.cs` —
   `private readonly ConcurrentDictionary<(string TenantId, string LocalId), string> _map = new();`
   (in-memory only; lost on restart → dependent commands ship dead provisional ids after a creator settles
@@ -692,7 +698,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T21 | INF-03 | Med | [x] |
 | T22 | INF-04 | Low | [x] |
 | T23 | INF-05 | Low | [x] |
-| T24 | SYN-01 | High | [ ] |
+| T24 | SYN-01 | High | [x] |
 | T25 | SYN-02 | High | [ ] |
 | T26 | SYN-05 | Med | [x] |
 | T27 | SYN-04 | Med | [x] |

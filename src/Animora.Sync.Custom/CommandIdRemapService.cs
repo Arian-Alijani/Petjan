@@ -6,7 +6,9 @@ using System.Text.Json.Nodes;
 using Animora.Application.Commands;
 using Animora.Contracts.Wire;
 using Animora.Contracts.Wire.Commands;
+using Animora.Contracts.Diagnostics;
 using Animora.Domain.Results;
+using Animora.Domain.Time;
 
 namespace Animora.Sync.Custom;
 
@@ -24,14 +26,18 @@ public sealed record CommandIdMapResponse(IReadOnlyList<CommandIdMapItem> Ids);
 /// G05 provisional-id → server-id remap. A command that creates an aggregate is authored with a client-generated (provisional) id; once the
 /// server settles it, dependent commands still waiting in the journal must travel with the server id. <see cref="Rewrite"/> replaces every
 /// known provisional id (aggregate id, string values in the payload, dependency reference) and <b>recomputes</b> the fingerprint, because the
-/// payload really changed (A-RULE 019). The map is an in-memory, tenant-scoped seam seeded from the settlement's <c>ServerEntityId</c> and the
-/// <c>/ids</c> endpoint; persistence can be added behind it without touching callers.
+/// payload really changed (A-RULE 019). The map is tenant-scoped and seeded from the settlement's <c>ServerEntityId</c> and the
+/// <c>/ids</c> endpoint. SYN-01: it is <b>write-through</b> to the durable <see cref="ICommandIdRemapStore"/> (when one is registered) and the
+/// in-memory dictionary is only an L1 cache, hydrated once per tenant per process, so a creator that settled before an app restart still remaps
+/// its dependents. With no store (unit/offline composition) it degrades to the previous memory-only behaviour; callers are unchanged.
 /// </summary>
-public sealed class CommandIdRemapService(IHttpClientFactory httpFactory, ServerEndpointOptions options)
+public sealed class CommandIdRemapService(IHttpClientFactory httpFactory, ServerEndpointOptions options,
+    ICommandIdRemapStore? store = null, IClock? clock = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly ConcurrentDictionary<(string TenantId, string LocalId), string> _map = new();
+    private readonly ConcurrentDictionary<string, bool> _hydrated = new(StringComparer.Ordinal);
 
     /// <summary>Records that <paramref name="localId"/> is now <paramref name="serverId"/> for <paramref name="tenantId"/>.</summary>
     public void Register(string tenantId, string localId, string serverId)
@@ -39,12 +45,44 @@ public sealed class CommandIdRemapService(IHttpClientFactory httpFactory, Server
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(localId);
         ArgumentException.ThrowIfNullOrWhiteSpace(serverId);
-        if (!string.Equals(localId, serverId, StringComparison.Ordinal)) _map[(tenantId, localId)] = serverId;
+        if (string.Equals(localId, serverId, StringComparison.Ordinal)) return;
+        EnsureHydrated(tenantId);
+        _map[(tenantId, localId)] = serverId;
+        if (store is null) return;
+        try
+        {
+            store.Upsert(tenantId, localId, serverId, clock?.UtcNow ?? DateTimeOffset.UtcNow);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The mapping is recoverable (GET /api/commands/{id}/ids re-learns it) so a failed durable write must never fail settlement.
+            TraceLog.Warn($"CommandIdRemap: durable write failed for {localId}: {ex.Message}", "sync.push");
+        }
+    }
+
+    /// <summary>Loads the tenant's persisted mappings into the L1 cache exactly once per process (retried when the store was unavailable).</summary>
+    private void EnsureHydrated(string tenantId)
+    {
+        if (store is null || _hydrated.ContainsKey(tenantId)) return;
+        try
+        {
+            var rows = store.LoadAll(tenantId);
+            for (var i = 0; i < rows.Count; i++) _map.TryAdd((tenantId, rows[i].Key), rows[i].Value);
+            _hydrated[tenantId] = true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            TraceLog.Warn($"CommandIdRemap: could not hydrate tenant map: {ex.Message}", "sync.push");
+        }
     }
 
     /// <summary>The resolved server id for a provisional id, or <see langword="null"/> when unknown.</summary>
-    public string? Resolve(string tenantId, string localId) =>
-        _map.TryGetValue((tenantId, localId), out var serverId) ? serverId : null;
+    public string? Resolve(string tenantId, string localId)
+    {
+        if (_map.TryGetValue((tenantId, localId), out var serverId)) return serverId;
+        EnsureHydrated(tenantId); // L1 miss: fall back to the durable map once, then it is memory-only
+        return _map.TryGetValue((tenantId, localId), out serverId) ? serverId : null;
+    }
 
     /// <summary>
     /// Seeds the map from a settled creating command: slot 0 (the primary aggregate) maps the command's own <c>AggregateId</c>
@@ -113,6 +151,7 @@ public sealed class CommandIdRemapService(IHttpClientFactory httpFactory, Server
     public CommandEnvelope Rewrite(CommandEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
+        EnsureHydrated(envelope.TenantId);
         if (_map.IsEmpty) return envelope;
 
         var aggregateId = Remap(envelope.TenantId, envelope.AggregateId);

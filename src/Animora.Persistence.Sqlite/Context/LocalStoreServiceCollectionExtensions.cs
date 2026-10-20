@@ -172,6 +172,8 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<OutboxClaim>();
         services.TryAddScoped<LocalCommandProcessor>();
         services.TryAddScoped<ISyncCursorStore, SyncCursorStore>();
+        // SYN-01: durable provisional->server id map (singleton: opens its own scope per call).
+        services.TryAddSingleton<ICommandIdRemapStore, CommandIdRemapStore>();
         services.TryAddScoped<IUiDraftStore, UiDraftStore>();
         // Every raised domain event is relayed to the outbox (idempotent: duplicate (event, handler) pairs are ignored).
         services.AddScoped<LedgerPostingHandler>();

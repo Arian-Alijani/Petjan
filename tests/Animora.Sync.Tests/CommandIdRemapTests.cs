@@ -95,4 +95,38 @@ public sealed class CommandIdRemapTests
         Assert.True(result.IsFailure);
         Assert.Equal(code, result.Error.Code);
     }
+
+    private sealed class MemoryStore : ICommandIdRemapStore
+    {
+        public readonly Dictionary<(string, string), string> Rows = new();
+        public void Upsert(string tenantId, string localId, string serverId, DateTimeOffset createdAtUtc) => Rows[(tenantId, localId)] = serverId;
+        public IReadOnlyList<KeyValuePair<string, string>> LoadAll(string tenantId) =>
+            Rows.Where(r => r.Key.Item1 == tenantId).Select(r => new KeyValuePair<string, string>(r.Key.Item2, r.Value)).ToArray();
+    }
+
+    private static CommandIdRemapService WithStore(ICommandIdRemapStore store) =>
+        new(new SingleClientFactory(new HttpClient(new FakeFeedHandler(_ => CommandFixtures.Status(System.Net.HttpStatusCode.NotFound)))
+            { BaseAddress = new Uri("https://sync.test/") }), FeedFixtures.Options(), store);
+
+    [Fact]
+    public void Register_WritesThrough_AndSurvivesRestart()
+    {
+        var store = new MemoryStore();
+        WithStore(store).Register(CommandFixtures.Tenant, "LOCAL-PET", "SRV-PET");
+        Assert.Equal("SRV-PET", store.Rows[(CommandFixtures.Tenant, "LOCAL-PET")]);
+
+        // "Restart": a brand-new service instance (empty L1 cache) over the same durable store still resolves and rewrites.
+        var restarted = WithStore(store);
+        Assert.Equal("SRV-PET", restarted.Resolve(CommandFixtures.Tenant, "LOCAL-PET"));
+        var env = CommandFixtures.Envelope("OP3", aggregateId: "LOCAL-PET", payload: "{\"petId\":\"LOCAL-PET\"}");
+        Assert.Equal("SRV-PET", restarted.Rewrite(env).AggregateId);
+    }
+
+    [Fact]
+    public void DurableMap_IsTenantScoped()
+    {
+        var store = new MemoryStore();
+        WithStore(store).Register("OTHER-TENANT", "LOCAL-PET", "SRV-PET");
+        Assert.Null(WithStore(store).Resolve(CommandFixtures.Tenant, "LOCAL-PET"));
+    }
 }
