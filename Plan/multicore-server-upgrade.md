@@ -70,7 +70,7 @@ Never let CPU scaling push pool sums over that budget.
 
 ## TODO LIST
 
-### [ ] T1 — Enable Server GC (the primary fix)
+### [x] T1 — Enable Server GC (the primary fix)
 **File:** `src/Animora.Server/Animora.Server.csproj`
 **Do:** change `<ServerGarbageCollection>false</ServerGarbageCollection>` → `true`. Keep
 `<ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>` (background server GC). Keep
