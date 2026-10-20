@@ -1,11 +1,17 @@
 namespace Animora.Client.Services.Caching;
 
-/// <summary>A small LRU for non-sensitive read projections. A key MUST include tenant and user IDs.</summary>
-public sealed class TenantScopedCache<TKey, TValue> where TKey : notnull
+/// <summary>
+/// A small LRU for non-sensitive read projections. The tenant and user IDs are <b>structural</b> parts of every key
+/// (INF-02): the public API only accepts <c>(tenantId, userId, subKey)</c> and composes the real key internally, so an entry
+/// can never be stored or fetched without a tenant+user component and cross-user bleed is impossible by construction.
+/// </summary>
+public sealed class TenantScopedCache<TSubKey, TValue> where TSubKey : notnull
 {
+    private readonly record struct Key(string TenantId, string UserId, TSubKey SubKey);
+
     private readonly int _capacity;
-    private readonly Dictionary<TKey, LinkedListNode<(TKey Key, TValue Value)>> _entries = new();
-    private readonly LinkedList<(TKey Key, TValue Value)> _recent = new();
+    private readonly Dictionary<Key, LinkedListNode<(Key Key, TValue Value)>> _entries = new();
+    private readonly LinkedList<(Key Key, TValue Value)> _recent = new();
     private readonly Lock _gate = new();
 
     public TenantScopedCache(int capacity = 16)
@@ -14,8 +20,9 @@ public sealed class TenantScopedCache<TKey, TValue> where TKey : notnull
         _capacity = capacity;
     }
 
-    public bool TryGet(TKey key, out TValue value)
+    public bool TryGet(string tenantId, string userId, TSubKey subKey, out TValue value)
     {
+        var key = Compose(tenantId, userId, subKey);
         lock (_gate)
         {
             if (_entries.TryGetValue(key, out var node))
@@ -30,8 +37,9 @@ public sealed class TenantScopedCache<TKey, TValue> where TKey : notnull
         return false;
     }
 
-    public void Set(TKey key, TValue value)
+    public void Set(string tenantId, string userId, TSubKey subKey, TValue value)
     {
+        var key = Compose(tenantId, userId, subKey);
         lock (_gate)
         {
             if (_entries.TryGetValue(key, out var existing))
@@ -50,13 +58,21 @@ public sealed class TenantScopedCache<TKey, TValue> where TKey : notnull
         }
     }
 
-    public void Invalidate(TKey key)
+    public void Invalidate(string tenantId, string userId, TSubKey subKey)
     {
+        var key = Compose(tenantId, userId, subKey);
         lock (_gate)
         {
             if (!_entries.Remove(key, out var node)) return;
             _recent.Remove(node);
         }
+    }
+
+    private static Key Compose(string tenantId, string userId, TSubKey subKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        return new Key(tenantId, userId, subKey);
     }
 
     public void Clear()

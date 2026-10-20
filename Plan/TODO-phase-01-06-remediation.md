@@ -423,7 +423,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** `grep -n "DateTime.Today\|DateTime.UtcNow" src/Animora.Client.Services/Reception/ReceptionQueueService.cs src/Animora.Client.Services/Visits/VisitsTriageService.cs src/Animora.Client.Services/Vaccination/VaccinationService.cs` → empty. Clinic day derived via clock+TZ; injectable for tests.
 - **Heavy-fix note:** 3 services + DI wiring — if large, push as `fix(clientservices): derive clinic day via IClock+clinic TZ (INF-01)`.
 
-## [ ] T20 · INF-02 — Enforce tenant/user keying in TenantScopedCache (Medium, isolation)
+## [x] T20 · INF-02 — Enforce tenant/user keying in TenantScopedCache (Medium, isolation)
 - **File:** `src/Animora.Client.Services/Caching/TenantScopedCache.cs` (bare LRU; invariant "key MUST
   include tenant+user" is doc-only, unenforced).
 - **Fix (pick the enforcement that fits current call sites — census first):**
@@ -641,7 +641,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T17 | SQL-04 | Low | [ ] |
 | T18 | SQL-05 | Low | [ ] |
 | T19 | INF-01 | High | [ ] |
-| T20 | INF-02 | Med | [ ] |
+| T20 | INF-02 | Med | [x] |
 | T21 | INF-03 | Med | [x] |
 | T22 | INF-04 | Low | [x] |
 | T23 | INF-05 | Low | [x] |
