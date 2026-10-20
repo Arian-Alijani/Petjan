@@ -128,7 +128,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Heavy-fix note:** touches the rebuilder's fold structure — push as
   `fix(persistence): rebuild reproduces live void projection (refund + count) [SAC-01]`.
 
-## [ ] T32 · SAC-02 — Range-check / widen document-number format past 999,999 (High, latent overflow)
+## [x] T32 · SAC-02 — Range-check / widen document-number format past 999,999 (High, latent overflow)
 - **File:** `src/Animora.Application/Numbering/DocumentNumber.cs`, `Format` (consumed by
   `InvoiceNumberAllocator`, `JournalNumberAllocator`, `ExpenseNumberAllocator`):
   ```csharp
