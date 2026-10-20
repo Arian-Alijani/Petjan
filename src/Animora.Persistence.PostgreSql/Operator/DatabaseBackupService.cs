@@ -39,14 +39,32 @@ public static partial class DatabaseBackupService
         return File.Exists(path) ? path : null;
     }
 
-    /// <summary>Newest-first list of the backups currently kept in <paramref name="directory"/>.</summary>
+    /// <summary>
+    /// BAK-06: the UTC instant embedded in a backup file name (<c>animora-yyyyMMddTHHmmssZ-xxxxxxxx.dump</c>), or null when the
+    /// name does not carry a parseable stamp. This — not mtime — is the true backup time.
+    /// </summary>
+    public static DateTimeOffset? ParseStamp(string fileName)
+    {
+        if (!IsBackupFileName(fileName)) return null;
+        var stamp = fileName.AsSpan("animora-".Length, 16); // yyyyMMddTHHmmssZ
+        return DateTimeOffset.TryParseExact(stamp, "yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsed) ? parsed : null;
+    }
+
+    /// <summary>
+    /// Newest-first list of the backups currently kept in <paramref name="directory"/>. BAK-06: ordered by the timestamp embedded
+    /// in the file name (mtime is only a tiebreaker), so an AV scan / copy-in / filesystem restore that touches a file's mtime can
+    /// never re-rank an old dump as "newest" and get a genuinely newer one pruned.
+    /// </summary>
     public static IReadOnlyList<DatabaseBackupFile> List(string directory)
     {
         if (!Directory.Exists(directory)) return [];
         return new DirectoryInfo(directory).EnumerateFiles("animora-*.dump")
             .Where(f => IsBackupFileName(f.Name))
-            .OrderByDescending(f => f.LastWriteTimeUtc).ThenByDescending(f => f.Name, StringComparer.Ordinal)
-            .Select(f => new DatabaseBackupFile(f.Name, f.Length, new DateTimeOffset(f.LastWriteTimeUtc, TimeSpan.Zero))).ToArray();
+            .Select(f => (File: f, Stamp: ParseStamp(f.Name) ?? new DateTimeOffset(f.LastWriteTimeUtc, TimeSpan.Zero)))
+            .OrderByDescending(x => x.Stamp).ThenByDescending(x => x.File.LastWriteTimeUtc)
+            .ThenByDescending(x => x.File.Name, StringComparer.Ordinal)
+            .Select(x => new DatabaseBackupFile(x.File.Name, x.File.Length, x.Stamp)).ToArray();
     }
 
     /// <summary>Runs pg_dump into <paramref name="directory"/> and returns the new file, or a typed failure.</summary>

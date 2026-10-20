@@ -376,7 +376,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
   returning success; a restore of an older backup yields finance facts that match the restored ledger. Same
   quarantine-on-failure semantics.
 
-## [ ] T50 · BAK-06 — Prune by the backup's embedded timestamp, not mtime (Low, latent)
+## [x] T50 · BAK-06 — Prune by the backup's embedded timestamp, not mtime (Low, latent)
 - **File:** `src/Animora.Persistence.PostgreSql/Operator/DatabaseBackupService.cs` — `List`/`Prune`:
   ```csharp
   .OrderByDescending(f => f.LastWriteTimeUtc).ThenByDescending(f => f.Name, …)
