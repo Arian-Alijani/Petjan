@@ -181,12 +181,15 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
     public async Task<InvoiceDetail> CreateFromEncounterAsync(string encounterId)
     {
         // The queue unions visit and boarding handoffs; the handoff id goes to both commands, and the branch
-        // that does not own that id returns NOT_FOUND, so exactly one create succeeds. ONLY NotFound may fall
-        // through to the other branch: any other failure (validation, permission, store) is the real answer for
-        // this encounter and must be surfaced as-is instead of being replaced by a generic "not found".
+        // that does not own that id returns NOT_FOUND, so exactly one create succeeds. ONLY a NotFound-category
+        // failure may fall through to the other branch: any other failure (validation, permission, store) is the
+        // real answer for this encounter and must be surfaced as-is instead of being replaced by a generic
+        // "not found". Match on the NotFound *category* — the handoff handler returns the generic NOT_FOUND
+        // (SalesHandoffFactory), not the invoice-specific INVOICE_NOT_FOUND, so comparing to a single literal code
+        // wrongly threw for boarding-issued encounters instead of trying the stay branch.
         var visit = await SendAsync(new CreateInvoiceFromVisitCommand(encounterId));
         if (visit.IsSuccess) return await RequireDetailAsync(visit.Value!);
-        if (visit.Error != ErrorCodes.InvoiceNotFound) throw new ServiceException(visit.Error);
+        if (visit.Error.Category != ErrorCode.NotFound) throw new ServiceException(visit.Error);
 
         var stay = await SendAsync(new CreateInvoiceFromStayCommand(encounterId));
         if (stay.IsSuccess) return await RequireDetailAsync(stay.Value!);
