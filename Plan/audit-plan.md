@@ -145,7 +145,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   versioning fields absent, enum value drift, DTO fields the UI reads but no mapping fills. Write
   findings. **Push.**
 
-- [ ] **T5 — Local persistence (SQLite) audit → `Plan/reports/04-persistence-sqlite.md`.**
+- [x] **T5 — Local persistence (SQLite) audit → `Plan/reports/04-persistence-sqlite.md`.** ✓ pushed
   Scope: `src/Animora.Persistence.Sqlite/**`. Audit DbContext config, **migrations 001–033** (ordering
   integrity, data-only vs schema, missing indexes vs the query patterns), repositories, read queries,
   seed, maintenance. Perf focus (#1/#4/#9): N+1 queries, missing/overlapping indexes, `ToList()` before
