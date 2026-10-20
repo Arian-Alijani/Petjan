@@ -41,9 +41,28 @@ public sealed class CommandJournalBehavior : IPipelineBehavior
             // an explicit durable response before they can be safely reconstructed.
             var previous = await journal.FindByOperationIdAsync(commandContext.OperationId, ct).ConfigureAwait(false);
             if (previous.IsFailure) return Result<TResult>.Fail(previous.Error, previous.Detail);
-            if (previous.Value is { } stored && stored.CommandFingerprint == fingerprint
-                && typeof(TResult) == typeof(Unit))
-                return Result<TResult>.Ok((TResult)(object)Unit.Value);
+            if (previous.Value is { } stored && stored.CommandFingerprint == fingerprint)
+            {
+                // Unit: canonical stored success — reconstruct it directly.
+                if (typeof(TResult) == typeof(Unit))
+                    return Result<TResult>.Ok((TResult)(object)Unit.Value);
+
+                // Non-Unit (42/43 journaled commands return the new aggregate id as string): the create
+                // id is deterministic — IdGenerator.ForOperation(operationId, slot 0) == operationId —
+                // so a create-style command (no inbound aggregate id) can be replayed WITHOUT re-entering
+                // the handler, which would otherwise double-post the ledger (finance.expense.*). Prefer
+                // the server-assigned id once settled, else the deterministic client id.
+                if (typeof(TResult) == typeof(string) && command.AggregateIdOrNull is null)
+                {
+                    var replayId = !string.IsNullOrEmpty(stored.ServerEntityId)
+                        ? stored.ServerEntityId!
+                        : IdGenerator.ForOperation(commandContext.OperationId, 0, commandContext.CreatedAtUtc);
+                    return Result<TResult>.Ok((TResult)(object)replayId);
+                }
+                // Other result shapes have no durable stored response yet (would need a journal result
+                // payload column / migration); fall through and let the normal idempotent enqueue path
+                // run — EnqueueAsync still deduplicates the row.
+            }
             var dependsOn = commandContext.DependsOnOperationId
                 ?? await PrerequisiteAsync(journal, command, ct).ConfigureAwait(false);
             var sequence = await sequences.NextAsync(ct).ConfigureAwait(false);

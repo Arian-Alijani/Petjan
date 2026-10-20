@@ -142,7 +142,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 
 # Report 02 — Application (`src/Animora.Application/**`)
 
-## [ ] T06 · APP-01 — Extend replay-guard to non-Unit journaled commands (High, idempotency bug)
+## [x] T06 · APP-01 — Extend replay-guard to non-Unit journaled commands (High, idempotency bug)
 - **File:** `src/Animora.Application/Behaviors/CommandJournalBehavior.cs` (replay short-circuit ~lines 40–46).
 - **Current code:**
   ```csharp
@@ -627,7 +627,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T03 | DOM-04 | Low | [x] |
 | T04 | DOM-03 | Low | [x] |
 | T05 | DOM-05 | Low | [x] |
-| T06 | APP-01 | High | [ ] |
+| T06 | APP-01 | High | [x] |
 | T07 | APP-02 | Med | [ ] |
 | T08 | APP-03 | Low | [ ] |
 | T09 | APP-04 | Low | [ ] |
