@@ -89,8 +89,8 @@ prefix pattern.
   (+ occurrences, vaccine catalog items) and `Animora.Domain.Finance.RecurringExpense` — D08 records the
   decision (see its replicated-surface note).
 - **New command families:** `vaccination.treatment.*` (4) and `finance.recurring.*` (4);
-  `CommandTypes` is now **86** types (D06 = 39 non-financial, D07 = 47 money/stock). The live
-  `CommandTypes.cs` is the single source of truth — never a roadmap table.
+  `CommandTypes` is now **94** types (D06 = 39 non-financial + D07 = 47 money/stock = 86, plus the
+  +8 new-family types above). The live `CommandTypes.cs` is the single source of truth — never a roadmap table.
 - **New desktop module:** *Statistics* (`src/Animora.Contracts/Statistics/*`, `Pages/Statistics`) — not
   covered by `AGENTS.md`; no server/replication surface.
 - **`ErrorCodes`:** 161 declared codes (incl. `TREATMENT_PLAN_NOT_FOUND`, etc.).
@@ -109,7 +109,7 @@ prefix pattern.
 
 | Source | Drift it records | Status |
 |---|---|---|
-| `backend-roadmap/PROGRESS.md` → "Post-C11 drift" (above) | migrations `020`–`033`, 2 new aggregates, 86 `CommandTypes`, Statistics module, next-free-ordinal rule | authoritative baseline |
+| `backend-roadmap/PROGRESS.md` → "Post-C11 drift" (above) | migrations `020`–`033`, 2 new aggregates, 94 `CommandTypes` (86 + 8 new-family), Statistics module, next-free-ordinal rule | authoritative baseline |
 | `docs/Phase-Problem.md` | migration-id collisions, handler-inventory rebuild, path/rate-limit drift | ✅ resolved 2026-10-07 (do not re-flag) |
 | `docs/BACKEND_SYNC_ARCHITECTURE_AUDIT_2026-10-08.md` | second-order sync-design + roadmap gaps (SYNC-C/H/M, SRV-M, PH, RM-H, CODE, OPT, IMP) | carried into D/E phase files 2026-10-08 (tagged `audit 2026-10-08`) |
 | `Plan/*.md` audits, `CODE_AUDIT_REPORT_2026-10-07.md`, `docs/*_AUDIT_*.md` | perf indexes, new columns/aggregates, code debts (ct/clock/`.Result`/leaks) | historical; code debts gated into owning D/E phases |

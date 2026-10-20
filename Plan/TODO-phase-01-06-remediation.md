@@ -284,7 +284,14 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Heavy-fix note:** if this needs a new locally-stored canonical version column (migration), push
   separately with `feat(sync): thread wire-v2 preconditions (ExpectedServerVersion/RuleSetVersion)`.
 
-## [ ] T12 · CW-03 — Fix stale "86 CommandTypes" docs to 94 (Medium, doc inconsistency)
+## [x] T12 · CW-03 — Fix stale "86 CommandTypes" docs to 94 (Medium, doc inconsistency)
+> **DONE (2026-10-20).** Live `CommandTypes.cs` confirmed = 94 consts. Corrected the current-count assertions:
+> `Plan/reports/00-INDEX.md:43` (86→94 with the +8 `vaccination.treatment.*`/`finance.recurring.*` breakdown)
+> and `backend-roadmap/PROGRESS.md` (the contradictory "is now 86" line + the "Post-C11 drift" authoritative
+> baseline row). ARCHITECTURE/STACK/AGENTS/docs carry no 86 command-count assertion. The remaining 86/88
+> mentions in `M00-source-brief.md` / `PHASE-M00-*.md` / PROGRESS §211 are point-in-time session narrative that
+> explicitly flags the count as stale and defers to the live file ("never freeze a count") — left as historical
+> record per the plan. `CommandTypes.cs` untouched.
 - **Source of truth:** `src/Animora.Contracts.Wire/Commands/CommandTypes.cs` declares **94** consts and
   `All` enumerates 94. (+8 vs old 86 = `vaccination.treatment.*` ×4 + `finance.recurring.*` ×4.)
 - **Fix:** find and correct every doc that claims 86:
@@ -642,7 +649,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T09 | APP-04 | Low | [x] |
 | T10 | APP-05 | Low | [x] |
 | T11 | CW-01/02/05 | High | [x] |
-| T12 | CW-03 | Med | [ ] |
+| T12 | CW-03 | Med | [x] |
 | T13 | CW-04 | Low | [ ] |
 | T14 | SQL-01 | High | [ ] |
 | T15 | SQL-02 | High | [ ] |

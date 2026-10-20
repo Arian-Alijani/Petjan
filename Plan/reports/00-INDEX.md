@@ -40,7 +40,8 @@ The **.NET solution is the only code under audit** (`Animora.sln`, 14 `src/` pro
 - Client SQLite migrations `001`–`033` (physical head `033_OnlineEntitlement`); `020`,`022`,`024`–`033`
   use a double underscore before the ordinal. Server PG head `111_ServerOutbox` (101–111), KeyRing `101`.
   Several high-number server/PG migrations authored but unapplied/unexecuted.
-- `CommandTypes` = **86** types (39 non-financial, 47 money/stock); `ErrorCodes` = **161** codes.
+- `CommandTypes` = **94** types (39 non-financial + 47 money/stock = 86, plus the +8 new-family types:
+  `vaccination.treatment.*` ×4 + `finance.recurring.*` ×4); `ErrorCodes` = **161** codes.
   Live `CommandTypes.cs` / `ErrorCodes.cs` are the single source of truth.
 - New aggregates beyond the original replicated set: `Clinical.TreatmentPlan` (+occurrences, vaccine
   catalog), `Finance.RecurringExpense` (+payment). New command families `vaccination.treatment.*` (4),
