@@ -216,7 +216,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   bugs (latent), rebuild idempotency, insurer split correctness, settlement vs local provisional money.
   Write findings. **Push.**
 
-- [ ] **T11 — Backup system audit → `Plan/reports/10-backup.md` (audit target #13).**
+- [x] **T11 — Backup system audit → `Plan/reports/10-backup.md` (audit target #13).** ✓ pushed
   Scope: local — `Persistence.Sqlite` maintenance/backup/quarantine + diagnostics bundle export;
   server — `Persistence.PostgreSql/Operator/DatabaseBackupService.cs`, `Server/Admin/AdminBackupAdapter.cs`,
   `AdminBackupEndpoints.cs`. Audit: backup completeness (does it capture encrypted store + keys needed
