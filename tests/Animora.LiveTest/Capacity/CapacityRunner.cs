@@ -95,7 +95,9 @@ public static class CapacityRunner
                     var (healthy, reason) = CapacityAnalysis.Judge(result, summary, options.P95LimitMs);
                     results.Add(new LevelResult(result, summary, healthy, reason));
                     Console.WriteLine($"    {level,3} users: {result.Throughput,6:0.0} req/s  p95 {result.P95,6:0} ms  fail {result.UnexpectedFailures,3}  busy {result.ExpectedBusy,3}  " +
-                                      $"{(summary.ServerMetricsAvailable ? $"cpu {summary.CpuPeakPercent:0}%  " : string.Empty)}{(healthy ? "OK" : "BROKEN: " + reason)}");
+                                      $"{(summary.ServerMetricsAvailable ? $"host cpu {summary.CpuAveragePercent:0}%/{summary.CpuPeakPercent:0}%  " : string.Empty)}" +
+                                      $"{(summary.ServiceCpuAveragePercent is { } appCpu ? $"app cpu {appCpu:0}%  " : string.Empty)}" +
+                                      $"{(healthy ? "OK" : "BROKEN: " + reason)}");
 
                     if (!healthy) break; // bounded load: never push a struggling server further.
                     if (level != levels[^1]) await Task.Delay(TimeSpan.FromSeconds(options.CooldownSeconds), ct).ConfigureAwait(false);

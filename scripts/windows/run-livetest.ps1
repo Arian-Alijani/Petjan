@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   اجرای آسان LiveTest آنیمورا از روی ویندوز، دقیقاً با همان کاربری که روی سرور ساخته‌ای.
 
@@ -53,10 +53,35 @@ param(
     [ValidateSet("preflight", "correctness", "capacity", "all")]
     [string]   $Mode     = "",
     [string]   $Feature  = "",
-    [switch]   $KeepGoing
+    [switch]   $KeepGoing,
+    [switch]   $NonInteractive,
+
+    # ── فقط برای capacity ──────────────────────────────────────────────────────
+    # -Deep یک پروفایل کامل می‌چیند: رمپ ۱→۱۲۸ کاربر، پنجرهٔ طولانی هر سطح (تا نمونهٔ
+    # CPU/RAM کافی جمع شود) و ۶۴ نشست دستگاه. برای عدد نهایی و قابل اعتماد از همین استفاده کن.
+    [switch]   $Deep,
+    # سطح‌های همزمانی، مثلاً "1,8,16,32,64,128" (خالی = پیش‌فرض تست یا مقدار -Deep).
+    [string]   $Levels   = "",
+    # تعداد درخواست در هر سطح (بیشتر = پنجرهٔ طولانی‌تر = میانگین منابع دقیق‌تر).
+    [int]      $Requests = 0,
+    # حداکثر نشست دستگاه (سقف لایسنس را هم در نظر بگیر).
+    [int]      $MaxDevices = 0,
+    # آستانهٔ p95 برای «ناسالم» (میلی‌ثانیه).
+    [int]      $P95LimitMs = 0,
+    # رصد منابع سرور (CPU/RAM/اتصال‌های PG) از طریق SSH. بدون این، ستون‌های منابع n/a می‌شوند.
+    [switch]   $Monitor,
+    [string]   $SshHost = "127.0.0.1",
+    [string]   $SshUser = "root",
+    [string]   $SshKey  = "",
+    [int]      $SshPort = 22
 )
 
 $ErrorActionPreference = "Stop"
+
+# فقط وقتی واقعاً می‌توان از کاربر پرسید، منو/پرامپت نشان بده. در اجرای غیرتعاملی
+# (CI، اسکریپت‌نویسی، یا وقتی stdin ریدایرکت شده) Read-Host استثنا می‌دهد و کل اجرا
+# را می‌شکند؛ در آن حالت باید مقادیر پیش‌فرض/آرگومان‌ها بی‌سروصدا استفاده شوند.
+$CanPrompt = (-not $NonInteractive) -and [Environment]::UserInteractive -and (-not [Console]::IsInputRedirected)
 
 function Write-Info($m) { Write-Host "• $m" -ForegroundColor Yellow }
 function Write-Ok($m)   { Write-Host "✓ $m" -ForegroundColor Green }
@@ -84,24 +109,33 @@ if (-not $dotnet) {
 
 # ── انتخاب حالت (اگر داده نشده) ────────────────────────────────────────────────
 if ([string]::IsNullOrWhiteSpace($Mode)) {
-    Write-Host ""
-    Write-Host "کدام تست را می‌خواهی بگیری؟" -ForegroundColor Cyan
-    Write-Host "  1) preflight    — فقط بررسی سلامت اتصال و ورود (سریع، بی‌خطر)"
-    Write-Host "  2) correctness  — تست درستیِ همهٔ قابلیت‌ها + هماهنگی دو دستگاه (۳۶ سناریو)"
-    Write-Host "  3) capacity     — تست ظرفیت/بار سرور"
-    Write-Host "  4) all          — اول correctness بعد (در صورت موفقیت) capacity"
-    Write-Host ""
-    $sel = Read-Host "شمارهٔ گزینه (پیش‌فرض 2)"
-    switch ($sel.Trim()) {
-        "1"     { $Mode = "preflight" }
-        "3"     { $Mode = "capacity" }
-        "4"     { $Mode = "all" }
-        default { $Mode = "correctness" }
+    if ($CanPrompt) {
+        Write-Host ""
+        Write-Host "کدام تست را می‌خواهی بگیری؟" -ForegroundColor Cyan
+        Write-Host "  1) preflight    — فقط بررسی سلامت اتصال و ورود (سریع، بی‌خطر)"
+        Write-Host "  2) correctness  — تست درستیِ همهٔ قابلیت‌ها + هماهنگی دو دستگاه (۳۶ سناریو)"
+        Write-Host "  3) capacity     — تست ظرفیت/بار سرور"
+        Write-Host "  4) all          — اول correctness بعد (در صورت موفقیت) capacity"
+        Write-Host ""
+        $sel = Read-Host "شمارهٔ گزینه (پیش‌فرض 2)"
+        switch ($sel.Trim()) {
+            "1"     { $Mode = "preflight" }
+            "3"     { $Mode = "capacity" }
+            "4"     { $Mode = "all" }
+            default { $Mode = "correctness" }
+        }
+    }
+    else {
+        $Mode = "correctness"
+        Write-Info "حالت داده نشد و امکان پرسیدن نیست؛ پیش‌فرض 'correctness' انتخاب شد."
     }
 }
 
 # ── برای correctness: انتخاب فیلتر قابلیت (اگر داده نشده و تعاملی هستیم) ─────────
-if ($Mode -eq "correctness" -and [string]::IsNullOrWhiteSpace($Feature)) {
+if ($Mode -eq "correctness" -and -not [string]::IsNullOrWhiteSpace($Feature) -and $Feature.Trim() -ieq "all") {
+    $Feature = ""   # "all" یعنی بدون فیلتر
+}
+if ($Mode -eq "correctness" -and [string]::IsNullOrWhiteSpace($Feature) -and $CanPrompt) {
     Write-Host ""
     Write-Host "کدام بخش را تست کنم؟ (Enter = همهٔ سناریوها)" -ForegroundColor Cyan
     $features = @("Protocol","Patients","Scheduling","Boarding","Inventory","Purchasing","Sales","Finance")
@@ -117,14 +151,44 @@ if ($Mode -eq "correctness" -and [string]::IsNullOrWhiteSpace($Feature)) {
 }
 
 # ── گرفتن رمز به‌صورت امن اگر داده نشده ────────────────────────────────────────
-if ([string]::IsNullOrWhiteSpace($Password)) {
+if ([string]::IsNullOrWhiteSpace($Password) -and $CanPrompt) {
     $sec = Read-Host "رمز کاربر '$User'" -AsSecureString
     $Password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
         [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec))
 }
 if ([string]::IsNullOrWhiteSpace($Password)) {
-    Write-Err "رمز خالی است. بدون رمز نمی‌توان وارد شد."
+    Write-Err "رمز خالی است. بدون رمز نمی‌توان وارد شد. (در اجرای غیرتعاملی، -Password را بده.)"
     exit 78
+}
+
+# ── پروفایل کامل تست ظرفیت (فقط حالت capacity) ────────────────────────────────
+if ($Mode -eq "capacity") {
+    if ($Deep) {
+        if ([string]::IsNullOrWhiteSpace($Levels)) { $Levels = "1,8,16,24,32,36,40,48,64,96,128" }
+        if ($Requests -le 0)   { $Requests = 1200 }   # پنجرهٔ ~۲۰-۳۰ ثانیه در هر سطح
+        if ($MaxDevices -le 0) { $MaxDevices = 64 }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Levels)) { $env:ANIMORA_LT_LEVELS = $Levels }
+    if ($Requests -gt 0)   { $env:ANIMORA_LT_REQUESTS = "$Requests" }
+    if ($MaxDevices -gt 0) { $env:ANIMORA_LT_MAX_DEVICES = "$MaxDevices" }
+    if ($P95LimitMs -gt 0) { $env:ANIMORA_LT_P95_LIMIT_MS = "$P95LimitMs" }
+
+    if ($Monitor) {
+        if ([string]::IsNullOrWhiteSpace($SshKey)) { $SshKey = Join-Path $HOME ".ssh/animora_monitor" }
+        if (-not (Test-Path $SshKey)) {
+            Write-Err "کلید SSH پیدا نشد: $SshKey"
+            Write-Info "روی سرور این را یک‌بار اجرا کن و کلید عمومی را به authorized_keys اضافه کن:"
+            Write-Host "  ssh-keygen -t ed25519 -N '' -f ~/.ssh/animora_monitor"
+            Write-Host "  cat ~/.ssh/animora_monitor.pub >> ~/.ssh/authorized_keys"
+            Write-Info "یا کلید را با -SshKey مسیر بده. بدون رصد، ستون‌های منابع n/a می‌شوند."
+            exit 78
+        }
+        $env:ANIMORA_LT_SSH      = "1"
+        $env:ANIMORA_LT_SSH_HOST = $SshHost
+        $env:ANIMORA_LT_SSH_USER = $SshUser
+        $env:ANIMORA_LT_SSH_KEY  = $SshKey
+        $env:ANIMORA_LT_SSH_PORT = "$SshPort"
+    }
 }
 
 # ── ست‌کردن متغیرهای محیطی که LiveTest می‌خواند ───────────────────────────────
@@ -142,6 +206,11 @@ Write-Info "سرور : $Server"
 Write-Info "مجموعه: $Tenant"
 Write-Info "کاربر : $User"
 Write-Info "حالت  : $Mode$(if ($Feature) { "  (فیلتر: $Feature)" })"
+if ($Mode -eq "capacity") {
+    Write-Info "سطح‌ها: $(if ($env:ANIMORA_LT_LEVELS) { $env:ANIMORA_LT_LEVELS } else { 'پیش‌فرض (1,2,4,8,16,32)' })"
+    Write-Info "درخواست/سطح: $(if ($env:ANIMORA_LT_REQUESTS) { $env:ANIMORA_LT_REQUESTS } else { '60' })   ·   نشست دستگاه: $(if ($env:ANIMORA_LT_MAX_DEVICES) { $env:ANIMORA_LT_MAX_DEVICES } else { '8' })"
+    Write-Info "رصد منابع: $(if ($env:ANIMORA_LT_SSH -eq '1') { "فعال (SSH → $env:ANIMORA_LT_SSH_HOST)" } else { 'خاموش — با -Monitor روشن کن' })"
+}
 Write-Host ""
 Write-Info "در حال اجرای LiveTest… (بار اول ممکن است برای build کمی طول بکشد)"
 Write-Host ""

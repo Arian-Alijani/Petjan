@@ -107,9 +107,13 @@ public sealed class RemoteMonitor : IAsyncDisposable
     {
         var interval = Math.Max(250, ssh.SampleIntervalMs) / 1000.0;
         var service = SanitizeUnit(ssh.ServiceName);
-        return $$"""
+        // The script is fed to `sh -s` on the server: with a CRLF checkout every line would end in \r and dash
+        // fails with "end of file unexpected (expecting fi)". Always emit LF regardless of the checkout.
+        return ($$"""
             PGMAX=$(sudo -n -u postgres psql -tAc 'show max_connections' </dev/null 2>/dev/null | tr -d ' \r')
             echo "pgmax ${PGMAX:-na}"
+            echo "hz $(getconf CLK_TCK </dev/null 2>/dev/null || echo 100)"
+            echo "cores $(nproc </dev/null 2>/dev/null || echo 1)"
             while :; do
               echo "{{BlockMarker}}"
               head -n1 /proc/stat </dev/null
@@ -118,13 +122,13 @@ public sealed class RemoteMonitor : IAsyncDisposable
               echo "est $(ss -Htn state established '( sport = :{{serverPort}} )' </dev/null 2>/dev/null | wc -l)"
               echo "svc $(systemctl is-active {{service}} </dev/null 2>/dev/null)"
               PID=$(systemctl show -p MainPID --value {{service}} </dev/null 2>/dev/null)
-              if [ -n "$PID" ] && [ "$PID" != "0" ]; then echo "rss $(ps -o rss= -p "$PID" </dev/null 2>/dev/null | tr -d ' ')"; fi
+              if [ -n "$PID" ] && [ "$PID" != "0" ]; then echo "rss $(ps -o rss= -p "$PID" </dev/null 2>/dev/null | tr -d ' ')"; echo "pcpu $(awk '{print $14+$15}' /proc/$PID/stat </dev/null 2>/dev/null)"; fi
               sudo -n -u postgres psql -tAF'|' -c "select coalesce(state,'none'), count(*) from pg_stat_activity where datname='animora' group by 1" </dev/null 2>/dev/null | sed 's/^/pg|/'
               echo "@@END"
               sleep {{interval.ToString("0.###", CultureInfo.InvariantCulture)}}
             done
 
-            """;
+            """).Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     /// <summary>Only characters legal in a systemd unit name survive (the value is interpolated into the remote script).</summary>
@@ -139,6 +143,9 @@ public sealed class RemoteMonitor : IAsyncDisposable
         var block = new List<string>();
         var inBlock = false;
         (long Idle, long Total)? previousCpu = null;
+        (long Ticks, DateTimeOffset At)? previousService = null;
+        var clockTicksPerSecond = 100;
+        var cpuCores = 1;
         try
         {
             string? line;
@@ -148,6 +155,16 @@ public sealed class RemoteMonitor : IAsyncDisposable
                 {
                     if (int.TryParse(line.AsSpan(6), NumberStyles.Integer, CultureInfo.InvariantCulture, out var max)) _pgMaxConnections = max;
                 }
+                else if (line.StartsWith("hz ", StringComparison.Ordinal))
+                {
+                    if (int.TryParse(line.AsSpan(3), NumberStyles.Integer, CultureInfo.InvariantCulture, out var hz) && hz > 0)
+                        clockTicksPerSecond = hz;
+                }
+                else if (line.StartsWith("cores ", StringComparison.Ordinal))
+                {
+                    if (int.TryParse(line.AsSpan(6), NumberStyles.Integer, CultureInfo.InvariantCulture, out var cores) && cores > 0)
+                        cpuCores = cores;
+                }
                 else if (line == BlockMarker)
                 {
                     block.Clear();
@@ -156,7 +173,7 @@ public sealed class RemoteMonitor : IAsyncDisposable
                 else if (line == "@@END" && inBlock)
                 {
                     inBlock = false;
-                    if (TryParseBlock(block, DateTimeOffset.UtcNow, ref previousCpu, out var sample))
+                    if (TryParseBlock(block, DateTimeOffset.UtcNow, ref previousCpu, out var sample, ref previousService, clockTicksPerSecond, cpuCores))
                     {
                         lock (_gate) _samples.Add(sample!);
                     }
@@ -197,14 +214,20 @@ public sealed class RemoteMonitor : IAsyncDisposable
         }
     }
 
-    /// <summary>Parses one remote block into a sample; CPU % needs the previous /proc/stat reading (first block yields 0).</summary>
-    public static bool TryParseBlock(IReadOnlyList<string> lines, DateTimeOffset at, ref (long Idle, long Total)? previousCpu, out ServerSample? sample)
+    /// <summary>
+    /// Parses one remote block into a sample. Machine CPU % needs the previous <c>/proc/stat</c> reading and the
+    /// server-process CPU % needs the previous tick count of that process (both yield null on the first block).
+    /// </summary>
+    public static bool TryParseBlock(IReadOnlyList<string> lines, DateTimeOffset at, ref (long Idle, long Total)? previousCpu,
+        out ServerSample? sample, ref (long Ticks, DateTimeOffset At)? previousServiceTicks, int clockTicksPerSecond = 100,
+        int cpuCores = 1)
     {
         sample = null;
         double load1 = 0, memTotalKb = 0, memAvailKb = 0, swapTotalKb = 0, swapFreeKb = 0, cpuPct = 0;
         int established = 0;
         bool? serviceActive = null;
         double? rssKb = null;
+        double? serviceCpuPct = null;
         int? pgTotal = null, pgActive = null, pgIdleTx = null;
         var sawCpu = false;
 
@@ -234,6 +257,24 @@ public sealed class RemoteMonitor : IAsyncDisposable
             else if (line.StartsWith("est ", StringComparison.Ordinal)) _ = int.TryParse(line.AsSpan(4), NumberStyles.Integer, CultureInfo.InvariantCulture, out established);
             else if (line.StartsWith("svc ", StringComparison.Ordinal)) serviceActive = line[4..].Trim() == "active";
             else if (line.StartsWith("rss ", StringComparison.Ordinal) && double.TryParse(line.AsSpan(4), NumberStyles.Float, CultureInfo.InvariantCulture, out var kb)) rssKb = kb;
+            else if (line.StartsWith("pcpu ", StringComparison.Ordinal)
+                && long.TryParse(line.AsSpan(5), NumberStyles.Integer, CultureInfo.InvariantCulture, out var svcTicks))
+            {
+                // utime+stime ticks of the SERVER process only (excludes the load generator and PostgreSQL).
+                if (previousServiceTicks is { } prevSvc)
+                {
+                    var seconds = (at - prevSvc.At).TotalSeconds;
+                    if (seconds > 0.05 && svcTicks >= prevSvc.Ticks)
+                    {
+                        // Expressed as % of the WHOLE machine (ticks/hz = core-seconds), so it is directly comparable
+                        // with the host CPU column instead of being "% of one core".
+                        serviceCpuPct = Math.Clamp(100.0 * (svcTicks - prevSvc.Ticks) / (clockTicksPerSecond * seconds)
+                                                   / Math.Max(1, cpuCores), 0, 100);
+                    }
+                }
+
+                previousServiceTicks = (svcTicks, at);
+            }
             else if (line.StartsWith("pg|", StringComparison.Ordinal))
             {
                 var cols = line.Split('|');
@@ -254,6 +295,7 @@ public sealed class RemoteMonitor : IAsyncDisposable
         if (!sawCpu || memTotalKb <= 0) return false;
         sample = new ServerSample(at, Math.Clamp(cpuPct, 0, 100), load1, memTotalKb / 1024.0, memAvailKb / 1024.0,
             Math.Max(0, swapTotalKb - swapFreeKb) / 1024.0, established, serviceActive, rssKb / 1024.0,
+            serviceCpuPct,
             pgTotal, pgActive ?? (pgTotal is null ? null : 0), pgIdleTx ?? (pgTotal is null ? null : 0));
         return true;
 

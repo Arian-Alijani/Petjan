@@ -64,17 +64,21 @@ public sealed class CapacityReport(string runId, string serverUrl, string tenant
             sb.AppendLine();
             sb.AppendLine(p.Description);
             sb.AppendLine();
-            sb.AppendLine("| Users | Requests | Throughput/s | p50 ms | p95 ms | p99 ms | Failures | Busy (503/429) | Server CPU peak | RAM avail min | PG conns peak | Health | Verdict |");
-            sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+            sb.AppendLine("| Users | Requests | Throughput/s | p50 ms | p95 ms | p99 ms | Failures | Busy (503/429) | Host CPU avg/peak | App CPU avg/peak | App RSS | RAM avail min | PG conns peak | Health | Verdict |");
+            sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
             foreach (var l in p.Levels)
             {
                 var r = l.Result;
                 var m = l.Monitor;
-                var cpu = m.ServerMetricsAvailable ? $"{m.CpuPeakPercent:0}%" : "n/a";
+                // "Host CPU" is the whole machine (it also contains the load generator when it runs on the server).
+                // "App CPU" is the Animora.Server process only — the figure to size a server by.
+                var cpu = m.ServerMetricsAvailable ? $"{m.CpuAveragePercent:0}/{m.CpuPeakPercent:0}%" : "n/a";
+                var appCpu = m.ServiceCpuAveragePercent is { } a && m.ServiceCpuPeakPercent is { } pk ? $"{a:0}/{pk:0}%" : "n/a";
+                var appRss = m.ServiceRssPeakMb is { } rss ? $"{rss:0} MiB" : "n/a";
                 var ram = m.ServerMetricsAvailable ? $"{m.MemAvailableMinMb:0} MiB" : "n/a";
                 var pg = m.PgConnectionsPeak is { } peak ? (m.PgMaxConnections is { } max ? $"{peak}/{max}" : peak.ToString()) : "n/a";
                 var health = m.HealthProbes == 0 ? "n/a" : $"{m.HealthProbes - m.HealthNotReady}/{m.HealthProbes} ready";
-                sb.AppendLine($"| {r.Concurrency} | {r.Requests} | {r.Throughput:0.0} | {r.P50:0} | {r.P95:0} | {r.P99:0} | {r.UnexpectedFailures} | {r.ExpectedBusy} | {cpu} | {ram} | {pg} | {health} | {(l.Healthy ? "OK" : "BROKEN — " + l.UnhealthyReason)} |");
+                sb.AppendLine($"| {r.Concurrency} | {r.Requests} | {r.Throughput:0.0} | {r.P50:0} | {r.P95:0} | {r.P99:0} | {r.UnexpectedFailures} | {r.ExpectedBusy} | {cpu} | {appCpu} | {appRss} | {ram} | {pg} | {health} | {(l.Healthy ? "OK" : "BROKEN — " + l.UnhealthyReason)} |");
             }
         }
 
@@ -84,6 +88,7 @@ public sealed class CapacityReport(string runId, string serverUrl, string tenant
         sb.AppendLine("- All created rows are prefixed `lt-cap<run>-` and exist only in the dedicated test tenant; the tool does not delete them (most aggregates have no delete verb). Reset the test tenant when convenient.");
         sb.AppendLine("- 503 + Retry-After and 429 answers are the server's documented back-pressure: they are counted as *Busy*, never as failures.");
         sb.AppendLine("- `<run>.json` next to this file carries the full per-second hardware time series for charts.");
+        sb.AppendLine("- **Host CPU** is the whole machine; **App CPU** is the `Animora.Server` process alone. Both are % of the machine, so they are directly comparable. If the load generator runs on the same host, Host CPU includes it — size a server by **App CPU** plus PostgreSQL.");
         return sb.ToString();
     }
 

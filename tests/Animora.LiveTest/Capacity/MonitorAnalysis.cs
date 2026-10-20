@@ -83,6 +83,9 @@ public static class MonitorAnalysis
 
         var pg = s.Where(x => x.PgTotal.HasValue).Select(x => x.PgTotal!.Value).ToArray();
         var rss = s.Where(x => x.ServiceRssMb.HasValue).Select(x => x.ServiceRssMb!.Value).ToArray();
+        // Server-PROCESS CPU is sampled separately from machine CPU: when the load generator runs on the same host
+        // (the recommended way to avoid a slow/variable network path) the machine figure also contains the client.
+        var svcCpu = s.Where(x => x.ServiceCpuPercent.HasValue).Select(x => x.ServiceCpuPercent!.Value).ToArray();
         return new MonitorSummary(
             ServerMetricsAvailable: true,
             Samples: s.Length,
@@ -95,6 +98,8 @@ public static class MonitorAnalysis
             SwapUsedPeakMb: s.Max(x => x.SwapUsedMb),
             EstablishedPeak: s.Max(x => x.Established),
             ServiceRssPeakMb: rss.Length == 0 ? null : rss.Max(),
+            ServiceCpuPeakPercent: svcCpu.Length == 0 ? null : svcCpu.Max(),
+            ServiceCpuAveragePercent: svcCpu.Length == 0 ? null : svcCpu.Average(),
             ServiceDownSamples: s.Count(x => x.ServiceActive == false),
             PgConnectionsPeak: pg.Length == 0 ? null : pg.Max(),
             PgMaxConnections: pgMaxConnections,

@@ -13,6 +13,7 @@ public sealed record ServerSample(
     [property: JsonPropertyName("established")] int Established,
     [property: JsonPropertyName("serviceActive")] bool? ServiceActive,
     [property: JsonPropertyName("serviceRssMb")] double? ServiceRssMb,
+    [property: JsonPropertyName("serviceCpuPct")] double? ServiceCpuPercent,
     [property: JsonPropertyName("pgTotal")] int? PgTotal,
     [property: JsonPropertyName("pgActive")] int? PgActive,
     [property: JsonPropertyName("pgIdleInTx")] int? PgIdleInTransaction)
@@ -45,6 +46,8 @@ public sealed record MonitorSummary(
     [property: JsonPropertyName("swapUsedPeakMb")] double SwapUsedPeakMb,
     [property: JsonPropertyName("establishedPeak")] int EstablishedPeak,
     [property: JsonPropertyName("serviceRssPeakMb")] double? ServiceRssPeakMb,
+    [property: JsonPropertyName("serviceCpuPeakPct")] double? ServiceCpuPeakPercent,
+    [property: JsonPropertyName("serviceCpuAvgPct")] double? ServiceCpuAveragePercent,
     [property: JsonPropertyName("serviceDownSamples")] int ServiceDownSamples,
     [property: JsonPropertyName("pgConnectionsPeak")] int? PgConnectionsPeak,
     [property: JsonPropertyName("pgMaxConnections")] int? PgMaxConnections,
@@ -53,5 +56,24 @@ public sealed record MonitorSummary(
     [property: JsonPropertyName("healthP95Ms")] double HealthP95Ms)
 {
     /// <summary>Summary with no server-side data (SSH disabled or window empty).</summary>
-    public static MonitorSummary Empty { get; } = new(false, 0, 0, 0, 0, 0, 0, 0, 0, 0, null, 0, null, null, 0, 0, 0);
+    public static MonitorSummary Empty { get; } = new(
+        ServerMetricsAvailable: false,
+        Samples: 0,
+        CpuPeakPercent: 0,
+        CpuAveragePercent: 0,
+        Load1Peak: 0,
+        MemUsedPeakMb: 0,
+        MemAvailableMinMb: 0,
+        MemTotalMb: 0,
+        SwapUsedPeakMb: 0,
+        EstablishedPeak: 0,
+        ServiceRssPeakMb: null,
+        ServiceCpuPeakPercent: null,
+        ServiceCpuAveragePercent: null,
+        ServiceDownSamples: 0,
+        PgConnectionsPeak: null,
+        PgMaxConnections: null,
+        HealthProbes: 0,
+        HealthNotReady: 0,
+        HealthP95Ms: 0);
 }

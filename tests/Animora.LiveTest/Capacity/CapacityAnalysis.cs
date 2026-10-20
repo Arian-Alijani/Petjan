@@ -71,8 +71,11 @@ public static class CapacityAnalysis
         }
 
         var causes = new List<(string Limiter, string Hint)>();
-        if (m.CpuPeakPercent >= CpuSaturationPercent)
-            causes.Add(("cpu", $"CPU-bound: peak {m.CpuPeakPercent:0}% (load1 {m.Load1Peak:0.0}). Add vCPUs / a faster CPU before anything else."));
+        // Prefer the server process' own CPU when sampled: the host figure also contains the load generator.
+        var appCpu = m.ServiceCpuPeakPercent ?? m.CpuPeakPercent;
+        var cpuLabel = m.ServiceCpuPeakPercent is null ? "peak" : "app peak";
+        if (appCpu >= CpuSaturationPercent)
+            causes.Add(("cpu", $"CPU-bound: {cpuLabel} {appCpu:0}% (host peak {m.CpuPeakPercent:0}%, load1 {m.Load1Peak:0.0}). Add vCPUs / a faster CPU before anything else."));
         var memFraction = m.MemTotalMb <= 0 ? 1.0 : m.MemAvailableMinMb / m.MemTotalMb;
         if (memFraction <= MemoryPressureFraction || m.SwapUsedPeakMb > 64)
             causes.Add(("memory", $"RAM-bound: only {m.MemAvailableMinMb:0} MiB of {m.MemTotalMb:0} MiB left at the worst moment (swap peak {m.SwapUsedPeakMb:0} MiB). Add RAM."));
@@ -87,7 +90,7 @@ public static class CapacityAnalysis
 
         return broke
             ? ("software-or-disk", "Latency/failures broke WITHOUT CPU, RAM or PostgreSQL-connection saturation: look at lock contention, disk I/O, the server's own rate limits / admission control, or the network path before buying hardware.")
-            : ("none-reached", $"No break point reached: CPU peak {m.CpuPeakPercent:0}%, RAM available min {m.MemAvailableMinMb:0} MiB. Raise ANIMORA_LT_LEVELS to find the limit.");
+            : ("none-reached", $"No break point reached: CPU peak {m.CpuPeakPercent:0}%{(m.ServiceCpuPeakPercent is { } a ? $", app CPU peak {a:0}%" : string.Empty)}, RAM available min {m.MemAvailableMinMb:0} MiB. Raise ANIMORA_LT_LEVELS to find the limit.");
     }
 
     /// <summary>Folds the measured levels of one profile into a verdict (levels must be in ascending concurrency).</summary>

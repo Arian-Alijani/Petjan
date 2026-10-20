@@ -12,6 +12,7 @@ using Animora.Contracts.Wire;
 using Animora.Contracts.Wire.Auth;
 using Animora.Contracts.Wire.Commands;
 using Animora.Contracts.Wire.Errors;
+using Animora.Contracts.Wire.Licensing;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -153,6 +154,30 @@ public sealed class VirtualClient : IAsyncDisposable
             var register = new DeviceRegisterRequest($"{_options.DeviceNamePrefix}-{Label}", _installationHash, "linux · livetest");
             var (regResp, _) = await SendAsync(HttpMethod.Post, "auth/device/register", register, login.AccessToken, ct).ConfigureAwait(false);
             regResp?.Dispose();
+
+            // Mirror the shipped desktop client (EntitlementSealer): a tenant-wide grant alone does NOT entitle a
+            // device — the server issues a per-device licence row and every business route is gated on it
+            // (403 ENTITLEMENT_REQUIRED / license_not_active). Without this step login succeeds but every
+            // authorized call fails, so preflight's sync/manifest check could never pass.
+            // The licensing surface shares the per-IP auth rate-limit bucket (10/min), so a burst of runs can
+            // answer 429; retry with the same backoff the login path uses instead of failing the whole suite.
+            HttpResponseMessage? licResp = null;
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                licResp?.Dispose();
+                var (resp, error) = await SendAsync(HttpMethod.Post, "licensing/activate",
+                    new LicenseRequest(_installationHash, CurrentSequence: 0), login.AccessToken, ct).ConfigureAwait(false);
+                if (resp is null) return $"licensing/activate: {error}";
+                licResp = resp;
+                if (resp.StatusCode != HttpStatusCode.TooManyRequests) break;
+                await Task.Delay(RetryDelay(resp, attempt), ct).ConfigureAwait(false);
+            }
+
+            using (licResp)
+            {
+                if (licResp is null || !licResp.IsSuccessStatusCode)
+                    return $"licensing/activate: {await DescribeFailureAsync(licResp!, ct).ConfigureAwait(false)}";
+            }
         }
 
         return null;
