@@ -174,6 +174,12 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
+        // Transient in-memory domain events are never a table. EF would otherwise discover DomainEvent through the
+        // AggregateRoot.DomainEvents navigation and map it as a standalone entity; since it carries a TenantId but does
+        // not derive SyncableEntity, the ISO-02 guard below would (correctly) abort model build. Ignoring the base type
+        // here — before configurations run, mirroring AnimoraLocalDbContext — keeps it out of the model entirely.
+        modelBuilder.Ignore<Animora.Domain.Events.DomainEvent>();
+
         // Radiology/lab records are immutable JSON lists on the visit row (VisitConfiguration maps the backing
         // fields via JsonFields.Map). Their nested value lists (Items/Attachments) make EF try to discover them
         // as owned entities and fail constructor binding, so exclude the element types (and their nested rows)
