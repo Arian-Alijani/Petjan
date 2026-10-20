@@ -81,7 +81,7 @@ internal sealed class AdminBackupAdapter(AnimoraOperatorDbContext db,IOptions<Da
         var actor=session.Actor;
         var path=TenantBackupService.Resolve(admin.Value.BackupDirectory,fileName);
         if(path is null)return Result<string>.Fail(ErrorCodes.NotFound);
-        await AuditAsync(actor,"backup.tenant.downloaded","success",new{file=fileName},ct,TenantBackupService.ParseName(fileName!)?.TenantId).ConfigureAwait(false);
+        await AuditAsync(actor,"backup.tenant.downloaded","success",new{file=fileName},ct,TenantBackupService.ParseTenantId(fileName)).ConfigureAwait(false);
         return Result<string>.Ok(path);
     }
 

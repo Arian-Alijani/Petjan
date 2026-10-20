@@ -74,6 +74,10 @@ public static partial class TenantBackupService
             .Select(x => new TenantBackupFile(x.File.Name, x.Parsed!.Value.TenantId, x.File.Length, x.Parsed.Value.Stamp, 0, 0)).ToArray();
     }
 
+    /// <summary>The tenant id embedded in a per-tenant export name, or null when <paramref name="fileName"/> is not a valid export name.
+    /// Public so callers in other assemblies (e.g. the server audit adapter) can tag a download with its tenant without the internal tuple.</summary>
+    public static string? ParseTenantId(string? fileName) => fileName is null ? null : ParseName(fileName)?.TenantId;
+
     internal static (string TenantId, DateTimeOffset Stamp)? ParseName(string fileName)
     {
         if (!IsTenantBackupFileName(fileName)) return null;
