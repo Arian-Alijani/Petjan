@@ -572,7 +572,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   preserved; double-401 ends the session cleanly (checkpoint not advanced) without a raw abort. No refresh loop.
 - **Heavy-fix note:** if request re-creation touches content construction broadly, push separately.
 
-## [ ] T28 · SYN-03 — Prevent masking an earlier rejected prerequisite (Medium, UX-correctness)
+## [x] T28 · SYN-03 — Prevent masking an earlier rejected prerequisite (Medium, UX-correctness)
 - **Scope:** presentation/read-model layer — settlement status must not show "success/paid/done" when an
   earlier prerequisite in the same business operation was `Rejected` (confirms D13/D15/D09).
 - **Fix plan (needs a UI/read-model trace — scope carefully):**
@@ -649,6 +649,6 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T25 | SYN-02 | High | [ ] |
 | T26 | SYN-05 | Med | [x] |
 | T27 | SYN-04 | Med | [x] |
-| T28 | SYN-03 | Med | [ ] |
+| T28 | SYN-03 | Med | [x] |
 | T29 | SYN-06 | Low | [x] |
 | T30 | delete this file | — | [ ] |

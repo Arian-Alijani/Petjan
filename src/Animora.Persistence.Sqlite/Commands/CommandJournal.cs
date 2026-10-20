@@ -106,6 +106,11 @@ public sealed class CommandJournal(
         switch (target)
         {
             case SettlementState.Rejected:
+                // SYN-03: a dependent refused only because its prerequisite was refused (DEPENDENCY_REJECTED) must not overwrite
+                // the prerequisite's own verdict — the operator has to see the ROOT failure (e.g. the rejected invoice post), not
+                // the derived one. A real refusal of the dependent itself still replaces a non-terminal/other verdict.
+                if (IsDerivedRefusal(result) && invoice.Settlement is Animora.Domain.Sales.SettlementStatus.Rejected
+                        or Animora.Domain.Sales.SettlementStatus.Conflict) return;
                 invoice.MarkSettlement(Animora.Domain.Sales.SettlementStatus.Rejected, result.ErrorCode);
                 break;
             case SettlementState.Conflict:
@@ -126,6 +131,9 @@ public sealed class CommandJournal(
                 break;
         }
     }
+
+    private static bool IsDerivedRefusal(SettlementResult result) =>
+        string.Equals(result.ErrorCode, ErrorCodes.DependencyRejected.Code, StringComparison.Ordinal);
 
     public async Task<Result<IReadOnlyList<PendingCommandRecord>>> ClaimBatchAsync(int max, TimeSpan lease,
         CancellationToken ct = default)
