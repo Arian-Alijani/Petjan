@@ -4,7 +4,9 @@ using Animora.Domain.Primitives;
 using Animora.Domain.Time;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Maintenance;
+using Animora.Persistence.Sqlite.Options;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 
 namespace Animora.Client.Services.Diagnostics;
@@ -19,6 +21,7 @@ public sealed class MaintenanceScheduler(
     private Task? _loop;
     private DateTimeOffset? _lastBackupUtc;
     private DateTimeOffset? _lastVacuumUtc;
+    private DateTimeOffset? _lastCompactUtc;
 
     public void Start() => _loop ??= Task.Run(() => RunAsync(_stop.Token));
 
@@ -49,10 +52,41 @@ public sealed class MaintenanceScheduler(
             await RunOneAsync(StoreMaintenanceKind.Backup, now, ct);
             _lastBackupUtc = now;
         }
-        if (_lastVacuumUtc is null || now - _lastVacuumUtc >= TimeSpan.FromDays(7))
+        // SQL-02: retention runs before the weekly vacuum so the freed pages are reclaimed in the same cycle.
+        var reclaimNow = false;
+        if (_lastCompactUtc is null || now - _lastCompactUtc >= TimeSpan.FromDays(1))
+        {
+            reclaimNow = await CompactAsync(ct);
+            _lastCompactUtc = now;
+        }
+        if (reclaimNow || _lastVacuumUtc is null || now - _lastVacuumUtc >= TimeSpan.FromDays(7))
         {
             await RunOneAsync(StoreMaintenanceKind.Vacuum, now, ct);
             _lastVacuumUtc = now;
+        }
+    }
+
+    /// <summary>Runs the SQL-02 retention pass; returns true when it removed enough rows to justify a VACUUM now.</summary>
+    private async Task<bool> CompactAsync(CancellationToken ct)
+    {
+        if (LocalCommandProcessor.IsPassRunning) return false;
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var maintenance = scope.ServiceProvider.GetRequiredService<ILocalStoreMaintenance>();
+            var threshold = scope.ServiceProvider.GetRequiredService<IOptions<LocalStoreOptions>>().Value.VacuumAfterCompactedRows;
+            var result = await maintenance.CompactAsync(null, ct).ConfigureAwait(false);
+            if (result.IsFailure)
+            {
+                logger.LogWarning("Local store compaction failed: {Code} {Detail}", result.Error.Code, result.Detail);
+                return false;
+            }
+            return result.Value!.Total >= threshold;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Local store compaction threw; retrying on the next cycle");
+            return false;
         }
     }
 

@@ -10,6 +10,8 @@ public enum StoreMaintenanceKind
     Vacuum,
     CrashRecovery,
     Checkpoint,
+    /// <summary>SQL-02: age-based row retention over the append-only growth tables (outbox, activity feed).</summary>
+    Compact,
 }
 
 /// <summary>Append-only record of a local store maintenance operation. Never replicated.</summary>

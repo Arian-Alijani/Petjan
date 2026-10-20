@@ -363,7 +363,16 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   and any remaining native-bundle precondition in the commit.
 - **Heavy-fix note:** composition-root + options change; push as `fix(persistence): enable encrypted local store by default (SQL-01)`.
 
-## [ ] T15 · SQL-02 — Add row retention/compaction for append-only growth tables (High, latent growth)
+## [x] T15 · SQL-02 — Add row retention/compaction for append-only growth tables (High, latent growth)
+> **DONE (2026-10-20).** `ILocalStoreMaintenance.CompactAsync(RetentionPolicy?)` deletes (a) fully relayed `Succeeded`
+> `OutboxMessage` rows past `OutboxRetentionDays` and (b) `ActivityEvent` rows past `ActivityRetentionDays`, each in
+> LIMIT-bounded batches (`CompactionBatchSize`), idempotent, logged as `StoreMaintenanceKind.Compact`. Pending/Retry/
+> DeadLettered outbox rows are never touched; outbox window is clamped >= activity window (the feed is rebuilt from the
+> outbox). New `LocalStoreOptions` knobs + `Validate()` guards. Wired into `MaintenanceScheduler` (daily; triggers an
+> immediate VACUUM when >= `VacuumAfterCompactedRows` rows were freed). **AuditEntry:** deferred by design (compliance,
+> `AppendOnlyGuard`; archival = separate explicit export). **SyncCursor/replica history:** no growth to prune — `SyncCursor`
+> is one row per (tenant, scope) and superseded `repl_base` generations are already deleted atomically at generation switch
+> (`SqliteSyncApplyStore`). No migration needed (enum stored as int).
 - **Files:** `src/Animora.Persistence.Sqlite/Maintenance/LocalStoreMaintenance.cs` (`Prune()` ~line 612 only
   trims **backup files**; Rebuild* methods never delete rows), `Activity/ActivityFeedWriter.cs`,
   `Activity/SyncedActivityFeed.cs`. Append-only audit guard: `Context/AppendOnlyGuard.cs` (audit must stay
@@ -668,7 +677,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T12 | CW-03 | Med | [x] |
 | T13 | CW-04 | Low | [x] |
 | T14 | SQL-01 | High | [x] |
-| T15 | SQL-02 | High | [ ] |
+| T15 | SQL-02 | High | [x] |
 | T16 | SQL-03 | Med | [ ] |
 | T17 | SQL-04 | Low | [x] |
 | T18 | SQL-05 | Low | [x] |

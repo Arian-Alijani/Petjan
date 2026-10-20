@@ -39,6 +39,14 @@ public interface ILocalStoreMaintenance
     /// </summary>
     Task<Result> ResetForResyncAsync(CancellationToken ct);
 
+    /// <summary>
+    /// SQL-02: age-based retention for the append-only growth tables — relayed (<c>Succeeded</c>) outbox rows and activity-feed
+    /// rows older than their configured windows are deleted in bounded batches. Never touches dead-lettered/pending outbox rows,
+    /// the append-only <c>AuditEntry</c> log (compliance; archival is a separate, explicit export) or any business data.
+    /// <c>null</c> policy uses <see cref="Options.LocalStoreOptions"/>. Idempotent. Pair with <see cref="VacuumAsync"/> to reclaim space.
+    /// </summary>
+    Task<Result<CompactionSummary>> CompactAsync(RetentionPolicy? policy, CancellationToken ct);
+
     /// <summary>VACUUM + WAL truncate; returns the number of pages freed.</summary>
     Task<Result<int>> VacuumAsync(CancellationToken ct);
 
@@ -57,4 +65,17 @@ public interface ILocalStoreMaintenance
 
     /// <summary>Replays supported outbox domain events through the live mapper for this tenant.</summary>
     Task<Result<int>> RebuildActivityFeedAsync(CancellationToken ct);
+}
+
+/// <summary>Resolved retention windows for one compaction pass (SQL-02).</summary>
+public sealed record RetentionPolicy(int OutboxRetentionDays, int ActivityRetentionDays, int BatchSize)
+{
+    public static RetentionPolicy From(Options.LocalStoreOptions options) =>
+        new(options.OutboxRetentionDays, options.ActivityRetentionDays, options.CompactionBatchSize);
+}
+
+/// <summary>Rows removed by one <see cref="ILocalStoreMaintenance.CompactAsync"/> pass.</summary>
+public sealed record CompactionSummary(int OutboxDeleted, int ActivityDeleted)
+{
+    public int Total => OutboxDeleted + ActivityDeleted;
 }

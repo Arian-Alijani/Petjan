@@ -416,6 +416,56 @@ public sealed class LocalStoreMaintenance(
         finally { state.TransitionGate.Release(); }
     }
 
+    public async Task<Result<CompactionSummary>> CompactAsync(RetentionPolicy? policy, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        policy ??= RetentionPolicy.From(Store);
+        if (policy.OutboxRetentionDays < 1 || policy.ActivityRetentionDays < 1 || policy.BatchSize < 1)
+            return Result<CompactionSummary>.Fail(ErrorCodes.ValidationFailed, "Retention windows and batch size must be positive.");
+        try
+        {
+            var now = clock.UtcNow;
+            // The feed is rebuilt from the outbox, so the outbox must never be pruned below the activity window.
+            var outboxDays = Math.Max(policy.OutboxRetentionDays, policy.ActivityRetentionDays);
+            var outboxCutoff = now.AddDays(-outboxDays).UtcTicks;
+            var activityCutoff = now.AddDays(-policy.ActivityRetentionDays).UtcTicks;
+
+            // Only fully relayed rows: Pending/Retry/Claimed/Processing are live work and DeadLettered is evidence (never silently dropped).
+            var outbox = await DeleteInBatchesAsync(
+                "DELETE FROM OutboxMessages WHERE Id IN (SELECT Id FROM OutboxMessages WHERE Status = {0} AND ProcessedAtUtc IS NOT NULL AND ProcessedAtUtc < {1} LIMIT {2});",
+                [(int)OutboxStatus.Succeeded, outboxCutoff], policy.BatchSize, ct);
+            var activity = await DeleteInBatchesAsync(
+                "DELETE FROM ActivityEvents WHERE Id IN (SELECT Id FROM ActivityEvents WHERE OccurredUtc < {0} LIMIT {1});",
+                [activityCutoff], policy.BatchSize, ct);
+
+            var summary = new CompactionSummary(outbox, activity);
+            await LogAsync(StoreMaintenanceKind.Compact, $"outbox: {outbox}, activity: {activity}", ct);
+            return Result<CompactionSummary>.Ok(summary);
+        }
+        catch (Exception ex) when (IsStoreFailure(ex))
+        {
+            return Result<CompactionSummary>.Fail(Map(ex, ErrorCodes.StoreUnavailable), ex.Message);
+        }
+    }
+
+    // Each statement is its own short atomic transaction (bounded by LIMIT), so a large backlog never holds one huge write lock
+    // and a cancellation/crash between batches leaves a consistent, simply-less-compacted store.
+    private async Task<int> DeleteInBatchesAsync(string sql, object[] leadingArgs, int batchSize, CancellationToken ct)
+    {
+        var args = new object[leadingArgs.Length + 1];
+        leadingArgs.CopyTo(args, 0);
+        args[^1] = batchSize;
+        var total = 0;
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            await using var context = await contexts.CreateDbContextAsync(ct);
+            var removed = await context.Database.ExecuteSqlRawAsync(sql, args, ct);
+            total += removed;
+            if (removed < batchSize) return total;
+        }
+    }
+
     public async Task<Result<int>> VacuumAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

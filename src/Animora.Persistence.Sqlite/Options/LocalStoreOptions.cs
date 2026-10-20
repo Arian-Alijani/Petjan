@@ -28,6 +28,19 @@ public sealed class LocalStoreOptions
     public int WalCheckpointPages { get; set; } = 1000;
     public int BackupRetentionCount { get; set; } = 5;
 
+    /// <summary>SQL-02: relayed (<c>Succeeded</c>) outbox rows older than this are deleted. Dead-lettered rows are never pruned.
+    /// Must be &gt;= <see cref="ActivityRetentionDays"/> so the activity feed can always be rebuilt for its whole retained window.</summary>
+    public int OutboxRetentionDays { get; set; } = 180;
+
+    /// <summary>SQL-02: activity-feed rows older than this are deleted (the feed is a cache with a proof, not the audit trail).</summary>
+    public int ActivityRetentionDays { get; set; } = 180;
+
+    /// <summary>SQL-02: rows removed per DELETE statement, so one compaction never holds a huge write lock.</summary>
+    public int CompactionBatchSize { get; set; } = 1000;
+
+    /// <summary>SQL-02: when a compaction pass removes at least this many rows the scheduler reclaims the space with VACUUM.</summary>
+    public int VacuumAfterCompactedRows { get; set; } = 5000;
+
     /// <summary>When true, first-run seeding also inserts realistic sample owners/pets so screens are
     /// immediately testable. Explicit opt-in only: a fresh clinic never receives sample users.</summary>
     public bool SeedSampleData { get; set; }
@@ -72,6 +85,13 @@ public sealed class LocalStoreOptions
         if (EncryptionEnabled && !K2Approved) return Result.Fail(ErrorCodes.StoreEncryptionNotApproved);
         if (BackupRetentionCount <= 0)
             return Result.Fail(ErrorCodes.ValidationFailed, "BackupRetentionCount must be positive.");
+        if (OutboxRetentionDays < 7 || ActivityRetentionDays < 7)
+            return Result.Fail(ErrorCodes.ValidationFailed, "Outbox/Activity retention must be at least 7 days.");
+        if (OutboxRetentionDays < ActivityRetentionDays)
+            return Result.Fail(ErrorCodes.ValidationFailed,
+                "OutboxRetentionDays must be >= ActivityRetentionDays (the activity feed is rebuilt from the outbox).");
+        if (CompactionBatchSize is < 1 or > 50000)
+            return Result.Fail(ErrorCodes.ValidationFailed, "CompactionBatchSize must be between 1 and 50000.");
         if (WalCheckpointPages <= 0)
             return Result.Fail(ErrorCodes.ValidationFailed, "WalCheckpointPages must be positive.");
         return Result.Ok();
