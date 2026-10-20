@@ -552,7 +552,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** reconciliation processes unsettled commands in strictly ascending global `LocalSequence`
   across page boundaries; confirmed by reading the query's ORDER BY. Each re-submit remains idempotent.
 
-## [ ] T27 · SYN-04 — Bound request-body buffering + handle double-401 gracefully (Medium, resilience/perf)
+## [x] T27 · SYN-04 — Bound request-body buffering + handle double-401 gracefully (Medium, resilience/perf)
 - **File:** `src/Animora.Sync.Custom/BearerAuthHandler.cs` — `SendAsync`:
   `byte[]? body = null; if (request.Content is not null) body = await request.Content.ReadAsByteArrayAsync(ct)…`
   (buffers the ENTIRE body on every protected call to enable one 401-retry; a double-401 surfaces the
@@ -648,7 +648,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T24 | SYN-01 | High | [ ] |
 | T25 | SYN-02 | High | [ ] |
 | T26 | SYN-05 | Med | [ ] |
-| T27 | SYN-04 | Med | [ ] |
+| T27 | SYN-04 | Med | [x] |
 | T28 | SYN-03 | Med | [ ] |
 | T29 | SYN-06 | Low | [x] |
 | T30 | delete this file | — | [ ] |
