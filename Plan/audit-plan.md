@@ -127,7 +127,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   that become bugs as data grows (latent). Focus aggregates: `Finance.*` (ledger/cheque/expense,
   `RecurringExpense`), `Sales.*`, `Clinical.TreatmentPlan`, `Inventory.*`. Write findings. **Push.**
 
-- [ ] **T3 — Application layer audit → `Plan/reports/02-application.md`.**
+- [x] **T3 — Application layer audit → `Plan/reports/02-application.md`.** ✓ pushed
   Scope: `src/Animora.Application/**`. Audit the command/query **dispatch pipeline + behaviors**
   (ordering, validation, security, correlation, idempotency), the **outbox** (`Outbox/IOutbox.cs` +
   impl), ports (`Ports/ISyncCursorStore.cs`, `Ports/IPeerFinanceSync.cs`), use cases. Hunt: missing
