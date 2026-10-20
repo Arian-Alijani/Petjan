@@ -234,7 +234,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   event-handler leaks (latent). Confirm every Contracts interface used by a VM has a real registration.
   Write findings. **Push.**
 
-- [ ] **T13 — Cross-cutting synthesis + performance roll-up → `Plan/reports/12-synthesis.md`.**
+- [x] **T13 — Cross-cutting synthesis + performance roll-up → `Plan/reports/12-synthesis.md`.** ✓ pushed
   No new file reading beyond re-reading the T2–T12 reports. Produce: (a) a single severity-ranked
   master table of ALL findings across reports with stable IDs; (b) a dedicated **performance roll-up**
   (audit targets #1/#4/#9) grouping every perf finding with estimated impact + cheap vs structural;

@@ -84,18 +84,18 @@ The **.NET solution is the only code under audit** (`Animora.sln`, 14 `src/` pro
 
 | Report | Scope | Status |
 |---|---|---|
-| `01-domain.md` | Domain layer (T2) | pending |
-| `02-application.md` | Application layer (T3) | pending |
-| `03-contracts-wire.md` | Contracts + Wire (T4) | pending |
-| `04-persistence-sqlite.md` | Local SQLite persistence (T5) | pending |
+| `01-domain.md` | Domain layer (T2) | done |
+| `02-application.md` | Application layer (T3) | done |
+| `03-contracts-wire.md` | Contracts + Wire (T4) | done |
+| `04-persistence-sqlite.md` | Local SQLite persistence (T5) | done |
 | `05-infra-clientservices.md` | Infrastructure.Local + Client.Services (T6) | done |
 | `06-sync-system.md` | Sync system deep audit (T7) | done |
 | `07-server-auth.md` | Server host, auth & authorization (T8) | done |
 | `08-tenancy-isolation.md` | Multi-tenant provisioning + isolation (T9) | done |
-| `09-sales-accounting.md` | Sales + accounting system (T10) | pending |
-| `10-backup.md` | Backup system (T11) | pending |
-| `11-desktop-crosslayer.md` | Desktop UI/DI + cross-layer (T12) | pending |
-| `12-synthesis.md` | Cross-cutting synthesis + perf roll-up (T13) | pending |
+| `09-sales-accounting.md` | Sales + accounting system (T10) | done |
+| `10-backup.md` | Backup system (T11) | done |
+| `11-desktop-crosslayer.md` | Desktop UI/DI + cross-layer (T12) | done |
+| `12-synthesis.md` | Cross-cutting synthesis + perf roll-up (T13) | done |
 
 ## Prior-art docs to mine (cite + extend, don't re-run)
 
