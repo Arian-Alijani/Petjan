@@ -13,7 +13,10 @@ namespace Animora.Sync.Custom;
 /// </summary>
 public sealed class HttpStateSyncEngine : IStateSyncEngine
 {
-    private const int MaxStagedPages = 64;
+    // Staging is bounded by a record budget (memory), not by a fixed page count: every page of a batch advertised within
+    // ServerEndpointOptions.MaxBatchPages can be staged as long as the total staged records stay under this cap, so a retry
+    // never re-downloads verified tail pages of a normal batch (SYN-06).
+    private const int MaxStagedRecords = 250_000;
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
 
     private readonly SyncFeedClient _feed;
@@ -26,6 +29,7 @@ public sealed class HttpStateSyncEngine : IStateSyncEngine
     // Pages verified by a pull that failed part-way; a retry of the same (immutable) batch revalidates them with If-None-Match.
     private string? _stagedBatchId;
     private readonly Dictionary<int, SyncPage> _staged = [];
+    private int _stagedRecords;
 
     /// <summary>Creates the engine over its feed client, apply store, options and clock (optional <paramref name="timeProvider"/> for retry waits).</summary>
     public HttpStateSyncEngine(SyncFeedClient feed, ISyncApplyStore store, ServerEndpointOptions options, IClock clock, TimeProvider? timeProvider = null)
@@ -231,13 +235,25 @@ public sealed class HttpStateSyncEngine : IStateSyncEngine
     {
         if (_stagedBatchId != batchId) ClearStaged();
         _stagedBatchId = batchId;
-        if (_staged.Count < MaxStagedPages || _staged.ContainsKey(ordinal)) _staged[ordinal] = page;
+
+        if (_staged.TryGetValue(ordinal, out var previous))
+        {
+            _stagedRecords -= previous.Records.Count;
+            _staged.Remove(ordinal);
+        }
+
+        if (_staged.Count < _options.MaxBatchPages && _stagedRecords + page.Records.Count <= MaxStagedRecords)
+        {
+            _staged[ordinal] = page;
+            _stagedRecords += page.Records.Count;
+        }
     }
 
     private void ClearStaged()
     {
         _stagedBatchId = null;
         _staged.Clear();
+        _stagedRecords = 0;
     }
 
     private static async Task AbortQuietlyAsync(ISyncApplySession session)

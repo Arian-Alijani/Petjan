@@ -591,7 +591,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   the exact presentation site is ambiguous after a focused search, implement the rollup in the read-model/
   service layer (`Client.Services`) and document the UI binding point for follow-up.
 
-## [ ] T29 · SYN-06 — Align staging cap with max batch pages (Low, perf)
+## [x] T29 · SYN-06 — Align staging cap with max batch pages (Low, perf)
 - **File:** `src/Animora.Sync.Custom/HttpStateSyncEngine.cs` — `MaxStagedPages = 64`; `Stage()` only keeps a
   page if `_staged.Count < MaxStagedPages`; `DownloadAndApplyAsync` allows `batch.PageCount` up to
   `_options.MaxBatchPages`. If `MaxBatchPages > 64`, tail pages are re-downloaded on every retry.
@@ -650,5 +650,5 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T26 | SYN-05 | Med | [ ] |
 | T27 | SYN-04 | Med | [ ] |
 | T28 | SYN-03 | Med | [ ] |
-| T29 | SYN-06 | Low | [ ] |
+| T29 | SYN-06 | Low | [x] |
 | T30 | delete this file | — | [ ] |
