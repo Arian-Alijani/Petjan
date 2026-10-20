@@ -136,7 +136,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   lost or double-applied, exception swallowing. Cross-check `CommandTypes` count (86) vs registered
   handlers. Write findings. **Push.**
 
-- [ ] **T4 — Contracts + Wire consistency audit → `Plan/reports/03-contracts-wire.md`.**
+- [x] **T4 — Contracts + Wire consistency audit → `Plan/reports/03-contracts-wire.md`.** ✓ pushed
   Scope: `src/Animora.Contracts/**` + `src/Animora.Contracts.Wire/**`. Target audit class #5/#6.
   Verify Contracts references no `Animora.*` impl types. For each Wire DTO (CommandEnvelope,
   SettlementResult, error shapes) check it round-trips the server side (compare field-by-field with
