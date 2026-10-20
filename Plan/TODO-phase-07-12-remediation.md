@@ -512,7 +512,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Heavy-fix note:** touches login flow + options — push as
   `feat(server): configurable device-admission policy (default auto-approve) [AUTH-01]`.
 
-## [ ] T47 · AUTH-03 — Widen/prewarm the RBAC decision cache (Low, perf)
+## [x] T47 · AUTH-03 — Widen/prewarm the RBAC decision cache (Low, perf)
 - **File:** `src/Animora.Server/Authorization/{AuthzDecisionCache,MembershipResolver,CommandAuthorizer}.cs`.
 - **Problem:** on a decision-cache miss, every command does membership + role-definition DB reads on the hot
   path (bounded by the authz budget but repeated for high-command-rate tenants).

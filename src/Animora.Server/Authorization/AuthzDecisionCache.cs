@@ -17,6 +17,13 @@ namespace Animora.Server.Authorization;
 /// </para>
 /// Per-process by design (see the single-instance component list on <c>ReplayWindow</c>).
 /// <para>
+/// AUTH-03 (reviewed, no change needed): the membership verdict already carries the role + permission set and is
+/// cached per (user, device, security-stamp) with a short absolute TTL, so a (tenant, user)'s repeated commands inside
+/// the TTL cost zero membership/role-definition reads - only the first request after expiry hits the store. The TTL is
+/// deliberately kept at seconds (max 60, validated) so a role/permission change or revoke is never delayed noticeably;
+/// stamp rotation is an immediate miss and in-process mutations call <see cref="InvalidateUser"/>. Do NOT lengthen the TTL.
+/// </para>
+/// <para>
 /// MULTI-INSTANCE: <see cref="InvalidateUser"/>/<see cref="InvalidateTenant"/> mutate only the local process.
 /// For &gt;1 replica either set <c>Server:AuthCache:TtlSeconds=0</c> (every request re-reads the store — the
 /// documented escape hatch, at a latency cost) or back invalidation with a shared signal (PG LISTEN/NOTIFY,
