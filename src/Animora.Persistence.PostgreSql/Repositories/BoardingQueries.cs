@@ -2,6 +2,7 @@ using Animora.Application.Ports;
 using Animora.Application.Text;
 using Animora.Application.UseCases.Boarding.ReadModels;
 using Animora.Domain.Boarding;
+using Animora.Domain.Inventory;
 using Animora.Domain.Patients;
 using Animora.Persistence.PostgreSql.Context;
 using Animora.Persistence.PostgreSql.Boarding;
@@ -72,8 +73,20 @@ public sealed class BoardingQueries(AnimoraServerDbContext db) : IBoardingQuerie
             .Select(s => new BoardingSelectableReadModel(s.Id, s.Title, s.UnitPrice.Minor, "BoardingService"))
             .FirstOrDefaultAsync(ct).ConfigureAwait(false);
         if (boarding is not null) return boarding;
-        // Product/variant catalog storage is introduced by S10; absent data must never produce a guessed price.
-        return null;
+        // Mirror the client (offline) resolver exactly so a boarding item that the UI offered — a product
+        // or clinic service — settles on the server instead of being rejected NOT_FOUND. The sales catalog
+        // hands out VariantIds for variant-priced goods; resolve those first (price = v.SalePrice).
+        var byVariant = await (from p in db.Set<Product>().AsNoTracking()
+            where p.IsActive
+            from v in p.Variants
+            where v.VariantId == id && v.IsActive
+            select new BoardingSelectableReadModel(v.VariantId, p.Name, v.SalePrice.Minor,
+                p.Kind == ProductKind.Service ? "ClinicService" : "ClinicItem")).FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        if (byVariant is not null) return byVariant;
+        // Product-level id (variantless fallback rows).
+        return await db.Set<Product>().AsNoTracking().Where(p => p.Id == id && p.IsActive)
+            .Select(p => new BoardingSelectableReadModel(p.Id, p.Name, p.DefaultSalePrice.Minor,
+                p.Kind == ProductKind.Service ? "ClinicService" : "ClinicItem")).FirstOrDefaultAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<BoardingKnownPetReadModel>> GetKnownPetsAsync(string? search, CancellationToken ct)
