@@ -157,6 +157,18 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
         optionsBuilder.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
     }
 
+    /// <summary>
+    /// ISO-02 reviewed allowlist: vendor-global tables that carry a tenant key as a plain reference (not row-level tenant data) and are
+    /// mapped here only because the configurations are scanned from the assembly. They are queried exclusively via the operator context.
+    /// </summary>
+    private static readonly IReadOnlySet<Type> OperatorGlobalTenantBearing = new HashSet<Type>
+    {
+        typeof(Animora.Domain.Subscriptions.Subscription),
+        typeof(Animora.Persistence.PostgreSql.Licensing.LicenseGrant),
+        typeof(Animora.Persistence.PostgreSql.Subscriptions.ProvisioningLedger),
+        typeof(Animora.Persistence.PostgreSql.Operator.OperatorAudit),
+    };
+
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -201,8 +213,10 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
 
         // ISO-02: fail startup if any tenant-bearing entity (TenantId property) escaped both SyncableEntity and an explicit Tenant filter.
-        // Keep this LAST so every explicit per-entity filter above is already declared. The allowlist is empty on purpose: the keyless
-        // cross-tenant lookups (UserLookupEntry, TenantDirectory) live in their own separate contexts, never in this model.
-        ServerModelConventions.AssertTenantBearingEntitiesAreFiltered(modelBuilder);
+        // Keep this LAST so every explicit per-entity filter above is already declared. ApplyConfigurationsFromAssembly also maps the
+        // vendor-global operator tables into this model; they are reachable ONLY through AnimoraOperatorDbContext (no tenant filter by
+        // design: the operator console is the cross-tenant wall, ISO-03) — that reviewed exception list is OperatorGlobalTenantBearing.
+        // The keyless cross-tenant lookups (UserLookupEntry, TenantDirectory) live in their own separate contexts, never in this model.
+        ServerModelConventions.AssertTenantBearingEntitiesAreFiltered(modelBuilder, OperatorGlobalTenantBearing);
     }
 }
