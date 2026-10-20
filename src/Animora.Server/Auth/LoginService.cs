@@ -4,7 +4,9 @@ using Animora.Domain.Primitives;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
 using Animora.Persistence.PostgreSql.Identity;
+using Animora.Server.Hosting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace Animora.Server.Auth;
 
@@ -23,7 +25,8 @@ internal sealed class LoginService(
     ISecurityAuditWriter audit,
     IPasswordHasher<ServerIdentityUser> hasher,
     IAccessTokenIssuer accessTokens,
-    IClock clock)
+    IClock clock,
+    IOptions<ServerOptions>? serverOptions = null)
 {
     private const int MaxTenantCode = 32;
     private const int MaxUserName = 128;
@@ -32,6 +35,13 @@ internal sealed class LoginService(
     private const int MaxDeviceName = 128;
     private const int MaxPlatform = 64;
     private const int MaxRefreshToken = 512;
+
+    /// <summary>
+    /// AUTH-01: device-admission policy (<c>Server:DeviceAdmission</c>). <see cref="DeviceAdmissionPolicy.AutoApprove"/>
+    /// (default, historical behaviour) activates any new installation on a valid credential;
+    /// <see cref="DeviceAdmissionPolicy.RequireApproval"/> registers it <c>Pending</c> until a manager approves it.
+    /// </summary>
+    private bool AutoApproveDevices => (serverOptions?.Value.DeviceAdmission ?? DeviceAdmissionPolicy.AutoApprove) == DeviceAdmissionPolicy.AutoApprove;
 
     // BUG-BURN-01: the dummy hash is computed exactly once (LazyInitializer takes the lock for the factory), so
     // concurrent first misses cannot each spend a hash computation on initialization.
@@ -128,11 +138,14 @@ internal sealed class LoginService(
         bool deviceIsNew = device is null;
         if (device is null)
         {
-            // Unknown installation: bind it. All devices are approved automatically — the manual manager
-            // approval step was removed so a freshly created user can sign in immediately. Revoke/Reinstate
-            // remain available to cut off a lost or stolen device.
+            // Unknown installation: bind it. Under the default AutoApprove policy (AUTH-01) the device is approved
+            // immediately so a freshly created user can sign in; under RequireApproval it stays Pending until a
+            // manager approves it. Revoke/Reinstate remain available to cut off a lost or stolen device.
             Device candidate = Device.Register(tenant.Id, user.Id, "Unnamed device", installationHash, "unknown", clock);
-            candidate.Approve();
+            if (AutoApproveDevices)
+            {
+                candidate.Approve();
+            }
 
             // Idempotent on (user, installation): two concurrent first logins converge on ONE row (the loser
             // adopts the winner's device) instead of duplicating it or failing on the unique index with a 500.
@@ -149,6 +162,14 @@ internal sealed class LoginService(
                 await AuditAsync(tenant.Id, SecurityAuditActions.DeviceRevokedContact, correlationId, user.Id, device.Id, "device_revoked", ct).ConfigureAwait(false);
                 return Failure<LoginResponse>(ErrorCodes.DeviceRevoked);
             }
+        }
+
+        // AUTH-01: under RequireApproval an unapproved installation never receives a session. (AutoApprove keeps the
+        // historical behaviour: a Pending device left by an earlier release still signs in and self-heals on register.)
+        if (device.Status == DeviceStatus.Pending && !AutoApproveDevices)
+        {
+            await AuditAsync(tenant.Id, SecurityAuditActions.LoginFailure, correlationId, user.Id, device.Id, "device_pending_approval", ct).ConfigureAwait(false);
+            return Failure<LoginResponse>(ErrorCodes.DevicePendingApproval);
         }
 
         user.RegisterSuccessfulLogin(clock);
@@ -286,7 +307,7 @@ internal sealed class LoginService(
         return await AuditAsync(caller.TenantId, SecurityAuditActions.Logout, correlationId, caller.UserId, caller.DeviceId, null, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Registers (or re-reads) the caller's device installation; every device is approved automatically.</summary>
+    /// <summary>Registers (or re-reads) the caller's device installation; approved automatically unless <c>Server:DeviceAdmission</c> = RequireApproval (AUTH-01).</summary>
     public async Task<Result<DeviceRegisterResponse>> RegisterDeviceAsync(
         AuthenticatedCaller caller,
         DeviceRegisterRequest? request,
@@ -317,8 +338,8 @@ internal sealed class LoginService(
             return Failure<DeviceRegisterResponse>(ErrorCodes.DeviceRevoked);
         }
 
-        // Every device is auto-approved (manual manager approval was removed). This also self-heals a device
-        // left Pending by an earlier release so its user is no longer blocked from signing in.
+        // Under the default AutoApprove policy (AUTH-01) every device is approved here; this also self-heals a device
+        // left Pending by an earlier release. Under RequireApproval the device stays Pending for a manager to approve.
         if (existing is not null)
         {
             // The first contact for this installation is login, which can only store placeholder metadata
@@ -326,7 +347,7 @@ internal sealed class LoginService(
             // authenticated register call so the manager's device roster shows the real machine and platform.
             bool described = existing.DescribeInstallation(request.DeviceName, request.Platform.Trim());
             bool autoApproved = false;
-            if (existing.Status == DeviceStatus.Pending)
+            if (existing.Status == DeviceStatus.Pending && AutoApproveDevices)
             {
                 existing.Approve();
                 autoApproved = true;
@@ -353,7 +374,10 @@ internal sealed class LoginService(
         }
 
         Device device = Device.Register(caller.TenantId, caller.UserId, request.DeviceName, installationHash, request.Platform.Trim(), clock);
-        device.Approve();
+        if (AutoApproveDevices)
+        {
+            device.Approve();
+        }
 
         repository.AddDevice(device);
 

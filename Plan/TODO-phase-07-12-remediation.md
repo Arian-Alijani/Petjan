@@ -484,7 +484,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 > locked policy bans full builds / long test runs. Record it as a known residual risk in the commit for any
 > adjacent auth change; do not attempt to build/smoke those phases here.
 
-## [ ] T42 · AUTH-01 — Make device admission a policy flag (default keep current) (Medium, provisioning)
+## [x] T42 · AUTH-01 — Make device admission a policy flag (default keep current) (Medium, provisioning)
 - **File:** `src/Animora.Server/Auth/LoginService.cs` — `LoginAsync` (l.131–135) and the device
   register/approve path (l.289–355):
   ```csharp

@@ -55,6 +55,23 @@ internal sealed class ServerOptions
 
     /// <summary>Health-probe caching (BUG-HEALTH-01).</summary>
     public HealthSettings Health { get; set; } = new();
+
+    /// <summary>
+    /// AUTH-01: device-admission policy. Default <see cref="DeviceAdmissionPolicy.AutoApprove"/> (a valid credential
+    /// activates a new device immediately); <see cref="DeviceAdmissionPolicy.RequireApproval"/> leaves a new device
+    /// <c>Pending</c> until a manager approves it (stronger defence against credential stuffing / shared credentials).
+    /// </summary>
+    public DeviceAdmissionPolicy DeviceAdmission { get; set; } = DeviceAdmissionPolicy.AutoApprove;
+}
+
+/// <summary>AUTH-01: how a previously unseen installation is admitted on first sign-in.</summary>
+internal enum DeviceAdmissionPolicy
+{
+    /// <summary>New devices are approved on registration (historical behaviour, default).</summary>
+    AutoApprove = 0,
+
+    /// <summary>New devices stay <c>Pending</c>; sign-in reports <c>DEVICE_PENDING_APPROVAL</c> until a manager approves.</summary>
+    RequireApproval = 1,
 }
 
 /// <summary>Where TLS terminates (SEC-HSTS-01).</summary>
