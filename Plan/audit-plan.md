@@ -224,8 +224,8 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   backup of per-tenant data vs cross-tenant bleak in a shared backup, auth on backup endpoints, failure
   handling, PII in backups. Latent: backup growth, orphaned backups. Write findings. **Push.**
 
-- [ ] **T12 — Desktop UI/DI + cross-layer consistency audit → `Plan/reports/11-desktop-crosslayer.md`
-      (audit target #5).**
+- [x] **T12 — Desktop UI/DI + cross-layer consistency audit → `Plan/reports/11-desktop-crosslayer.md`
+      (audit target #5).** ✓ pushed
   Scope: `src/Animora.Desktop/{App.axaml.cs (DI root),Shell,Services,Pages (spot-check),Controls,Localization}`
   + the Statistics module (new, uncovered by AGENTS.md). Hunt: DI lifetime mistakes (singleton holding
   scoped, captured DbContext), ViewModels touching EF/SQL/concrete services (rule violation), blocking
