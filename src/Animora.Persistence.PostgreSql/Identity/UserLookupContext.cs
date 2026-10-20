@@ -27,7 +27,7 @@ public sealed class UserLookupEntry(string id, string tenantId, string securityS
 }
 
 /// <summary>
-/// Resolves a user from its <b>primary key only</b>, before any tenant is bound (S05). Like
+/// Resolves a user from its <b>primary key only</b>, before any tenant is bound (S05; ISO-01 — see <see cref="UserLookupContext"/>). Like
 /// <see cref="TenantDirectoryContext"/> it is a separate keyless, never-migrated context rather than an
 /// <c>IgnoreQueryFilters()</c> call on the main context (banned by the S02 interceptor). It can only ever
 /// return the single row addressed by id — there is no list/enumerate surface — so a caller cannot probe
@@ -35,11 +35,22 @@ public sealed class UserLookupEntry(string id, string tenantId, string securityS
 /// </summary>
 public interface IUserLookup
 {
-    /// <summary>Finds the user by id; <see langword="null"/> when absent.</summary>
+    /// <summary>
+    /// Finds the user by ULID id; <see langword="null"/> when absent. ISO-01: the ONLY lookup key is the unguessable ULID id; the
+    /// result's <c>TenantId</c> is for binding the tenant context only.
+    /// </summary>
     Task<UserLookupEntry?> FindByIdAsync(string userId, CancellationToken ct = default);
 }
 
-/// <summary>Keyless read context over <c>public."Users"</c> with no tenant query filter.</summary>
+/// <summary>
+/// Keyless read context over <c>public."Users"</c> with no tenant query filter.
+/// <para><b>ISO-01 invariant — read before touching this type.</b> This is the ONE deliberately tenant-filter-free read in the
+/// server: it exists so token validation can resolve a user's stored tenant BEFORE any tenant is bound. It is keyless, tenant-filter-free
+/// <i>by design</i> and therefore MUST be queried only by unguessable ULID primary key (<see cref="IUserLookup.FindByIdAsync"/>), and the
+/// returned <see cref="UserLookupEntry.TenantId"/> may be used only to <c>Bind</c> the request's tenant context — never returned to, nor
+/// selected by, untrusted caller input. Do NOT add a by-name / by-email / list / search member here or expose the entry to a caller:
+/// any widening becomes a cross-tenant disclosure. The contract surface is intentionally a single by-id method.</para>
+/// </summary>
 public sealed class UserLookupContext(DbContextOptions<UserLookupContext> options) : DbContext(options)
 {
     /// <summary>Keyless projection of users.</summary>

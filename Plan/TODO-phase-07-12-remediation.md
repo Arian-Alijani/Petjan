@@ -437,7 +437,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
   explicit message; the current model (all tenant tables already `SyncableEntity`, plus the allowlisted
   keyless lookups) builds unchanged. Reason by inspecting the model types; no migration.
 
-## [ ] T43 · ISO-01 — Harden + document the one keyless cross-tenant read (Low, isolation seam)
+## [x] T43 · ISO-01 — Harden + document the one keyless cross-tenant read (Low, isolation seam)
 - **File:** `src/Animora.Persistence.PostgreSql/Identity/UserLookupContext.cs` —
   `context.Users.AsNoTracking().Where(u => u.Id == userId).FirstOrDefaultAsync(ct)` over `public."Users"`
   with **no** tenant filter (deliberate pre-binding seam).
