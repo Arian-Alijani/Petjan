@@ -122,7 +122,7 @@ public partial class App : global::Avalonia.Application
             _hiddenStartPending = Program.IsStartupLaunch;
 
             // Startup gate: show the sign-in window first. Once credentials are
-            // accepted, swap in the main shell (resolved lazily so no page/mock
+            // accepted, swap in the main shell (resolved lazily so no page
             // is built until the user is in). The shell then owns the app
             // lifetime and the login window is closed.
             var login = CreateLoginWindow(desktop);
@@ -453,7 +453,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<ReceptionPageViewModel>();
 
         // Phase 08 / C01: Patients & Owners directory now runs on the real local SQLite store through the
-        // C01 use cases (PatientsService) instead of the in-memory mock. Singleton: it resolves the scoped
+        // C01 use cases (PatientsService); no mock remains. Singleton: it resolves the scoped
         // dispatcher + identity provider from a fresh async scope per operation, never capturing them.
         services.AddSingleton<IPatientsQueryService, PatientsService>();
         services.AddSingleton<PatientsPageViewModel>();
@@ -484,9 +484,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IVaccinationService, VaccinationService>();
         services.AddSingleton<VaccinationPageViewModel>();
 
-        // Phase 13/14: Appointments calendar + booking panel. One shared
-        // in-memory event store backs both mocks (the calendar sees events the
-        // panel creates/edits), so it is a singleton — as are both services.
+        // Phase 13/14: Appointments calendar + booking panel. Real query/booking services over the local backend
+        // (scope-per-call, stateless); the calendar re-reads after the panel's writes via the data-change notifier.
         // Clinic-editable appointment preferences (custom types, calendar mode, SMS) — local JSON, singleton cache.
         // A17: settings are read/written through authorized Application use cases over this durable store port.
         services.AddSingleton<Animora.Application.Ports.IAppointmentSettingsStore, AppointmentSettingsFileStore>();
@@ -511,8 +510,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IBoardingQueryService, BoardingQueryService>();
         services.AddSingleton<BoardingPageViewModel>();
 
-        // Phase 17: Inventory product list & settings. Stateless deterministic
-        // mock, so a singleton suffices.
+        // Phase 17: Inventory product list & settings. Real InventoryQueryService over the local backend
+        // (scope-per-call, stateless — the singleton holds no data).
         services.AddSingleton<IInventoryQueryService, InventoryQueryService>();
         services.AddSingleton<Animora.Contracts.Purchasing.IPurchasingService, Animora.Client.Services.Purchasing.PurchasingService>();
         services.AddSingleton<InventoryPageViewModel>();
@@ -526,14 +525,13 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<IServiceRateService, ServiceRateService>();
         services.AddSingleton<SalePageViewModel>();
 
-        // Phase 22: Cashier (invoice & payment management). Stateful in-memory
-        // mock (pay/void/refund/edit mutate invoices), so a singleton preserves
-        // mutations while navigating.
+        // Phase 22: Cashier (invoice & payment management). Real CashierService over the local backend
+        // (scope-per-call, stateless — pay/void/refund/edit persist through the dispatcher; the singleton holds no data).
         services.AddSingleton<ICashierService, CashierService>();
         services.AddSingleton<CashierPageViewModel>();
 
-        // Phase 27: History — unified event ledger. Self-contained synthetic
-        // mock (a singleton is sufficient; its data is static).
+        // Phase 27: History — unified event ledger. Real HistoryQueryService over the local backend
+        // (read-only, scope-per-call, stateless).
         services.AddSingleton<IHistoryQueryService, Animora.Client.Services.History.HistoryQueryService>();
         services.AddSingleton<HistoryPageViewModel>();
 
@@ -545,10 +543,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsExpensesViewModel>();
         services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsPageViewModel>();
 
-        // Phase 28: Profile & Settings screen. The mock persists edits
-        // in-memory only for the session (mirroring the reference's explicit
-        // "settings live in memory only" design), so a singleton preserves
-        // edits while navigating away and back.
+        // Phase 28: Profile & Settings screen. Real UserProfileService over the local backend
+        // (scope-per-call, stateless — edits persist through the use cases; the singleton holds no data).
         services.AddSingleton<IUserProfileService, Animora.Client.Services.Profile.UserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
 

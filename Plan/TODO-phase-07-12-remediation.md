@@ -621,7 +621,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Acceptance:** re-requesting a parented VM's View no longer rebuilds XAML every time (either reparented or
   the rebuild is cached); the normal single-host navigation path is unchanged. Visual correctness preserved.
 
-## [ ] T54 · UI-05 — Correct stale "mock" comments in the composition root (Low, doc inconsistency)
+## [x] T54 · UI-05 — Correct stale "mock" comments in the composition root (Low, doc inconsistency)
 - **File:** `src/Animora.Desktop/App.axaml.cs` `ConfigureServices` — comments still call real services
   "mock"/"in-memory": l.453 ("instead of the in-memory mock"), l.485, l.512, l.527 ("so a singleton
   preserves mutations"), l.533, l.545 ("Profile … mock persists edits in-memory only") — while the
