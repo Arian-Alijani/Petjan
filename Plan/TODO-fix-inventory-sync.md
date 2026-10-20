@@ -189,7 +189,16 @@ PostInvoice/AddInvoiceLine استفاده می‌شوند). نیازی به ثب
 - چون هندلرِ Application مشترک است، همین کسر روی **سرور** هم اجرا می‌شود (دستور BoardingItemAdd در سرور هم همین
   هندلر را دارد) → سازگاری کلاینت/سرور حفظ می‌شود.
 
-**وضعیت:** [ ] انجام نشده
+**وضعیت:** [x] انجام شد —
+- `AddStayItemCommandHandler`: وابستگی‌های `ISalesDraftData, IInventoryQueries, IStockMovementRepository` اضافه؛
+  برای کالای محصولیِ دنبال‌شونده gate موجودی + حرکتِ `Consumption` منفی با id قطعی (ordinal=1) پس از موفقیت AddItem.
+- `RemoveStayItemCommandHandler`: وابستگی‌های `ISalesDraftData, IStockMovementRepository, IClock`؛ حرکتِ برگشتی
+  `ReturnIn` مثبت برای بازگرداندن موجودی.
+- `PostInvoiceCommand`: در هر دو حلقه (preflight + ساخت movement) خطوط `InvoiceLineSource.Stay` رد می‌شوند تا کسر دوباره نشود.
+- `ServerFinancialConcurrencyGuard`: قفل `stock:{product}:{variant}` برای `AddStayItemCommand` (resolve از `Product.Variants`)؛
+  Remove با قفل aggregate خودِ stay سریالایز می‌شود؛ خطوط Stay در لیست قفلِ PostInvoice هم مستثنا شدند.
+- سینک: id قطعی حرکت‌ها → رپلیکیت از مسیر command journal مثل POST؛ هندلر مشترک روی سرور هم اجرا می‌شود.
+- (بیلد محلی: SDK نصب نیست؛ طبق قانونِ منع بیلد طولانی، صحت با بازبینی دقیق امضاها + چک توازن بریس تأیید شد.)
 **پوش بعد از اتمام:** `scripts/git/push.sh "feat(boarding): consume warehouse stock on add-item (gate+movement), restore on remove, skip double-decrement at post"`
 
 ---
