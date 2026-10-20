@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage;
 
+// EF1003 suppressed deliberately: SET CONSTRAINTS cannot take bind parameters (identifiers), and _constraints
+// is built ONLY from trigger/constraint names derived from the EF model metadata - never from user input.
+#pragma warning disable EF1003
+
 namespace Animora.Persistence.PostgreSql.Replication;
 
 /// <summary>
