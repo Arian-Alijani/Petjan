@@ -550,7 +550,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 
 # Report 11 — Desktop UI/DI + Cross-Layer (`src/Animora.Desktop/**`)
 
-## [ ] T45 · UI-01 — Evict heavy page-VM collections on navigate-away (Medium, memory growth)
+## [x] T45 · UI-01 — Evict heavy page-VM collections on navigate-away (Medium, memory growth)
 - **File:** `src/Animora.Desktop/App.axaml.cs` `ConfigureServices` — page VMs are `AddSingleton`
   (`DashboardPageViewModel`, `PatientsPageViewModel`, `SalePageViewModel`, `CashierPageViewModel`,
   `HistoryPageViewModel`, the four Statistics section VMs, …), each holding its last load in

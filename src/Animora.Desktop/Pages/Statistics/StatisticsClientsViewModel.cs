@@ -95,6 +95,13 @@ public sealed partial class StatisticsClientsViewModel(IStatisticsQueryService s
         });
     }
 
+    // UI-01: free the per-visit lists when the singleton page is left; the next visit re-queries.
+    protected override void ReleaseHeavyData()
+    {
+        Species.Clear();
+        TopClients.Clear();
+    }
+
     private void PublishStats(ClientStats stats)
     {
         TotalOwners = StatisticsFormat.Count(stats.TotalOwners);

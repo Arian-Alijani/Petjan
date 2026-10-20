@@ -138,7 +138,13 @@ public sealed partial class StatisticsPageViewModel : PageViewModelBase
         if (!IsLoadInFlight) _ = ReloadAsync(force: false);
     }
 
-    public override void OnNavigatedFrom() => CancelPending();
+    // UI-01: leaving the page cancels any load and evicts the heavy section collections (expense ledger pages, client /
+    // product lists); OnNavigatedTo reloads the visible section, the others reload lazily when opened.
+    public override void OnNavigatedFrom()
+    {
+        CancelPending();
+        foreach (var section in _sections.Values) section.Evict();
+    }
 
     /// <summary>Applies a new window; sections other than the visible one reload lazily when opened.</summary>
     public void SetRange(StatisticsRange range)

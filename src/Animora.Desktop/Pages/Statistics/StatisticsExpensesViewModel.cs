@@ -129,6 +129,19 @@ public sealed partial class StatisticsExpensesViewModel : StatisticsSectionViewM
         });
     }
 
+    // UI-01: the ledger appends pages via «بیشتر»; drop the accumulated rows + paging state when the page is left.
+    protected override void ReleaseHeavyData()
+    {
+        _listVersion++; // an in-flight list fetch must not repopulate the released rows
+        Rows.Clear();
+        Categories.Clear();
+        Recurring.Clear();
+        _page = 0;
+        HasMore = false;
+        HasRows = false;
+        IsListLoading = false;
+    }
+
     private void PublishStats(ExpenseStats stats)
     {
         Total = StatisticsFormat.Money(stats.TotalMinor);

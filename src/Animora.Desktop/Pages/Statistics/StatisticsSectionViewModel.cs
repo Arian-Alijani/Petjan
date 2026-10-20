@@ -56,6 +56,23 @@ public abstract partial class StatisticsSectionViewModel : ObservableObject
     public void Invalidate() => _loadedKey = null;
 
     /// <summary>
+    /// UI-01: releases the section's large per-visit collections when the singleton page is left, and forgets the loaded
+    /// range so the next visit re-queries page 1 (<see cref="HasData"/> drops so the loading placeholder shows, not an
+    /// empty body). Light sections keep the default no-op <see cref="ReleaseHeavyData"/> and stay warm.
+    /// </summary>
+    public void Evict()
+    {
+        _loadedKey = null;
+        HasData = false;
+        ReleaseHeavyData();
+    }
+
+    /// <summary>Clears the big collections / paging state of this section. Default: nothing (cheap section stays warm).</summary>
+    protected virtual void ReleaseHeavyData()
+    {
+    }
+
+    /// <summary>
     /// Loads the section for <paramref name="range"/>. Returns <see langword="true"/> on success (or when already current
     /// and not <paramref name="force"/>d), <see langword="false"/> when the failure was reported via <see cref="ErrorMessage"/>.
     /// </summary>

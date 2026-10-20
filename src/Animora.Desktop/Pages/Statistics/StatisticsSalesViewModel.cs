@@ -85,6 +85,13 @@ public sealed partial class StatisticsSalesViewModel(IStatisticsQueryService ser
         });
     }
 
+    // UI-01: free the per-visit lists when the singleton page is left; the next visit re-queries.
+    protected override void ReleaseHeavyData()
+    {
+        Products.Clear();
+        SourceBars.Clear();
+    }
+
     private void PublishSales(IReadOnlyList<StatisticsSeriesPoint> series)
     {
         var monthly = StatisticsFormat.IsMonthly(series);
