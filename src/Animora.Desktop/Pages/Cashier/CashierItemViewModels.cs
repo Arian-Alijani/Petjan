@@ -277,14 +277,25 @@ public sealed class CashierCatalogOptionViewModel
     {
         Id = item.Id;
         IsOutOfStock = item.IsOutOfStock;
+        TracksStock = item.TracksStock;
+        AvailableUnits = item.AvailableUnits;
+        Title = item.Title;
         Label = $"{CashierPresentation.LineKindLabel(item.Kind)} · {item.Title} · {CashierPresentation.Money(item.Price)}";
     }
 
     public string Id { get; }
 
+    public string Title { get; }
+
     public string Label { get; }
 
     public bool IsOutOfStock { get; }
+
+    /// <summary>True when this option's stock is tracked, so adds must be capped at <see cref="AvailableUnits"/>.</summary>
+    public bool TracksStock { get; }
+
+    /// <summary>Whole units on hand for stock-tracked goods; <see cref="int.MaxValue"/> for unlimited (services/untracked).</summary>
+    public int AvailableUnits { get; }
 }
 
 /// <summary>One option of the insurance select (mirrors <c>C().INSURERS</c>).</summary>

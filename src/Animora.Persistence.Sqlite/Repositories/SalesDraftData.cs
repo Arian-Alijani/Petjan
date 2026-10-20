@@ -43,7 +43,15 @@ public sealed class SalesDraftData(AnimoraLocalDbContext db) : ISalesDraftData
                 p.Kind == ProductKind.Service ? null : p.Id,
                 p.Kind == ProductKind.Service ? null : v.VariantId,
                 p.Name, p.Kind == ProductKind.Service ? InvoiceLineKind.Service : InvoiceLineKind.Product,
-                v.SalePrice.Minor, p.UnitCode)).FirstOrDefaultAsync(ct);
+                v.SalePrice.Minor, p.UnitCode,
+                // Only a non-service, stock-tracked product carries a stock cap; its on-hand is the
+                // variant's snapshot figure (same source the catalog picker shows).
+                p.TrackStock && p.Kind != ProductKind.Service,
+                p.TrackStock && p.Kind != ProductKind.Service
+                    ? (db.Set<StockOnHandSnapshot>()
+                        .Where(s => s.ProductId == p.Id && s.VariantId == v.VariantId)
+                        .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L)
+                    : 0L)).FirstOrDefaultAsync(ct);
         if (product is not null) return product;
         // Product-level fallback: an active product with no active variant is sold at its default price
         // (mirrors the catalog's variant-less rows). No variant means no stock movement is posted for it.

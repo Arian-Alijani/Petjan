@@ -13,4 +13,5 @@ public interface ISalesDraftData
 public sealed record SalesHandoff(string SourceId, string OwnerId, string PetId, string LinesJson,
     bool AlreadyInvoiced, bool IsReady);
 public sealed record SalesCatalogEntry(string Id, string? ProductId, string? VariantId,
-    string Title, InvoiceLineKind Kind, long PriceMinor, string UnitCode);
+    string Title, InvoiceLineKind Kind, long PriceMinor, string UnitCode,
+    bool TrackStock = false, long OnHandScaled = 0);
