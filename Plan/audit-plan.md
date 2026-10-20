@@ -119,7 +119,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   `pending`). Copy the "Ground truth" essentials into `00-INDEX.md` so each report is navigable
   standalone. No code audit yet. **Push.**
 
-- [ ] **T2 — Domain layer audit → `Plan/reports/01-domain.md`.**
+- [x] **T2 — Domain layer audit → `Plan/reports/01-domain.md`.** ✓ pushed
   Scope: `src/Animora.Domain/**` only. Verify the "zero project references" invariant actually holds
   (inspect `Animora.Domain.csproj`). Audit aggregates/VOs for: invariant enforcement gaps, money as
   integer-minor vs float/decimal drift, mutable collections leaking, `DateTime` vs `DateTimeOffset`
