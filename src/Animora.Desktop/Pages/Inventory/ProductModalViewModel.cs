@@ -677,6 +677,31 @@ public sealed partial class ProductModalViewModel : ObservableObject
 
     [RelayCommand]
     private void Cancel() => _dialogs.Close();
+
+    /// <summary>
+    /// Opens the «تغییر موجودی» (stock-adjust) modal for this product so the quantity can be raised or
+    /// lowered through a reasoned stock movement — the on-hand field in this modal is intentionally
+    /// read-only (on-hand is never hand-edited; it only moves via purchases, sales or audited
+    /// adjustments, P0-2). The single modal host replaces this modal with the adjust modal; once the
+    /// movement commits we reopen the product modal reloaded so the new stock shows, and bubble the
+    /// change to the inventory list.
+    /// </summary>
+    [RelayCommand]
+    private void OpenStockAdjust()
+    {
+        // The command is only reachable once the detail (and therefore _product) has loaded, but guard the
+        // id anyway so a mid-load click is a no-op rather than opening an adjust modal for an empty product.
+        var productId = _product?.Id;
+        if (string.IsNullOrEmpty(productId)) return;
+        _dialogs.ShowModal(
+            new StockAdjustModalViewModel(_service, _toast, _dialogs, productId, () =>
+            {
+                // Return to the product detail modal with refreshed on-hand, and refresh the list behind it.
+                _dialogs.ShowModal(new ProductModalViewModel(_service, _toast, _dialogs, productId, _onChanged), 640);
+                _onChanged?.Invoke();
+            }),
+            480);
+    }
 }
 
 /// <summary>

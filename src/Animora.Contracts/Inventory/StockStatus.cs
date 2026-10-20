@@ -29,20 +29,34 @@ public static class StockStatus
     /// <summary>True when the variant's on-hand is at or below its reorder point.</summary>
     public static bool IsLow(ProductVariant variant) => IsLow(variant.Stock, variant.ReorderPoint);
 
+    /// <summary>True when the variant is actually depleted (zero on-hand), regardless of its reorder point.</summary>
+    public static bool IsDepleted(ProductVariant variant) => variant.Stock <= 0;
+
     /// <summary>
-    /// The product's aggregate status: all variants low → <see cref="StockStatusKind.Out"/>;
-    /// some → <see cref="StockStatusKind.Low"/>; none → <see cref="StockStatusKind.Ok"/>.
+    /// The product's aggregate status. «اتمام»/<see cref="StockStatusKind.Out"/> is reserved for a real
+    /// depletion — every variant has zero on-hand — so a product that still holds stock is never flagged as
+    /// finished. When stock remains but any variant is at/below its reorder point the product reads as
+    /// <see cref="StockStatusKind.Low"/> («هشدار»); otherwise <see cref="StockStatusKind.Ok"/>.
     /// A product without variants reads as <see cref="StockStatusKind.Out"/>.
     /// </summary>
     public static StockStatusKind Of(IReadOnlyList<ProductVariant> variants)
     {
         if (variants.Count == 0) return StockStatusKind.Out;
+
+        var depleted = 0;
         var low = 0;
         for (var i = 0; i < variants.Count; i++)
         {
+            if (IsDepleted(variants[i])) depleted++;
             if (IsLow(variants[i])) low++;
         }
-        return low == variants.Count ? StockStatusKind.Out : low > 0 ? StockStatusKind.Low : StockStatusKind.Ok;
+
+        // Only a product whose every variant is truly out of stock is «اتمام».
+        if (depleted == variants.Count) return StockStatusKind.Out;
+
+        // Stock still exists somewhere: a reorder-point breach (or a partially depleted variant) is a warning,
+        // not an out-of-stock state.
+        return low > 0 ? StockStatusKind.Low : StockStatusKind.Ok;
     }
 
     /// <summary>The presentation key (<c>ok</c> / <c>low</c> / <c>out</c>) the inventory palette switches on.</summary>

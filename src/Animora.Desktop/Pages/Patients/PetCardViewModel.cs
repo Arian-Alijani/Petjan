@@ -61,7 +61,11 @@ public sealed class PetCardViewModel
         // Owners table "واکسن" column uses the pet's vaccine presence.
         HasVaccines = pet.HasVaccines;
 
-        OwnerName = owner is null ? "—" : $"{owner.FirstName} {owner.LastName}";
+        // Prefer the joined owner record when present (owner sheet / add-pet flows pass it); the
+        // directory pets list passes owner: null and relies on the SQL-projected pet.OwnerName.
+        OwnerName = owner is not null
+            ? $"{owner.FirstName} {owner.LastName}"
+            : string.IsNullOrWhiteSpace(pet.OwnerName) ? "—" : pet.OwnerName!;
         OwnerMobile = owner?.Mobile1 ?? "—";
         OwnerInitials = owner is null
             ? "؟"
