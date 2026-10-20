@@ -455,20 +455,20 @@
                     <Border CornerRadius="14" Padding="16,14">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                <GradientStop Offset="0" Color="#0f766e" />
-                                <GradientStop Offset="1" Color="#14b8a6" />
+                                <GradientStop Offset="0" Color="#3a56d4" />
+                                <GradientStop Offset="1" Color="#5b7cfa" />
                             </LinearGradientBrush>
                         </Border.Background>
                         <StackPanel Spacing="4">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Text="آمادهٔ چاپ" FontSize="11.5" Foreground="#d9fffa" FontWeight="Bold" />
+                                <TextBlock Text="آمادهٔ چاپ" FontSize="11.5" Foreground="#dbe4fe" FontWeight="Bold" />
                                 <controls:LoadingSpinner Grid.Column="1" Width="16" Height="16" IsVisible="{Binding IsLoading}" />
                             </Grid>
                             <TextBlock Text="{Binding SummaryMain}" FontSize="26" FontWeight="ExtraBold" Foreground="White" />
-                            <TextBlock Text="{Binding SummarySub}" FontSize="11.5" Foreground="#e6fffb" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding SummarySub}" FontSize="11.5" Foreground="#eef2fe" TextWrapping="Wrap" />
                             <Border Height="1" Background="#33ffffff" Margin="0,6" />
                             <TextBlock Text="{Binding RangeText}" FontSize="11.5" Foreground="White" TextWrapping="Wrap" FontWeight="Bold" />
-                            <TextBlock Text="{Binding PaperSummary}" FontSize="11" Foreground="#d9fffa" />
+                            <TextBlock Text="{Binding PaperSummary}" FontSize="11" Foreground="#dbe4fe" />
                         </StackPanel>
                     </Border>
 

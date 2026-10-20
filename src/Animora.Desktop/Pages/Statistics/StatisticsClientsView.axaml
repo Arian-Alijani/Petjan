@@ -91,7 +91,7 @@
                                 <controls:SegmentedBar Height="14" Segments="{Binding SplitSegments}" />
                                 <Grid ColumnDefinitions="*,*">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Ellipse Width="9" Height="9" Fill="#0d9488" VerticalAlignment="Center" />
+                                        <Ellipse Width="9" Height="9" Fill="#4a6cf7" VerticalAlignment="Center" />
                                         <TextBlock FontSize="12" Foreground="{StaticResource Ink2Brush}">
                                             <Run Text="تکراری:" /> <Run Text="{Binding ReturningOwners}" FontWeight="Bold" />
                                             <Run Text="{Binding ReturningShare}" />

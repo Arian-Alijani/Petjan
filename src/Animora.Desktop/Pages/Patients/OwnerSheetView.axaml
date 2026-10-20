@@ -135,9 +135,9 @@
                     <Border.Background>
                         <RadialGradientBrush Center="88%,-30%" GradientOrigin="88%,-30%"
                                              RadiusX="130%" RadiusY="150%">
-                            <GradientStop Color="#14b8a6" Offset="0" />
-                            <GradientStop Color="#104a43" Offset="0.55" />
-                            <GradientStop Color="#0c3631" Offset="1" />
+                            <GradientStop Color="#5b7cfa" Offset="0" />
+                            <GradientStop Color="#233072" Offset="0.55" />
+                            <GradientStop Color="#1b2559" Offset="1" />
                         </RadialGradientBrush>
                     </Border.Background>
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="18">
@@ -150,34 +150,34 @@
                         <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Name}" FontSize="27" FontWeight="ExtraBold"
                                        Foreground="White" />
-                            <TextBlock Text="{Binding FileText}" FontSize="12" Foreground="#a9ccc6" />
+                            <TextBlock Text="{Binding FileText}" FontSize="12" Foreground="#aab8e8" />
                             <StackPanel Orientation="Horizontal" Spacing="7" Margin="0,11,0,0">
                                 <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
                                         BorderBrush="#24FFFFFF" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#dbe4fe"
                                               Data="{StaticResource IconUser}" />
                                         <TextBlock Text="{Binding GenderLabel}" FontSize="11.5"
-                                                   FontWeight="SemiBold" Foreground="#eaf6f3" />
+                                                   FontWeight="SemiBold" Foreground="#dbe4fe" />
                                     </StackPanel>
                                 </Border>
                                 <Border CornerRadius="20" Padding="11,5" Background="#1CFFFFFF"
                                         BorderBrush="#24FFFFFF" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="14" Height="14" Stroke="#eaf6f3"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#dbe4fe"
                                               Data="{StaticResource IconHistory}" />
                                         <TextBlock Text="{Binding SinceText}" FontSize="11.5"
-                                                   FontWeight="SemiBold" Foreground="#eaf6f3" />
+                                                   FontWeight="SemiBold" Foreground="#dbe4fe" />
                                     </StackPanel>
                                 </Border>
                                 <Border CornerRadius="20" Padding="11,5"
-                                        Background="#2E88D6AB" BorderBrush="#4C58D6AB" BorderThickness="1"
+                                        Background="#2E8AA2FB" BorderBrush="#4C5B7CFA" BorderThickness="1"
                                         IsVisible="{Binding IsEditing}">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <Path Classes="icon" Width="14" Height="14" Stroke="#c9f4e5"
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="#dbe4fe"
                                               Data="{StaticResource IconEdit}" />
                                         <TextBlock Text="حالت ویرایش" FontSize="11.5"
-                                                   FontWeight="SemiBold" Foreground="#c9f4e5" />
+                                                   FontWeight="SemiBold" Foreground="#dbe4fe" />
                                     </StackPanel>
                                 </Border>
                             </StackPanel>
