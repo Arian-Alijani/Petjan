@@ -91,7 +91,7 @@ The **.NET solution is the only code under audit** (`Animora.sln`, 14 `src/` pro
 | `05-infra-clientservices.md` | Infrastructure.Local + Client.Services (T6) | done |
 | `06-sync-system.md` | Sync system deep audit (T7) | done |
 | `07-server-auth.md` | Server host, auth & authorization (T8) | done |
-| `08-tenancy-isolation.md` | Multi-tenant provisioning + isolation (T9) | pending |
+| `08-tenancy-isolation.md` | Multi-tenant provisioning + isolation (T9) | done |
 | `09-sales-accounting.md` | Sales + accounting system (T10) | pending |
 | `10-backup.md` | Backup system (T11) | pending |
 | `11-desktop-crosslayer.md` | Desktop UI/DI + cross-layer (T12) | pending |

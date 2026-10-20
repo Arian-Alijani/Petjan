@@ -193,7 +193,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   side effects, missing tenant scope on a policy, token expiry/refresh races, signature verification
   bypass, timing-unsafe compares. Flag that S04–S06 are "done" but higher phases unexecuted. **Push.**
 
-- [ ] **T9 — Multi-tenant provisioning + data isolation audit → `Plan/reports/08-tenancy-isolation.md`
+- [x] **T9 — Multi-tenant provisioning + data isolation audit → `Plan/reports/08-tenancy-isolation.md`** ✓ pushed
       (audit targets #10 + #12, CRITICAL).**
   Scope: `src/Animora.Persistence.PostgreSql/{Tenancy,Provisioning,Context,Conventions}` +
   `src/Animora.Server/Provisioning` + tenant stamping/ignore-filter-ban interceptors +
