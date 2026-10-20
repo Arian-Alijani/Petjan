@@ -67,6 +67,11 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         foreach (var line in invoice.Lines)
         {
             if (line.ProductId is null || line.VariantId is null) continue;
+            // Boarding stay items already consumed the warehouse when they were added to the stay
+            // (AddStayItemCommand writes a Consumption movement). Skip them here so settlement never
+            // decrements the same units a second time, and never flags the sale as oversold for stock
+            // that was already reserved at add-time.
+            if (line.Source == InvoiceLineSource.Stay) continue;
             var key = (line.ProductId, line.VariantId);
             if (!balances.TryGetValue(key, out var available))
                 available = await posting.GetOnHandScaledAsync(key.ProductId, key.VariantId, ct);
@@ -106,6 +111,9 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         foreach (var line in invoice.Lines)
         {
             if (line.ProductId is null || line.VariantId is null) continue;
+            // See the preflight loop: boarding-stay lines were already consumed at add-time — do not emit a
+            // second Sale movement for them.
+            if (line.Source == InvoiceLineSource.Stay) continue;
             var key = (line.ProductId, line.VariantId);
             var movement = StockMovement.Create(context.TenantId, key.ProductId, key.VariantId,
                 MovementKind.Sale, new Quantity(-line.Quantity.Value, line.Quantity.UnitCode), costs[key],

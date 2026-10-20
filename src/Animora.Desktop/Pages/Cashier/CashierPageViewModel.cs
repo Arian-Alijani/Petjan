@@ -257,6 +257,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         var selectedId = SelectedCatalogOption?.Id;
         CatalogOptions.ReplaceAll(items.Select(item => new CashierCatalogOptionViewModel(item)));
         SelectedCatalogOption = CatalogOptions.FirstOrDefault(item => item.Id == selectedId);
+        RefreshCatalogAvailability();
     }
 
     private Task ReloadAsync() => ReloadStatsAsync();
@@ -443,6 +444,7 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
         BuildLines(detail);
         BuildPayments(detail);
         MarkActiveRow();
+        RefreshCatalogAvailability();
         RaiseDerived();
     }
 
@@ -683,20 +685,39 @@ public sealed partial class CashierPageViewModel : PageViewModelBase
             return int.MaxValue;
         }
 
-        var onInvoice = 0;
-        if (Detail is not null)
+        return System.Math.Max(0, option.AvailableUnits - UnitsOnInvoice(option.Title));
+    }
+
+    // Whole units of a catalog title already sitting on the current draft invoice. Stock is only decremented
+    // physically at POST, so the add-line select must subtract these to decide live availability (grey-out).
+    private int UnitsOnInvoice(string title)
+    {
+        if (Detail is null)
         {
-            foreach (var line in Detail.Detail.Lines)
+            return 0;
+        }
+
+        var onInvoice = 0;
+        foreach (var line in Detail.Detail.Lines)
+        {
+            if (line.Kind == CashierLineKind.Item &&
+                string.Equals(line.Title, title, System.StringComparison.Ordinal))
             {
-                if (line.Kind == CashierLineKind.Item &&
-                    string.Equals(line.Title, option.Title, System.StringComparison.Ordinal))
-                {
-                    onInvoice += line.Quantity;
-                }
+                onInvoice += line.Quantity;
             }
         }
 
-        return System.Math.Max(0, option.AvailableUnits - onInvoice);
+        return onInvoice;
+    }
+
+    // Re-evaluate every add-line option's grey-out against what the draft already consumes. Must run after any
+    // change to the invoice lines (ShowDetail) and after the option list is rebuilt (ReloadCatalogOptionsAsync).
+    private void RefreshCatalogAvailability()
+    {
+        foreach (var option in CatalogOptions)
+        {
+            option.RefreshStock(UnitsOnInvoice(option.Title));
+        }
     }
 
     /// <summary>True when a catalog item is selected and at least one more unit can be added.</summary>

@@ -9,6 +9,7 @@ using Animora.Application.Validation;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Boarding;
 using Animora.Domain.Identity;
+using Animora.Domain.Inventory;
 using Animora.Domain.Patients;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
@@ -151,7 +152,8 @@ public sealed record AddStayItemCommand(string StayId, string CatalogItemId, int
     public string AggregateTypeName => "BoardingStay";
     public string? AggregateIdOrNull => StayId;
 }
-public sealed class AddStayItemCommandHandler(IBoardingRepository repository, IBoardingQueries queries, IClock clock)
+public sealed class AddStayItemCommandHandler(IBoardingRepository repository, IBoardingQueries queries,
+    ISalesDraftData catalog, IInventoryQueries inventory, IStockMovementRepository movements, IClock clock)
     : ICommandHandler<AddStayItemCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(AddStayItemCommand c, CommandContext context, CancellationToken ct)
@@ -167,10 +169,39 @@ public sealed class AddStayItemCommandHandler(IBoardingRepository repository, IB
             "ClinicService" => StayItemKind.ClinicService,
             _ => StayItemKind.Product,
         };
+
+        // Stock-tracked products are consumed from the warehouse the moment they are added to the stay, not at
+        // settlement. This both gates over-consumption (a variant can never be added beyond on-hand) and keeps the
+        // warehouse live, so the same unit cannot be re-added. PostInvoiceCommand recognises these as
+        // InvoiceLineSource.Stay lines and skips them, so the stock is never decremented twice.
+        StockMovement? consumption = null;
+        if (kind == StayItemKind.Product)
+        {
+            var entry = await catalog.FindCatalogEntryAsync(c.CatalogItemId, ct);
+            if (entry is { TrackStock: true, ProductId: not null, VariantId: not null })
+            {
+                var onHand = await inventory.GetOnHandScaledAsync(entry.ProductId, entry.VariantId, ct);
+                var neededScaled = (long)System.Math.Ceiling(c.Quantity * 1000m);
+                if (neededScaled > onHand) return Result<Unit>.Fail(ErrorCodes.InsufficientStock);
+
+                var movement = StockMovement.Create(context.TenantId, entry.ProductId, entry.VariantId,
+                    MovementKind.Consumption, new Quantity(-c.Quantity, entry.UnitCode), Money.Irt(0),
+                    clock.UtcNow, context.UserId, sourceEntityType: "BoardingStay", sourceEntityId: c.StayId,
+                    operationId: context.OperationId,
+                    id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
+                if (movement.IsFailure) return Result<Unit>.Fail(movement.Error, movement.Detail);
+                consumption = movement.Value!;
+            }
+        }
+
         var item = new StayItem(IdGenerator.ForOperation(context.OperationId, 0, clock.UtcNow), kind, selected.Id, selected.Title,
             new Quantity(c.Quantity, "PCS"), Money.Irt(selected.PriceMinor), clock.UtcNow, context.UserId);
         var result = stay.AddItem(item);
-        return result.IsFailure ? Result<Unit>.Fail(ErrorCodes.StayNotEditable) : Result<Unit>.Ok(Unit.Value);
+        if (result.IsFailure) return Result<Unit>.Fail(ErrorCodes.StayNotEditable);
+        // Only append the ledger entry once the stay actually accepted the item; both writes share this
+        // command's single unit-of-work transaction, so a later failure rolls the consumption back too.
+        if (consumption is not null) movements.Add(consumption);
+        return Result<Unit>.Ok(Unit.Value);
     }
 }
 
@@ -183,7 +214,8 @@ public sealed record RemoveStayItemCommand(string StayId, int Index, string Expe
     public string AggregateTypeName => "BoardingStay";
     public string? AggregateIdOrNull => StayId;
 }
-public sealed class RemoveStayItemCommandHandler(IBoardingRepository repository)
+public sealed class RemoveStayItemCommandHandler(IBoardingRepository repository,
+    ISalesDraftData catalog, IStockMovementRepository movements, IClock clock)
     : ICommandHandler<RemoveStayItemCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(RemoveStayItemCommand c, CommandContext context, CancellationToken ct)
@@ -196,7 +228,25 @@ public sealed class RemoveStayItemCommandHandler(IBoardingRepository repository)
         if (c.Index < 0 || current is null || current.ItemId != c.ExpectedItemId)
             return Result<Unit>.Fail(ErrorCodes.StayItemIndexStale);
         var result = stay.RemoveItem(current.ItemId);
-        return result.IsFailure ? Result<Unit>.Fail(result.Error, result.Detail) : Result<Unit>.Ok(Unit.Value);
+        if (result.IsFailure) return Result<Unit>.Fail(result.Error, result.Detail);
+
+        // Mirror of AddStayItem: removing a stock-tracked product from the stay returns its units to the
+        // warehouse with a reversing (inbound) ledger entry, so the on-hand matches reality again.
+        if (current.Kind == StayItemKind.Product && current.CatalogItemId is not null)
+        {
+            var entry = await catalog.FindCatalogEntryAsync(current.CatalogItemId, ct);
+            if (entry is { TrackStock: true, ProductId: not null, VariantId: not null })
+            {
+                var movement = StockMovement.Create(context.TenantId, entry.ProductId, entry.VariantId,
+                    MovementKind.ReturnIn, new Quantity(current.Quantity.Value, entry.UnitCode), Money.Irt(0),
+                    clock.UtcNow, context.UserId, sourceEntityType: "BoardingStay", sourceEntityId: c.StayId,
+                    operationId: context.OperationId,
+                    id: IdGenerator.ForOperation(context.OperationId, 1, clock.UtcNow));
+                if (movement.IsFailure) return Result<Unit>.Fail(movement.Error, movement.Detail);
+                movements.Add(movement.Value!);
+            }
+        }
+        return Result<Unit>.Ok(Unit.Value);
     }
 }
 

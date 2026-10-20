@@ -4,8 +4,10 @@ using Animora.Application.UseCases.Purchasing;
 using Animora.Persistence.PostgreSql.Context;
 using Animora.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
+using Animora.Application.UseCases.Boarding;
 using Animora.Application.UseCases.Cashier;
 using Animora.Application.UseCases.Sales;
+using Animora.Domain.Inventory;
 using Animora.Domain.Results;
 using Animora.Persistence.PostgreSql.Commands;
 using Animora.Persistence.PostgreSql.Repositories;
@@ -42,8 +44,22 @@ internal sealed class ServerFinancialConcurrencyGuard(ServerSchedulingConcurrenc
         if (command is PostInvoiceCommand post)
         {
             var invoice = await db.Set<Invoice>().AsNoTracking().FirstOrDefaultAsync(i => i.Id == post.InvoiceId, ct);
-            if (invoice is not null) stock.AddRange(invoice.Lines.Where(l => l.ProductId != null && l.VariantId != null)
+            // Stay lines were consumed at add-time (AddStayItemCommand) and PostInvoiceCommand skips them, so they
+            // take no variant lock here either.
+            if (invoice is not null) stock.AddRange(invoice.Lines
+                .Where(l => l.ProductId != null && l.VariantId != null && l.Source != InvoiceLineSource.Stay)
                 .Select(l => $"stock:{l.ProductId}:{l.VariantId}"));
+        }
+        // Adding a boarding stay item now moves the warehouse, so it must take the same per-variant stock lock as
+        // the other stock-touching commands. The catalog item id for a product is its variant id. (RemoveStayItem
+        // is already serialised against concurrent adds by this stay's aggregate lock acquired above.)
+        if (command is AddStayItemCommand add)
+        {
+            var mapped = await (from p in db.Set<Product>().AsNoTracking()
+                from v in p.Variants
+                where p.Kind != ProductKind.Service && (v.VariantId == add.CatalogItemId || p.Id == add.CatalogItemId)
+                select $"stock:{p.Id}:{v.VariantId}").FirstOrDefaultAsync(ct);
+            if (mapped is not null) stock.Add(mapped);
         }
         await locks.AcquireAsync(stock, ct);
         return await scheduling.PrepareAsync(command, ct);
