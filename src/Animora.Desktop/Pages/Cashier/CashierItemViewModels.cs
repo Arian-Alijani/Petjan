@@ -271,12 +271,12 @@ public sealed class CashierPresetViewModel
 }
 
 /// <summary>One option of the add-line select (mirrors the reference's optgroups).</summary>
-public sealed class CashierCatalogOptionViewModel
+public sealed partial class CashierCatalogOptionViewModel : ObservableObject
 {
     public CashierCatalogOptionViewModel(CashierCatalogItem item)
     {
         Id = item.Id;
-        IsOutOfStock = item.IsOutOfStock;
+        _isOutOfStock = item.IsOutOfStock;
         TracksStock = item.TracksStock;
         AvailableUnits = item.AvailableUnits;
         Title = item.Title;
@@ -289,13 +289,30 @@ public sealed class CashierCatalogOptionViewModel
 
     public string Label { get; }
 
-    public bool IsOutOfStock { get; }
+    [ObservableProperty]
+    private bool _isOutOfStock;
 
     /// <summary>True when this option's stock is tracked, so adds must be capped at <see cref="AvailableUnits"/>.</summary>
     public bool TracksStock { get; }
 
     /// <summary>Whole units on hand for stock-tracked goods; <see cref="int.MaxValue"/> for unlimited (services/untracked).</summary>
     public int AvailableUnits { get; }
+
+    /// <summary>
+    /// Live grey-out: a stock-tracked good that already has all its on-hand units sitting on the draft invoice
+    /// must appear out-of-stock in the add-line select even though the physical warehouse stock is only
+    /// decremented at POST. Services / untracked goods (<see cref="AvailableUnits"/> == <see cref="int.MaxValue"/>)
+    /// never go out of stock.
+    /// </summary>
+    public void RefreshStock(int unitsOnInvoice)
+    {
+        if (!TracksStock)
+        {
+            return;
+        }
+
+        IsOutOfStock = AvailableUnits - unitsOnInvoice <= 0;
+    }
 }
 
 /// <summary>One option of the insurance select (mirrors <c>C().INSURERS</c>).</summary>

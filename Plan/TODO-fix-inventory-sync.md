@@ -92,7 +92,10 @@ CatalogModal. (صفحهٔ Sales از `CatalogModalViewModel` با `_sessionAdded
   نشان داده می‌شود؛ ولی چون gate سروری add را رد می‌کند oversell رخ نمی‌دهد. **تغییر لازم نیست** مگر رفتار بصری
   مطلوب نباشد؛ در این تسک فقط صندوق را درست کن و این را فقط یادداشت بگذار.
 
-**وضعیت:** [ ] انجام نشده
+**وضعیت:** [x] انجام شد — `CashierCatalogOptionViewModel` حالا `ObservableObject` با `[ObservableProperty] IsOutOfStock`
+و متد `RefreshStock(unitsOnInvoice)`؛ در `CashierPageViewModel` متد `RefreshCatalogAvailability()` + helper
+`UnitsOnInvoice(title)` اضافه و در `ShowDetail` و انتهای `ReloadCatalogOptionsAsync` صدا زده شد. (بیلد محلی: SDK
+نصب نیست؛ طبق قانونِ منع بیلد طولانی، صحت با بازبینی کد تأیید شد — CI بیلد می‌کند.)
 **پوش بعد از اتمام:** `scripts/git/push.sh "fix(cashier): live grey-out of catalog options when draft consumes the last unit"`
 
 ---
