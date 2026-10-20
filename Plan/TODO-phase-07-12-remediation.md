@@ -232,7 +232,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
   deposit cycle → no second event (fails or no-ops). The legitimate recover-then-clear still clears once.
   Reason through the state machine; no posting-layer change required.
 
-## [ ] T49 · SAC-07 — Batch the per-event invoice fetch in the projection drain (Low, perf/N+1)
+## [x] T49 · SAC-07 — Batch the per-event invoice fetch in the projection drain (Low, perf/N+1)
 - **File:** `src/Animora.Persistence.Sqlite/Finance/FinanceProjectionStore.cs` — `ApplyAsync`: each
   `InvoicePostedEvent`/`InvoiceVoidedEvent`/`PaymentRegisteredEvent` does
   `db.Set<Invoice>().FirstOrDefaultAsync(i => i.Id == …, ct)` (tracking, with `Lines`) **per event**.

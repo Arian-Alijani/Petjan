@@ -11,13 +11,17 @@ namespace Animora.Persistence.Sqlite.Finance;
 /// <summary>Stages changes to local-only facts. Outbox completion saves the facts and ack atomically.</summary>
 public sealed class FinanceProjectionStore(AnimoraLocalDbContext db) : IFinanceProjectionStore
 {
+    // SAC-07: the store only READS the invoice, so the per-event fetch is AsNoTracking (no change-tracker /
+    // line-collection tracking overhead). TODO(perf): IFinanceProjectionStore.ApplyAsync is strictly per-event
+    // (the handler has no batch handle); a per-drain-batch cache (one `ids.Contains` load of the distinct invoice
+    // ids) needs the outbox worker to pass the batch and is deferred as a documented optimisation.
     public async Task ApplyAsync(DomainEvent e, int day, CancellationToken ct)
     {
         switch (e)
         {
             case InvoicePostedEvent posted:
             {
-                var invoice = await db.Set<Invoice>().FirstOrDefaultAsync(i => i.Id == posted.InvoiceId, ct)
+                var invoice = await db.Set<Invoice>().AsNoTracking().FirstOrDefaultAsync(i => i.Id == posted.InvoiceId, ct)
                     ?? throw new InvalidOperationException($"Missing invoice {posted.InvoiceId}");
                 var fact = await Daily(e.TenantId, day, ct);
                 fact.Apply(revenue: invoice.Subtotal.Minor, discount: invoice.DiscountTotal.Minor,
@@ -35,7 +39,7 @@ public sealed class FinanceProjectionStore(AnimoraLocalDbContext db) : IFinanceP
             }
             case InvoiceVoidedEvent voided:
             {
-                var invoice = await db.Set<Invoice>().FirstOrDefaultAsync(i => i.Id == voided.InvoiceId, ct)
+                var invoice = await db.Set<Invoice>().AsNoTracking().FirstOrDefaultAsync(i => i.Id == voided.InvoiceId, ct)
                     ?? throw new InvalidOperationException($"Missing invoice {voided.InvoiceId}");
                 (await Daily(e.TenantId, day, ct)).Apply(revenue: -invoice.Subtotal.Minor,
                     discount: -invoice.DiscountTotal.Minor, insurance: -invoice.InsuranceCoverage.Minor,
@@ -50,7 +54,7 @@ public sealed class FinanceProjectionStore(AnimoraLocalDbContext db) : IFinanceP
             }
             case PaymentRegisteredEvent payment when payment.AmountMinor != 0 && payment.Method != PaymentMethod.Credit:
             {
-                var invoice = await db.Set<Invoice>().FirstOrDefaultAsync(i => i.Id == payment.InvoiceId, ct)
+                var invoice = await db.Set<Invoice>().AsNoTracking().FirstOrDefaultAsync(i => i.Id == payment.InvoiceId, ct)
                     ?? throw new InvalidOperationException($"Missing invoice {payment.InvoiceId}");
                 if (payment.AmountMinor > 0 && invoice.DueTotal.Minor <= 0)
                     (await Daily(e.TenantId, day, ct)).Apply(paidInvoices: 1);
