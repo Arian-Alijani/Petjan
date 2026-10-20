@@ -30,6 +30,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 {
     private readonly ISalesQueryService _service;
     private readonly ISyncStatusService _sync;
+    private readonly ISyncPendingLookup _pending;
+
+    // «در صف سرور» index for the sidebar cards: ONE read per list reload; cards resolve their mark in O(1).
+    private SyncQueueSnapshot _queue = SyncQueueSnapshot.Empty;
     private readonly IChequePrompt _chequePrompt;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
@@ -83,9 +87,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
         IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print,
         IHistoryRecordOpener historyOpener, IServiceRateService serviceRates, IChequePrompt chequePrompt,
-        ICapabilityGate capabilities, ISyncStatusService sync)
+        ICapabilityGate capabilities, ISyncStatusService sync, ISyncPendingLookup pending)
     {
         _sync = sync;
+        _pending = pending;
         _chequePrompt = chequePrompt;
         _service = service;
         _print = print;
@@ -103,8 +108,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         Segments.Add(new SaleSegmentViewModel("ready", "صف ویزیت"));
         Segments.Add(new SaleSegmentViewModel("invoices", "فاکتورها"));
 
-        History = new SaleHistoryViewModel(service, historyOpener, NotifyInvoicesChanged, toast, dialogs);
-        Invoices = new SaleInvoiceLedgerViewModel(service, historyOpener, toast, dialogs, NotifyInvoicesChanged);
+        History = new SaleHistoryViewModel(service, historyOpener, NotifyInvoicesChanged, toast, dialogs, pending);
+        Invoices = new SaleInvoiceLedgerViewModel(service, historyOpener, toast, dialogs, NotifyInvoicesChanged, pending);
         Rates = new ServiceRatesViewModel(serviceRates, toast, dialogs, changes);
 
         UseLoadStatus(ReloadPageAsync);
@@ -859,6 +864,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
         _invoices.Clear();
         _invoices.AddRange(await _service.GetInvoicesAsync());
+        _queue = await _pending.GetSnapshotAsync();
 
         await ReloadInsurersAsync();
     }
@@ -928,7 +934,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         target.Add(SaleSidebarRowViewModel.Header(label, items.Count));
         foreach (var summary in items)
         {
-            var row = SaleSidebarRowViewModel.Card(new InvoiceItemViewModel(summary));
+            var row = SaleSidebarRowViewModel.Card(new InvoiceItemViewModel(summary, _queue));
             row.IsActive = SelectedInvoice is not null && row.InvoiceId == SelectedInvoice.Id;
             target.Add(row);
         }

@@ -235,12 +235,12 @@
 - هر کدام را انتخاب کردی، **در هر دو جا (تاریخچهٔ اصلی + تاریخچهٔ/لیست فاکتور) یکپارچه** پیاده کن.
 
 ### ۳.۵ وضعیت
-- [ ] بررسی هدفمند CommandJournal برای تصمیم set-per-aggregate vs بنر سراسری
-- [ ] expose وضعیت صف/ناهماهنگ به UI (Contract + Client.Services) بدون per-row query
-- [ ] نمایش چیپ/بنر «در صف سرور» و «ناهماهنگ» در تاریخچهٔ اصلی
-- [ ] نمایش هماهنگ در لیست/تاریخچهٔ فاکتور
-- [ ] به‌روزرسانی زنده با StateChanged/IDataChangeNotifier
-- [ ] build سبز → **push**
+- [x] بررسی هدفمند CommandJournal برای تصمیم set-per-aggregate vs بنر سراسری
+- [x] expose وضعیت صف/ناهماهنگ به UI (Contract + Client.Services) بدون per-row query
+- [x] نمایش چیپ/بنر «در صف سرور» و «ناهماهنگ» در تاریخچهٔ اصلی
+- [x] نمایش هماهنگ در لیست/تاریخچهٔ فاکتور
+- [x] به‌روزرسانی زنده با StateChanged/IDataChangeNotifier
+- [x] build سبز (بیلد فقط روی گیت‌اکشن) → **push**
 
 ---
 
@@ -256,5 +256,5 @@
 ### وضعیت کلی
 - [x] تسک ۱ کامل + push
 - [x] تسک ۲ کامل + push
-- [ ] تسک ۳ کامل + push
+- [x] تسک ۳ کامل + push
 - [ ] حذف `Plan/TODO.md` + push (تسک پایانی)

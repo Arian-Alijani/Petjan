@@ -1216,6 +1216,15 @@
                                                                            FontWeight="Bold" VerticalAlignment="Bottom"
                                                                            Foreground="{Binding TagForeground}" />
                                                             </Grid>
+                                                            <!-- «در صف سرور» / «ناهماهنگ» — invoice not yet applied on the server -->
+                                                            <Border IsVisible="{Binding HasSyncMark}" CornerRadius="20"
+                                                                    Padding="8,2" HorizontalAlignment="Left"
+                                                                    Background="{Binding SyncMarkBgBrush}"
+                                                                    ToolTip.Tip="{Binding SyncMarkTip}">
+                                                                <TextBlock Text="{Binding SyncMarkLabel}" FontSize="10"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="{Binding SyncMarkBrush}" />
+                                                            </Border>
                                                         </StackPanel>
                                                     </Button>
                                                     <Button Classes="sw-item-x" IsVisible="{Binding CanDelete}"

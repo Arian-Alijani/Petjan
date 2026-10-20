@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
 using Animora.Contracts.Sync;
+using Animora.Desktop.Pages.History;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -36,6 +37,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private readonly ICapabilityGate? _capabilities;
     private readonly string _invoiceId;
     private readonly ISyncStatusService? _sync;
+    private readonly ISyncPendingLookup? _pending;
     private readonly Action? _onChanged;
 
     private InvoiceDetail _detail = null!;
@@ -49,9 +51,11 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         string invoiceId,
         Action? onChanged = null,
         ICapabilityGate? capabilities = null,
-        ISyncStatusService? sync = null)
+        ISyncStatusService? sync = null,
+        ISyncPendingLookup? pending = null)
     {
         _sync = sync;
+        _pending = pending;
         _chequePrompt = chequePrompt;
         _service = service;
         _toast = toast;
@@ -297,9 +301,28 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         _suppressInsuranceApply = false;
     }
 
+    /// <summary>«در صف سرور» / «ناهماهنگ» chip of this invoice's own sheet (one queue-index read per render).</summary>
+    [ObservableProperty]
+    private SyncMarkView _syncMark = SyncMarkView.None;
+
+    private async Task RefreshSyncMarkAsync(string invoiceId)
+    {
+        if (_pending is null)
+        {
+            return;
+        }
+
+        var queue = await _pending.GetSnapshotAsync();
+        if (string.Equals(_detail?.Id, invoiceId, StringComparison.Ordinal))
+        {
+            SyncMark = SyncMarkView.For(queue, "Invoice", invoiceId);
+        }
+    }
+
     private void Apply(InvoiceDetail detail)
     {
         _detail = detail;
+        _ = RefreshSyncMarkAsync(detail.Id);
         InvoiceId2 = detail.Id;
         Title = detail.PetName.Length > 0 ? detail.PetName : "فاکتور";
         Subtitle = $"{detail.OwnerName} · {detail.Phone}";

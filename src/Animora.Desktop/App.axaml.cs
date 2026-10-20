@@ -560,6 +560,7 @@ public partial class App : global::Avalonia.Application
         services.AddAnimoraOnlineIdentity(); // G06: online auth/entitlement/device — no-op unless the server endpoint is configured
         services.AddSingleton<LocalSyncStatusService>();
         services.AddSingleton<ISyncStatusService>(sp => sp.GetRequiredService<LocalSyncStatusService>());
+        services.AddSingleton<ISyncPendingLookup, LocalSyncPendingLookup>(); // SYN-02: «در صف سرور» marks in histories
 
         // Settings → "پاک‌سازی کامل و همگام‌سازی دوباره": wipe the whole local replica and re-pull a full server snapshot.
         services.AddSingleton<ILocalDataResetService, LocalDataResetService>();

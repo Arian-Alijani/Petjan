@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -33,14 +34,18 @@ public sealed partial class SaleInvoiceLedgerViewModel : ObservableObject
     private readonly Action? _onInvoiceChanged;
     private readonly Debouncer _searchDebounce = new(TimeSpan.FromMilliseconds(160));
 
+    private readonly ISyncPendingLookup? _pending;
+    private SyncQueueSnapshot _queue = SyncQueueSnapshot.Empty;
+
     private readonly List<InvoiceSummary> _invoices = [];
     private string _filter = "all";
     private bool _loaded;
     private int _generation;
 
     public SaleInvoiceLedgerViewModel(ISalesQueryService service, IHistoryRecordOpener opener, IToastService toast,
-        IDialogService dialogs, Action? onInvoiceChanged = null)
+        IDialogService dialogs, Action? onInvoiceChanged = null, ISyncPendingLookup? pending = null)
     {
+        _pending = pending;
         _service = service;
         _opener = opener;
         _toast = toast;
@@ -127,10 +132,14 @@ public sealed partial class SaleInvoiceLedgerViewModel : ObservableObject
         try
         {
             var found = await _service.GetInvoicesAsync();
+            // ONE queue-index read per reload (never per row).
+            var queue = _pending is null ? SyncQueueSnapshot.Empty : await _pending.GetSnapshotAsync();
             if (token != _generation)
             {
                 return;
             }
+
+            _queue = queue;
 
             _invoices.Clear();
             _invoices.AddRange(found);
@@ -190,7 +199,7 @@ public sealed partial class SaleInvoiceLedgerViewModel : ObservableObject
             .ToList();
 
         Rows.ReplaceAll(matches.Select(summary => new SaleInvoiceLedgerRowViewModel(
-            summary, OpenAsync, EditAsync, DeleteAsync)));
+            summary, OpenAsync, EditAsync, DeleteAsync, _queue)));
 
         HasRows = Rows.Count > 0;
         IsEmpty = Rows.Count == 0;

@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Animora.Contracts.History;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Localization;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -95,7 +96,9 @@ public sealed class HistoryEventRowViewModel : IHistoryRowView
     /// Opens the unified record screen for this row's entity (injected from the page VM, routed through
     /// <see cref="Services.IHistoryRecordOpener"/>). Null for inert rows.
     /// </param>
-    public HistoryEventRowViewModel(HistoryEvent ev, Func<string, string, string?, Task>? open = null)
+    /// <param name="queue">The queue index of the current refresh; resolves the row's «در صف سرور» mark in O(1).</param>
+    public HistoryEventRowViewModel(HistoryEvent ev, Func<string, string, string?, Task>? open = null,
+        SyncQueueSnapshot? queue = null)
     {
         Title = ev.Title;
         Detail = ev.Detail;
@@ -122,6 +125,13 @@ public sealed class HistoryEventRowViewModel : IHistoryRowView
 
         Entity = string.IsNullOrEmpty(EntityType) ? "—" : HistoryText.EntityLabel(EntityType);
         CanOpen = !string.IsNullOrEmpty(EntityType) && !string.IsNullOrEmpty(EntityId);
+
+        // A payment row belongs to its invoice's aggregate; every other row to its own entity.
+        var mark = InvoiceId is not null
+            ? SyncMarkView.For(queue, "Invoice", InvoiceId)
+            : SyncMarkView.For(queue, EntityType, EntityId);
+        (HasSyncMark, SyncMarkLabel, SyncMarkTip, SyncMarkBrush, SyncMarkBgBrush) =
+            (mark.Has, mark.Label, mark.Tip, mark.Foreground, mark.Background);
         OpenCommand = new AsyncRelayCommand(
             () => open is not null && CanOpen ? open(EntityType, EntityId, InvoiceId) : Task.CompletedTask,
             () => CanOpen && open is not null);
@@ -157,6 +167,16 @@ public sealed class HistoryEventRowViewModel : IHistoryRowView
     public string Time { get; }
 
     public string Entity { get; }
+
+    public bool HasSyncMark { get; }
+
+    public string SyncMarkLabel { get; }
+
+    public string SyncMarkTip { get; }
+
+    public IBrush SyncMarkBrush { get; }
+
+    public IBrush SyncMarkBgBrush { get; }
 
     /// <summary>The feed entity's source-aggregate tag (e.g. "Invoice", "Pet"); drives navigation.</summary>
     public string EntityType { get; }

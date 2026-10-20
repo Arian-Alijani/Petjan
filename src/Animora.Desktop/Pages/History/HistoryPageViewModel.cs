@@ -1,5 +1,6 @@
 using Animora.Contracts.Diagnostics;
 using Animora.Contracts.History;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -50,9 +51,15 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
     // longer matches is discarded (a newer query has superseded it).
     private int _generation;
 
+    // «در صف سرور» index: ONE read per reload (never per row); the rows resolve their mark from it in O(1).
+    private readonly ISyncPendingLookup _pending;
+    private SyncQueueSnapshot _queue = SyncQueueSnapshot.Empty;
+
     public HistoryPageViewModel(IHistoryQueryService service, IStoreReadinessGate readiness, IToastService toast,
-        IDialogService dialogs, IHistoryRecordOpener opener, IDataChangeNotifier changes)
+        IDialogService dialogs, IHistoryRecordOpener opener, IDataChangeNotifier changes,
+        ISyncPendingLookup pending)
     {
+        _pending = pending;
         _service = service;
         _readiness = readiness;
         _toast = toast;
@@ -408,10 +415,13 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
         try
         {
             var page = await QueryPageAsync();
+            var queue = await _pending.GetSnapshotAsync();
             if (token != _generation)
             {
                 return; // a newer reload superseded this one — drop the stale result
             }
+
+            _queue = queue;
 
             // The set can shrink under the user (data changed elsewhere): clamp to the last page and re-query once
             // inside this same awaited reload, instead of a re-entrant fire-and-forget round trip.
@@ -491,7 +501,7 @@ public sealed partial class HistoryPageViewModel : PageViewModelBase
             {
                 Title = HistoryText.Title(e.Title),
                 Detail = HistoryText.Detail(e.Detail),
-            }, (type, id, invoiceId) => _opener.OpenAsync(type, id, invoiceId))).ToList();
+            }, (type, id, invoiceId) => _opener.OpenAsync(type, id, invoiceId), _queue)).ToList();
             var net = dayNets is not null && dayNets.TryGetValue(group.Key, out var fullDayNet) ? fullDayNet : 0;
 
             groups.Add(new HistoryDayGroupViewModel(

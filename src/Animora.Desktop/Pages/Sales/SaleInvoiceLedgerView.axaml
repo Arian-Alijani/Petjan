@@ -332,19 +332,28 @@
                                                        FontWeight="Bold"
                                                        Foreground="{Binding DueBrush}" />
 
-                                            <Border Grid.Column="7" CornerRadius="20" Padding="9,3"
-                                                    Margin="12,0" HorizontalAlignment="Left"
-                                                    VerticalAlignment="Center"
-                                                    Background="{Binding StateBackgroundBrush}">
-                                                <StackPanel Orientation="Horizontal" Spacing="5">
-                                                    <Ellipse Width="6" Height="6"
-                                                             Fill="{Binding StateBrush}"
-                                                             VerticalAlignment="Center" />
-                                                    <TextBlock Text="{Binding StateLabel}" FontSize="11"
-                                                               FontWeight="Bold"
-                                                               Foreground="{Binding StateBrush}" />
-                                                </StackPanel>
-                                            </Border>
+                                            <StackPanel Grid.Column="7" Spacing="3" Margin="12,0"
+                                                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <Border CornerRadius="20" Padding="9,3" HorizontalAlignment="Left"
+                                                        Background="{Binding StateBackgroundBrush}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="5">
+                                                        <Ellipse Width="6" Height="6"
+                                                                 Fill="{Binding StateBrush}"
+                                                                 VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding StateLabel}" FontSize="11"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{Binding StateBrush}" />
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- «در صف سرور» / «ناهماهنگ» — invoice not yet applied on the server -->
+                                                <Border IsVisible="{Binding HasSyncMark}" CornerRadius="20" Padding="8,2"
+                                                        HorizontalAlignment="Left"
+                                                        Background="{Binding SyncMarkBgBrush}"
+                                                        ToolTip.Tip="{Binding SyncMarkTip}">
+                                                    <TextBlock Text="{Binding SyncMarkLabel}" FontSize="10.5"
+                                                               FontWeight="Bold" Foreground="{Binding SyncMarkBrush}" />
+                                                </Border>
+                                            </StackPanel>
                                         </Grid>
                                     </Button>
 

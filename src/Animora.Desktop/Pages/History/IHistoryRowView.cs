@@ -66,6 +66,22 @@ public interface IHistoryRowView
     /// </summary>
     bool CanManageInvoice => false;
 
+    /// <summary>
+    /// True when the row's record is not yet applied on the server (queued locally, or refused by it). Only the
+    /// surfaces that know the record's aggregate fill it; every other row shows no chip.
+    /// </summary>
+    bool HasSyncMark => false;
+
+    /// <summary>The sync-mark chip text («در صف سرور» / «ناهماهنگ»).</summary>
+    string SyncMarkLabel => string.Empty;
+
+    /// <summary>The sync-mark explanation shown as the chip's tooltip.</summary>
+    string SyncMarkTip => string.Empty;
+
+    IBrush SyncMarkBrush => Brushes.Transparent;
+
+    IBrush SyncMarkBgBrush => Brushes.Transparent;
+
     /// <summary>Opens the invoice for editing (draft only); null when the row is not a manageable invoice.</summary>
     ICommand? EditInvoiceCommand => null;
 

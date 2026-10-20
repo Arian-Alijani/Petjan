@@ -153,6 +153,12 @@
                                        Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Border>
+                    <!-- «در صف سرور» / «ناهماهنگ»: this invoice is not yet applied on the server -->
+                    <Border Classes="iv-chip" IsVisible="{Binding SyncMark.Has}"
+                            Background="{Binding SyncMark.Background}" ToolTip.Tip="{Binding SyncMark.Tip}">
+                        <TextBlock Text="{Binding SyncMark.Label}" FontSize="12" FontWeight="Bold"
+                                   Foreground="{Binding SyncMark.Foreground}" VerticalAlignment="Center" />
+                    </Border>
                     <Border Classes="iv-chip" IsVisible="{Binding HasReceipt}">
                         <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                             <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource OkBrush}"

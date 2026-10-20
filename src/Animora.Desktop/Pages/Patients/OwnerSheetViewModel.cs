@@ -159,6 +159,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly IChequePrompt _chequePrompt;
     private readonly ICapabilityGate _capabilities;
     private readonly ISyncStatusService _sync;
+    private readonly ISyncPendingLookup _pending;
     private readonly IVaccinationService _vaccination;
 
     private OwnerDetail? _owner;
@@ -188,9 +189,11 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         IPrintService print,
         IChequePrompt chequePrompt,
         ICapabilityGate capabilities,
-        ISyncStatusService sync)
+        ISyncStatusService sync,
+        ISyncPendingLookup pending)
     {
         _sync = sync;
+        _pending = pending;
         _chequePrompt = chequePrompt;
         _print = print;
         _sales = sales;
@@ -466,7 +469,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private Task OpenInvoiceAsync(string invoiceId)
     {
         _dialogs.ShowSheet(new Pages.Sales.InvoiceViewerViewModel(
-            _sales, _toast, _dialogs, _print, _chequePrompt, invoiceId, null, _capabilities, _sync), 1040, 720);
+            _sales, _toast, _dialogs, _print, _chequePrompt, invoiceId, null, _capabilities, _sync, _pending), 1040, 720);
         return Task.CompletedTask;
     }
 
@@ -513,7 +516,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                         _ = LoadInvoicesAsync(ownerId);
                     }
                 },
-                _capabilities, _sync),
+                _capabilities, _sync, _pending),
             1040,
             720);
     }

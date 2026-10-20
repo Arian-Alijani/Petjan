@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Input;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.History;
@@ -21,9 +22,13 @@ public sealed class SaleInvoiceLedgerRowViewModel
     public SaleInvoiceLedgerRowViewModel(InvoiceSummary summary,
         Func<string, System.Threading.Tasks.Task>? open = null,
         Func<string, System.Threading.Tasks.Task>? edit = null,
-        Func<string, System.Threading.Tasks.Task>? delete = null)
+        Func<string, System.Threading.Tasks.Task>? delete = null,
+        SyncQueueSnapshot? queue = null)
     {
         Id = summary.Id;
+        var mark = SyncMarkView.For(queue, "Invoice", summary.Id);
+        (HasSyncMark, SyncMarkLabel, SyncMarkTip, SyncMarkBrush, SyncMarkBgBrush) =
+            (mark.Has, mark.Label, mark.Tip, mark.Foreground, mark.Background);
         Summary = summary;
 
         CustomerName = string.IsNullOrWhiteSpace(summary.OwnerName) ? "مشتری گذری" : summary.OwnerName;
@@ -73,6 +78,17 @@ public sealed class SaleInvoiceLedgerRowViewModel
     }
 
     public string Id { get; }
+
+    /// <summary>True when this invoice is still queued locally (or refused by the server) — shows the sync chip.</summary>
+    public bool HasSyncMark { get; }
+
+    public string SyncMarkLabel { get; }
+
+    public string SyncMarkTip { get; }
+
+    public IBrush SyncMarkBrush { get; }
+
+    public IBrush SyncMarkBgBrush { get; }
 
     public InvoiceSummary Summary { get; }
 

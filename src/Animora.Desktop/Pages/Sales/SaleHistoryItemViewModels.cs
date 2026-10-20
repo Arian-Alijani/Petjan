@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Pages.History;
 using Avalonia.Media;
@@ -116,11 +117,16 @@ public sealed class SaleHistoryRowViewModel : IHistoryRowView
     /// <param name="openInvoice">Opens the unified invoice sheet for <paramref name="entry"/>'s invoice.</param>
     /// <param name="editInvoice">Opens the same sheet with the intent to edit (draft invoices only).</param>
     /// <param name="deleteInvoice">Deletes the row's invoice after confirmation (draft invoices only).</param>
+    /// <param name="queue">The queue index of the current refresh; resolves the «در صف سرور» mark in O(1).</param>
     public SaleHistoryRowViewModel(CashierHistoryEntry entry, Func<string, Task>? openInvoice = null,
-        Func<string, Task>? editInvoice = null, Func<string, Task>? deleteInvoice = null)
+        Func<string, Task>? editInvoice = null, Func<string, Task>? deleteInvoice = null,
+        SyncQueueSnapshot? queue = null)
     {
         Id = entry.Id;
         InvoiceId = entry.InvoiceId;
+        var mark = SyncMarkView.For(queue, "Invoice", entry.InvoiceId);
+        (HasSyncMark, SyncMarkLabel, SyncMarkTip, SyncMarkBrush, SyncMarkBgBrush) =
+            (mark.Has, mark.Label, mark.Tip, mark.Foreground, mark.Background);
         KindLabel = entry.KindLabel;
         Note = entry.Note;
 
@@ -231,6 +237,16 @@ public sealed class SaleHistoryRowViewModel : IHistoryRowView
     public string Detail { get; }
 
     public bool HasDetail { get; }
+
+    public bool HasSyncMark { get; }
+
+    public string SyncMarkLabel { get; }
+
+    public string SyncMarkTip { get; }
+
+    public IBrush SyncMarkBrush { get; }
+
+    public IBrush SyncMarkBgBrush { get; }
 
     /// <inheritdoc cref="TimeText"/>
     public string Time => TimeText;

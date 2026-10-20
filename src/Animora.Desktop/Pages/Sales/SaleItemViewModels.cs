@@ -1,4 +1,6 @@
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
+using Animora.Desktop.Pages.History;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -105,9 +107,10 @@ public sealed partial class InvoiceItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _isActive;
 
-    public InvoiceItemViewModel(InvoiceSummary summary)
+    public InvoiceItemViewModel(InvoiceSummary summary, SyncQueueSnapshot? queue = null)
     {
         Summary = summary;
+        SyncMark = SyncMarkView.For(queue, "Invoice", summary.Id);
         Id = summary.Id;
         OwnerName = string.IsNullOrEmpty(summary.OwnerName) ? "مهمان" : summary.OwnerName;
         PetName = string.IsNullOrEmpty(summary.PetName) ? "بدون حیوان" : summary.PetName;
@@ -154,6 +157,9 @@ public sealed partial class InvoiceItemViewModel : ObservableObject
     }
 
     public InvoiceSummary Summary { get; }
+
+    /// <summary>«در صف سرور» / «ناهماهنگ» mark of this invoice (none when applied on the server).</summary>
+    public SyncMarkView SyncMark { get; }
 
     public string Id { get; }
 

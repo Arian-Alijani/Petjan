@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.History;
@@ -67,9 +68,14 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
     /// <param name="onInvoiceChanged">Raised after the invoice sheet mutates an invoice (page-level refresh).</param>
     /// <param name="toast">Surfaces a delete failure in plain Persian.</param>
     /// <param name="dialogs">Asks for confirmation before a row's invoice is deleted.</param>
+    private readonly ISyncPendingLookup? _pending;
+    private SyncQueueSnapshot _queue = SyncQueueSnapshot.Empty;
+
     public SaleHistoryViewModel(ISalesQueryService service, IHistoryRecordOpener opener,
-        Action? onInvoiceChanged = null, IToastService? toast = null, IDialogService? dialogs = null)
+        Action? onInvoiceChanged = null, IToastService? toast = null, IDialogService? dialogs = null,
+        ISyncPendingLookup? pending = null)
     {
+        _pending = pending;
         _toast = toast;
         _dialogs = dialogs;
         _service = service;
@@ -473,6 +479,9 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
 
             var page = await _service.GetHistoryAsync(filter);
 
+            // ONE queue-index read per reload (never per row); null lookup = no marks (unit composition).
+            var queue = _pending is null ? SyncQueueSnapshot.Empty : await _pending.GetSnapshotAsync();
+
             // A newer reload started while this one was in flight — drop the
             // stale result rather than overwriting fresher state.
             if (token != _generation)
@@ -480,6 +489,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
                 return;
             }
 
+            _queue = queue;
             ApplyPage(page);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -518,7 +528,7 @@ public sealed partial class SaleHistoryViewModel : ObservableObject
         }
 
         Rows.ReplaceAll(page.Items.Select(entry =>
-            new SaleHistoryRowViewModel(entry, OpenInvoiceAsync, EditInvoiceAsync, DeleteInvoiceAsync)));
+            new SaleHistoryRowViewModel(entry, OpenInvoiceAsync, EditInvoiceAsync, DeleteInvoiceAsync, _queue)));
 
         HasRows = page.TotalCount > 0;
         IsEmpty = page.TotalCount == 0;

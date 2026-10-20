@@ -184,6 +184,17 @@ public sealed partial class SaleSidebarRowViewModel : ObservableObject
 
     public IBrush TagForeground { get; private init; } = Brushes.Transparent;
 
+    // «در صف سرور» / «ناهماهنگ» chip of the card (hidden when the invoice is applied on the server).
+    public bool HasSyncMark { get; private init; }
+
+    public string SyncMarkLabel { get; private init; } = string.Empty;
+
+    public string SyncMarkTip { get; private init; } = string.Empty;
+
+    public IBrush SyncMarkBrush { get; private init; } = Brushes.Transparent;
+
+    public IBrush SyncMarkBgBrush { get; private init; } = Brushes.Transparent;
+
     public static SaleSidebarRowViewModel Header(string label, int count) => new(true)
     {
         GroupLabel = label,
@@ -212,6 +223,11 @@ public sealed partial class SaleSidebarRowViewModel : ObservableObject
             TotalText = card.TotalText,
             TagText = card.TagText,
             TagForeground = tagFg,
+            HasSyncMark = card.SyncMark.Has,
+            SyncMarkLabel = card.SyncMark.Label,
+            SyncMarkTip = card.SyncMark.Tip,
+            SyncMarkBrush = card.SyncMark.Foreground,
+            SyncMarkBgBrush = card.SyncMark.Background,
         };
     }
 }

@@ -42,6 +42,10 @@ public sealed class SyncChangeBridge : IDisposable
     private readonly IDataChangeNotifier _changes;
     private readonly object _gate = new();
     private DateTimeOffset? _announcedFor;
+    private (int Pending, int Terminal) _announcedQueue;
+
+    // The domains whose lists carry the «در صف سرور» / «ناهماهنگ» marks (SYN-02).
+    private static readonly DataDomain[] QueueMarkDomains = [DataDomain.History, DataDomain.Sales, DataDomain.Cashier];
     private bool _started;
 
     public SyncChangeBridge(ISyncStatusService sync, IDataChangeNotifier changes)
@@ -72,6 +76,24 @@ public sealed class SyncChangeBridge : IDisposable
         // contract is that subscribers are always invoked on the UI thread and that a Notify from another thread is
         // marshalled for them, so the bridge stays free of any dispatcher dependency.
         //
+        // SYN-02: the queue counters moving (a command settled, or was refused) changes the «در صف سرور» marks of the
+        // open history/invoice lists even when the cursor did not advance. One coarse, narrow announcement per change.
+        var queue = (_sync.PendingChangeCount, _sync.TerminalFailureCount);
+        var queueMoved = false;
+        lock (_gate)
+        {
+            if (queue != _announcedQueue)
+            {
+                _announcedQueue = queue;
+                queueMoved = true;
+            }
+        }
+
+        if (queueMoved)
+        {
+            _changes.Notify(QueueMarkDomains);
+        }
+
         // The cursor only advances after a healthy pass, so "it moved" is exactly "this pass may have applied rows".
         if (_sync.LastSyncedAt is not { } completedAt) return;
 

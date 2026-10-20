@@ -28,7 +28,8 @@ public sealed class HistoryRecordOpener(
     IRecordSheetPresenter sheets,
     INavigationService navigation,
     ICapabilityGate capabilities,
-    ISyncStatusService sync) : IHistoryRecordOpener
+    ISyncStatusService sync,
+    ISyncPendingLookup pending) : IHistoryRecordOpener
 {
     public Task OpenAsync(string entityType, string entityId, string? invoiceId = null, Action? onChanged = null)
     {
@@ -92,7 +93,7 @@ public sealed class HistoryRecordOpener(
             return Task.CompletedTask;
         }
 
-        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, chequePrompt, invoiceId, onChanged, capabilities, sync), 1040, 720);
+        dialogs.ShowSheet(new InvoiceViewerViewModel(sales, toast, dialogs, print, chequePrompt, invoiceId, onChanged, capabilities, sync, pending), 1040, 720);
         return Task.CompletedTask;
     }
 }

@@ -77,14 +77,23 @@
                             <TextBlock Grid.Column="5" Text="{Binding AmountText}" Margin="4,0" FontSize="13"
                                        FontWeight="Bold" Foreground="{Binding AmountBrush}" VerticalAlignment="Center" />
                             <!-- status chip -->
-                            <Border Grid.Column="6" Classes="hy-status" Background="{Binding StatusBgBrush}"
-                                    HorizontalAlignment="Left" VerticalAlignment="Center">
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <Ellipse Classes="hy-status-dot" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding StatusLabel}" FontSize="11.5" FontWeight="SemiBold"
-                                               Foreground="{Binding StatusBrush}" />
-                                </StackPanel>
-                            </Border>
+                            <StackPanel Grid.Column="6" Spacing="3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Border Classes="hy-status" Background="{Binding StatusBgBrush}"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <Ellipse Classes="hy-status-dot" Fill="{Binding StatusBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding StatusLabel}" FontSize="11.5" FontWeight="SemiBold"
+                                                   Foreground="{Binding StatusBrush}" />
+                                    </StackPanel>
+                                </Border>
+                                <!-- «هنوز روی سرور اعمال نشده» / «ناهماهنگ»: only for records still in the send queue -->
+                                <Border IsVisible="{Binding HasSyncMark}" CornerRadius="20" Padding="8,2"
+                                        Background="{Binding SyncMarkBgBrush}" HorizontalAlignment="Left"
+                                        ToolTip.Tip="{Binding SyncMarkTip}">
+                                    <TextBlock Text="{Binding SyncMarkLabel}" FontSize="10.5" FontWeight="Bold"
+                                               Foreground="{Binding SyncMarkBrush}" />
+                                </Border>
+                            </StackPanel>
                             <!-- category pill -->
                             <Border Grid.Column="7" Classes="hy-cat-pill" BorderBrush="{Binding CategoryColorBrush}"
                                     Background="{Binding CategoryBgBrush}" HorizontalAlignment="Left"
