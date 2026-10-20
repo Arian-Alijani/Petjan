@@ -65,6 +65,14 @@ internal static class AuthEndpoints
             return StatusCodes.Status409Conflict;
         }
 
+        // A typed backend-unavailable / audit-write fault (the data store is unreachable, shutting down, or its
+        // schema is behind this build) is retryable infrastructure, not a defect in the request: answer 503 with a
+        // Retry-After-style contract so the client treats it as transient — never an opaque UNEXPECTED 500.
+        if (code == ErrorCodes.AuditWriteFailed.Code || code == ErrorCodes.StoreUnavailable.Code)
+        {
+            return StatusCodes.Status503ServiceUnavailable;
+        }
+
         return StatusCodes.Status500InternalServerError;
     }
 

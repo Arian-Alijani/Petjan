@@ -38,6 +38,14 @@ public sealed class SecurityAuditWriter(AnimoraServerDbContext context) : ISecur
         {
             return Result.Fail(ErrorCodes.ConcurrencyConflict, "unique");
         }
+        catch (Exception ex) when (DatabaseFailure.IsBackendUnavailable(ex))
+        {
+            // The backend is unreachable/shutting down, or its schema is behind this build (a migration has not
+            // been applied). The audit row — and therefore the whole security action enlisted on this unit of work —
+            // cannot be committed. Surface a typed, retryable infrastructure fault so the caller returns an honest
+            // 503 (the readiness `schema`/`database` probes report the cause) instead of an opaque UNEXPECTED 500.
+            return Result.Fail(ErrorCodes.AuditWriteFailed, "backend_unavailable");
+        }
     }
 }
 
