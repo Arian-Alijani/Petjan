@@ -962,6 +962,17 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             return;
         }
 
+        // UI stock gate (the server re-checks): never push a stock-tracked line past the units on hand.
+        if (quantity > line.Quantity && _lineStockCaps is not null)
+        {
+            var max = InvoiceStockCaps.MaxFor(line, SelectedInvoice?.Detail.Lines ?? [], _lineStockCaps);
+            if (quantity > max)
+            {
+                _toast.Show(InvoiceStockCaps.ExceedsMessage(line.Title, max), Tone.Warn);
+                return;
+            }
+        }
+
         await MutateLineAsync(() => _service.EditLineAsync(invoiceId, line.Index, line.LineId, quantity, line.DiscountPercent),
             "ویرایش تعداد آیتم ناموفق بود؛ دوباره تلاش کنید");
     }
@@ -986,6 +997,35 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         RefreshAfterMutation();
     }
 
+    private IReadOnlyDictionary<string, int>? _lineStockCaps;
+
+    /// <summary>
+    /// One catalog read per invoice render: caps the «+» stepper of every stock-tracked line at the on-hand units.
+    /// Fire-and-forget by design; a stale result (another invoice was opened meanwhile) is dropped.
+    /// </summary>
+    private async Task ApplyLineStockCapsAsync(InvoiceDetail detail, InvoiceLineViewModel[] rows)
+    {
+        try
+        {
+            var caps = await InvoiceStockCaps.LoadAsync(_service);
+            if (!ReferenceEquals(SelectedInvoice?.Detail, detail))
+            {
+                return;
+            }
+
+            _lineStockCaps = caps;
+            for (var i = 0; i < rows.Length && i < detail.Lines.Count; i++)
+            {
+                rows[i].ApplyMaxQuantity(InvoiceStockCaps.MaxFor(detail.Lines[i], detail.Lines, caps));
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            // The server gate still protects the invoice; just leave the stepper uncapped.
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"line stock caps unavailable — {ex.Message}", "sales");
+        }
+    }
+
     public void ShowInvoice(InvoiceDetail detail)
     {
         SelectedInvoice = new SaleInvoiceViewModel(detail, CanPostPayments);
@@ -996,6 +1036,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             new InvoiceLineViewModel(line, canEdit, (l, qty) => EditLineAsync(detail.Id, l, qty),
                 l => RemoveLineAsync(detail.Id, l))));
         Payments.ReplaceAll(detail.Payments.Select(payment => new InvoicePaymentViewModel(payment)));
+        if (canEdit && detail.Lines.Any(l => l.Kind == InvoiceLineKind.Item && !l.IsCustom))
+        {
+            _ = ApplyLineStockCapsAsync(detail, Lines.ToArray());
+        }
 
         foreach (var row in InvoiceRows)
         {

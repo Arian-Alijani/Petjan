@@ -503,11 +503,13 @@ public sealed partial class CatalogRecentChipViewModel : ObservableObject
         IsItem = item.Kind == "item";
         IsOutOfStock = item.IsOutOfStock;
         _canAdd = canAdd && !item.IsOutOfStock;
-        (IcoBackground, IcoForeground) = SalePresentation.LineTagBrushes(
+        (_normalIcoBackground, _normalIcoForeground) = SalePresentation.LineTagBrushes(
             IsItem ? InvoiceLineKind.Item : InvoiceLineKind.Service, false);
-        if (IsOutOfStock)
-            (IcoBackground, IcoForeground) = (SalePresentation.PlaceholderAvatarBrush(), SalePresentation.PlaceholderAvatarForeground());
     }
+
+    private readonly IBrush _normalIcoBackground;
+
+    private readonly IBrush _normalIcoForeground;
 
     public string Id { get; }
 
@@ -522,17 +524,22 @@ public sealed partial class CatalogRecentChipViewModel : ObservableObject
     /// <summary>False once the item is out of stock / fully consumed this session: the chip greys out and its tap is disabled.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUnavailable))]
+    [NotifyPropertyChangedFor(nameof(TextForeground))]
+    [NotifyPropertyChangedFor(nameof(IcoBackground))]
+    [NotifyPropertyChangedFor(nameof(IcoForeground))]
     private bool _canAdd;
 
     /// <summary>True when the chip must read as unavailable (grey style + disabled), covering both no-stock and exhausted-this-session.</summary>
     public bool IsUnavailable => IsOutOfStock || !CanAdd;
 
-    public IBrush TextForeground => IsOutOfStock
+    // Colours follow the LIVE availability (not the build-time IsOutOfStock), so the chip greys out in the
+    // very moment the last unit is added.
+    public IBrush TextForeground => IsUnavailable
         ? BrushCache.Solid("#667085") : BrushCache.Solid("#101828");
 
-    public IBrush IcoBackground { get; }
+    public IBrush IcoBackground => IsUnavailable ? SalePresentation.PlaceholderAvatarBrush() : _normalIcoBackground;
 
-    public IBrush IcoForeground { get; }
+    public IBrush IcoForeground => IsUnavailable ? SalePresentation.PlaceholderAvatarForeground() : _normalIcoForeground;
 }
 
 /// <summary>
@@ -544,6 +551,10 @@ public sealed partial class CatalogRowViewModel : ObservableObject
     [ObservableProperty]
     private bool _isHighlighted;
 
+    private readonly IBrush _normalIcoBackground;
+
+    private readonly IBrush _normalIcoForeground;
+
     public CatalogRowViewModel(CatalogItem item, IBrush icoBackground, IBrush icoForeground, string query, bool canAdd = true)
     {
         Id = item.Id;
@@ -554,8 +565,8 @@ public sealed partial class CatalogRowViewModel : ObservableObject
         PriceText = SalePresentation.Money(item.Price);
         IsOutOfStock = item.IsOutOfStock;
         _canAdd = canAdd && !item.IsOutOfStock;
-        IcoBackground = IsOutOfStock ? SalePresentation.PlaceholderAvatarBrush() : icoBackground;
-        IcoForeground = IsOutOfStock ? SalePresentation.PlaceholderAvatarForeground() : icoForeground;
+        _normalIcoBackground = icoBackground;
+        _normalIcoForeground = icoForeground;
 
         // Highlight-on-search: split the title into before / match / after. The match is located with the
         // same folding the filter uses (Persian digits, Arabic yeh/kaf, case) on a length-preserving copy,
@@ -595,12 +606,17 @@ public sealed partial class CatalogRowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUnavailable))]
     [NotifyPropertyChangedFor(nameof(AddBackground))]
+    [NotifyPropertyChangedFor(nameof(TextForeground))]
+    [NotifyPropertyChangedFor(nameof(IcoBackground))]
+    [NotifyPropertyChangedFor(nameof(IcoForeground))]
     private bool _canAdd;
 
     /// <summary>True when the row must read as unavailable (grey style + disabled), covering both no-stock and exhausted-this-session.</summary>
     public bool IsUnavailable => IsOutOfStock || !CanAdd;
 
-    public IBrush TextForeground => IsOutOfStock
+    // Colours follow the LIVE availability (not the build-time IsOutOfStock), so the row greys out in the
+    // very moment the last unit is added.
+    public IBrush TextForeground => IsUnavailable
         ? BrushCache.Solid("#667085") : BrushCache.Solid("#101828");
 
     public string KindLabel { get; }
@@ -610,9 +626,9 @@ public sealed partial class CatalogRowViewModel : ObservableObject
     public IBrush AddBackground => IsUnavailable
         ? SalePresentation.PlaceholderAvatarForeground() : BrushCache.Solid("#0e9384");
 
-    public IBrush IcoBackground { get; }
+    public IBrush IcoBackground => IsUnavailable ? SalePresentation.PlaceholderAvatarBrush() : _normalIcoBackground;
 
-    public IBrush IcoForeground { get; }
+    public IBrush IcoForeground => IsUnavailable ? SalePresentation.PlaceholderAvatarForeground() : _normalIcoForeground;
 
     public string PreText { get; }
 

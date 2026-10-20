@@ -32,7 +32,7 @@ public sealed class EditInvoiceLineCommandValidator : IValidator<EditInvoiceLine
             Rules.Range(c.Quantity, 0.001m, 1000000m, nameof(c.Quantity)),
             Rules.Range(c.DiscountPercent, 0m, 100m, nameof(c.DiscountPercent)));
 }
-public sealed class EditInvoiceLineCommandHandler(IInvoiceRepository invoices)
+public sealed class EditInvoiceLineCommandHandler(IInvoiceRepository invoices, ISalesDraftData data)
     : ICommandHandler<EditInvoiceLineCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(EditInvoiceLineCommand c, CommandContext context, CancellationToken ct)
@@ -41,6 +41,28 @@ public sealed class EditInvoiceLineCommandHandler(IInvoiceRepository invoices)
         if (found.IsFailure) return Result<Unit>.Fail(found.Error);
         var line = SalesDraftRules.LineAt(found.Value!, c.Index, c.ExpectedLineId);
         if (line.IsFailure) return Result<Unit>.Fail(line.Error);
+
+        // Server-side stock gate, symmetric with AddInvoiceLineCommand: raising the quantity of a stock-tracked
+        // variant line can never take the invoice's total of that variant beyond the units on hand. The edited
+        // line's own quantity is REPLACED by the new one (not added to it); the other lines of the variant stay.
+        var variantId = line.Value!.VariantId;
+        if (variantId is not null && c.Quantity > line.Value.Quantity.Value)
+        {
+            var item = await data.FindCatalogEntryAsync(line.Value.CatalogItemId ?? variantId, ct);
+            if (item is { TrackStock: true })
+            {
+                const long stockScale = 1000L;
+                var otherLines = found.Value!.Lines
+                    .Where(l => l.VariantId == variantId && l.LineId != line.Value.LineId)
+                    .Sum(l => l.Quantity.Value);
+                var requestedScaled = (long)System.Math.Ceiling((otherLines + c.Quantity) * stockScale);
+                if (requestedScaled > item.OnHandScaled)
+                {
+                    return Result<Unit>.Fail(ErrorCodes.InsufficientStock);
+                }
+            }
+        }
+
         return SalesDraftRules.Outcome(found.Value!.EditLine(line.Value! with
         {
             Quantity = line.Value.Quantity with { Value = c.Quantity }, DiscountPercent = c.DiscountPercent,

@@ -118,11 +118,11 @@
     (فقط همین دو فایل را چک کن؛ grep `IncreaseCommand`/`EditLineAsync` در `src/Animora.Desktop`.)
 
 ### ۱.۴ وضعیت
-- [ ] 1-A استایل زندهٔ کاتالوگ
-- [ ] 1-B سقف تعداد: UI gate در InvoiceLineViewModel/SalePageViewModel
-- [ ] 1-B سقف تعداد: Server gate در EditInvoiceLineCommand
-- [ ] 1-C هماهنگی با InvoiceViewer/سایر مسیرهای ویرایش تعداد
-- [ ] build سبز (`scripts/sandbox/build.sh`) → **push**
+- [x] 1-A استایل زندهٔ کاتالوگ
+- [x] 1-B سقف تعداد: UI gate در InvoiceLineViewModel/SalePageViewModel
+- [x] 1-B سقف تعداد: Server gate در EditInvoiceLineCommand
+- [x] 1-C هماهنگی با InvoiceViewer/سایر مسیرهای ویرایش تعداد
+- [x] build سبز (طبق دستور کاربر: بیلد فقط روی گیت‌اکشن) → **push**
 
 ---
 
@@ -254,7 +254,7 @@
    به هیچ فایل دیگری (رودمپ‌ها و ...) دست نزن.
 
 ### وضعیت کلی
-- [ ] تسک ۱ کامل + push
+- [x] تسک ۱ کامل + push
 - [ ] تسک ۲ کامل + push
 - [ ] تسک ۳ کامل + push
 - [ ] حذف `Plan/TODO.md` + push (تسک پایانی)

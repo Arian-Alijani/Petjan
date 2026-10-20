@@ -27,7 +27,8 @@ public sealed class InvoiceLineViewModel
     {
         CanEdit = canEdit && edit is not null && remove is not null;
         CanDecrease = CanEdit && line.Quantity > 1;
-        IncreaseCommand = new AsyncRelayCommand(() => edit!(line, line.Quantity + 1), () => CanEdit);
+        _quantity = line.Quantity;
+        IncreaseCommand = new AsyncRelayCommand(() => edit!(line, line.Quantity + 1), () => CanEdit && _quantity < _maxQuantity);
         DecreaseCommand = new AsyncRelayCommand(() => edit!(line, line.Quantity - 1), () => CanDecrease);
         RemoveCommand = new AsyncRelayCommand(() => remove!(line), () => CanEdit);
 
@@ -47,6 +48,20 @@ public sealed class InvoiceLineViewModel
         HasDiscount = disc > 0;
         SubtotalStruckText = SalePresentation.Money(sub);
         SubtotalText = SalePresentation.Money(net);
+    }
+
+    private readonly int _quantity;
+
+    private int _maxQuantity = int.MaxValue;
+
+    /// <summary>
+    /// Sets the stock ceiling of this line (on-hand units not already held by the other lines of the same
+    /// variant). At the ceiling the «+» button is disabled; <see cref="int.MaxValue"/> means no ceiling.
+    /// </summary>
+    public void ApplyMaxQuantity(int max)
+    {
+        _maxQuantity = max;
+        IncreaseCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>True when the invoice is editable — shows the stepper and the remove button.</summary>

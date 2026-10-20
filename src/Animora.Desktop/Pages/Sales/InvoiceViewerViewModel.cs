@@ -368,6 +368,31 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
 
     private void OnLineEdited(int index, int quantity, int discountPercent)
     {
+        var current = _detail?.Lines.FirstOrDefault(l => l.Index == index);
+        if (current is not null && quantity > current.Quantity)
+        {
+            // Raising a quantity: check the on-hand ceiling first (one catalog read, only on this user action).
+            _ = GuardAsync("ویرایش فاکتور ناموفق بود؛ دوباره تلاش کنید", async () =>
+            {
+                var caps = await InvoiceStockCaps.LoadAsync(_service);
+                var max = InvoiceStockCaps.MaxFor(current, _detail!.Lines, caps);
+                if (quantity > max)
+                {
+                    Lines.FirstOrDefault(r => r.Index == index)?.ResetEditFields(current.Quantity, current.DiscountPercent);
+                    _toast.Show(InvoiceStockCaps.ExceedsMessage(current.Title, max), Tone.Warn);
+                    return;
+                }
+
+                ConfirmLineEdit(index, quantity, discountPercent);
+            });
+            return;
+        }
+
+        ConfirmLineEdit(index, quantity, discountPercent);
+    }
+
+    private void ConfirmLineEdit(int index, int quantity, int discountPercent)
+    {
         var title = LineTitle(index);
         var lineId = LineIdOf(index);
 
