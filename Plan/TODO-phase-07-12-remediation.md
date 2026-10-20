@@ -181,7 +181,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
   `GrandTotal >= 0` in the draft; a normal in-range fixed discount is unchanged. Confirm `netAfterLineDiscount`
   is in scope at that point (it is — declared at l.98).
 
-## [ ] T34 · SAC-04 — Bound the finance-projection rebuild (Medium, perf/latent growth)
+## [x] T34 · SAC-04 — Bound the finance-projection rebuild (Medium, perf/latent growth)
 - **File:** `src/Animora.Persistence.Sqlite/Finance/FinanceProjectionRebuilder.cs` —
   `RebuildAsync`/`FoldPeerFinanceAsync`:
   ```csharp

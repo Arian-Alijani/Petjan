@@ -53,7 +53,7 @@ public static class FinanceProjectionRebuilder
         //    exactly as FinanceProjectionStore's InvoiceVoidedEvent arm does on the warm path. The entity has no
         //    dedicated void timestamp; Void is terminal and only legal while nothing is paid, so UpdatedAt (stamped
         //    on every save) is the void instant. Never-posted (draft) voids contribute nothing.
-        var invoices = await db.Set<Invoice>().AsNoTracking()
+        var invoices = db.Set<Invoice>().AsNoTracking()
             .Where(i => i.State != InvoiceState.Draft && i.PostedUtc != null)
             .Select(i => new
             {
@@ -61,11 +61,10 @@ public static class FinanceProjectionRebuilder
                 Subtotal = i.Subtotal.Minor, Discount = i.DiscountTotal.Minor,
                 Insurance = i.InsuranceCoverage.Minor, Grand = i.GrandTotal.Minor,
             })
-            .ToListAsync(ct);
+            .AsAsyncEnumerable();
 
-        for (var i = 0; i < invoices.Count; i++)
+        await foreach (var inv in invoices.WithCancellation(ct))
         {
-            var inv = invoices[i];
             var day = LocalDay(inv.PostedUtc!.Value, zone);
             var row = For(daily, day);
             row.Revenue += inv.Subtotal;
@@ -102,7 +101,7 @@ public static class FinanceProjectionRebuilder
         }
 
         // 2) Posted invoice lines: per-product gross revenue and quantity sold.
-        var lines = await db.Set<Invoice>().AsNoTracking()
+        var lines = db.Set<Invoice>().AsNoTracking()
             .Where(i => i.State != InvoiceState.Draft && i.PostedUtc != null)
             .SelectMany(i => i.Lines, (i, l) => new
             {
@@ -110,11 +109,10 @@ public static class FinanceProjectionRebuilder
                 Quantity = l.Quantity.Value, Gross = l.LineGross.Minor,
             })
             .Where(x => x.Kind == InvoiceLineKind.Product && x.ProductId != null)
-            .ToListAsync(ct);
+            .AsAsyncEnumerable();
 
-        for (var i = 0; i < lines.Count; i++)
+        await foreach (var line in lines.WithCancellation(ct))
         {
-            var line = lines[i];
             var day = LocalDay(line.PostedUtc!.Value, zone);
             var acc = For(product, (day, line.ProductId!, line.VariantId ?? string.Empty));
             acc.Quantity += line.Quantity;
@@ -130,14 +128,13 @@ public static class FinanceProjectionRebuilder
         }
 
         // 3) Sale movements: cost of goods sold per day and per product.
-        var movements = await db.Set<StockMovement>().AsNoTracking()
+        var movements = db.Set<StockMovement>().AsNoTracking()
             .Where(m => m.Kind == MovementKind.Sale)
             .Select(m => new { m.ProductId, m.VariantId, m.OccurredUtc, Qty = m.Quantity.Value, Cost = m.UnitCost.Minor })
-            .ToListAsync(ct);
+            .AsAsyncEnumerable();
 
-        for (var i = 0; i < movements.Count; i++)
+        await foreach (var m in movements.WithCancellation(ct))
         {
-            var m = movements[i];
             var cost = checked((long)decimal.Round(Math.Abs(m.Qty) * m.Cost, 0, MidpointRounding.AwayFromZero));
             var day = LocalDay(m.OccurredUtc, zone);
             For(daily, day).Cogs += cost;
@@ -145,20 +142,20 @@ public static class FinanceProjectionRebuilder
         }
 
         // 4) Posted expenses: operating cost per day.
-        var expenses = await db.Set<Expense>().AsNoTracking()
+        var expenses = db.Set<Expense>().AsNoTracking()
             .Where(e => e.State != ExpenseState.Draft)
             .Select(e => new { e.IncurredUtc, Amount = e.Amount.Minor })
-            .ToListAsync(ct);
-        for (var i = 0; i < expenses.Count; i++)
-            For(daily, LocalDay(expenses[i].IncurredUtc, zone)).Expense += Math.Abs(expenses[i].Amount);
+            .AsAsyncEnumerable();
+        await foreach (var expense in expenses.WithCancellation(ct))
+            For(daily, LocalDay(expense.IncurredUtc, zone)).Expense += Math.Abs(expense.Amount);
 
         // 5) Negative payments: money given back grouped by the day it left.
-        var refunds = await db.Set<Payment>().AsNoTracking()
+        var refunds = db.Set<Payment>().AsNoTracking()
             .Where(p => p.Amount.Minor < 0)
             .Select(p => new { p.ReceivedUtc, Amount = p.Amount.Minor })
-            .ToListAsync(ct);
-        for (var i = 0; i < refunds.Count; i++)
-            For(daily, LocalDay(refunds[i].ReceivedUtc, zone)).Refund += Math.Abs(refunds[i].Amount);
+            .AsAsyncEnumerable();
+        await foreach (var refund in refunds.WithCancellation(ct))
+            For(daily, LocalDay(refund.ReceivedUtc, zone)).Refund += Math.Abs(refund.Amount);
 
         // 6) Peer finance (D04b): fold in transactions other devices settled, which reach this device
         //    only through the read-only GET /finance/ledger cache — never the command pipeline or the
@@ -200,6 +197,10 @@ public static class FinanceProjectionRebuilder
     }
 
     /// <summary>
+    /// SAC-04: every fold streams (<c>AsAsyncEnumerable</c>) into the dictionary accumulators, so memory is
+    /// O(distinct days/products/owners), not O(financial history). A full rebuild deletes the tenant's facts first
+    /// and every caller (maintenance, peer-pull, seeder) wants the whole set, so no date window is threaded: a
+    /// partial window would also need partial fact deletion and could not be proven against the ledger.
     /// Folds the read-only peer-finance cache into the same accumulators the local tables filled. Peer rows that
     /// coincide with a local invoice (same id ⇒ same transaction) are skipped so this device's own invoices are
     /// never double-counted. Only posted, non-void peer invoices contribute revenue, mirroring the local filter.
@@ -211,21 +212,18 @@ public static class FinanceProjectionRebuilder
         Dictionary<string, OwnerAcc> owner,
         CancellationToken ct)
     {
-        // Ids of invoices this device already owns authoritatively: never fold the peer twin of a local invoice.
-        var localInvoiceIds = (await db.Set<Invoice>().AsNoTracking()
-                .Select(i => i.Id).ToListAsync(ct))
-            .ToHashSet(StringComparer.Ordinal);
-
-        var peerInvoices = await db.Set<PeerInvoice>().AsNoTracking()
+        // SAC-04: never fold the peer twin of a local invoice (same id => same transaction). The twin check is
+        // pushed into the query as an indexed PK existence probe, so no all-invoice-ids HashSet is materialized and
+        // the rows below are streamed (O(row) memory) instead of fully buffered.
+        var peerInvoices = db.Set<PeerInvoice>().AsNoTracking()
             .Where(i => i.TenantId == tenantId && i.PostedUtc != null
-                && i.State != InvoiceState.Draft && i.State != InvoiceState.Void)
+                && i.State != InvoiceState.Draft && i.State != InvoiceState.Void
+                && !db.Set<Invoice>().Any(l => l.Id == i.Id))
             .Select(i => new { i.Id, i.OwnerId, i.State, i.PostedUtc, i.GrandTotalMinor, i.DetailJson })
-            .ToListAsync(ct);
+            .AsAsyncEnumerable();
 
-        foreach (var inv in peerInvoices)
+        await foreach (var inv in peerInvoices.WithCancellation(ct))
         {
-            if (localInvoiceIds.Contains(inv.Id)) continue; // same transaction, already counted locally.
-
             FinanceInvoiceDetail? detail = null;
             if (inv.DetailJson is { Length: > 0 } json)
             {
@@ -263,13 +261,13 @@ public static class FinanceProjectionRebuilder
         }
 
         // Peer refunds: money handed back on another device, grouped by the day it left.
-        var peerRefunds = await db.Set<PeerPayment>().AsNoTracking()
+        var peerRefunds = db.Set<PeerPayment>().AsNoTracking()
             .Where(p => p.TenantId == tenantId && p.AmountMinor < 0
                 && !db.Set<Payment>().Any(l => l.Id == p.Id))
             .Select(p => new { p.ReceivedUtc, p.AmountMinor })
-            .ToListAsync(ct);
-        for (var i = 0; i < peerRefunds.Count; i++)
-            For(daily, LocalDay(peerRefunds[i].ReceivedUtc, zone)).Refund += Math.Abs(peerRefunds[i].AmountMinor);
+            .AsAsyncEnumerable();
+        await foreach (var refund in peerRefunds.WithCancellation(ct))
+            For(daily, LocalDay(refund.ReceivedUtc, zone)).Refund += Math.Abs(refund.AmountMinor);
     }
 
     /// <summary>The clinic-local day (<c>yyyyMMdd</c>) an instant falls on.</summary>
