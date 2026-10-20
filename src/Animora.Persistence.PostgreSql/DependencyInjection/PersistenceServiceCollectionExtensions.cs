@@ -106,7 +106,17 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddSingleton<IBackgroundAdmission>(sp =>
         {
             var db = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-            return new SemaphoreBackgroundAdmission(db.WorkerAdmissionMax > 0 ? db.WorkerAdmissionMax : Math.Clamp(db.WorkerMax, 1, 2));
+            // PERF-MC-01: the auto branch now scales background concurrency with CPU cores so a larger box
+            // runs more maintenance work in parallel — but it is HARD-CLAMPED to WorkerMax (the PostgreSQL
+            // worker-pool budget), so core count can never push the gate past what the DB pool can serve.
+            // Environment.ProcessorCount is cgroup/container-quota aware. (CpuTopology lives in Animora.Server;
+            // this Persistence project must not reference Server — ServerLayeringTests — so the one-line
+            // core read is inlined here.) An explicit Database:WorkerAdmissionMax always wins.
+            int cores = Math.Max(1, Environment.ProcessorCount);
+            int permits = db.WorkerAdmissionMax > 0
+                ? db.WorkerAdmissionMax
+                : Math.Clamp(Math.Min(cores, db.WorkerMax), 1, db.WorkerMax);
+            return new SemaphoreBackgroundAdmission(permits);
         });
         services.TryAddSingleton<ISyncAdmission>(sp =>
         {
