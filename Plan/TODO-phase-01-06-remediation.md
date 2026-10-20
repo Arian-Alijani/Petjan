@@ -193,7 +193,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   clock, use the existing fake/`TimeProvider`-backed clock already in the test project.
 - **Acceptance:** no `DateTimeOffset.UtcNow`/`DateTime.*` remains in this file (`grep -n "DateTime" src/Animora.Application/Commands/LocalCommandProcessor.cs` → empty); compiles; registrations updated.
 
-## [ ] T08 · APP-03 — Align retry exponent clamp with MaxAttempts (Low, dead-config)
+## [x] T08 · APP-03 — Align retry exponent clamp with MaxAttempts (Low, dead-config)
 - **File:** `src/Animora.Application/Commands/RetryPolicy.cs` — `NextDelay(int attempts)`.
 - **Current:** `var exponent = Math.Clamp(attempts, 1, 20);` while `MaxAttempts = 10`. Clamp upper bound
   (20) is unreachable → misleading.
@@ -629,7 +629,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T05 | DOM-05 | Low | [x] |
 | T06 | APP-01 | High | [x] |
 | T07 | APP-02 | Med | [x] |
-| T08 | APP-03 | Low | [ ] |
+| T08 | APP-03 | Low | [x] |
 | T09 | APP-04 | Low | [ ] |
 | T10 | APP-05 | Low | [ ] |
 | T11 | CW-01/02/05 | High | [ ] |

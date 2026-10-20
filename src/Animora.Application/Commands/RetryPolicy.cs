@@ -18,7 +18,7 @@ public static class RetryPolicy
     /// </summary>
     public static TimeSpan NextDelay(int attempts)
     {
-        var exponent = Math.Clamp(attempts, 1, 20); // 2^20 s already exceeds the cap; clamp guards overflow.
+        var exponent = Math.Clamp(attempts, 1, MaxAttempts); // bound to the real attempt budget; Cap already dominates.
         var seconds = Math.Pow(2, exponent);
         return seconds >= Cap.TotalSeconds ? Cap : TimeSpan.FromSeconds(seconds);
     }
