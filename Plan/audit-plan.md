@@ -184,7 +184,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
     (migration 033 OnlineEntitlement/SealedEntitlement).
   Write the full matrix + findings. **Push** (this is a large report — push even if partial, then continue).
 
-- [ ] **T8 — Server host, auth & authorization audit → `Plan/reports/07-server-auth.md`.**
+- [x] **T8 — Server host, auth & authorization audit → `Plan/reports/07-server-auth.md`.** ✓ pushed
   Scope: `src/Animora.Server/{Hosting,Auth,Authorization,Resilience,Signing}` + `Server.Licensing/**`
   + `Persistence.PostgreSql/{Identity,KeyRing,Security}`. Audit: startup/readiness ordering, rate-limit
   policies (the 5 policies, `auth` policy name), bearer-token issuance/validation (opaque DP tokens,
