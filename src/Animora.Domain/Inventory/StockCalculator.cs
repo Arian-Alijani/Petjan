@@ -99,6 +99,15 @@ public static class StockCalculator
             }
 
             average = runningQuantity > 0m ? runningValue / runningQuantity : average;
+
+            // Oversell guard: once the ledger is drained to (or below) zero, the running value can
+            // go negative while the average freezes at its last positive figure. Dropping the stale
+            // negative value here means the next inbound re-seeds a clean average from its own cost
+            // only, instead of inheriting a skewed/negative baseline. Average is intentionally kept.
+            if (runningQuantity <= 0m)
+            {
+                runningValue = 0m;
+            }
         }
 
         var rounded = Math.Round(average, 0, MidpointRounding.AwayFromZero);

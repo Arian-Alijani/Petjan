@@ -53,7 +53,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 
 # Report 01 — Domain (`src/Animora.Domain/**`)
 
-## [ ] T01 · DOM-01 — Fix weighted-average cost corruption after oversell (Medium, latent)
+## [x] T01 · DOM-01 — Fix weighted-average cost corruption after oversell (Medium, latent)
 - **File:** `src/Animora.Domain/Inventory/StockCalculator.cs`, method `WeightedAverageCost` (~lines 66–106).
 - **Current code (the defect):**
   ```csharp
@@ -622,7 +622,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 
 | Task | Finding | Sev | Status |
 |---|---|---|---|
-| T01 | DOM-01 | Med | [ ] |
+| T01 | DOM-01 | Med | [x] |
 | T02 | DOM-02 | Med | [ ] |
 | T03 | DOM-04 | Low | [ ] |
 | T04 | DOM-03 | Low | [ ] |
