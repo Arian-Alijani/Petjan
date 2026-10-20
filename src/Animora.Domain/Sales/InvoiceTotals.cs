@@ -97,9 +97,15 @@ public static class InvoiceTotals
         var lineDiscountTotal = new Money(lineDiscountMinor, currency);
         var netAfterLineDiscount = new Money(grossMinor - lineDiscountMinor, currency);
 
+        // SAC-03: a fixed discount is clamped to [0, net] so a draft can never carry DiscountTotal > Subtotal
+        // (negative line bases / GrandTotal). The percent branch is already bounded by SetDiscount's >100 reject.
+        var fixedMinor = (long)Math.Round(discountValue, MidpointRounding.AwayFromZero);
+        if (fixedMinor < 0) fixedMinor = 0;
+        if (fixedMinor > netAfterLineDiscount.Minor) fixedMinor = Math.Max(netAfterLineDiscount.Minor, 0);
+
         var invoiceDiscount = discountKind == DiscountKind.Percent
             ? netAfterLineDiscount.ApplyPercent(discountValue)
-            : new Money((long)Math.Round(discountValue, MidpointRounding.AwayFromZero), currency);
+            : new Money(fixedMinor, currency);
 
         var discountTotal = lineDiscountTotal.Add(invoiceDiscount);
 

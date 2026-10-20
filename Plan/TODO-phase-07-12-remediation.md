@@ -152,7 +152,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Acceptance:** `Format(prefix, year, 1_000_000)` throws; `Format(prefix, year, 999_999)` → `...-999999`
   unchanged. No change to the happy path's rendered string.
 
-## [ ] T33 · SAC-03 — Cap the fixed-amount invoice discount (Medium, bug) — truncation half already done
+## [x] T33 · SAC-03 — Cap the fixed-amount invoice discount (Medium, bug) — truncation half already done
 - **File:** `src/Animora.Domain/Sales/InvoiceTotals.cs`, `Compute` (lines ~98–104).
 - **Already fixed (T02/DOM-02):** the truncating `(long)discountValue` cast is now
   `new Money((long)Math.Round(discountValue, MidpointRounding.AwayFromZero), currency)` — **do not touch
