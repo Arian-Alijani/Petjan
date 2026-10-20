@@ -32,6 +32,10 @@ public sealed record CategoryOption(string Id,string Name);
 public sealed record ProductListQuery(string? Search=null,string? CategoryId=null,string? Stock=null,long? MinPrice=null,long? MaxPrice=null,string? Sort=null,int Page=1,int PageSize=50);
 public sealed record ProductCatalog(AdminPage<ProductSummary> Page,IReadOnlyList<CategoryOption> Categories);
 public sealed class BackupRequestForm { public bool Confirmed { get; set; } }
+/// <summary>BAK-02: per-tenant export request — the clinic id plus the mandatory confirmation.</summary>
+public sealed class TenantBackupRequestForm { public string TenantId { get; set; } = string.Empty; public bool Confirmed { get; set; } }
+/// <summary>BAK-02: one per-tenant export (<see cref="Rows"/> across <see cref="Tables"/> tables; both 0 in a plain list).</summary>
+public sealed record TenantBackupReceipt(string FileName,string TenantId,long SizeBytes,DateTimeOffset CreatedUtc,int Tables,long Rows);
 public sealed record BackupReceipt(string FileName,long SizeBytes,DateTimeOffset CreatedUtc);
 public sealed record MutationReceipt(string? TemporaryPassword=null,string? TenantId=null);
 public sealed class SubscriptionActionForm

@@ -17,15 +17,37 @@
 }
 </tbody></table></div>
 }
+<h2>@Loc.T("backup.tenant.title")</h2>
+<p class="hint">@Loc.T("backup.tenant.hint")</p>
+@if (TenantCreated is not null) { <p class="notice" role="status">@Loc.T("backup.created"): <code dir="ltr">@TenantCreated.FileName</code> (@FormatSize(TenantCreated.SizeBytes), @TenantCreated.Rows)</p> }
+<EditForm Model="TenantForm" FormName="create-tenant-backup" method="post" OnSubmit="CreateTenant">
+<label>@Loc.T("backup.tenant.id")<InputText @bind-Value="TenantForm!.TenantId" maxlength="26" dir="ltr" /></label>
+<ConfirmCheckbox Name="TenantForm.Confirmed" /><button type="submit">@Loc.T("backup.tenant.create")</button></EditForm>
+@if (TenantFiles.Count == 0) { <p>@Loc.T("backup.empty")</p> } else {
+<div class="table-wrap"><table><caption>@Loc.T("backup.tenant.title")</caption><thead><tr><th scope="col">@Loc.T("backup.file")</th><th scope="col">@Loc.T("backup.tenant.id")</th><th scope="col">@Loc.T("backup.size")</th><th scope="col">@Loc.T("backup.time")</th><th scope="col">@Loc.T("backup.download")</th></tr></thead><tbody>
+@foreach (var f in TenantFiles) {
+<tr><td dir="ltr">@f.FileName</td><td dir="ltr">@f.TenantId</td><td>@FormatSize(f.SizeBytes)</td><td dir="ltr">@f.CreatedUtc.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+<td><form method="post" action="/admin/backup/tenant/download"><AntiforgeryToken /><input type="hidden" name="file" value="@f.FileName" /><button type="submit">@Loc.T("backup.download")</button></form></td></tr>
+}
+</tbody></table></div>
+}
 @code {
     [SupplyParameterFromForm] public BackupRequestForm? Form { get; set; }
+    [SupplyParameterFromForm] public TenantBackupRequestForm? TenantForm { get; set; }
     private BackupReceipt? Created;
+    private TenantBackupReceipt? TenantCreated;
+    private IReadOnlyList<TenantBackupReceipt> TenantFiles=[];
     private IReadOnlyList<BackupReceipt> Files=[];
-    protected override async Task OnInitializedAsync() { Form??=new(); await Load(); }
-    private async Task Load() { var captured=Error; Files=Capture(await Backups.ListAsync(Cancellation))??[]; Error??=captured; }
+    protected override async Task OnInitializedAsync() { Form??=new(); TenantForm??=new(); await Load(); }
+    private async Task Load() { var captured=Error; Files=Capture(await Backups.ListAsync(Cancellation))??[]; TenantFiles=Capture(await Backups.ListTenantAsync(Cancellation))??[]; Error??=captured; }
     private async Task Create(EditContext _)
     {
         Created=Capture(await Backups.CreateAsync(Form!,Cancellation));
+        var failure=Error; await Load(); Error=failure??Error;
+    }
+    private async Task CreateTenant(EditContext _)
+    {
+        TenantCreated=Capture(await Backups.CreateTenantAsync(TenantForm!,Cancellation));
         var failure=Error; await Load(); Error=failure??Error;
     }
     private static string FormatSize(long bytes) => bytes switch

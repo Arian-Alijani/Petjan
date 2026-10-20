@@ -29,6 +29,10 @@ public interface IAdminBackup
     Task<Result<IReadOnlyList<BackupReceipt>>> ListAsync(CancellationToken ct=default);
     /// <summary>Creates a new full backup. <see cref="BackupRequestForm.Confirmed"/> is mandatory.</summary>
     Task<Result<BackupReceipt>> CreateAsync(BackupRequestForm form,CancellationToken ct=default);
+    /// <summary>BAK-02: per-tenant exports (newest first); each file holds exactly one clinic's rows.</summary>
+    Task<Result<IReadOnlyList<TenantBackupReceipt>>> ListTenantAsync(CancellationToken ct=default);
+    /// <summary>BAK-02: exports exactly one clinic's data into an isolated artifact. <see cref="TenantBackupRequestForm.Confirmed"/> is mandatory.</summary>
+    Task<Result<TenantBackupReceipt>> CreateTenantAsync(TenantBackupRequestForm form,CancellationToken ct=default);
 }
 public interface IAdminProductQueries
 {

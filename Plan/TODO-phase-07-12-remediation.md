@@ -283,7 +283,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Heavy-fix note:** new escrow path — push as
   `feat(persistence): passphrase-wrapped key escrow for portable local backup [BAK-01]`.
 
-## [ ] T37 · BAK-02 — Add per-tenant server backup/restore (High, backup/isolation)
+## [x] T37 · BAK-02 — Add per-tenant server backup/restore (High, backup/isolation)
 - **File:** `src/Animora.Persistence.PostgreSql/Operator/DatabaseBackupService.cs` (`CreateAsync` =
   whole-DB `pg_dump --format=custom`), `src/Animora.Server/Admin/AdminBackupAdapter.cs`,
   `AdminBackupEndpoints.cs`.

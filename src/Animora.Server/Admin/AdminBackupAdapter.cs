@@ -14,7 +14,7 @@ namespace Animora.Server.Admin;
 /// installed on the server the operator receives <c>STORE_UNAVAILABLE</c> (a clear Persian message), nothing is half-written.
 /// </summary>
 internal sealed class AdminBackupAdapter(AnimoraOperatorDbContext db,IOptions<DatabaseOptions> database,IOptions<AdminOptions> admin,
-    AdminSession session,IHttpContextAccessor accessor,TimeProvider time) : IAdminBackup
+    AdminSession session,IHttpContextAccessor accessor,TimeProvider time,Animora.Domain.Time.IClock clock) : IAdminBackup
 {
     private string Correlation=>accessor.HttpContext is { } http?CorrelationHeader.Resolve(http):Guid.NewGuid().ToString("N");
 
@@ -50,9 +50,44 @@ internal sealed class AdminBackupAdapter(AnimoraOperatorDbContext db,IOptions<Da
         return Result<string>.Ok(path);
     }
 
-    private async Task AuditAsync(Animora.Domain.Subscriptions.ActorRef actor,string action,string outcome,object detail,CancellationToken ct)
+    public Task<Result<IReadOnlyList<TenantBackupReceipt>>> ListTenantAsync(CancellationToken ct=default)
     {
-        db.Audit.Add(OperatorAudit.Create(time.GetUtcNow(),actor,action,null,Correlation,outcome,detail));
+        _=session.OperatorId;
+        IReadOnlyList<TenantBackupReceipt> files=TenantBackupService.List(admin.Value.BackupDirectory)
+            .Select(f=>new TenantBackupReceipt(f.FileName,f.TenantId,f.SizeBytes,f.CreatedUtc,f.Tables,f.Rows)).ToArray();
+        return Task.FromResult(Result<IReadOnlyList<TenantBackupReceipt>>.Ok(files));
+    }
+
+    /// <summary>BAK-02: same guards as the whole-DB path — operator session, mandatory confirmation, config-derived directory, audit row.</summary>
+    public async Task<Result<TenantBackupReceipt>> CreateTenantAsync(TenantBackupRequestForm form,CancellationToken ct=default)
+    {
+        var actor=session.Actor;
+        if(!form.Confirmed)return Result<TenantBackupReceipt>.Fail(ErrorCodes.ValidationFailed);
+        var tenantId=form.TenantId?.Trim()??string.Empty;
+        var result=await TenantBackupService.CreateAsync(db,tenantId,clock,admin.Value.BackupDirectory,time.GetUtcNow(),ct).ConfigureAwait(false);
+        if(result.IsFailure)
+        {
+            await AuditAsync(actor,"backup.tenant.failed","failure",new{code=result.Error.Code},ct,tenantId.Length is > 0 and <= 26?tenantId:null).ConfigureAwait(false);
+            return Result<TenantBackupReceipt>.Fail(result.Error);
+        }
+        var f=result.Value!;
+        await AuditAsync(actor,"backup.tenant.created","success",new{file=f.FileName,bytes=f.SizeBytes,tables=f.Tables,rows=f.Rows},ct,f.TenantId).ConfigureAwait(false);
+        return Result<TenantBackupReceipt>.Ok(new(f.FileName,f.TenantId,f.SizeBytes,f.CreatedUtc,f.Tables,f.Rows));
+    }
+
+    /// <summary>Validates <paramref name="fileName"/> against the per-tenant name whitelist, audits the download and returns the on-disk path.</summary>
+    public async Task<Result<string>> ResolveTenantDownloadAsync(string? fileName,CancellationToken ct=default)
+    {
+        var actor=session.Actor;
+        var path=TenantBackupService.Resolve(admin.Value.BackupDirectory,fileName);
+        if(path is null)return Result<string>.Fail(ErrorCodes.NotFound);
+        await AuditAsync(actor,"backup.tenant.downloaded","success",new{file=fileName},ct,TenantBackupService.ParseName(fileName!)?.TenantId).ConfigureAwait(false);
+        return Result<string>.Ok(path);
+    }
+
+    private async Task AuditAsync(Animora.Domain.Subscriptions.ActorRef actor,string action,string outcome,object detail,CancellationToken ct,string? tenantId=null)
+    {
+        db.Audit.Add(OperatorAudit.Create(time.GetUtcNow(),actor,action,tenantId,Correlation,outcome,detail));
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 }
