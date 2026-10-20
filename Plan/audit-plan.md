@@ -205,8 +205,8 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   backup); client-side tenant key in `TenantScopedCache` matches server tenant. Enumerate every
   entity set and confirm isolation per standard. Write findings. **Push.**
 
-- [ ] **T10 — Sales + accounting system audit → `Plan/reports/09-sales-accounting.md`
-      (audit target #11).**
+- [x] **T10 — Sales + accounting system audit → `Plan/reports/09-sales-accounting.md`
+      (audit target #11).** ✓ pushed
   Scope: Domain `Sales.*`/`Cashier`/`Finance.*`; Application finance use cases + outbox; Persistence
   `FinanceProjections` (DailyFinanceFact, ProductSalesFact, OwnerFinancialSnapshot), allocators
   (Invoice/Journal/Expense number), `FinanceProjectionWorker`/`Rebuilder`; Client.Services
