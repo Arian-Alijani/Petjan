@@ -121,7 +121,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** `DayOfMonth=31`, 30-day month, day 30, not paid → `IsDue` now returns `true`
   (matches `Evaluate`'s `Due`).
 
-## [ ] T05 · DOM-05 — Remove LINQ `Distinct().ToList()` from the expander (Low, perf/convention)
+## [x] T05 · DOM-05 — Remove LINQ `Distinct().ToList()` from the expander (Low, perf/convention)
 - **File:** `src/Animora.Domain/Clinical/TreatmentScheduleExpander.cs` — `ExpandSpecific`.
 - **Current:** `return Result<List<DateOnly>>.Ok(s.Days.Distinct().ToList());`
 - **Fix:** replace with an indexed-loop dedup (sort then skip equal neighbours, or a manual pass into a
@@ -626,7 +626,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T02 | DOM-02 | Med | [x] |
 | T03 | DOM-04 | Low | [x] |
 | T04 | DOM-03 | Low | [x] |
-| T05 | DOM-05 | Low | [ ] |
+| T05 | DOM-05 | Low | [x] |
 | T06 | APP-01 | High | [ ] |
 | T07 | APP-02 | Med | [ ] |
 | T08 | APP-03 | Low | [ ] |

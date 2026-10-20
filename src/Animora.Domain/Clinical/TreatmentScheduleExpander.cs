@@ -137,7 +137,19 @@ public static class TreatmentScheduleExpander
             return Result<List<DateOnly>>.Fail(ErrorCodes.TreatmentScheduleTooLarge, "Too many picked dates.");
         }
 
-        return Result<List<DateOnly>>.Ok(s.Days.Distinct().ToList());
+        // Indexed-loop dedup (PERFORMANCE.md §2 — no LINQ). s.Days is bounded (≤ MaxOccurrences*2
+        // by the guard above), so the O(n²) Contains scan is safe; the caller re-sorts afterwards.
+        var days = new List<DateOnly>(s.Days.Count);
+        for (var i = 0; i < s.Days.Count; i++)
+        {
+            var day = s.Days[i];
+            if (!days.Contains(day))
+            {
+                days.Add(day);
+            }
+        }
+
+        return Result<List<DateOnly>>.Ok(days);
     }
 
     private static Result<List<DateOnly>> ExpandEvery(TreatmentSchedule s)
