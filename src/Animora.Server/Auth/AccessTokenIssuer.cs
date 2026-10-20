@@ -23,6 +23,18 @@ internal interface IAccessTokenIssuer
 /// <summary>
 /// Issues access tokens with the framework bearer handler's own Data-Protection-protected ticket format
 /// (key ring in PostgreSQL, S02) — opaque, no JWT. The same protector validates them on each request.
+/// <para>
+/// AUTH-04 — revocation bound (decision: documented, no deny-list). There is no token deny-list, but the access token is
+/// NOT trusted on its own for its whole lifetime: <c>AuthServiceCollectionExtensions.AccessTokenLifetime</c> is 15 minutes
+/// (the hard upper bound of a stolen token's validity), and on every request the token's user/device/stamp triple is
+/// re-resolved against the store by <c>MembershipResolver</c> (stamp mismatch → SessionExpired, Revoked/foreign device →
+/// DeviceRevoked, disabled user / suspended tenant → denied). The only staleness is the short absolute
+/// <c>Server:AuthCache:TtlSeconds</c> verdict cache (default 10 s, max 60 s; in-process revoke/rotate invalidates it
+/// immediately). So the practical compromise window after Revoke / stamp rotation is the cache TTL (seconds), not the
+/// 15-minute token lifetime; the refresh path additionally re-reads the stamp (<c>LoginService.RefreshAsync</c>).
+/// Multi-replica: set <c>AuthCache:TtlSeconds=0</c> for an immediate bound. The 15-minute lifetime is already short, so it is
+/// left unchanged.
+/// </para>
 /// </summary>
 internal sealed class BearerAccessTokenIssuer(IOptionsMonitor<BearerTokenOptions> options, IClock clock) : IAccessTokenIssuer
 {

@@ -527,7 +527,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
   store; a role/permission change still takes effect within the TTL / on stamp rotation. No correctness
   change. (If the cache already does this, record that and make it a no-op doc note.)
 
-## [ ] T48 · AUTH-04 — Document (and optionally tighten) access-token revocation bound (Low, security/time)
+## [x] T48 · AUTH-04 — Document (and optionally tighten) access-token revocation bound (Low, security/time)
 - **File:** `src/Animora.Server/Auth/AccessTokenIssuer.cs` (DP ticket with `ExpiresUtc`),
   `LoginService.RefreshAsync` (`RotateSecurityStamp`).
 - **Problem:** no server-side deny-list; an already-issued access token stays valid until
