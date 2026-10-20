@@ -121,7 +121,7 @@ widens parallelism only up to what the DB budget allows. Add a 1-line comment at
 **Verify:** build 0/0.
 **PUSH:** `scripts/git/push.sh "perf(server): auto-scale worker fan-out with CPU cores (DB-budget clamped)"`
 
-### [ ] T4 — Make the worker admission gate core-aware (bounded by DB budget)
+### [x] T4 — Make the worker admission gate core-aware (bounded by DB budget)
 **File:** `src/Animora.Persistence.PostgreSql/DependencyInjection/PersistenceServiceCollectionExtensions.cs`
 (the `IBackgroundAdmission` registration, ~line 106).
 **Do:** today it is `SemaphoreBackgroundAdmission(db.WorkerAdmissionMax>0 ? WorkerAdmissionMax :
