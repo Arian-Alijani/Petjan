@@ -37,14 +37,17 @@ public sealed class ViewCache
     // needed; ConditionalWeakTable is thread-safe regardless.
     private readonly ConditionalWeakTable<object, Control> _views = new();
 
+    // UI-04: one cached spare View per ViewModel for the rare "canonical View still hosted" case (same weak semantics).
+    private readonly ConditionalWeakTable<object, Control> _spares = new();
+
     /// <summary>
     /// Returns the cached View for <paramref name="viewModel"/>, creating it via
     /// <paramref name="factory"/> (and caching it) on first request.
     ///
     /// Reuse is only valid when the cached View is currently unparented: a View
     /// still attached to another host cannot be re-hosted, so in that (rare)
-    /// case a fresh, uncached View is returned and the canonical cached
-    /// instance is left untouched.
+    /// case a spare View is returned (built once, then cached per ViewModel —
+    /// UI-04) and the canonical cached instance is left untouched.
     /// </summary>
     public Control GetOrCreate(object viewModel, Func<Control> factory)
     {
@@ -61,7 +64,18 @@ public sealed class ViewCache
                 return cached;
             }
 
-            return factory();
+            // UI-04: forcibly detaching the parented View is unsafe (its presenter owns it and may be mid-layout/animation),
+            // so the second host gets a SPARE instance — but the spare is itself cached per ViewModel, so repeated requests
+            // while the canonical View stays hosted reuse one rebuilt tree instead of re-inflating XAML every time. A spare
+            // that is itself still hosted falls through to one more fresh build (replacing the spare).
+            if (_spares.TryGetValue(viewModel, out var spare) && spare.Parent is null)
+            {
+                return spare;
+            }
+
+            var rebuilt = factory();
+            _spares.AddOrUpdate(viewModel, rebuilt);
+            return rebuilt;
         }
 
         var created = factory();

@@ -603,7 +603,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Acceptance:** repeated sign-in/out does not accumulate process-global subscriptions; a crash fires the
   hook once; old providers are not rooted by stale delegates. Reason through the register path.
 
-## [ ] T53 · UI-04 — Reparent cached View instead of uncached rebuild (Low, perf)
+## [x] T53 · UI-04 — Reparent cached View instead of uncached rebuild (Low, perf)
 - **File:** `src/Animora.Desktop/Shell/ViewCache.cs` — `GetOrCreate`:
   ```csharp
   if (cached.Parent is null) return cached;
