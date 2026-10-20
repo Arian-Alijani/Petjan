@@ -1,4 +1,5 @@
 using Animora.Application.Commands;
+using Animora.Contracts.Wire;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
@@ -110,5 +111,8 @@ public sealed class SettlementReconciler(
     private static CommandEnvelope ToEnvelope(PendingCommandRecord c) => CommandEnvelope.Create(
         c.OperationId, c.TenantId, c.UserId, c.DeviceId, c.CommandType, c.AggregateType, c.AggregateId,
         c.PayloadJson, c.CommandFingerprint, c.CreatedAtUtc, c.LocalSequence, c.CausationId,
-        c.DependsOnOperationId, c.ExpectedAggregateVersion);
+        c.DependsOnOperationId, c.ExpectedAggregateVersion,
+        // CW-01: thread the locally-stored canonical server version as the precondition; CW-02/CW-05: rule-set version.
+        expectedServerVersion: c.ServerVersion,
+        ruleSetVersion: WireContract.RuleSetVersionString);
 }

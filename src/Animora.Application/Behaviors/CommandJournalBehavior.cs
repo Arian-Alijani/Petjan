@@ -1,6 +1,7 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Commands;
 using Animora.Application.Dispatch;
+using Animora.Contracts.Wire;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
@@ -82,7 +83,12 @@ public sealed class CommandJournalBehavior : IPipelineBehavior
                 sequence.Value,
                 commandContext.CausationId,
                 dependsOn,
-                commandContext.ExpectedAggregateVersion);
+                commandContext.ExpectedAggregateVersion,
+                // CW-01: no canonical per-aggregate server version is known at authoring time (the command is
+                // being created). It is threaded on re-submit from the stored PendingCommandRecord.ServerVersion.
+                expectedServerVersion: null,
+                // CW-02/CW-05: always stamp the active client rule-set version so the server can precondition it.
+                ruleSetVersion: WireContract.RuleSetVersionString);
 
             var enqueued = await journal.EnqueueAsync(envelope, ct).ConfigureAwait(false);
             if (enqueued.IsFailure) return Result<TResult>.Fail(enqueued.Error, enqueued.Detail);

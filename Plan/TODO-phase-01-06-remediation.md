@@ -237,7 +237,16 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 > precondition fields through the envelope builders. Do them together (one task T11) because fixing
 > CW-01/CW-02 **requires** the CW-05 builder change. CW-03/CW-04 are independent.
 
-## [ ] T11 · CW-01 + CW-02 + CW-05 — Populate wire-v2 precondition fields from the client (High)
+## [x] T11 · CW-01 + CW-02 + CW-05 — Populate wire-v2 precondition fields from the client (High)
+> **DONE (2026-10-20).** Added `WireContract.RuleSetVersion = 1` / `RuleSetVersionString` as the single source
+> for the client's active rule-set version. All three envelope builders now thread the v2 preconditions:
+> `CommandJournalBehavior` (authoring path) stamps `ruleSetVersion` and leaves `expectedServerVersion = null`
+> (no canonical version known at authoring time); `LocalCommandProcessor.ToEnvelope` and
+> `SettlementReconciler.ToEnvelope` (re-submit paths) stamp both `ruleSetVersion` and
+> `expectedServerVersion: c.ServerVersion` (the locally-stored canonical server version — null until the first
+> settlement records one). CW-02 (RuleSetVersion) fully populated; CW-01 (ExpectedServerVersion) populated on
+> re-submit from the stored canonical version. Server validators untouched. No migration needed (reused the
+> existing `PendingCommandRecord.ServerVersion`).
 - **Server side already consumes them (do NOT change server logic, just confirm):**
   - `src/Animora.Server/Commands/CommandEnvelopeValidator.cs:24` validates `ExpectedServerVersion`
     (`version.ToString("D") != envelope.ExpectedServerVersion`).
@@ -632,7 +641,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T08 | APP-03 | Low | [x] |
 | T09 | APP-04 | Low | [x] |
 | T10 | APP-05 | Low | [x] |
-| T11 | CW-01/02/05 | High | [ ] |
+| T11 | CW-01/02/05 | High | [x] |
 | T12 | CW-03 | Med | [ ] |
 | T13 | CW-04 | Low | [ ] |
 | T14 | SQL-01 | High | [ ] |

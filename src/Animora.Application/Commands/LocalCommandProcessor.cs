@@ -1,4 +1,5 @@
 using Animora.Application.Abstractions;
+using Animora.Contracts.Wire;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Primitives;
 using Animora.Domain.Results;
@@ -151,5 +152,9 @@ public sealed class LocalCommandProcessor(
     private static CommandEnvelope ToEnvelope(PendingCommandRecord c) => CommandEnvelope.Create(
         c.OperationId, c.TenantId, c.UserId, c.DeviceId, c.CommandType, c.AggregateType, c.AggregateId,
         c.PayloadJson, c.CommandFingerprint, c.CreatedAtUtc, c.LocalSequence, c.CausationId,
-        c.DependsOnOperationId, c.ExpectedAggregateVersion);
+        c.DependsOnOperationId, c.ExpectedAggregateVersion,
+        // CW-01: carry the canonical server version the client last observed for this aggregate (null until the
+        // first settlement stores one) so the server can precondition on it; CW-02/CW-05: stamp the rule-set version.
+        expectedServerVersion: c.ServerVersion,
+        ruleSetVersion: WireContract.RuleSetVersionString);
 }
