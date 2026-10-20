@@ -79,7 +79,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** replay `[+10 @100, -12, +5 @100]` → after restock the average must be `100` (not
   negative/understated). Verify by reasoning through the loop; no new LINQ, keep `for`/indexed style.
 
-## [ ] T02 · DOM-02 — Round fixed-amount discount instead of truncating (Medium, bug)
+## [x] T02 · DOM-02 — Round fixed-amount discount instead of truncating (Medium, bug)
 - **File:** `src/Animora.Domain/Sales/InvoiceTotals.cs`, method `Compute`.
 - **Current code:**
   ```csharp
@@ -95,7 +95,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** `discountValue = 1500.9m` → discount Minor `1501`, not `1500`. Whole-number inputs
   unchanged.
 
-## [ ] T03 · DOM-04 — Guard total accumulators with `checked` (Low, latent)
+## [x] T03 · DOM-04 — Guard total accumulators with `checked` (Low, latent)
 - **File:** `src/Animora.Domain/Sales/InvoiceTotals.cs` — methods `Compute`, `ComputeDue`, `AllocateByWeight`.
 - **Current:** plain `long +=` accumulators: `grossMinor += gross; lineDiscountMinor += discount;`
   (Compute), `adjustedMinor += adjustments[i].Amount.Minor;` (ComputeDue), `totalWeight += weights[i];`
@@ -623,8 +623,8 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | Task | Finding | Sev | Status |
 |---|---|---|---|
 | T01 | DOM-01 | Med | [x] |
-| T02 | DOM-02 | Med | [ ] |
-| T03 | DOM-04 | Low | [ ] |
+| T02 | DOM-02 | Med | [x] |
+| T03 | DOM-04 | Low | [x] |
 | T04 | DOM-03 | Low | [ ] |
 | T05 | DOM-05 | Low | [ ] |
 | T06 | APP-01 | High | [ ] |

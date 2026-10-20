@@ -88,8 +88,8 @@ public static class InvoiceTotals
             var gross = line.LineGross.Minor;
             var discount = line.LineDiscount.Minor;
 
-            grossMinor += gross;
-            lineDiscountMinor += discount;
+            grossMinor = checked(grossMinor + gross);
+            lineDiscountMinor = checked(lineDiscountMinor + discount);
             netWeights[i] = gross - discount;
         }
 
@@ -99,7 +99,7 @@ public static class InvoiceTotals
 
         var invoiceDiscount = discountKind == DiscountKind.Percent
             ? netAfterLineDiscount.ApplyPercent(discountValue)
-            : new Money((long)discountValue, currency);
+            : new Money((long)Math.Round(discountValue, MidpointRounding.AwayFromZero), currency);
 
         var discountTotal = lineDiscountTotal.Add(invoiceDiscount);
 
@@ -111,7 +111,7 @@ public static class InvoiceTotals
         for (var i = 0; i < lines.Count; i++)
         {
             var taxableBase = new Money(netWeights[i] - shares[i], currency);
-            taxMinor += taxableBase.ApplyPercent(lines[i].TaxPercent).Minor;
+            taxMinor = checked(taxMinor + taxableBase.ApplyPercent(lines[i].TaxPercent).Minor);
         }
 
         var taxTotal = new Money(taxMinor, currency);
@@ -143,7 +143,7 @@ public static class InvoiceTotals
         var adjustedMinor = 0L;
         for (var i = 0; i < adjustments.Count; i++)
         {
-            adjustedMinor += adjustments[i].Amount.Minor;
+            adjustedMinor = checked(adjustedMinor + adjustments[i].Amount.Minor);
         }
 
         return grandTotal
@@ -168,7 +168,7 @@ public static class InvoiceTotals
         var totalWeight = 0L;
         for (var i = 0; i < count; i++)
         {
-            totalWeight += weights[i];
+            totalWeight = checked(totalWeight + weights[i]);
         }
 
         if (totalWeight == 0L)
@@ -193,7 +193,7 @@ public static class InvoiceTotals
             var whole = decimal.Truncate(exact);
             shares[i] = (long)whole;
             remainders[i] = exact - whole;
-            distributed += shares[i];
+            distributed = checked(distributed + shares[i]);
         }
 
         // Hand the leftover minor units to the largest fractional remainders, one each.
