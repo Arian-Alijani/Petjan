@@ -26,7 +26,7 @@ public sealed record CommandProcessorPass(
 public sealed class LocalCommandProcessor(
     ICommandJournal journal,
     ICommandTransport transport,
-    IClock? clock = null)
+    IClock clock)
 {
     private static int _activePasses;
 
@@ -136,7 +136,7 @@ public sealed class LocalCommandProcessor(
         "DependsOn=" + command.DependsOnOperationId,
         ServerEntityId: null,
         ServerVersion: null,
-        SettledAtUtc: clock?.UtcNow ?? DateTimeOffset.UtcNow,
+        SettledAtUtc: clock.UtcNow,
         FinancialEffect.NotApplied,
         ResponsibleRole: null);
 

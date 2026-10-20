@@ -181,7 +181,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Heavy-fix note:** if this grows into a migration + journal schema change, push separately with
   `fix(application): persist journaled-command result for safe non-Unit replay`.
 
-## [ ] T07 · APP-02 — Remove ambient-clock fallback in LocalCommandProcessor (Medium, latent)
+## [x] T07 · APP-02 — Remove ambient-clock fallback in LocalCommandProcessor (Medium, latent)
 - **File:** `src/Animora.Application/Commands/LocalCommandProcessor.cs` — `DependencyRejected` (~line 139)
   and the ctor `LocalCommandProcessor(ICommandJournal, ICommandTransport, IClock? clock = null)`.
 - **Current:** `SettledAtUtc: clock?.UtcNow ?? DateTimeOffset.UtcNow,` — the only ambient-clock read in
@@ -628,7 +628,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T04 | DOM-03 | Low | [x] |
 | T05 | DOM-05 | Low | [x] |
 | T06 | APP-01 | High | [x] |
-| T07 | APP-02 | Med | [ ] |
+| T07 | APP-02 | Med | [x] |
 | T08 | APP-03 | Low | [ ] |
 | T09 | APP-04 | Low | [ ] |
 | T10 | APP-05 | Low | [ ] |

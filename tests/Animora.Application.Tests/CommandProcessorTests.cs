@@ -25,7 +25,7 @@ public sealed class CommandProcessorTests
         var sink = new RecordingIntegritySink();
         var journal = new FakeCommandJournal(sink);
         var fake = transport as FakeCommandTransport ?? new FakeCommandTransport();
-        return (new LocalCommandProcessor(journal, transport ?? fake), journal, fake);
+        return (new LocalCommandProcessor(journal, transport ?? fake, new FixedClock()), journal, fake);
     }
 
     [Fact]
