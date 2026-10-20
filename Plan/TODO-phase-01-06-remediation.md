@@ -449,7 +449,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** adding a 33rd distinct `(EncounterId, VisitNoteField)` no longer throws; pending notes
   are flushed and the new note is accepted. No `throw new InvalidOperationException(...full...)` remains.
 
-## [ ] T22 · INF-04 — FinanceProjectionWorker: park/dead-letter unknown types, don't drop (Low, financial correctness)
+## [x] T22 · INF-04 — FinanceProjectionWorker: park/dead-letter unknown types, don't drop (Low, financial correctness)
 - **File:** `src/Animora.Infrastructure.Local/Workers/FinanceProjectionWorker.cs` — `Deserialize` → `LogAndDrop`
   (`_ => LogAndDrop(m)` currently logs a warning then returns null → message `Completed` (acked) → lost).
 - **Fix:** instead of acking/completing an unregistered-type message, move it to a **dead-letter / parked**
@@ -643,7 +643,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T19 | INF-01 | High | [ ] |
 | T20 | INF-02 | Med | [ ] |
 | T21 | INF-03 | Med | [ ] |
-| T22 | INF-04 | Low | [ ] |
+| T22 | INF-04 | Low | [x] |
 | T23 | INF-05 | Low | [x] |
 | T24 | SYN-01 | High | [ ] |
 | T25 | SYN-02 | High | [ ] |

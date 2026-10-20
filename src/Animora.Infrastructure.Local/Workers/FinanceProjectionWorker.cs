@@ -65,6 +65,18 @@ public sealed class FinanceProjectionWorker(IServiceScopeFactory scopes, ILogger
             if (complete.IsFailure) throw new InvalidOperationException($"Outbox ack: {complete.Error.Code}");
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (UnregisteredOutboxTypeException unknown)
+        {
+            // INF-04: park, never ack. The message stays in the outbox (Retry with a slow backoff, then DeadLettered once the retry
+            // budget is spent) so it is recoverable after the projection is registered — and cannot hot-loop.
+            logger.LogWarning(
+                "Outbox message {MessageId} has unregistered type {MessageType}; parked (retry/dead-letter), not dropped",
+                message.Id, unknown.MessageType);
+            var parked = await claim.FailAsync(message.Id, ErrorCodes.OutboxDeadLettered,
+                TimeSpan.FromSeconds(Math.Min(3600, 60 * (message.Attempts + 1))), ct).ConfigureAwait(false);
+            if (parked.IsFailure) logger.LogError("Could not park outbox message {MessageId}: {Code}",
+                message.Id, parked.Error.Code);
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Finance projection failed for outbox message {MessageId}", message.Id);
@@ -79,7 +91,7 @@ public sealed class FinanceProjectionWorker(IServiceScopeFactory scopes, ILogger
 
     // F-08: deserialize through the source-generated context (reflection-free). The context uses default
     // naming, so it round-trips the exact JSON the outbox relay wrote.
-    private DomainEvent? Deserialize(OutboxMessage m) => m.MessageType switch
+    private static DomainEvent? Deserialize(OutboxMessage m) => m.MessageType switch
     {
         nameof(InvoicePostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoicePostedEvent),
         nameof(InvoiceVoidedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.InvoiceVoidedEvent),
@@ -91,17 +103,17 @@ public sealed class FinanceProjectionWorker(IServiceScopeFactory scopes, ILogger
         nameof(ChequeBouncedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ChequeBouncedEvent),
         nameof(CashSessionClosedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.CashSessionClosedEvent),
         nameof(ExpensePostedEvent) => JsonSerializer.Deserialize(m.PayloadJson, OutboxEventJsonContext.Default.ExpensePostedEvent),
-        _ => LogAndDrop(m),
+        _ => LogAndDrop(m), // throws: parked by ProcessAsync
     };
 
-    // An unregistered MessageType is still drained (the outbox has no other consumer), but never silently:
-    // in a financial domain a lost event must leave a trace so a missing projection registration is visible.
-    private DomainEvent? LogAndDrop(OutboxMessage m)
+    // An unregistered MessageType is parked, never acked: in a financial domain a lost event must stay recoverable, so a
+    // missing projection registration surfaces as a retried-then-dead-lettered row rather than a silent drop (INF-04).
+    private static DomainEvent LogAndDrop(OutboxMessage m) => throw new UnregisteredOutboxTypeException(m.MessageType);
+
+    private sealed class UnregisteredOutboxTypeException(string messageType)
+        : InvalidOperationException($"Unregistered outbox message type '{messageType}'.")
     {
-        logger.LogWarning(
-            "Outbox message {MessageId} has unregistered type {MessageType}; draining without projection",
-            m.Id, m.MessageType);
-        return null;
+        public string MessageType { get; } = messageType;
     }
 
     public async ValueTask DisposeAsync()
