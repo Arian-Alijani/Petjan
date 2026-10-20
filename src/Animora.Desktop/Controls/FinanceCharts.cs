@@ -31,7 +31,7 @@ public sealed class TrendChart : Control
 
     public static readonly StyledProperty<IBrush> RevenueBrushProperty =
         AvaloniaProperty.Register<TrendChart, IBrush>(nameof(RevenueBrush),
-            new SolidColorBrush(Color.Parse("#0d9488")));
+            new SolidColorBrush(Color.Parse("#4a6cf7")));
 
     public static readonly StyledProperty<IBrush> ExpenseBrushProperty =
         AvaloniaProperty.Register<TrendChart, IBrush>(nameof(ExpenseBrush),
@@ -303,7 +303,7 @@ internal static class FinanceChartBrushes
     /// <summary>The vertical area gradient under a line (top color@alpha → transparent), matching the SVG linearGradient stops.</summary>
     public static IBrush Area(IBrush line, double topOpacity)
     {
-        var c = (line as SolidColorBrush)?.Color ?? Color.Parse("#0d9488");
+        var c = (line as SolidColorBrush)?.Color ?? Color.Parse("#4a6cf7");
         return new LinearGradientBrush
         {
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),

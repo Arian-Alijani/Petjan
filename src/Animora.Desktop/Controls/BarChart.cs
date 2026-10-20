@@ -23,7 +23,7 @@ public sealed class BarChart : Control
         AvaloniaProperty.Register<BarChart, IReadOnlyList<BarChartPoint>?>(nameof(Points));
 
     public static readonly StyledProperty<IBrush> BarBrushProperty =
-        AvaloniaProperty.Register<BarChart, IBrush>(nameof(BarBrush), new SolidColorBrush(Color.Parse("#0d9488")));
+        AvaloniaProperty.Register<BarChart, IBrush>(nameof(BarBrush), new SolidColorBrush(Color.Parse("#4a6cf7")));
 
     /// <summary>True: the value axis uses short money labels («۲ م»); false: plain Persian counts.</summary>
     public static readonly StyledProperty<bool> IsMoneyProperty =

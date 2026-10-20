@@ -20,7 +20,7 @@ public sealed class MetricBar : Control
 
     public static readonly StyledProperty<IBrush> FillProperty =
         AvaloniaProperty.Register<MetricBar, IBrush>(nameof(Fill),
-            new SolidColorBrush(Color.Parse("#0d9488")));
+            new SolidColorBrush(Color.Parse("#4a6cf7")));
 
     public static readonly StyledProperty<IBrush?> TrackBrushProperty =
         AvaloniaProperty.Register<MetricBar, IBrush?>(nameof(TrackBrush),
