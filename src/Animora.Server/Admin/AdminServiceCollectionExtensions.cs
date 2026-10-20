@@ -13,6 +13,8 @@ internal static class AdminServiceCollectionExtensions
     {
         services.AddOptions<AdminOptions>().Bind(configuration.GetSection("Admin"))
             .Validate(o=>o.SessionMinutes==30&&o.RequireHttps,"Admin requires HTTPS and an absolute 30-minute session.").ValidateOnStart();
+        // BAK-03: scheduled server backup (in-app RPO control). WAL archiving / PITR is the Postgres-ops complement (docs/release/03).
+        services.AddHostedService<ScheduledBackupWorker>();
         services.AddAuthentication().AddCookie(OperatorCookie.Scheme,OperatorCookie.Configure);
         services.AddAuthorization(o=>o.AddPolicy(OperatorCookie.Policy,p=>p.AddAuthenticationSchemes(OperatorCookie.Scheme)
             .RequireAuthenticatedUser().RequireRole("operator").RequireAssertion(c=>

@@ -12,6 +12,10 @@ internal sealed class AdminOptions
         ?Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"Animora","backups"):"/var/backups/animora";
     /// <summary>pg_dump executable (<c>Admin:PgDumpPath</c>); the bare name is resolved through PATH.</summary>
     public string PgDumpPath { get; set; }="pg_dump";
+    /// <summary>BAK-03: run <c>pg_dump</c> automatically on a cadence (<c>Admin:ScheduledBackupEnabled</c>). Set <c>false</c> for manual-only backups.</summary>
+    public bool ScheduledBackupEnabled { get; set; }=true;
+    /// <summary>BAK-03: hours between scheduled backups (<c>Admin:ScheduledBackupIntervalHours</c>, default 24, clamped to 1..168).</summary>
+    public int ScheduledBackupIntervalHours { get; set; }=24;
 }
 internal static class OperatorCookie
 {

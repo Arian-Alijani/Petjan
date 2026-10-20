@@ -313,7 +313,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Heavy-fix note:** new per-tenant export/import — push as
   `feat(server): per-tenant logical backup export (tenant-isolated artifact) [BAK-02]`.
 
-## [ ] T38 · BAK-03 — Add a scheduled server backup (Medium, RPO/latent)
+## [x] T38 · BAK-03 — Add a scheduled server backup (Medium, RPO/latent)
 - **File:** no scheduler exists; only `AdminBackupAdapter.CreateAsync` (operator-triggered, `form.Confirmed`)
   calls `DatabaseBackupService.CreateAsync`. (`grep -rn "DatabaseBackupService\|CreateAsync\|BackgroundService" src/Animora.Server/Admin src/Animora.Server/Hosting | head`.)
 - **Problem:** recovery point = last manual click; on host loss, up to days of every tenant's data lost. No
