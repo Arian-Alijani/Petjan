@@ -205,6 +205,22 @@ public sealed class CommandJournal(
         return Result<PagedResult<PendingCommandRecord>>.Ok(records);
     }
 
+    public async Task<Result<PagedResult<PendingCommandRecord>>> GetOldestUnsettledPageAsync(int page, int pageSize,
+        CancellationToken ct = default)
+    {
+        if (page < 1) return Result<PagedResult<PendingCommandRecord>>.Fail(ErrorCodes.ValidationFailed, "page < 1");
+        var unsettled = UnsettledStates();
+        var query = db.Set<PendingCommand>().AsNoTracking()
+            .Where(c => unsettled.Contains(c.Status))
+            .OrderBy(c => c.LocalSequence)
+            .ThenBy(c => c.Id)
+            .Select(c => c);
+        var paged = await query.ToPagedAsync(page, pageSize, options.Value, ct).ConfigureAwait(false);
+        var records = new PagedResult<PendingCommandRecord>(
+            paged.Items.Select(Map).ToArray(), paged.TotalCount, paged.Page, paged.PageSize);
+        return Result<PagedResult<PendingCommandRecord>>.Ok(records);
+    }
+
     private async Task<Result> SaveAsync(CancellationToken ct)
     {
         try

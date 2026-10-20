@@ -537,7 +537,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   devices converge on money/stock without a manual full resync (at least for the implemented families).
 - **Heavy-fix note (definite):** push incrementally — `fix(sync): reconcile settled money into local business state (SYN-02) — invoices+payments` etc.
 
-## [ ] T26 · SYN-05 — Global oldest-first ordering in the reconciler (Medium, ordering)
+## [x] T26 · SYN-05 — Global oldest-first ordering in the reconciler (Medium, ordering)
 - **File:** `src/Animora.Sync.Custom/SettlementReconciler.cs` — `ReconcileAsync`:
   `foreach (var record in paged.Items.OrderBy(r => r.LocalSequence))` only sorts **within** the 50-item
   page from `GetUnsettledPageAsync(page, 50)`; across page boundaries ordering isn't global.
@@ -647,7 +647,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T23 | INF-05 | Low | [ ] |
 | T24 | SYN-01 | High | [ ] |
 | T25 | SYN-02 | High | [ ] |
-| T26 | SYN-05 | Med | [ ] |
+| T26 | SYN-05 | Med | [x] |
 | T27 | SYN-04 | Med | [x] |
 | T28 | SYN-03 | Med | [ ] |
 | T29 | SYN-06 | Low | [x] |

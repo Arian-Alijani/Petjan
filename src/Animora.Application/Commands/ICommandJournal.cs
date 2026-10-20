@@ -52,4 +52,12 @@ public interface ICommandJournal
     /// <summary>A bounded, stable page of unsettled commands, newest first — the UI sync list seam.</summary>
     Task<Result<PagedResult<PendingCommandRecord>>> GetUnsettledPageAsync(int page, int pageSize,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// A bounded, stable page of unsettled commands in strictly ascending <c>LocalSequence</c> — <b>globally</b> across pages, so
+    /// consecutive pages continue the same oldest-first order. The settlement reconciler seam: the earliest stuck command is the one
+    /// most likely to unblock its dependents, and ordering must not reset at a page boundary.
+    /// </summary>
+    Task<Result<PagedResult<PendingCommandRecord>>> GetOldestUnsettledPageAsync(int page, int pageSize,
+        CancellationToken ct = default);
 }

@@ -135,6 +135,14 @@ internal sealed class FakeCommandJournal(IIntegrityAlertSink sink) : ICommandJou
             new PagedResult<PendingCommandRecord>(rows, rows.Count, page, pageSize)));
     }
 
+    public Task<Result<PagedResult<PendingCommandRecord>>> GetOldestUnsettledPageAsync(int page, int pageSize,
+        CancellationToken ct = default)
+    {
+        IReadOnlyList<PendingCommandRecord> rows = _rows.OrderBy(r => r.LocalSequence).ToArray();
+        return Task.FromResult(Result<PagedResult<PendingCommandRecord>>.Ok(
+            new PagedResult<PendingCommandRecord>(rows, rows.Count, page, pageSize)));
+    }
+
     /// <summary>Seeds a row directly (test setup), bypassing the enqueue path.</summary>
     public PendingCommandRecord Seed(CommandEnvelope envelope, SettlementState status = SettlementState.LocallyPosted,
         int attempts = 0)

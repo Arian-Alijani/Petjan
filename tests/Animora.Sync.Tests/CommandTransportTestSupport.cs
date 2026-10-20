@@ -56,6 +56,12 @@ internal sealed class FakeJournal(IEnumerable<PendingCommandRecord> rows) : ICom
         return Task.FromResult(Result<PagedResult<PendingCommandRecord>>.Ok(new PagedResult<PendingCommandRecord>(items, Rows.Count, page, pageSize)));
     }
 
+    public Task<Result<PagedResult<PendingCommandRecord>>> GetOldestUnsettledPageAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        var items = Rows.OrderBy(r => r.LocalSequence).Skip((page - 1) * pageSize).Take(pageSize).ToArray();
+        return Task.FromResult(Result<PagedResult<PendingCommandRecord>>.Ok(new PagedResult<PendingCommandRecord>(items, Rows.Count, page, pageSize)));
+    }
+
     public Task<Result> ApplySettlementAsync(SettlementResult result, CancellationToken ct = default)
     {
         Applied.Add(result);

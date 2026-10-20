@@ -42,13 +42,15 @@ public sealed class SettlementReconciler(
 
         for (var page = 1; examined < max; page++)
         {
-            var batch = await journal.GetUnsettledPageAsync(page, PageSize, ct).ConfigureAwait(false);
+            var batch = await journal.GetOldestUnsettledPageAsync(page, PageSize, ct).ConfigureAwait(false);
             if (batch.IsFailure) return Result<SettlementReconciliation>.Fail(batch.Error, batch.Detail);
             var paged = batch.Value!;
 
-            // Oldest first within the page: the earliest stuck command is the most likely to unblock dependents.
-            foreach (var record in paged.Items.OrderBy(r => r.LocalSequence))
+            // The journal page is already in strictly ascending global LocalSequence (the earliest stuck command is the most
+            // likely to unblock dependents), so pages continue the same order and no in-memory re-sort is needed.
+            for (var i = 0; i < paged.Items.Count; i++)
             {
+                var record = paged.Items[i];
                 if (examined >= max) break;
                 if (!IsStuck(record, now, cutoff)) continue;
 
