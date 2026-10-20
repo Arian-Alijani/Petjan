@@ -41,11 +41,11 @@ public sealed partial class RxLineViewModel : ObservableObject
     public string BadgeGlyph => IsService ? "خ" : "ک";
 
     public IBrush BadgeBackground => IsService
-        ? VisitsPresentation.Fill("#f0fdfa")
+        ? VisitsPresentation.Fill("#eef2fe")
         : VisitsPresentation.Fill("#f4f3ff");
 
     public IBrush BadgeForeground => IsService
-        ? VisitsPresentation.Fill("#0e7566")
+        ? VisitsPresentation.Fill("#3a56d4")
         : VisitsPresentation.Fill("#7b5cc4");
 
     /// <summary>Largest quantity a single line accepts — keeps <c>price × qty</c> far inside <c>long</c> (V11).</summary>

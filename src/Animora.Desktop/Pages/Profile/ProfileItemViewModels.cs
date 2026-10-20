@@ -27,7 +27,7 @@ public static class ProfilePresentation
         "warn" => (Fill("#fffaeb"), Fill("#b54708")),
         "info" => (Fill("#eff8ff"), Fill("#1570cd")),
         "violet" => (Fill("#f4f3ff"), Fill("#7b5cc4")),
-        _ => (Fill("#f0fdfa"), Fill("#0e7566")),
+        _ => (Fill("#eef2fe"), Fill("#3a56d4")),
     };
 
     public static readonly IReadOnlyList<string> Weekdays =
@@ -282,7 +282,7 @@ public sealed partial class StaffMemberViewModel : ObservableObject
         {
             "Manager" => (ProfilePresentation.Fill("#f4f3ff"), ProfilePresentation.Fill("#7b5cc4")),
             "Doctor" => (ProfilePresentation.Fill("#eff8ff"), ProfilePresentation.Fill("#1570cd")),
-            "Receptionist" => (ProfilePresentation.Fill("#f0fdfa"), ProfilePresentation.Fill("#0e7566")),
+            "Receptionist" => (ProfilePresentation.Fill("#eef2fe"), ProfilePresentation.Fill("#3a56d4")),
             _ => (ProfilePresentation.Fill("#eef2f0"), ProfilePresentation.Fill("#536b68")),
         };
     }

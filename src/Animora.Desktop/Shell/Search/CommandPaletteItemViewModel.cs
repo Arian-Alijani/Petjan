@@ -51,6 +51,6 @@ public sealed partial class CommandPaletteItemViewModel : ObservableObject
             "violet" => (BrushCache.Solid("#efe8fb"), BrushCache.Solid("#7b5cc4")),
             "green" => (BrushCache.Solid("#e2f1e8"), BrushCache.Solid("#027a48")),
             "amber" => (BrushCache.Solid("#fbf0da"), BrushCache.Solid("#b54708")),
-            _ => (BrushCache.Solid("#e7f4f1"), BrushCache.Solid("#0d9488")),
+            _ => (BrushCache.Solid("#dbe4fe"), BrushCache.Solid("#4a6cf7")),
         };
 }

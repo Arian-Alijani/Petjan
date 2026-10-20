@@ -97,7 +97,7 @@ public static class SalePresentation
         }
 
         return kind == InvoiceLineKind.Service
-            ? (Resolve("Brand50Brush", "#f0fdfa"), Resolve("Brand700Brush", "#0e7566"))
+            ? (Resolve("Brand50Brush", "#eef2fe"), Resolve("Brand700Brush", "#3a56d4"))
             : (Resolve("LilacBgBrush", "#f4f3ff"), Resolve("LilacBrush", "#a48afb"));
     }
 
@@ -134,7 +134,7 @@ public static class SalePresentation
     {
         "danger" => (Resolve("DangerBgBrush", "#fef3f2"), Resolve("DangerBrush", "#d92d20")),
         "warn" => (Resolve("WarnBgBrush", "#fffaeb"), Resolve("WarnBrush", "#b54708")),
-        "brand" => (Resolve("Brand50Brush", "#f0fdfa"), Resolve("Brand700Brush", "#0e7566")),
+        "brand" => (Resolve("Brand50Brush", "#eef2fe"), Resolve("Brand700Brush", "#3a56d4")),
         _ => (Resolve("Bg2Brush", "#f1f5f6"), Resolve("MutedBrush", "#667085")),
     };
 

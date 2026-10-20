@@ -60,7 +60,7 @@ public static class CashierPresentation
         "info" => (Resolve("InfoBgBrush", "#eff8ff"), Resolve("InfoBrush", "#1570cd")),
         "lilac" => (Resolve("LilacBgBrush", "#f4f3ff"), Resolve("LilacBrush", "#7b5cc4")),
         "danger" => (Resolve("DangerBgBrush", "#fef3f2"), Resolve("DangerBrush", "#d92d20")),
-        _ => (Resolve("Brand50Brush", "#f0fdfa"), Resolve("Brand600Brush", "#0d9488")),
+        _ => (Resolve("Brand50Brush", "#eef2fe"), Resolve("Brand600Brush", "#4a6cf7")),
     };
 
     /// <summary>
@@ -69,7 +69,7 @@ public static class CashierPresentation
     /// </summary>
     public static (IBrush Background, IBrush Foreground) LineTagBrushes(CashierLineKind kind) =>
         kind == CashierLineKind.Service
-            ? (Resolve("Brand50Brush", "#f0fdfa"), Resolve("Brand700Brush", "#0e7566"))
+            ? (Resolve("Brand50Brush", "#eef2fe"), Resolve("Brand700Brush", "#3a56d4"))
             : (Resolve("LilacBgBrush", "#f4f3ff"), Resolve("LilacBrush", "#7b5cc4"));
 
     /// <summary>The line-kind tag label («خدمت» / «کالا»).</summary>

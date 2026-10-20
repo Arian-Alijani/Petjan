@@ -44,7 +44,7 @@ public sealed record DashboardQuickAction(
     // ordinal position) stay in lock-step with the sidebar.
     public static IReadOnlyList<DashboardQuickAction> All { get; } = new[]
     {
-        new DashboardQuickAction("نوبت جدید", "ثبت در تقویم", "IconCalendar", typeof(AppointmentsCalendarViewModel), "#0d9488", "#f0fdfa", 1),
+        new DashboardQuickAction("نوبت جدید", "ثبت در تقویم", "IconCalendar", typeof(AppointmentsCalendarViewModel), "#4a6cf7", "#eef2fe", 1),
         new DashboardQuickAction("فروش و صندوق", "صدور فاکتور", "IconCart", typeof(SalePageViewModel), "#d9803f", "#fbe7d6", 2),
         new DashboardQuickAction("پرونده بیمار", "جستجو و ثبت", "IconUsers", typeof(PatientsPageViewModel), "#7b5cc4", "#ece5fb", 3),
         new DashboardQuickAction("شروع ویزیت", "ثبت معاینه", "IconClipboard", typeof(VisitsTriagePageViewModel), "#1570cd", "#eff8ff", 4),

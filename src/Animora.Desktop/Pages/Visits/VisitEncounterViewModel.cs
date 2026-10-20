@@ -172,7 +172,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
     public string RibbonStatusText => _draft.IsSynthetic ? "بدون نوبت" : "نوبت رزرو شده";
     public IBrush RibbonStatusDot => _draft.IsSynthetic
         ? VisitsPresentation.Fill("#b54708")
-        : VisitsPresentation.Fill("#14b8a6");
+        : VisitsPresentation.Fill("#5b7cfa");
     public string RibbonDoctorShort => _draft.DoctorShortName;
     public IBrush RibbonDoctorDot => VisitsPresentation.Fill(_draft.DoctorAccent);
 
@@ -842,7 +842,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         DoctorShortName: string.Empty,
         DoctorSpecialty: string.Empty,
         DoctorInitials: string.Empty,
-        DoctorAccent: "#0d9488",
+        DoctorAccent: "#4a6cf7",
         PatientName: string.Empty,
         PatientKind: string.Empty,
         PatientIconKey: "paw",
@@ -850,7 +850,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
         OwnerPhone: string.Empty,
         TypeId: "visit",
         TypeLabel: "ویزیت عمومی",
-        TypeAccent: "#0d9488",
+        TypeAccent: "#4a6cf7",
         IsUrgent: false,
         IsSynthetic: false,
         AtMinutes: 0,

@@ -121,7 +121,7 @@ public static class BoardingPresentation
             ? ("#d92d20", "#c03030")
             : urgent
                 ? ("#b54708", "#d9980f")
-                : ("#2dd4bf", "#0d9488");
+                : ("#8aa2fb", "#4a6cf7");
 
         // Shared via GradientBrushCache — three fixed tone pairs (PERFORMANCE.md §10).
         return GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 0);
@@ -140,7 +140,7 @@ public static class BoardingPresentation
             ? ("#d92d20", "#c03030")
             : urgent
                 ? ("#b54708", "#d9980f")
-                : ("#2dd4bf", "#0d9488");
+                : ("#8aa2fb", "#4a6cf7");
 
         // Shared via GradientBrushCache. The three tone pairs and the single
         // track colour are fixed; the only continuous input, `percent`, is
@@ -261,5 +261,5 @@ public static class BoardingPresentation
     public static (IBrush Background, IBrush Foreground) ItemTagBrushes(BoardingItemKind kind) =>
         kind == BoardingItemKind.Item
             ? (Fill("#efe7fb"), Fill("#7b5cc4"))
-            : (Fill("#effcf9"), Fill("#0f766e"));
+            : (Fill("#eef2fe"), Fill("#3a56d4"));
 }

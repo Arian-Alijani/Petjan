@@ -75,8 +75,8 @@ public static class HistoryPresentation
     public const string LilacBgColor = "#f4f3ff";
     public const string NeutralColor = "#667085";
     public const string NeutralBgColor = "#f1f5f6";
-    public const string BrandColor = "#0e7566";
-    public const string BrandBgColor = "#f0fdfa";
+    public const string BrandColor = "#3a56d4";
+    public const string BrandBgColor = "#eef2fe";
     public const string PeachColor = "#f0b593";
     public const string PeachBgColor = "#fdf1e7";
 

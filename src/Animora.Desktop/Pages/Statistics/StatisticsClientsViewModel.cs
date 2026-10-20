@@ -114,7 +114,7 @@ public sealed partial class StatisticsClientsViewModel(IStatisticsQueryService s
         SplitSegments = HasSplit
             ?
             [
-                new BarSegment(returning, StatisticsFormat.Brush("#0d9488")),
+                new BarSegment(returning, StatisticsFormat.Brush("#4a6cf7")),
                 new BarSegment(1 - returning, StatisticsFormat.Brush("#1570cd")),
             ]
             : [];

@@ -76,7 +76,7 @@ public sealed class ReceptionQueueRowViewModel
     // as static, immutable, shared instances instead of per-row allocation.
     private static readonly IBrush UrgentBackground = BuildBackground("#fff7f4");
     private static readonly IBrush CalledBackground = BuildBackground("#f1fbf7");
-    private static readonly IBrush InVisitBackground = BuildBackground("#f0fdfa");
+    private static readonly IBrush InVisitBackground = BuildBackground("#eef2fe");
     private static readonly IBrush NormalBackground = BuildBackground("#ffffff");
 
     private static IBrush BuildBackground(string topHex)
@@ -113,7 +113,7 @@ public sealed class ReceptionQueueRowViewModel
         ticket.IsUrgent
             ? "#f5c7c1"
             : ticket.State == QueueTicketState.InVisit
-                ? "#2dd4bf"
+                ? "#8aa2fb"
                 : ticket.State == QueueTicketState.Called
                     ? "#ccfbf1"
                     : "#e5eaee");
