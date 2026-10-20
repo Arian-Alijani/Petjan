@@ -88,7 +88,7 @@ The **.NET solution is the only code under audit** (`Animora.sln`, 14 `src/` pro
 | `02-application.md` | Application layer (T3) | pending |
 | `03-contracts-wire.md` | Contracts + Wire (T4) | pending |
 | `04-persistence-sqlite.md` | Local SQLite persistence (T5) | pending |
-| `05-infra-clientservices.md` | Infrastructure.Local + Client.Services (T6) | pending |
+| `05-infra-clientservices.md` | Infrastructure.Local + Client.Services (T6) | done |
 | `06-sync-system.md` | Sync system deep audit (T7) | pending |
 | `07-server-auth.md` | Server host, auth & authorization (T8) | pending |
 | `08-tenancy-isolation.md` | Multi-tenant provisioning + isolation (T9) | pending |

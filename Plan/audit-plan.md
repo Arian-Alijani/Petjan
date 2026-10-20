@@ -154,7 +154,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   ClientSessions) with no retention/compaction. Confirm encryption-at-rest seam is applied to PII
   tables. Write findings. **Push.**
 
-- [ ] **T6 — Infrastructure.Local + Client.Services audit → `Plan/reports/05-infra-clientservices.md`.**
+- [x] **T6 — Infrastructure.Local + Client.Services audit → `Plan/reports/05-infra-clientservices.md`.** ✓ pushed
   Scope: `src/Animora.Infrastructure.Local/**` + `src/Animora.Client.Services/**` (EXCLUDING `Sync/`,
   covered in T7). Audit: OS keystore/encryption usage, native SQLite assertion, clocks (single source
   of time? any `DateTime.Now`/`UtcNow` scattered = latent), local file store. In Client.Services audit
