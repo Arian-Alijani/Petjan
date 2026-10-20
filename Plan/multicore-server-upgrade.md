@@ -94,7 +94,7 @@ budget (so it is intentionally NOT used to size DB pools). Keep it tiny and allo
 **Verify:** build 0/0.
 **PUSH:** `scripts/git/push.sh "feat(server): CPU topology helper for hardware-aware scaling"`
 
-### [ ] T3 — Auto-scale CPU-bound worker fan-out from cores (DB-budget-clamped)
+### [x] T3 — Auto-scale CPU-bound worker fan-out from cores (DB-budget-clamped)
 **Files:**
 - `src/Animora.Server/Hosting/ServerOptions.cs` → in `WorkerSettings`, change the *meaning* of the
   defaults so a sentinel `0` means "auto from cores" for the CPU-bound widths. Concretely: add XML
