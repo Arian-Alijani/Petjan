@@ -162,7 +162,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
   (`TenantScopedCache` bounds, eviction, tenant-key correctness = isolation #12), debounce buffers
   (flush-on-complete correctness), mapping fidelity vs Contracts. Write findings. **Push.**
 
-- [ ] **T7 — Sync system deep audit → `Plan/reports/06-sync-system.md` (audit target #7, CRITICAL).**
+- [x] **T7 — Sync system deep audit → `Plan/reports/06-sync-system.md` (audit target #7, CRITICAL).** ✓ pushed
   Scope: `src/Animora.Sync.Custom/**` (client engine) + `src/Animora.Server/Sync`, `Commands`,
   `Workers`, `Handlers` (server side) + `Application/Outbox` + `Persistence.*/Replication`,`Outbox`,
   `Commands` + `Client.Services/Sync/**` (orchestrator/scheduler). First mine
