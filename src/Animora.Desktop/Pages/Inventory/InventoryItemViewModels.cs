@@ -239,11 +239,11 @@ public sealed partial class InventoryProductRowViewModel : ObservableObject
     public IBrush StatusRing { get; }
 
     /// <summary>
-    /// The row's fill: <c>#f7fbfa</c> while expanded (<c>.prow.expanded</c>),
+    /// The row's fill: <c>#f7f9fc</c> while expanded (<c>.prow.expanded</c>),
     /// otherwise the panel white.
     /// </summary>
     public IBrush RowBackground => IsExpanded
-        ? InventoryPresentation.Fill("#f7fbfa")
+        ? InventoryPresentation.Fill("#f7f9fc")
         : InventoryPresentation.Fill("#ffffff");
 
     public ObservableCollection<InventoryVariantRowViewModel> Variants { get; }

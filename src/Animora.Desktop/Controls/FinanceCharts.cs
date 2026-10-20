@@ -45,7 +45,7 @@ public sealed class TrendChart : Control
         PointsProperty, RevenueBrushProperty, ExpenseBrushProperty, ProfitBrushProperty);
 
     // Hoisted render-time resources (charts re-render on every layout/resize).
-    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef2f0"));
+    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef1f8"));
     private static readonly IBrush AxisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
     private static readonly Pen GridPen = new(GridBrush, 1, new DashStyle([2, 6], 0));
 
@@ -331,7 +331,7 @@ public sealed class DonutChart : Control
 
     public static readonly StyledProperty<IBrush> TrackBrushProperty =
         AvaloniaProperty.Register<DonutChart, IBrush>(nameof(TrackBrush),
-            new SolidColorBrush(Color.Parse("#f0f4f2")));
+            new SolidColorBrush(Color.Parse("#f0f3f9")));
 
     static DonutChart() => AffectsRender<DonutChart>(SlicesProperty, TrackBrushProperty);
 
@@ -520,7 +520,7 @@ public sealed class MarginGauge : Control
 
     public static readonly StyledProperty<IBrush> TrackBrushProperty =
         AvaloniaProperty.Register<MarginGauge, IBrush>(nameof(TrackBrush),
-            new SolidColorBrush(Color.Parse("#f0f4f2")));
+            new SolidColorBrush(Color.Parse("#f0f3f9")));
 
     static MarginGauge() => AffectsRender<MarginGauge>(PercentProperty, FillProperty, TrackBrushProperty);
 

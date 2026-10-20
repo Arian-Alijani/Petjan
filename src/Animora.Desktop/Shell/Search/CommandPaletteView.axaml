@@ -170,7 +170,7 @@
 
             <!-- Footer hints. -->
             <Border Grid.Row="2"
-                    Background="#fbfcfb"
+                    Background="#fbfcfe"
                     BorderBrush="{StaticResource Line2Brush}"
                     BorderThickness="0,1,0,0"
                     Padding="18,10">

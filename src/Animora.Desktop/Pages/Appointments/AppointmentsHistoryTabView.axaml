@@ -167,7 +167,7 @@
             </Border>
 
             <!-- tier 2 · status + selects -->
-            <Border Padding="16,12" Background="#fbfcfb" BorderBrush="{StaticResource Line2Brush}"
+            <Border Padding="16,12" Background="#fbfcfe" BorderBrush="{StaticResource Line2Brush}"
                     BorderThickness="0,0,0,1">
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <TextBlock Text="وضعیت" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"
@@ -209,7 +209,7 @@
             </Border>
 
             <!-- KPI band -->
-            <Border Padding="16,12" Background="#fbfcfb" BorderBrush="{StaticResource Line2Brush}"
+            <Border Padding="16,12" Background="#fbfcfe" BorderBrush="{StaticResource Line2Brush}"
                     BorderThickness="0,0,0,1">
                 <ItemsControl ItemsSource="{Binding HistoryStats}">
                     <ItemsControl.ItemsPanel>
@@ -279,7 +279,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="ap:HistoryDayGroupViewModel">
                         <StackPanel>
-                            <Border Padding="16,10" Background="#f7faf9"
+                            <Border Padding="16,10" Background="#f7f9fc"
                                     BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
                                     <TextBlock Grid.Column="0" Text="{Binding DowText}" FontSize="11"

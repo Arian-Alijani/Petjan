@@ -75,7 +75,7 @@ public sealed class ReceptionQueueRowViewModel
     // stop; per PERFORMANCE.md §10/§15 these four combinations are built once
     // as static, immutable, shared instances instead of per-row allocation.
     private static readonly IBrush UrgentBackground = BuildBackground("#fff7f4");
-    private static readonly IBrush CalledBackground = BuildBackground("#f1fbf7");
+    private static readonly IBrush CalledBackground = BuildBackground("#f1f6fc");
     private static readonly IBrush InVisitBackground = BuildBackground("#eef2fe");
     private static readonly IBrush NormalBackground = BuildBackground("#ffffff");
 
@@ -115,6 +115,6 @@ public sealed class ReceptionQueueRowViewModel
             : ticket.State == QueueTicketState.InVisit
                 ? "#8aa2fb"
                 : ticket.State == QueueTicketState.Called
-                    ? "#ccfbf1"
+                    ? "#dbe4fe"
                     : "#e5eaee");
 }

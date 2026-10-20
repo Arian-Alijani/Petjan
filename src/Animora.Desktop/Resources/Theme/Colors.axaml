@@ -92,10 +92,10 @@
     <!-- Patients directory one-off surfaces, read from patients.css
          (.pt-table thead th bg, .oc-pets/.pk-owner inset, table row hover,
          .pb-search input:hover). -->
-    <Color x:Key="TableHeadColor">#fafbfa</Color>
-    <Color x:Key="InsetColor">#fcfdfc</Color>
-    <Color x:Key="RowHoverColor">#f8fbfa</Color>
-    <Color x:Key="InputHoverColor">#f3f7f4</Color>
+    <Color x:Key="TableHeadColor">#fafbfe</Color>
+    <Color x:Key="InsetColor">#fcfdfe</Color>
+    <Color x:Key="RowHoverColor">#f8fafd</Color>
+    <Color x:Key="InputHoverColor">#f3f6fb</Color>
 
     <SolidColorBrush x:Key="TableHeadBrush" Color="{StaticResource TableHeadColor}" />
     <SolidColorBrush x:Key="InsetBrush" Color="{StaticResource InsetColor}" />

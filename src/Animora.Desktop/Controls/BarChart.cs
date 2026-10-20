@@ -31,7 +31,7 @@ public sealed class BarChart : Control
 
     static BarChart() => AffectsRender<BarChart>(PointsProperty, BarBrushProperty, IsMoneyProperty);
 
-    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef2f0"));
+    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef1f8"));
     private static readonly IBrush AxisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
     private static readonly Pen GridPen = new(GridBrush, 1, new DashStyle([2, 6], 0));
 

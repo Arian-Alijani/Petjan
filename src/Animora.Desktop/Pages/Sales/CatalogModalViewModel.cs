@@ -624,7 +624,7 @@ public sealed partial class CatalogRowViewModel : ObservableObject
     public string PriceText { get; }
 
     public IBrush AddBackground => IsUnavailable
-        ? SalePresentation.PlaceholderAvatarForeground() : BrushCache.Solid("#0e9384");
+        ? SalePresentation.PlaceholderAvatarForeground() : BrushCache.Solid("#4a6cf7");
 
     public IBrush IcoBackground => IsUnavailable ? SalePresentation.PlaceholderAvatarBrush() : _normalIcoBackground;
 

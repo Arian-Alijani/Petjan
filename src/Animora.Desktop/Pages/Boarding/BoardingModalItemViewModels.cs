@@ -32,10 +32,10 @@ public sealed class BoardingDayCellViewModel
         BorderBrush = isToday
             ? BoardingPresentation.Fill("#4a6cf7")
             : isPast
-                ? BoardingPresentation.Fill("#ccfbf1")
+                ? BoardingPresentation.Fill("#dbe4fe")
                 : BoardingPresentation.Fill("#e6e9ec");
         NumberBrush = isToday ? BoardingPresentation.Fill("#ffffff") : BoardingPresentation.Fill("#101828");
-        DateBrush = isToday ? BoardingPresentation.Fill("#ccf2ee") : BoardingPresentation.Fill("#667085");
+        DateBrush = isToday ? BoardingPresentation.Fill("#c3cef0") : BoardingPresentation.Fill("#667085");
         DotBrush = isToday ? BoardingPresentation.Fill("#ffffff") : BoardingPresentation.Fill("#4a6cf7");
     }
 

@@ -697,7 +697,7 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
     // An appointment can outlive its type (a custom type removed in Settings): show it as a neutral
     // «نوع حذف‌شده» instead of failing the whole render.
     private static readonly AppointmentType RemovedType =
-        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef2f0", "#536b68", "calendar", 30);
+        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef1f8", "#536b68", "calendar", 30);
 
     private AppointmentType TypeOf(string id) =>
         _typeById.TryGetValue(id, out var t) ? t : _types.FirstOrDefault(x => x.Id == id) ?? RemovedType;

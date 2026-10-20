@@ -82,7 +82,7 @@
             </Grid>
 
             <!-- header: date + KPIs + cancel toggle -->
-            <Border Background="#fbfcfb" BorderBrush="{StaticResource Line2Brush}"
+            <Border Background="#fbfcfe" BorderBrush="{StaticResource Line2Brush}"
                     BorderThickness="0,1,0,1" Padding="16,14">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9"

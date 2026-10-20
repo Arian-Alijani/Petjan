@@ -58,7 +58,7 @@
 
         <!-- type row -->
         <Style Selector="Border.st-row">
-            <Setter Property="Background" Value="#fbfcfb" />
+            <Setter Property="Background" Value="#fbfcfe" />
             <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />

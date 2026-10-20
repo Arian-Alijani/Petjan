@@ -83,7 +83,7 @@ public static class BoardingPresentation
     /// reference's <c>.pill-ok/.pill-warn/.pill-danger/.pill-info/.pill-mute</c>
     /// (styles.css) — bg from the phase-02 soft-bg token, text from the
     /// matching semantic token. «mute» uses the reference's literal
-    /// <c>#eef2f0</c>/<c>#536b68</c> (no token exists for it).
+    /// <c>#eef1f8</c>/<c>#536b68</c> (no token exists for it).
     /// </summary>
     public static (IBrush Background, IBrush Foreground) PillBrushes(string tone) => tone switch
     {
@@ -91,7 +91,7 @@ public static class BoardingPresentation
         "warn" => (Fill("#fffaeb"), Fill("#b54708")),
         "danger" => (Fill("#fef3f2"), Fill("#d92d20")),
         "info" => (Fill("#eff8ff"), Fill("#1570cd")),
-        _ => (Fill("#eef2f0"), Fill("#536b68")), // mute
+        _ => (Fill("#eef1f8"), Fill("#536b68")), // mute
     };
 
     /// <summary>

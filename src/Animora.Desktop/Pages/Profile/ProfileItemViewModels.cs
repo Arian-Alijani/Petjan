@@ -75,7 +75,7 @@ public sealed class ProfileTeamMemberViewModel
         RoleTone = roleTone;
         (RoleBackground, RoleForeground) = roleTone == "info"
             ? (ProfilePresentation.Fill("#eff8ff"), ProfilePresentation.Fill("#1570cd"))
-            : (ProfilePresentation.Fill("#eef2f0"), ProfilePresentation.Fill("#536b68"));
+            : (ProfilePresentation.Fill("#eef1f8"), ProfilePresentation.Fill("#536b68"));
     }
 
     public string Name { get; }
@@ -283,7 +283,7 @@ public sealed partial class StaffMemberViewModel : ObservableObject
             "Manager" => (ProfilePresentation.Fill("#f4f3ff"), ProfilePresentation.Fill("#7b5cc4")),
             "Doctor" => (ProfilePresentation.Fill("#eff8ff"), ProfilePresentation.Fill("#1570cd")),
             "Receptionist" => (ProfilePresentation.Fill("#eef2fe"), ProfilePresentation.Fill("#3a56d4")),
-            _ => (ProfilePresentation.Fill("#eef2f0"), ProfilePresentation.Fill("#536b68")),
+            _ => (ProfilePresentation.Fill("#eef1f8"), ProfilePresentation.Fill("#536b68")),
         };
     }
 
