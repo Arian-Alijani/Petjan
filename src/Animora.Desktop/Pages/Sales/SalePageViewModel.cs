@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Domain.Identity;
 using Animora.Contracts.Diagnostics;
 using Animora.Desktop.Controls;
@@ -28,6 +29,7 @@ namespace Animora.Desktop.Pages.Sales;
 public sealed partial class SalePageViewModel : PageViewModelBase
 {
     private readonly ISalesQueryService _service;
+    private readonly ISyncStatusService _sync;
     private readonly IChequePrompt _chequePrompt;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
@@ -81,8 +83,9 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
         IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print,
         IHistoryRecordOpener historyOpener, IServiceRateService serviceRates, IChequePrompt chequePrompt,
-        ICapabilityGate capabilities)
+        ICapabilityGate capabilities, ISyncStatusService sync)
     {
+        _sync = sync;
         _chequePrompt = chequePrompt;
         _service = service;
         _print = print;
@@ -584,7 +587,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
         }
 
         _dialogs.ShowModal(
-            new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, SelectedInvoice.Id, RefreshAfterMutation, _capabilities),
+            new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, SelectedInvoice.Id, RefreshAfterMutation, _capabilities, _sync),
             520);
     }
 

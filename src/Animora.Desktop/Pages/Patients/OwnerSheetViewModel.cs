@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Patients;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Contracts.Vaccination;
 using Animora.Desktop.Diagnostics;
 using Animora.Desktop.Pages.Sales;
@@ -157,6 +158,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private readonly ISalesQueryService _sales;
     private readonly IChequePrompt _chequePrompt;
     private readonly ICapabilityGate _capabilities;
+    private readonly ISyncStatusService _sync;
     private readonly IVaccinationService _vaccination;
 
     private OwnerDetail? _owner;
@@ -185,8 +187,10 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
         IVaccinationService vaccination,
         IPrintService print,
         IChequePrompt chequePrompt,
-        ICapabilityGate capabilities)
+        ICapabilityGate capabilities,
+        ISyncStatusService sync)
     {
+        _sync = sync;
         _chequePrompt = chequePrompt;
         _print = print;
         _sales = sales;
@@ -462,7 +466,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
     private Task OpenInvoiceAsync(string invoiceId)
     {
         _dialogs.ShowSheet(new Pages.Sales.InvoiceViewerViewModel(
-            _sales, _toast, _dialogs, _print, _chequePrompt, invoiceId, null, _capabilities), 1040, 720);
+            _sales, _toast, _dialogs, _print, _chequePrompt, invoiceId, null, _capabilities, _sync), 1040, 720);
         return Task.CompletedTask;
     }
 
@@ -509,7 +513,7 @@ public sealed partial class OwnerSheetViewModel : PageViewModelBase
                         _ = LoadInvoicesAsync(ownerId);
                     }
                 },
-                _capabilities),
+                _capabilities, _sync),
             1040,
             720);
     }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -28,6 +29,7 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     private readonly IPrintService _print;
     private readonly IChequePrompt _chequePrompt;
     private readonly ICapabilityGate? _capabilities;
+    private readonly ISyncStatusService? _sync;
     private readonly string _invoiceId;
     private readonly Action? _onChanged;
 
@@ -46,8 +48,10 @@ public sealed partial class PaymentModalViewModel : ObservableObject
         IChequePrompt chequePrompt,
         string invoiceId,
         Action? onChanged = null,
-        ICapabilityGate? capabilities = null)
+        ICapabilityGate? capabilities = null,
+        ISyncStatusService? sync = null)
     {
+        _sync = sync;
         _service = service;
         _toast = toast;
         _dialogs = dialogs;
@@ -337,6 +341,11 @@ public sealed partial class PaymentModalViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanPay))]
     private async Task PayAsync()
     {
+        if (!await PassesPreSettleReviewAsync())
+        {
+            return;
+        }
+
         if (IsMixed)
         {
             await PayMixedAsync();
@@ -363,6 +372,38 @@ public sealed partial class PaymentModalViewModel : ObservableObject
 
         await FinishPaymentAsync(result, SalePresentation.MethodLabel(method), method.ToString().ToLowerInvariant(),
             result.Applied, null);
+    }
+
+    /// <summary>
+    /// Pre-settlement gate (runs once per «پرداخت» click, before any money moves). Online: sync, then block the
+    /// settlement with a precise message when a line's product/service was removed or its stock dropped. Offline:
+    /// warn that going online is advisable and let the cashier continue.
+    /// </summary>
+    private async Task<bool> PassesPreSettleReviewAsync()
+    {
+        PreSettleOutcome outcome;
+        try
+        {
+            outcome = await PreSettleReview.RunAsync(_service, _sync, _invoiceId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A failed review read must not trap the cashier: the domain/server gates remain authoritative.
+            Animora.Desktop.Diagnostics.AppTrace.Warn($"pre-settle review unavailable — {ex.Message}", "sales");
+            return true;
+        }
+
+        switch (outcome.Verdict)
+        {
+            case PreSettleVerdict.Blocked:
+                _toast.Show(outcome.Message, Tone.Danger);
+                return false;
+            case PreSettleVerdict.Offline:
+                _toast.Show(outcome.Message, Tone.Warn);
+                return true;
+            default:
+                return true;
+        }
     }
 
     /// <summary>

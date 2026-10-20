@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Sales;
+using Animora.Contracts.Sync;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Services;
@@ -34,6 +35,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private readonly IPrintService _print;
     private readonly ICapabilityGate? _capabilities;
     private readonly string _invoiceId;
+    private readonly ISyncStatusService? _sync;
     private readonly Action? _onChanged;
 
     private InvoiceDetail _detail = null!;
@@ -46,8 +48,10 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
         IChequePrompt chequePrompt,
         string invoiceId,
         Action? onChanged = null,
-        ICapabilityGate? capabilities = null)
+        ICapabilityGate? capabilities = null,
+        ISyncStatusService? sync = null)
     {
+        _sync = sync;
         _chequePrompt = chequePrompt;
         _service = service;
         _toast = toast;
@@ -553,7 +557,7 @@ public sealed partial class InvoiceViewerViewModel : ObservableObject
     private void TakePayment()
     {
         _dialogs.Close();
-        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, _invoiceId, OnChanged, _capabilities), 520);
+        _dialogs.ShowModal(new PaymentModalViewModel(_service, _toast, _dialogs, _print, _chequePrompt, _invoiceId, OnChanged, _capabilities, _sync), 520);
     }
 
     [RelayCommand]
