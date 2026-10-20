@@ -137,7 +137,7 @@ would over-subscribe the OLTP write pool — explicitly do NOT touch it, and say
 **Verify:** build 0/0.
 **PUSH:** `scripts/git/push.sh "perf(server): background admission scales with cores up to DB budget"`
 
-### [ ] T5 — Documentation (keep it accurate, minimal)
+### [x] T5 — Documentation (keep it accurate, minimal)
 **Files:** `src/Animora.Server/Hosting/ServerOptions.cs` XML docs touched in T3 (already done there);
 plus the Persian setup guide `راهنمای-راه-اندازی-سرور.md` — add a short subsection stating: Server GC
 is enabled; CPU-bound parallelism auto-scales with available cores (honoring container CPU limits);
