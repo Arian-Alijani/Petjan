@@ -113,7 +113,7 @@ Branch: operate on the current branch; `main` and `genspark_ai_developer` are al
 > section to the named report under `Plan/reports/`, (4) push. Reports are English, detailed, pro.
 > Create `Plan/reports/` in Task 1.
 
-- [ ] **T1 — Scaffold reports + audit index.**
+- [x] **T1 — Scaffold reports + audit index.** ✓ pushed
   Create `Plan/reports/` and `Plan/reports/00-INDEX.md` (an overview: product one-liner, layer map,
   the 13 audit targets, the finding format, and a table listing each report file T2–T13 with status
   `pending`). Copy the "Ground truth" essentials into `00-INDEX.md` so each report is navigable
