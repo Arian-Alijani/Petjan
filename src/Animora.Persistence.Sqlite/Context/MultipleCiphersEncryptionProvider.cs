@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Animora.Domain.Results;
 using Microsoft.Data.Sqlite;
 
@@ -11,6 +13,16 @@ namespace Animora.Persistence.Sqlite.Context;
 /// </summary>
 public sealed class MultipleCiphersEncryptionProvider : IStoreEncryptionProvider
 {
+    private static readonly byte[] KeyDomain = Encoding.ASCII.GetBytes("Animora.LocalStore.RawKey.v1\0");
+
+    private static byte[] Concat(byte[] prefix, byte[] value)
+    {
+        var buffer = new byte[prefix.Length + value.Length];
+        prefix.CopyTo(buffer, 0);
+        value.CopyTo(buffer, prefix.Length);
+        return buffer;
+    }
+
     public void Apply(SqliteConnection connection, string passphrase)
     {
         ArgumentNullException.ThrowIfNull(connection);
@@ -21,8 +33,22 @@ public sealed class MultipleCiphersEncryptionProvider : IStoreEncryptionProvider
             throw new InvalidOperationException(
                 $"{ErrorCodes.StoreKeyUnavailable.Code}: encryption requested but the native cipher bundle (SQLite3 Multiple Ciphers) is not loaded; refusing to open a plaintext store.");
 
-        // PRAGMA does not accept parameters; the passphrase is embedded as an escaped SQL literal.
-        Execute(connection, $"PRAGMA key = '{passphrase.Replace("'", "''", StringComparison.Ordinal)}';");
+        // SQL-03: the cipher is keyed with a fixed-size RAW key (x'<64 hex>' = 32 bytes, KDF bypassed) derived from the
+        // keystore passphrase, never with the passphrase itself as an interpolated SQL string literal. The derivation is a
+        // domain-separated SHA-256 (the passphrase is already 256 bits of CSPRNG output from LocalDbKeyService, so no
+        // stretching is needed). The key material only ever exists as a short-lived fixed-format hex literal; the byte
+        // buffers are zeroed immediately and there is no quote-escaping surface left to get wrong.
+        var passphraseBytes = Encoding.UTF8.GetBytes(passphrase);
+        var rawKey = SHA256.HashData(Concat(KeyDomain, passphraseBytes));
+        CryptographicOperations.ZeroMemory(passphraseBytes);
+        try
+        {
+            Execute(connection, $"PRAGMA key = \"x'{Convert.ToHexString(rawKey)}'\";");
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(rawKey);
+        }
         Execute(connection, "PRAGMA cipher_page_size = 4096;");
         try
         {

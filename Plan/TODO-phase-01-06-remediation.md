@@ -401,7 +401,13 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Heavy-fix note:** new maintenance method + options + wiring is a sizable change — push as
   `feat(persistence): row retention/compaction for append-only tables (SQL-02)`.
 
-## [ ] T16 · SQL-03 — Key SQLCipher via keyspec, not interpolated PRAGMA literal (Medium, security robustness)
+## [x] T16 · SQL-03 — Key SQLCipher via keyspec, not interpolated PRAGMA literal (Medium, security robustness)
+> **DONE (2026-10-20).** `MultipleCiphersEncryptionProvider.Apply` now keys with a fixed-format raw keyspec
+> `PRAGMA key = "x'<64 hex>'"` (SQLite3MC raw key, KDF bypassed) derived via domain-separated SHA-256 of the keystore
+> passphrase (already 256-bit CSPRNG), instead of interpolating the passphrase as a quote-escaped SQL literal. No
+> escaping surface remains; passphrase/key byte buffers are zeroed right after use; no SQL logging interceptor is
+> attached to the keying path. Compat: the cipher path was unreachable before SQL-01 (no store was ever created with the
+> old literal form), so no existing encrypted store is invalidated.
 - **File:** `src/Animora.Persistence.Sqlite/Context/MultipleCiphersEncryptionProvider.cs` — `Apply`.
 - **Current:** `Execute(connection, $"PRAGMA key = '{passphrase.Replace("'", "''", ...)}';");` — key
   built into `CommandText` (leak surface via SQL trace/log hooks; relies solely on quote-doubling).
@@ -678,7 +684,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T13 | CW-04 | Low | [x] |
 | T14 | SQL-01 | High | [x] |
 | T15 | SQL-02 | High | [x] |
-| T16 | SQL-03 | Med | [ ] |
+| T16 | SQL-03 | Med | [x] |
 | T17 | SQL-04 | Low | [x] |
 | T18 | SQL-05 | Low | [x] |
 | T19 | INF-01 | High | [x] |
