@@ -18,6 +18,13 @@ public sealed class LocalStoreOptions
     public bool AllowInsecureKeyFallback { get; set; }
     /// <summary>Encryption provider approval (K2). Encryption cannot be enabled until approved.</summary>
     public bool K2Approved { get; set; }
+    /// <summary>
+    /// Set by development/test compositions that knowingly run an unencrypted store, so the startup does not
+    /// emit the "plaintext store in a shipped configuration" warning (SQL-01). Never set by the shipped app.
+    /// </summary>
+    public bool PlaintextStoreAcknowledged { get; set; }
+    /// <summary>Informational: how the shipped defaults resolved encryption (set by <see cref="LocalStoreEncryptionDefaults"/>).</summary>
+    public StoreEncryptionDecision EncryptionDecision { get; set; }
     public int WalCheckpointPages { get; set; } = 1000;
     public int BackupRetentionCount { get; set; } = 5;
 

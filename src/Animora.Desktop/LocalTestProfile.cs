@@ -99,6 +99,7 @@ public sealed class LocalTestProfile
         // first-run detection. Start empty so the real setup flow can create the test Manager.
         options.SeedSampleData = false;
         options.ClinicBakPreviewPath = ClinicBakPreviewPath;
+        options.PlaintextStoreAcknowledged = true; // isolated throw-away profile; SQL-01 warning is for shipped stores
         options.AllowInsecureKeyFallback = !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS();
     }
 

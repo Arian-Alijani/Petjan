@@ -14,6 +14,7 @@ using Animora.Persistence.Sqlite.Seed;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Animora.Infrastructure.Local.Startup;
@@ -27,7 +28,8 @@ public sealed class LocalStoreStartup(
     IServiceScopeFactory scopes,
     LocalDbKeyService keys,
     InstallationIdentity identity,
-    IClock clock) : ILocalStoreInitializer
+    IClock clock,
+    ILogger<LocalStoreStartup> logger) : ILocalStoreInitializer
 {
     public const string StepDataDirectory = "1-data-directory";
     public const string StepOptionsAndKey = "2-options-and-key";
@@ -69,6 +71,18 @@ public sealed class LocalStoreStartup(
             {
                 var key = keys.GetOrCreatePassphrase();
                 if (key.IsFailure) return Result<LocalStoreDiagnostics>.Fail(ErrorCodes.StoreKeyUnavailable, key.Detail);
+                // SQL-01: fail closed BEFORE any file is touched — never let a missing cipher bundle degrade to plaintext.
+                if (!StoreCipherProbe.IsCipherAvailable())
+                    return Result<LocalStoreDiagnostics>.Fail(ErrorCodes.StoreEncryptionNotApproved,
+                        "Encryption is enabled but the native cipher bundle (SQLite3 Multiple Ciphers) is not loaded.");
+            }
+            else if (!Store.PlaintextStoreAcknowledged)
+            {
+                // SQL-01: a shipped configuration must never be silently plaintext; make it impossible to miss.
+                logger.LogWarning(
+                    "LOCAL STORE IS NOT ENCRYPTED AT REST ({Decision}). PII and financial data in '{Path}' are readable " +
+                    "by any process with file access. Ship the SQLite3 Multiple Ciphers bundle (STACK.md §3.3, gate K2).",
+                    Store.EncryptionDecision, dbPath);
             }
 
             string nativeVersion;

@@ -362,7 +362,11 @@ public partial class App : global::Avalonia.Application
     public static void ConfigureServices(IServiceCollection services, LocalTestProfile? testProfile)
     {
         // B03c: real local store + application layer (identity use cases) behind the desktop seams.
-        services.AddAnimoraLocalInfrastructure(testProfile is null ? null : testProfile.ConfigureStore);
+        // SQL-01: the shipped composition resolves at-rest encryption (on whenever the cipher bundle is loaded,
+        // required for an already-encrypted store, loud warning otherwise); test profiles stay plaintext on purpose.
+        services.AddAnimoraLocalInfrastructure(testProfile is null
+            ? Animora.Persistence.Sqlite.Options.LocalStoreEncryptionDefaults.ApplyShipped
+            : testProfile.ConfigureStore);
         if (testProfile is not null)
         {
             services.AddSingleton(testProfile);

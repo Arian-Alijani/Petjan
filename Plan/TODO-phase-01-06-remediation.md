@@ -329,7 +329,15 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 
 # Report 04 — Local Persistence SQLite (`src/Animora.Persistence.Sqlite/**`)
 
-## [ ] T14 · SQL-01 — Make encrypted local store the shipped default (High, isolation)
+## [x] T14 · SQL-01 — Make encrypted local store the shipped default (High, isolation)
+> **DONE (2026-10-20).** Desktop composition now uses `LocalStoreEncryptionDefaults.ApplyShipped`: encryption (+K2) is
+> switched on for a fresh store whenever the loaded native SQLite really carries the cipher (`StoreCipherProbe`,
+> `sqlite3mc_version()`); an existing non-plaintext store file *requires* encryption (fails closed, never quarantined as
+> corrupt); a legacy plaintext store is kept (no in-place re-key). `MultipleCiphersEncryptionProvider` and
+> `LocalStoreStartup` now refuse to open when encryption is requested but the cipher is absent (no silent plaintext —
+> `PRAGMA key` is a no-op on plain e_sqlite3). Plaintext selection logs a prominent startup warning unless the
+> throw-away test profile acknowledges it (`PlaintextStoreAcknowledged`). **Remaining native precondition:** the
+> `SQLitePCLRaw.bundle_e_sqlite3mc` pin (E08/K2) is not yet referenced, so until it ships the app runs plaintext + warning.
 - **Files:** `src/Animora.Persistence.Sqlite/Context/LocalStoreServiceCollectionExtensions.cs` (provider
   selection, lines ~50–66), `src/Animora.Persistence.Sqlite/Options/LocalStoreOptions.cs`
   (`EncryptionEnabled`, `K2Approved` — both default `false`),
@@ -659,7 +667,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T11 | CW-01/02/05 | High | [x] |
 | T12 | CW-03 | Med | [x] |
 | T13 | CW-04 | Low | [x] |
-| T14 | SQL-01 | High | [ ] |
+| T14 | SQL-01 | High | [x] |
 | T15 | SQL-02 | High | [ ] |
 | T16 | SQL-03 | Med | [ ] |
 | T17 | SQL-04 | Low | [x] |
