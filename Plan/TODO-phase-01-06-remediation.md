@@ -438,7 +438,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   updated; cross-user bleed structurally prevented. Note any call site that previously keyed on a bare id.
 - **Heavy-fix note:** API change rippling to call sites — push as `fix(clientservices): enforce tenant/user cache keying (INF-02)`.
 
-## [ ] T21 · INF-03 — DebounceBuffer overflow should flush, not throw (Medium, latent)
+## [x] T21 · INF-03 — DebounceBuffer overflow should flush, not throw (Medium, latent)
 - **File:** `src/Animora.Client.Services/Visits/DebounceBuffer.cs`, `Enqueue`:
   `if (_pending.Count >= 32) throw new InvalidOperationException("Debounce buffer is full; ...");`
 - **Fix:** on reaching the cap, **trigger a flush** of pending notes instead of throwing into the UI edit
@@ -642,7 +642,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T18 | SQL-05 | Low | [ ] |
 | T19 | INF-01 | High | [ ] |
 | T20 | INF-02 | Med | [ ] |
-| T21 | INF-03 | Med | [ ] |
+| T21 | INF-03 | Med | [x] |
 | T22 | INF-04 | Low | [x] |
 | T23 | INF-05 | Low | [x] |
 | T24 | SYN-01 | High | [ ] |

@@ -27,11 +27,28 @@ public sealed class DebounceBuffer : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_pending.Remove(key, out var previous)) previous.Delay.Cancel();
-            if (_pending.Count >= 32) throw new InvalidOperationException("Debounce buffer is full; flush before adding more notes.");
+
+            // INF-03: the cap is a SOFT threshold. At the cap the oldest pending note is flushed immediately (back-pressure) instead
+            // of throwing into the UI edit path; its write is tracked in _running so a failure still surfaces on the next flush.
+            if (_pending.Count >= MaxPending) FlushOldestLocked();
             pending = new Pending(write, new CancellationTokenSource());
             _pending.Add(key, pending);
             _running.Add(RunDelayedAsync(key, pending));
             _running.RemoveAll(t => t.IsCompletedSuccessfully || t.IsCanceled);
+        }
+    }
+
+    private const int MaxPending = 32;
+
+    // Caller holds _gate. Removes one pending note, cancels its debounce delay and writes it now (serialised by _writeGate).
+    private void FlushOldestLocked()
+    {
+        foreach (var entry in _pending)
+        {
+            _pending.Remove(entry.Key);
+            entry.Value.Delay.Cancel();
+            _running.Add(WriteAsync(entry.Value.Write, CancellationToken.None));
+            return;
         }
     }
 
