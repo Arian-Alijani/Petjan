@@ -1,5 +1,6 @@
 using Animora.Persistence.PostgreSql.Commands;
 using Animora.Persistence.PostgreSql.Identity;
+using Animora.Persistence.PostgreSql.Options;
 using Animora.Persistence.PostgreSql.Outbox;
 using Animora.Persistence.PostgreSql.Replication;
 using Animora.Server.Commands;
@@ -19,15 +20,22 @@ internal sealed class IntakeRecoveryWorker : ResilientWorker
     private readonly WorkerTenantDirectory _tenants;
     private readonly IBackgroundAdmission _admission;
     private readonly WorkerSettings _settings;
+    // PERF-MC-01: tenant-recovery parallelism auto-scales with CPU cores when Server:Workers:RecoveryParallelism
+    // is left at 0 (auto), hard-clamped to the worker DB-connection budget (Database:WorkerMax) so parallel
+    // tenant units never open more scopes than the worker pool can serve.
+    private readonly int _recoveryParallelism;
     public IntakeRecoveryWorker(IServiceScopeFactory scopes, WorkerTenantDirectory tenants, IBackgroundAdmission admission,
-        IOptions<ServerOptions> options, TimeProvider clock, WorkerHeartbeat heartbeat, ILogger<IntakeRecoveryWorker> logger)
+        IOptions<ServerOptions> options, IOptions<DatabaseOptions> database, TimeProvider clock, WorkerHeartbeat heartbeat, ILogger<IntakeRecoveryWorker> logger)
         : base("intake-recovery", TimeSpan.FromSeconds(30), clock, heartbeat, logger)
-    { _scopes = scopes; _tenants = tenants; _admission = admission; _settings = options.Value.Workers; }
+    {
+        _scopes = scopes; _tenants = tenants; _admission = admission; _settings = options.Value.Workers;
+        _recoveryParallelism = _settings.EffectiveRecoveryParallelism(database.Value.WorkerMax);
+    }
 
     protected override async Task TickAsync(CancellationToken ct)
     {
         int remaining = _settings.RecoveryTotalCap;
-        var parallel = new ParallelOptions { MaxDegreeOfParallelism = _settings.RecoveryParallelism, CancellationToken = ct };
+        var parallel = new ParallelOptions { MaxDegreeOfParallelism = _recoveryParallelism, CancellationToken = ct };
         await Parallel.ForEachAsync(_tenants.ReadAsync(ct), parallel, async (tenant, token) =>
         {
             // Advisory fast-path only: the authoritative budget is the atomic takeBudget decrement below. Under high

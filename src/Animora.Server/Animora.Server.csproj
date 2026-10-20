@@ -7,7 +7,17 @@
     project is NEVER referenced (enforced by ServerLayeringTests).
   -->
   <PropertyGroup>
-    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <!--
+      PERF-MC-01 (multi-core): Server GC is deliberate. It creates one managed heap +
+      one background GC thread PER LOGICAL CPU, so managed allocation/collection scales
+      across every core instead of serializing through the single Workstation-GC heap
+      (the prior <ServerGarbageCollection>false</> was the primary reason the process
+      pegged one core while the rest sat idle). Background (concurrent) Server GC keeps
+      pause times short. The System.GC.HeapHardLimitPercent/ConserveMemory host options
+      below bound the per-core heaps to the 2/4 GiB memory profile, so multi-core
+      throughput never breaches the container memory cap.
+    -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <TieredPGO>true</TieredPGO>
     <PublishReadyToRun>false</PublishReadyToRun>
