@@ -48,11 +48,16 @@ public static class FinanceProjectionRebuilder
         var owner = new Dictionary<string, OwnerAcc>();
 
         // 1) Invoices: revenue/discount/insurance/count + per-line product revenue + owner spend.
+        //    SAC-01: a posted-then-voided invoice is folded on its POST day like any posted invoice and then
+        //    reversed on its VOID day (refund += grand total, revenue/discount/insurance reversed, count -1),
+        //    exactly as FinanceProjectionStore's InvoiceVoidedEvent arm does on the warm path. The entity has no
+        //    dedicated void timestamp; Void is terminal and only legal while nothing is paid, so UpdatedAt (stamped
+        //    on every save) is the void instant. Never-posted (draft) voids contribute nothing.
         var invoices = await db.Set<Invoice>().AsNoTracking()
-            .Where(i => i.State != InvoiceState.Draft && i.State != InvoiceState.Void && i.PostedUtc != null)
+            .Where(i => i.State != InvoiceState.Draft && i.PostedUtc != null)
             .Select(i => new
             {
-                i.Id, i.OwnerId, i.State, i.PostedUtc, i.SettledUtc,
+                i.Id, i.OwnerId, i.State, i.PostedUtc, i.SettledUtc, i.UpdatedAt,
                 Subtotal = i.Subtotal.Minor, Discount = i.DiscountTotal.Minor,
                 Insurance = i.InsuranceCoverage.Minor, Grand = i.GrandTotal.Minor,
             })
@@ -78,14 +83,30 @@ public static class FinanceProjectionRebuilder
                 acc.Invoices += 1;
                 if (acc.LastInvoiceUtc is null || inv.PostedUtc > acc.LastInvoiceUtc) acc.LastInvoiceUtc = inv.PostedUtc;
             }
+
+            if (inv.State == InvoiceState.Void)
+            {
+                var voidRow = For(daily, LocalDay(inv.UpdatedAt, zone));
+                voidRow.Revenue -= inv.Subtotal;
+                voidRow.Discount -= inv.Discount;
+                voidRow.Insurance -= inv.Insurance;
+                voidRow.Refund += inv.Grand;
+                voidRow.Invoices -= 1;
+                if (inv.OwnerId is { Length: > 0 } voidOwner)
+                {
+                    var acc = For(owner, voidOwner);
+                    acc.Spend -= inv.Grand;
+                    acc.Invoices -= 1;
+                }
+            }
         }
 
         // 2) Posted invoice lines: per-product gross revenue and quantity sold.
         var lines = await db.Set<Invoice>().AsNoTracking()
-            .Where(i => i.State != InvoiceState.Draft && i.State != InvoiceState.Void && i.PostedUtc != null)
+            .Where(i => i.State != InvoiceState.Draft && i.PostedUtc != null)
             .SelectMany(i => i.Lines, (i, l) => new
             {
-                i.PostedUtc, l.ProductId, l.VariantId, l.Kind,
+                i.PostedUtc, i.State, i.UpdatedAt, l.ProductId, l.VariantId, l.Kind,
                 Quantity = l.Quantity.Value, Gross = l.LineGross.Minor,
             })
             .Where(x => x.Kind == InvoiceLineKind.Product && x.ProductId != null)
@@ -98,6 +119,14 @@ public static class FinanceProjectionRebuilder
             var acc = For(product, (day, line.ProductId!, line.VariantId ?? string.Empty));
             acc.Quantity += line.Quantity;
             acc.Revenue += line.Gross;
+
+            if (line.State == InvoiceState.Void)
+            {
+                // SAC-01: reverse on the void day, mirroring the live InvoiceVoidedEvent product arm.
+                var voidAcc = For(product, (LocalDay(line.UpdatedAt, zone), line.ProductId!, line.VariantId ?? string.Empty));
+                voidAcc.Quantity -= line.Quantity;
+                voidAcc.Revenue -= line.Gross;
+            }
         }
 
         // 3) Sale movements: cost of goods sold per day and per product.

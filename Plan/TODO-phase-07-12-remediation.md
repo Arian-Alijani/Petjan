@@ -84,7 +84,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 > Highest-value correctness cluster. SAC-01/04/07 all sit on the finance-projection path and are best
 > reasoned about together, but each lands as its own commit.
 
-## [ ] T31 · SAC-01 — Make the rebuild reproduce the live void projection (High, bug/inconsistency)
+## [x] T31 · SAC-01 — Make the rebuild reproduce the live void projection (High, bug/inconsistency)
 - **Files:** `src/Animora.Persistence.Sqlite/Finance/FinanceProjectionStore.cs` (live, `InvoiceVoidedEvent`
   case, lines ~36–50) vs `src/Animora.Persistence.Sqlite/Finance/FinanceProjectionRebuilder.cs`
   (`RebuildAsync`/`FoldLocalFinanceAsync`, lines ~52 and ~85 filter out voids; ~127–132 fold refunds).
