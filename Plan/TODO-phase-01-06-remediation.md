@@ -202,7 +202,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   1–10 (the `Cap` already dominates); this just removes the dead/misleading `20`.
 - **Acceptance:** no magic `20`; exponent bound == `MaxAttempts`; cap logic (`>= Cap.TotalSeconds ? Cap`) untouched.
 
-## [ ] T09 · APP-04 — Replace `LastOrDefault` with reverse indexed loop (Low, perf)
+## [x] T09 · APP-04 — Replace `LastOrDefault` with reverse indexed loop (Low, perf)
 - **File:** `src/Animora.Application/Behaviors/CommandJournalBehavior.cs` — `PrerequisiteAsync` (~line 92).
 - **Current:** `var post = unsettled.Value!.LastOrDefault(c => c.CommandType == CommandTypes.SalesInvoicePost);`
 - **Fix:** reverse `for` loop over the list to find the last match without enumerator/closure alloc:
@@ -215,7 +215,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   (Confirm the element type via the surrounding code / `unsettled.Value` declaration.)
 - **Acceptance:** same selection semantics (last matching); no LINQ; compiles.
 
-## [ ] T10 · APP-05 — Fix stale "Stage N" doc comments (Low, doc inconsistency)
+## [x] T10 · APP-05 — Fix stale "Stage N" doc comments (Low, doc inconsistency)
 - **Files:** behavior XML-doc summaries vs real order in `src/Animora.Application/Dispatch/Dispatcher.cs`
   (`Chain`/`ServerChain`). Real client chain (outer→inner):
   `Correlation → ExceptionMapping → Validation → Authorization → Entitlement → Transaction → CommandJournal → Audit → Handler`.
@@ -630,8 +630,8 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T06 | APP-01 | High | [x] |
 | T07 | APP-02 | Med | [x] |
 | T08 | APP-03 | Low | [x] |
-| T09 | APP-04 | Low | [ ] |
-| T10 | APP-05 | Low | [ ] |
+| T09 | APP-04 | Low | [x] |
+| T10 | APP-05 | Low | [x] |
 | T11 | CW-01/02/05 | High | [ ] |
 | T12 | CW-03 | Med | [ ] |
 | T13 | CW-04 | Low | [ ] |

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Animora.Application.Behaviors;
 
 /// <summary>
-/// Stage 6 — the outermost catch (sits directly inside Correlation so mapped failures keep their prefix).
+/// Stage 2 — the outermost catch (sits directly inside Correlation so mapped failures keep their prefix).
 /// Maps via <see cref="ErrorMapping.FromException"/>; <see cref="OperationCanceledException"/> is rethrown.
 /// The exception is logged once; <c>Detail</c> carries only the exception type name — never a stack trace.
 /// The only broad <c>catch (Exception)</c> in the Application layer.

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Application.Behaviors;
 
-/// <summary>Audits annotated commands from inside the transaction behavior.</summary>
+/// <summary>Stage 8 — audits annotated commands from inside the transaction behavior.</summary>
 public sealed class AuditBehavior : IPipelineBehavior
 {
     public string Name => "Audit";

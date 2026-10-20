@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Animora.Application.Behaviors;
 
 /// <summary>
-/// Stage 5 — commands only: wraps the handler in <see cref="IUnitOfWork.ExecuteAsync{T}"/>. Query entries
+/// Stage 6 — commands only: wraps the handler in <see cref="IUnitOfWork.ExecuteAsync{T}"/>. Query entries
 /// skip this link at registration (they never open a transaction). A command with no
 /// <see cref="IUnitOfWork"/> registered fails closed with <c>DISPATCH_FAILED</c>. A command marked
 /// <see cref="ISelfTransactedCommand"/> bypasses this link (its handler saves explicitly).

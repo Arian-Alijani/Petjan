@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Animora.Application.Behaviors;
 
 /// <summary>
-/// Stage 2. Runs every registered <see cref="IValidator{T}"/>; any failure short-circuits with
+/// Stage 3. Runs every registered <see cref="IValidator{T}"/>; any failure short-circuits with
 /// <c>VALIDATION_FAILED</c> (failures encoded by <see cref="ValidationFailure.FormatDetail"/>). Never throws.
 /// Entries without validators skip this link entirely at registration.
 /// </summary>

@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Animora.Application.Behaviors;
 
 /// <summary>
-/// Stage 3 — authorization plane only (A-RULE 023). A denial short-circuits with <c>PERMISSION_DENIED</c>
+/// Stage 4 — authorization plane only (A-RULE 023). A denial short-circuits with <c>PERMISSION_DENIED</c>
 /// (a gate's own <c>Forbidden</c>-category code, e.g. <c>TENANT_MISMATCH</c>, is kept).
 /// </summary>
 public sealed class AuthorizationBehavior : IPipelineBehavior

@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Animora.Application.Behaviors;
 
 /// <summary>
-/// Stage 6 — commands only. Sits <b>between</b> <see cref="TransactionBehavior"/> and the handler, so the
+/// Stage 7 — commands only. Sits <b>between</b> <see cref="TransactionBehavior"/> and the handler, so the
 /// enqueue and the business write commit in one transaction (ARCHITECTURE.md §12.1). It is active only for a
 /// command implementing <see cref="IJournaledCommand"/>; every other command (UI prefs, profile settings)
 /// skips this link at registration and never touches the journal (CONVENTIONS §6 item 1).
@@ -108,8 +108,15 @@ public sealed class CommandJournalBehavior : IPipelineBehavior
             .ConfigureAwait(false);
         if (unsettled.IsSuccess && command.CommandTypeName != CommandTypes.SalesInvoicePost)
         {
-            var post = unsettled.Value!.LastOrDefault(c => c.CommandType == CommandTypes.SalesInvoicePost);
-            if (post is not null) return post.OperationId;
+            // Reverse indexed scan for the newest matching post — no enumerator/closure alloc (PERFORMANCE.md §2).
+            var list = unsettled.Value!;
+            for (var i = list.Count - 1; i >= 0; i--)
+            {
+                if (list[i].CommandType == CommandTypes.SalesInvoicePost)
+                {
+                    return list[i].OperationId;
+                }
+            }
         }
 
         var creation = await journal.FindByOperationIdAsync(aggregateId, ct).ConfigureAwait(false);
