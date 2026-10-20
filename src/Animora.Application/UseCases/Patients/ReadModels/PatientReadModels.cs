@@ -6,7 +6,8 @@ namespace Animora.Application.UseCases.Patients.ReadModels;
 public sealed record PetSummaryReadModel(
     string Id, string Name, PetSpecies Species, string? Breed, string? Color, PetGender Gender,
     PetStatus Status, string OwnerId, DateTimeOffset? BirthDateUtc, decimal? CurrentWeightKg,
-    DateTimeOffset? LastVisitUtc, string? LastVisitType, string? MicrochipCode);
+    DateTimeOffset? LastVisitUtc, string? LastVisitType, string? MicrochipCode,
+    string? OwnerName = null);
 
 /// <summary>Directory row for an owner with the joined pet count.</summary>
 public sealed record OwnerSummaryReadModel(

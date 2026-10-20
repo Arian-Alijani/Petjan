@@ -52,7 +52,10 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
                     .OrderByDescending(v => v.StartedUtc).Select(v => (DateTimeOffset?)v.StartedUtc).FirstOrDefault(),
                 db.Set<Visit>().Where(v => v.PetId == p.Id && v.State != VisitState.Cancelled)
                     .OrderByDescending(v => v.StartedUtc).Select(v => v.Reason.ToString()).FirstOrDefault(),
-                p.MicrochipCode));
+                p.MicrochipCode,
+                // Owner display name for the pets-table «سرپرست» column — correlated top-1 lookup,
+                // index-backed by the Owners primary key (OwnerId → Owner.Id), no N+1.
+                db.Set<Owner>().Where(o => o.Id == p.OwnerId).Select(o => o.FullName).FirstOrDefault()));
         var result = await projected.ToPagedAsync(page, pageSize, Options, ct);
         TraceLog.Info($"SQL GetPetsAsync ← {result.Items.Count} rows, TotalCount={result.TotalCount} (of Pets table for tenant).", "sql.patients");
         return result;

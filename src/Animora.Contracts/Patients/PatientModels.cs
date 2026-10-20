@@ -88,7 +88,8 @@ public sealed record PetSummary(
     bool HasVaccines,
     string? NextVaccineName,
     DateTime? NextVaccineDate,
-    string? MicrochipCode);
+    string? MicrochipCode,
+    string? OwnerName = null);
 
 /// <summary>
 /// One owner row for the directory, shaped to exactly what the reference's

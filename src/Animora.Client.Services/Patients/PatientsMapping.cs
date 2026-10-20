@@ -18,7 +18,7 @@ internal static class PatientsMapping
         // HasVaccines/NextVaccine* stay false/null until the vaccine source arrives.
         m.LastVisitUtc?.UtcDateTime, m.LastVisitType is { } reason ? VisitReasonLabel(reason) : null,
         HasVaccines: false, NextVaccineName: null,
-        NextVaccineDate: null, m.MicrochipCode);
+        NextVaccineDate: null, m.MicrochipCode, m.OwnerName);
 
     public static OwnerSummary ToSummary(this OwnerSummaryReadModel m)
     {
