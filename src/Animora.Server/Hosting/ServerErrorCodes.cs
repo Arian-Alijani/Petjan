@@ -17,6 +17,13 @@ internal static class ServerErrorCodes
     /// <summary>Capacity shed (pool exhausted / gate full): HTTP 503 + Retry-After. Mirrors <c>ErrorCodes.ServerBusy</c>.</summary>
     public const string ServerBusy = "SERVER_BUSY";
 
+    /// <summary>
+    /// The backend data store is unreachable / shutting down, or its schema is behind this build (an unapplied
+    /// migration): HTTP 503 + Retry-After. Distinct from <see cref="ServerBusy"/> (transient capacity) and from
+    /// <see cref="Unexpected"/> (a defect) so this operational, retryable condition is diagnosable in the trace.
+    /// </summary>
+    public const string ServerUnavailable = "SERVER_UNAVAILABLE";
+
     /// <summary>A named rate-limit policy rejected the request (HTTP 429).</summary>
     public const string RateLimited = "RATE_LIMITED";
 }

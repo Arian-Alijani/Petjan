@@ -52,6 +52,23 @@ internal sealed class GlobalExceptionMiddleware(
                 new WireApiError(ServerErrorCodes.ServerBusy, null, NoFields, correlationId),
                 context.RequestAborted).ConfigureAwait(false);
         }
+        catch (Exception ex) when (!context.Response.HasStarted
+            && Animora.Persistence.PostgreSql.Context.DatabaseFailure.IsBackendUnavailable(ex))
+        {
+            // The backend data store is unreachable / shutting down, or its schema is behind this build (an unapplied
+            // migration — e.g. /auth/login touching a table/column the deployed database does not yet have). The caller
+            // cannot fix this and it is NOT a defect in the request: answer a typed, retryable 503 + Retry-After with a
+            // distinct SERVER_UNAVAILABLE code, never an opaque UNEXPECTED 500 that masks the cause. The readiness
+            // `schema`/`database` probes report the same condition independently (GET /health/ready).
+            logger.LogWarning("Backend data store unavailable or schema behind build for request {CorrelationId}; answering 503.", correlationId);
+            context.Response.Clear();
+            CorrelationHeader.Echo(context, correlationId);
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            context.Response.Headers.RetryAfter = "1";
+            await context.Response.WriteAsJsonAsync(
+                new WireApiError(ServerErrorCodes.ServerUnavailable, null, NoFields, correlationId),
+                context.RequestAborted).ConfigureAwait(false);
+        }
         catch (Exception ex)
         {
             logger.LogError("Unhandled {FailureClass} for request {CorrelationId}.", ex.GetType().Name, correlationId);
