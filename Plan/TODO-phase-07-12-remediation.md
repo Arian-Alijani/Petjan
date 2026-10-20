@@ -209,7 +209,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Heavy-fix note:** data-access reshape — push as
   `perf(persistence): stream/bound finance-projection rebuild [SAC-04]`.
 
-## [ ] T35 · SAC-06 — Block double clearing of a recovered bounced cheque (Medium, latent/bug)
+## [x] T35 · SAC-06 — Block double clearing of a recovered bounced cheque (Medium, latent/bug)
 - **File:** `src/Animora.Domain/Finance/Cheque.cs` — state machine + `MarkCleared`. Transitions allow
   `Bounced → InPortfolio → Deposited → Cleared`, and `MarkCleared` raises a **second** `ChequeClearedEvent`;
   the aggregate carries a single `JournalEntryId` and does not record that clearing was already posted.

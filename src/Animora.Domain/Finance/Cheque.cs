@@ -263,6 +263,17 @@ public sealed class Cheque : AggregateRoot
     /// </summary>
     public Result MarkCleared(string actorUserId, IClock clock)
     {
+        // SAC-06: second line of defence for the posting layer. A clearing must post exactly once per cheque:
+        // the state machine already makes Cleared terminal, but we also check the append-only history so a replay
+        // or a stale-state caller can never raise a second ChequeClearedEvent (=> a second bank/cheque journal
+        // entry), even across the legitimate Bounced -> InPortfolio -> Deposited recovery cycle.
+        if (State == ChequeState.Cleared || HasCleared())
+        {
+            return Result.Fail(
+                ErrorCodes.ChequeInvalidTransition,
+                $"Cheque '{ChequeNumber}' has already cleared; a clearing is posted only once.");
+        }
+
         var moved = Transition(ChequeState.Cleared, actorUserId, clock, null);
         if (moved.IsFailure)
         {
@@ -365,6 +376,15 @@ public sealed class Cheque : AggregateRoot
         Raise(new ChequeStateChangedEvent(
             IdGenerator.NewId(now), TenantId, now, Id, from, target));
         return Result.Ok();
+    }
+
+    private bool HasCleared()
+    {
+        for (var i = 0; i < _history.Count; i++)
+        {
+            if (_history[i].ToState == ChequeState.Cleared) return true;
+        }
+        return false;
     }
 
     private static string? Clean(string? value) =>
