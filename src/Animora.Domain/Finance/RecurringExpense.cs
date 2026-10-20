@@ -240,9 +240,13 @@ public static class RecurringExpenseSchedule
     /// <summary>Default reminder window: «سررسید نزدیک» starts this many days before the due day.</summary>
     public const int DefaultSoonWindowDays = 3;
 
-    /// <summary>Due when the due day has been reached and the period is not yet paid.</summary>
-    public static bool IsDue(int dayOfMonth, int currentDayOfMonth, bool alreadyPaidThisPeriod) =>
-        currentDayOfMonth >= dayOfMonth && !alreadyPaidThisPeriod;
+    /// <summary>
+    /// Due when the (month-clamped) due day has been reached and the period is not yet paid.
+    /// Uses <see cref="EffectiveDueDay"/> so it agrees with <see cref="Evaluate"/>: a day-31 template
+    /// in a 30-day month falls due on the 30th rather than never.
+    /// </summary>
+    public static bool IsDue(int dayOfMonth, int currentDayOfMonth, int daysInMonth, bool alreadyPaidThisPeriod) =>
+        currentDayOfMonth >= EffectiveDueDay(dayOfMonth, daysInMonth) && !alreadyPaidThisPeriod;
 
     /// <summary>The day the cost actually falls due this month: a day 31 in a 30-day month falls on the 30th.</summary>
     public static int EffectiveDueDay(int dayOfMonth, int daysInMonth) =>

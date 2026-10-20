@@ -105,7 +105,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 - **Acceptance:** overflow now throws `OverflowException` instead of silently wrapping; normal sums
   unchanged. Keep indexed loops.
 
-## [ ] T04 · DOM-03 — Reconcile the two "is it due" definitions (Low, inconsistency)
+## [x] T04 · DOM-03 — Reconcile the two "is it due" definitions (Low, inconsistency)
 - **File:** `src/Animora.Domain/Finance/RecurringExpense.cs` — `RecurringExpenseSchedule.IsDue` vs `Evaluate`.
 - **Problem:** `IsDue(dayOfMonth, currentDayOfMonth, alreadyPaidThisPeriod)` compares against raw
   `dayOfMonth`; `Evaluate` uses `EffectiveDueDay(dayOfMonth, daysInMonth)` (clamped to month length).
@@ -625,7 +625,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T01 | DOM-01 | Med | [x] |
 | T02 | DOM-02 | Med | [x] |
 | T03 | DOM-04 | Low | [x] |
-| T04 | DOM-03 | Low | [ ] |
+| T04 | DOM-03 | Low | [x] |
 | T05 | DOM-05 | Low | [ ] |
 | T06 | APP-01 | High | [ ] |
 | T07 | APP-02 | Med | [ ] |
