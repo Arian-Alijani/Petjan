@@ -233,13 +233,9 @@ public sealed class LocalStoreMaintenance(
     {
         var stash = StashPath(tenantId);
         await db.Database.CloseConnectionAsync().ConfigureAwait(false);
-        SqliteConnection.ClearAllPools();
-        foreach (var suffix in SideSuffixes)
-        {
-            var side = Store.DatabasePath + suffix;
-            if (File.Exists(side)) File.Delete(side);
-        }
-        File.Copy(stash, Store.DatabasePath, overwrite: false);
+        // BAK-07: idempotent — clear any residual db/-wal/-shm, then copy with overwrite as belt-and-braces.
+        CleanStoreFiles();
+        File.Copy(stash, Store.DatabasePath, overwrite: true);
 
         await using (var restored = await contexts.CreateDbContextAsync(ct).ConfigureAwait(false))
         {
@@ -356,6 +352,16 @@ public sealed class LocalStoreMaintenance(
             if (snapshots.IsFailure)
                 return Result.Fail(ErrorCodes.StoreRestoreFailed,
                     $"{snapshots.Error.Code}: {snapshots.Detail}; previous store kept in {quarantine}");
+            // BAK-05: finance facts and the activity feed are caches with a proof too — re-prove them from the restored
+            // ledger/outbox (stock first: finance COGS reads the sale movements; the feed last).
+            var finance = await RebuildFinanceProjectionsAsync(ct);
+            if (finance.IsFailure)
+                return Result.Fail(ErrorCodes.StoreRestoreFailed,
+                    $"{finance.Error.Code}: {finance.Detail}; previous store kept in {quarantine}");
+            var feed = await RebuildActivityFeedAsync(ct);
+            if (feed.IsFailure)
+                return Result.Fail(ErrorCodes.StoreRestoreFailed,
+                    $"{feed.Error.Code}: {feed.Detail}; previous store kept in {quarantine}");
             await LogAsync(StoreMaintenanceKind.Restore,
                 $"from {Path.GetFileName(backupPath)}; previous store in {quarantine}", ct);
             return Result.Ok();

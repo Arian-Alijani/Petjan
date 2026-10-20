@@ -358,7 +358,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
   the daily cadence is measured against the persisted last-backup time; retention reflects calendar days.
   Reason through the start-up seed + tick logic.
 
-## [ ] T40 · BAK-05 — Rebuild finance projections on restore (Medium, consistency)
+## [x] T40 · BAK-05 — Rebuild finance projections on restore (Medium, consistency)
 - **File:** `src/Animora.Persistence.Sqlite/Maintenance/LocalStoreMaintenance.cs` — `RestoreAsync`
   (l.342: `var snapshots = await RebuildStockSnapshotsAsync(ct);` and the symmetric stash-restore at l.370).
   Finance facts (`DailyFinanceFact`/`ProductSalesFact`/`OwnerFinancialSnapshot`) and the activity feed come
@@ -392,7 +392,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Acceptance:** `List` orders by the name-embedded UTC stamp; touching a file's mtime no longer changes its
   prune rank; retention keeps the newest `RetainCount` by actual backup time. No change to create/download.
 
-## [ ] T51 · BAK-07 — Make the restore copy idempotent (Low, latent)
+## [x] T51 · BAK-07 — Make the restore copy idempotent (Low, latent)
 - **File:** `src/Animora.Persistence.Sqlite/Maintenance/LocalStoreMaintenance.cs` —
   `RestoreAsync` (l.332: `File.Copy(backupPath, Store.DatabasePath, overwrite: false);`) and
   `RestoreStashAsync` (l.242: `File.Copy(stash, Store.DatabasePath, overwrite: false);`). `MoveToQuarantine`
