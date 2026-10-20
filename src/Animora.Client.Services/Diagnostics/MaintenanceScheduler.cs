@@ -2,9 +2,11 @@ using Animora.Application.Auditing;
 using Animora.Application.Commands;
 using Animora.Domain.Primitives;
 using Animora.Domain.Time;
+using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Maintenance;
 using Animora.Persistence.Sqlite.Options;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
@@ -22,6 +24,7 @@ public sealed class MaintenanceScheduler(
     private DateTimeOffset? _lastBackupUtc;
     private DateTimeOffset? _lastVacuumUtc;
     private DateTimeOffset? _lastCompactUtc;
+    private bool _seeded;
 
     public void Start() => _loop ??= Task.Run(() => RunAsync(_stop.Token));
 
@@ -47,6 +50,9 @@ public sealed class MaintenanceScheduler(
     {
         if (LocalCommandProcessor.IsPassRunning) return;
         var now = clock.UtcNow;
+        // BAK-04: the throttle is measured against the persisted StoreMaintenanceLog, not the process lifetime, so a
+        // relaunch inside the window does not re-run the job and retention follows calendar days rather than launches.
+        await SeedLastRunsAsync(ct);
         if (_lastBackupUtc is null || now - _lastBackupUtc >= TimeSpan.FromDays(1))
         {
             await RunOneAsync(StoreMaintenanceKind.Backup, now, ct);
@@ -64,6 +70,40 @@ public sealed class MaintenanceScheduler(
             await RunOneAsync(StoreMaintenanceKind.Vacuum, now, ct);
             _lastVacuumUtc = now;
         }
+    }
+
+    /// <summary>
+    /// BAK-04: seeds the in-memory last-run cache (backup / compact / vacuum) from the most recent matching
+    /// <see cref="StoreMaintenanceLog"/> row, once per process. Tenant-switch stashes are logged as <c>Backup</c> rows
+    /// too (<c>stash tenant …</c>) and must not count as a store backup. A read failure leaves the cache empty
+    /// (job runs once, the pre-fix behaviour) rather than blocking maintenance.
+    /// </summary>
+    private async Task SeedLastRunsAsync(CancellationToken ct)
+    {
+        if (_seeded) return;
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+            _lastBackupUtc ??= await LastRunAsync(db, StoreMaintenanceKind.Backup, excludeStash: true, ct);
+            _lastCompactUtc ??= await LastRunAsync(db, StoreMaintenanceKind.Compact, excludeStash: false, ct);
+            _lastVacuumUtc ??= await LastRunAsync(db, StoreMaintenanceKind.Vacuum, excludeStash: false, ct);
+            _seeded = true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Could not read the maintenance log to seed the cadence; will retry next cycle");
+        }
+    }
+
+    private static async Task<DateTimeOffset?> LastRunAsync(
+        AnimoraLocalDbContext db, StoreMaintenanceKind kind, bool excludeStash, CancellationToken ct)
+    {
+        var query = db.Set<StoreMaintenanceLog>().AsNoTracking().Where(x => x.Kind == kind);
+        if (excludeStash) query = query.Where(x => x.Detail == null || !x.Detail.StartsWith("stash tenant"));
+        var latest = await query.OrderByDescending(x => x.OccurredAtUtc).Select(x => (DateTimeOffset?)x.OccurredAtUtc)
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        return latest;
     }
 
     /// <summary>Runs the SQL-02 retention pass; returns true when it removed enough rows to justify a VACUUM now.</summary>

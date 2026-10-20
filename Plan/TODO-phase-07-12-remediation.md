@@ -334,7 +334,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 - **Heavy-fix note:** new hosted service — push as
   `feat(server): scheduled server backup background service [BAK-03]`.
 
-## [ ] T39 · BAK-04 — Persist local backup cadence across restarts (Medium, latent)
+## [x] T39 · BAK-04 — Persist local backup cadence across restarts (Medium, latent)
 - **File:** `src/Animora.Client.Services/Diagnostics/MaintenanceScheduler.cs`:
   ```csharp
   private DateTimeOffset? _lastBackupUtc;                         // l.22 — in-memory only
