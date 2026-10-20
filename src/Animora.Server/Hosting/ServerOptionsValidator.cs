@@ -110,19 +110,28 @@ internal sealed class ServerOptionsValidator : IValidateOptions<ServerOptions>
         var w = options.Workers;
         if (w.OutboxClaimBatch is < 1 or > 20)
             failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxClaimBatch' must be between 1 and 20.");
-        if (w.OutboxConsumers is < 1 or > 8)
-            failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxConsumers' must be between 1 and 8.");
+        // PERF-MC-01: 0 = auto (scale with cores). Reject only out-of-range EXPLICIT values.
+        if (w.OutboxConsumers is < 0 or > 8)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxConsumers' must be 0 (auto) or between 1 and 8.");
         // Each delivery is bounded by OutboundTimeout.Default (10 s); every consumer drains
         // ceil(batch / consumers) messages sequentially, which must stay inside the 60 s claim lease.
-        else if (w.OutboxClaimBatch is >= 1 and <= 20 &&
-                 (int)Math.Ceiling(w.OutboxClaimBatch / (double)w.OutboxConsumers) * OutboundTimeoutSeconds > 50)
-            failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxClaimBatch' is too large for OutboxConsumers: worst-case delivery time would exceed the outbox claim lease.");
+        // The lease is hardest with the FEWEST consumers, so validate with the guaranteed-minimum
+        // effective consumer count: an explicit value if set, else the auto floor (2). Auto only ever
+        // widens fan-out with cores, which can only make this constraint easier, never harder.
+        else
+        {
+            int minConsumers = w.OutboxConsumers > 0 ? w.OutboxConsumers : 2;
+            if (w.OutboxClaimBatch is >= 1 and <= 20 &&
+                (int)Math.Ceiling(w.OutboxClaimBatch / (double)minConsumers) * OutboundTimeoutSeconds > 50)
+                failures.Add($"'{ServerOptions.SectionName}:Workers:OutboxClaimBatch' is too large for OutboxConsumers: worst-case delivery time would exceed the outbox claim lease.");
+        }
         if (w.RecoveryPerTenantCap is < 1 or > 50)
             failures.Add($"'{ServerOptions.SectionName}:Workers:RecoveryPerTenantCap' must be between 1 and 50.");
         if (w.RecoveryTotalCap is < 1 or > 2000)
             failures.Add($"'{ServerOptions.SectionName}:Workers:RecoveryTotalCap' must be between 1 and 2000.");
-        if (w.RecoveryParallelism is < 1 or > 16)
-            failures.Add($"'{ServerOptions.SectionName}:Workers:RecoveryParallelism' must be between 1 and 16.");
+        // PERF-MC-01: 0 = auto (scale with cores). Reject only out-of-range explicit values.
+        if (w.RecoveryParallelism is < 0 or > 16)
+            failures.Add($"'{ServerOptions.SectionName}:Workers:RecoveryParallelism' must be 0 (auto) or between 1 and 16.");
 
         return failures.Count == 0
             ? ValidateOptionsResult.Success

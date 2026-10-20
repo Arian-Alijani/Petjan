@@ -1,4 +1,5 @@
 using Animora.Domain.Results;
+using Animora.Persistence.PostgreSql.Options;
 using Animora.Persistence.PostgreSql.Outbox;
 using Animora.Persistence.PostgreSql.Replication;
 using Animora.Server.Hosting;
@@ -13,12 +14,21 @@ internal sealed class OutboxRelayWorker : ResilientWorker
     private readonly CircuitBreaker _breaker;
     private readonly OutboundTimeout _timeout;
     private readonly WorkerSettings _settings;
+    // PERF-MC-01: the effective consumer count auto-scales with CPU cores when Server:Workers:OutboxConsumers
+    // is left at 0 (auto), but is hard-clamped to the worker DB-connection budget (Database:WorkerMax) so the
+    // fan-out never opens more scopes than the worker pool can serve.
+    private readonly int _outboxConsumers;
     // BUG-OUTBOX-01: claim size and consumer count are options-driven (Server:Workers). The relay runs on the WORKER
     // admission gate only (never the request-path sync gate) and holds it just for the claim, not for delivery.
     public OutboxRelayWorker(IServiceScopeFactory scopes, IBackgroundAdmission admission, CircuitBreaker breaker,
-        OutboundTimeout timeout, IOptions<ServerOptions> options, TimeProvider clock, WorkerHeartbeat heartbeat, ILogger<OutboxRelayWorker> logger)
+        OutboundTimeout timeout, IOptions<ServerOptions> options, IOptions<DatabaseOptions> database,
+        TimeProvider clock, WorkerHeartbeat heartbeat, ILogger<OutboxRelayWorker> logger)
         : base("outbox-relay", TimeSpan.FromSeconds(1), clock, heartbeat, logger)
-    { _scopes = scopes; _admission = admission; _breaker = breaker; _timeout = timeout; _settings = options.Value.Workers; }
+    {
+        _scopes = scopes; _admission = admission; _breaker = breaker; _timeout = timeout;
+        _settings = options.Value.Workers;
+        _outboxConsumers = _settings.EffectiveOutboxConsumers(database.Value.WorkerMax);
+    }
 
     protected override async Task TickAsync(CancellationToken ct)
     {
@@ -37,7 +47,7 @@ internal sealed class OutboxRelayWorker : ResilientWorker
         var queue = new BoundedWorkerQueue<OutboxMessage>();
         foreach (var message in messages) await queue.WriteAsync(message, ct).ConfigureAwait(false);
         queue.Complete();
-        await Task.WhenAll(Enumerable.Range(0, _settings.OutboxConsumers)
+        await Task.WhenAll(Enumerable.Range(0, _outboxConsumers)
             .Select(_ => Consume(queue, ct))).ConfigureAwait(false);
     }
     private async Task Consume(BoundedWorkerQueue<OutboxMessage> queue, CancellationToken ct)

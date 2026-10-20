@@ -103,8 +103,13 @@ internal sealed class WorkerSettings
     /// <summary>Outbox messages claimed per relay tick (1..20, store ceiling). Default 10.</summary>
     public int OutboxClaimBatch { get; set; } = 10;
 
-    /// <summary>Concurrent outbox consumers per tick (1..8). Default 4.</summary>
-    public int OutboxConsumers { get; set; } = 4;
+    /// <summary>
+    /// PERF-MC-01: concurrent outbox consumers per tick. <b>0 = auto</b> = scale with CPU cores
+    /// (<see cref="CpuTopology.LogicalCores"/>), clamped to [2..8] AND to the worker DB-connection budget
+    /// (<c>Database:WorkerMax</c>) so fan-out never exceeds what the worker pool can serve. An explicit
+    /// value in 1..8 always wins. Default 0 (auto). See <see cref="EffectiveOutboxConsumers"/>.
+    /// </summary>
+    public int OutboxConsumers { get; set; }
 
     /// <summary>Expired intake leases recovered per tenant per tick (1..50). Default 10.</summary>
     public int RecoveryPerTenantCap { get; set; } = 10;
@@ -112,8 +117,36 @@ internal sealed class WorkerSettings
     /// <summary>Expired intake leases recovered across all tenants per tick (1..2000). Default 200.</summary>
     public int RecoveryTotalCap { get; set; } = 200;
 
-    /// <summary>Tenants recovered in parallel per tick (1..16). Default 4.</summary>
-    public int RecoveryParallelism { get; set; } = 4;
+    /// <summary>
+    /// PERF-MC-01: tenants recovered in parallel per tick. <b>0 = auto</b> = scale with CPU cores
+    /// (<see cref="CpuTopology.LogicalCores"/>), clamped to [2..16] AND to the worker DB-connection budget
+    /// (<c>Database:WorkerMax</c>). An explicit value in 1..16 always wins. Default 0 (auto).
+    /// See <see cref="EffectiveRecoveryParallelism"/>.
+    /// </summary>
+    public int RecoveryParallelism { get; set; }
+
+    /// <summary>
+    /// PERF-MC-01: effective outbox-consumer width. Explicit <see cref="OutboxConsumers"/> (&gt;0) wins;
+    /// otherwise auto = <c>ScaleByCores(1, 2, 8)</c>. The result is further clamped to
+    /// <paramref name="workerDbBudget"/> (but never below 1) so background fan-out stays within the
+    /// PostgreSQL worker-pool budget regardless of core count.
+    /// </summary>
+    public int EffectiveOutboxConsumers(int workerDbBudget)
+    {
+        int width = OutboxConsumers > 0 ? OutboxConsumers : CpuTopology.ScaleByCores(1, 2, 8);
+        return Math.Max(1, Math.Min(width, Math.Max(1, workerDbBudget)));
+    }
+
+    /// <summary>
+    /// PERF-MC-01: effective recovery parallelism. Explicit <see cref="RecoveryParallelism"/> (&gt;0) wins;
+    /// otherwise auto = <c>ScaleByCores(1, 2, 16)</c>. Clamped to <paramref name="workerDbBudget"/>
+    /// (never below 1) so tenant recovery never over-subscribes the worker DB pool.
+    /// </summary>
+    public int EffectiveRecoveryParallelism(int workerDbBudget)
+    {
+        int width = RecoveryParallelism > 0 ? RecoveryParallelism : CpuTopology.ScaleByCores(1, 2, 16);
+        return Math.Max(1, Math.Min(width, Math.Max(1, workerDbBudget)));
+    }
 }
 
 /// <summary>IMP-06: how long ONE authorization-pipeline store call may run before the request is shed with 503.</summary>
