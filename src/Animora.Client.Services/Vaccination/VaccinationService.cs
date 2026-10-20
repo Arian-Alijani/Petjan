@@ -14,7 +14,7 @@ namespace Animora.Client.Services.Vaccination;
 public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdFactory ids) : IVaccinationService
 {
     public async Task<IReadOnlyList<ContractRecord>> GetRecordsAsync() =>
-        (await QueryAsync(new VaccinationDueQuery(DateOnly.FromDateTime(DateTime.UtcNow))))
+        (await QueryAsync(new VaccinationDueQuery(await ClinicDayWindow.TodayDateAsync(scopes).ConfigureAwait(false))))
             .Select(r => r.ToContract()).ToArray();
 
     public async Task<IReadOnlyList<VaccineCatalogEntry>> GetCatalogAsync() =>
@@ -124,7 +124,7 @@ public sealed class VaccinationService(IServiceScopeFactory scopes, OperationIdF
 
     private async Task<ContractRecord> FindAsync(string id)
     {
-        var row = (await QueryAsync(new VaccinationDueQuery(DateOnly.FromDateTime(DateTime.UtcNow))))
+        var row = (await QueryAsync(new VaccinationDueQuery(await ClinicDayWindow.TodayDateAsync(scopes).ConfigureAwait(false))))
             .FirstOrDefault(r => r.Id == id);
         return row?.ToContract() ?? throw new InvalidOperationException("VACCINATION_NOT_FOUND");
     }

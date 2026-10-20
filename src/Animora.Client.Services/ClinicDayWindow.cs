@@ -30,6 +30,19 @@ internal static class ClinicDayWindow
     }
 
     /// <summary>
+    /// The clinic-local calendar day for the injected <see cref="IClock"/> and the (async-hydrated) clinic zone — never the machine
+    /// wall clock or the UTC date. The single "business today" source for queue / triage / vaccination queries (INF-01).
+    /// </summary>
+    public static async Task<DateOnly> TodayDateAsync(IServiceScopeFactory scopes, CancellationToken ct = default)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var now = scope.ServiceProvider.GetRequiredService<IClock>().UtcNow;
+        var zone = await scope.ServiceProvider.GetRequiredService<IClinicTimeZoneProvider>()
+            .GetClinicTimeZoneAsync(ct).ConfigureAwait(false);
+        return Animora.Application.Time.ClinicCalendar.LocalDay(now.UtcTicks, zone);
+    }
+
+    /// <summary>
     /// Parses an ASCII Jalali <c>yyyy/MM/dd</c> bound from the history filter into a UTC instant, honouring
     /// the clinic zone. An empty/unparseable value yields <c>null</c> (unbounded on that side).
     /// </summary>

@@ -15,8 +15,9 @@ public sealed class ReceptionQueueService(IServiceScopeFactory scopes) : IRecept
         var provider = scope.ServiceProvider.GetRequiredService<ICurrentUserProvider>();
         var context = provider.BuildQueryContext();
         if (context.IsFailure) throw new ServiceException(context.Error);
+        var today = await ClinicDayWindow.TodayDateAsync(scopes).ConfigureAwait(false); // INF-01: clinic-TZ day via IClock
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
-            .QueryAsync(new ReceptionQueueQuery(DateOnly.FromDateTime(DateTime.Today)), context.Value!);
+            .QueryAsync(new ReceptionQueueQuery(today), context.Value!);
         if (result.IsFailure) throw new ServiceException(result.Error);
         return result.Value!.Select(x => x.ToContract()).ToArray();
     }

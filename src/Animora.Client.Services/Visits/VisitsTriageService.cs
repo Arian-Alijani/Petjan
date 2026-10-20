@@ -23,7 +23,7 @@ public sealed class VisitsTriageService(
     public async Task<IReadOnlyList<DoctorRailInfo>> GetDoctorsAsync()
     {
         await RefreshDoctorDirectoryAsync().ConfigureAwait(false);
-        return await QueryAsync(new TriageDoctorRailQuery(DateOnly.FromDateTime(DateTime.Today)),
+        return await QueryAsync(new TriageDoctorRailQuery(await ClinicDayWindow.TodayDateAsync(scopes).ConfigureAwait(false)),
             rows => (IReadOnlyList<DoctorRailInfo>)rows.Select(x => x.ToContract()).ToArray()).ConfigureAwait(false);
     }
 
@@ -73,9 +73,9 @@ public sealed class VisitsTriageService(
         if (result.IsFailure) throw new ServiceException(result.Error);
     }
 
-    public Task<IReadOnlyList<BookedAppointmentRef>> GetBookedForDoctorAsync(string doctorId) => QueryAsync(
-        new BookedForDoctorQuery(doctorId, DateOnly.FromDateTime(DateTime.Today)),
-        rows => (IReadOnlyList<BookedAppointmentRef>)rows.Select(x => x.ToContract()).ToArray());
+    public async Task<IReadOnlyList<BookedAppointmentRef>> GetBookedForDoctorAsync(string doctorId) => await QueryAsync(
+        new BookedForDoctorQuery(doctorId, await ClinicDayWindow.TodayDateAsync(scopes).ConfigureAwait(false)),
+        rows => (IReadOnlyList<BookedAppointmentRef>)rows.Select(x => x.ToContract()).ToArray()).ConfigureAwait(false);
 
     public IReadOnlyList<VisitTypeInfo> GetVisitTypes() => VisitTypeCatalog.All;
 

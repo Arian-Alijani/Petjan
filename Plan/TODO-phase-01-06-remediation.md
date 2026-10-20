@@ -404,7 +404,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 
 # Report 05 — Infrastructure.Local + Client.Services (`src/Animora.Infrastructure.Local/**`, `src/Animora.Client.Services/**` excl. `Sync/`)
 
-## [ ] T19 · INF-01 — Use IClock + clinic TZ for business-"today" queries (High, time/culture)
+## [x] T19 · INF-01 — Use IClock + clinic TZ for business-"today" queries (High, time/culture)
 - **Files (3 services, 4 call sites):**
   - `src/Animora.Client.Services/Reception/ReceptionQueueService.cs:19` — `DateOnly.FromDateTime(DateTime.Today)`
   - `src/Animora.Client.Services/Visits/VisitsTriageService.cs:26,77` — `DateOnly.FromDateTime(DateTime.Today)`
@@ -640,7 +640,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T16 | SQL-03 | Med | [ ] |
 | T17 | SQL-04 | Low | [ ] |
 | T18 | SQL-05 | Low | [ ] |
-| T19 | INF-01 | High | [ ] |
+| T19 | INF-01 | High | [x] |
 | T20 | INF-02 | Med | [x] |
 | T21 | INF-03 | Med | [x] |
 | T22 | INF-04 | Low | [x] |
