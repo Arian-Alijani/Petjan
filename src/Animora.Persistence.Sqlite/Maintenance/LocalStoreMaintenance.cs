@@ -44,7 +44,7 @@ public sealed class LocalStoreMaintenance(
     internal const string SettingsSidecarSuffix = ".appointment-settings.json";
     // Visits → تنظیمات: the laboratory test-type catalog is clinic configuration of the same kind and travels the same way.
     internal const string LabCatalogSidecarSuffix = ".lab-test-types.json";
-    private static readonly string[] BackupSuffixes = [.. SideSuffixes, SettingsSidecarSuffix, LabCatalogSidecarSuffix];
+    private static readonly string[] BackupSuffixes = [.. SideSuffixes, SettingsSidecarSuffix, LabCatalogSidecarSuffix, StoreKeyEscrow.Suffix];
 
     // Process-wide: a corrupt store detected during a rebuild must not trigger another rebuild.
     private static int _rebuilding;
@@ -305,8 +305,9 @@ public sealed class LocalStoreMaintenance(
                 DeleteBackupFiles(target);
                 return Result<string>.Fail(ErrorCodes.StoreBackupFailed, $"quick_check: {check}");
             }
+            var portability = WriteKeyEscrow(target);
             Prune();
-            await LogAsync(StoreMaintenanceKind.Backup, Path.GetFileName(target), ct);
+            await LogAsync(StoreMaintenanceKind.Backup, $"{Path.GetFileName(target)}{portability}", ct);
             return Result<string>.Ok(target);
         }
         catch (Exception ex) when (IsStoreFailure(ex))
@@ -316,7 +317,9 @@ public sealed class LocalStoreMaintenance(
         }
     }
 
-    public async Task<Result> RestoreAsync(string backupPath, CancellationToken ct)
+    public Task<Result> RestoreAsync(string backupPath, CancellationToken ct) => RestoreAsync(backupPath, null, ct);
+
+    public async Task<Result> RestoreAsync(string backupPath, string? backupPassphrase, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(backupPath) || !File.Exists(backupPath))
@@ -324,12 +327,22 @@ public sealed class LocalStoreMaintenance(
         string? quarantine = null;
         try
         {
-            var check = QuickCheck(backupPath);
+            var check = TryQuickCheck(backupPath);
+            if (check != "ok")
+            {
+                // BAK-01: this machine's key cannot open the backup. If it travels with a passphrase-wrapped key, unwrap
+                // and install that key (only now, so a backup the local key can already open never touches the keystore).
+                var installed = TryInstallEscrowedKey(backupPath, backupPassphrase);
+                if (installed.IsFailure)
+                    return Result.Fail(ErrorCodes.StoreRestoreFailed, $"quick_check: {check}; {installed.Detail}");
+                check = QuickCheck(backupPath);
+            }
             if (check != "ok") return Result.Fail(ErrorCodes.StoreRestoreFailed, $"quick_check: {check}");
             ct.ThrowIfCancellationRequested();
 
             quarantine = MoveToQuarantine();
-            File.Copy(backupPath, Store.DatabasePath, overwrite: false);
+            CleanStoreFiles();
+            File.Copy(backupPath, Store.DatabasePath, overwrite: true);
 
             var initialized = await InitializeAsync(ct);
             if (initialized.IsFailure)
@@ -639,12 +652,65 @@ public sealed class LocalStoreMaintenance(
         }
     }
 
+    /// <summary>BAK-01: writes the passphrase-wrapped key sidecar; returns the maintenance-log suffix describing portability.</summary>
+    private string WriteKeyEscrow(string backup)
+    {
+        if (!Store.EncryptionEnabled) return string.Empty; // plaintext store: nothing machine-bound to escrow.
+        var passphrase = Store.BackupKeyPassphrase;
+        if (string.IsNullOrEmpty(passphrase))
+            return "; WARNING machine-bound backup: no backup passphrase configured, it cannot be restored on another machine";
+        try
+        {
+            var key = services.GetService<IStoreKeyProvider>()?.GetKey();
+            if (string.IsNullOrEmpty(key)) return "; WARNING machine-bound backup: store key unavailable for escrow";
+            File.WriteAllBytes(backup + StoreKeyEscrow.Suffix, StoreKeyEscrow.ExportWrappedKey(key, passphrase));
+            return "; portable (keywrap)";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return "; WARNING machine-bound backup: keywrap sidecar could not be written";
+        }
+    }
+
+    private Result TryInstallEscrowedKey(string backup, string? backupPassphrase)
+    {
+        var sidecar = backup + StoreKeyEscrow.Suffix;
+        if (!File.Exists(sidecar)) return Result.Fail(ErrorCodes.StoreKeyUnavailable, "no_keywrap_sidecar");
+        if (string.IsNullOrEmpty(backupPassphrase)) return Result.Fail(ErrorCodes.StoreKeyUnavailable, "backup_passphrase_required");
+        var installer = services.GetService<IStoreKeyInstaller>();
+        if (installer is null) return Result.Fail(ErrorCodes.StoreKeyUnavailable, "key_installer_unavailable");
+        var unwrapped = StoreKeyEscrow.ImportWrappedKey(File.ReadAllBytes(sidecar), backupPassphrase);
+        if (unwrapped.IsFailure) return Result.Fail(ErrorCodes.StoreKeyUnavailable, unwrapped.Detail);
+        return installer.Install(unwrapped.Value!);
+    }
+
+    /// <summary>quick_check that reports a key/cipher rejection as a string instead of throwing (so restore can try the escrow).</summary>
+    private string TryQuickCheck(string path)
+    {
+        try { return QuickCheck(path); }
+        catch (Exception ex) when (IsStoreFailure(ex)) { return $"unreadable: {ex.GetType().Name}"; }
+    }
+
     private string QuickCheck(string path)
     {
         using var connection = Open(path, sessionPragmas: false);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA quick_check;";
         return command.ExecuteScalar() as string ?? "no result";
+    }
+
+    /// <summary>
+    /// BAK-07: removes any residual live-store file (<c>db</c>, <c>-wal</c>, <c>-shm</c>) so the restore copy is idempotent. Only
+    /// ever called right after the live store was moved to quarantine / stashed, so whatever is left is stray, never data.
+    /// </summary>
+    private void CleanStoreFiles()
+    {
+        SqliteConnection.ClearAllPools();
+        foreach (var suffix in SideSuffixes)
+        {
+            var file = Store.DatabasePath + suffix;
+            if (File.Exists(file)) File.Delete(file);
+        }
     }
 
     /// <summary>Moves the db and its -wal/-shm into <c>&lt;data&gt;/quarantine/&lt;stamp&gt;/</c>. Never deletes.</summary>

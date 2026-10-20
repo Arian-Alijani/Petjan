@@ -39,6 +39,7 @@ public static class LocalInfrastructureServiceCollectionExtensions
         services.TryAddSingleton(CreateSecretStore);
         services.TryAddSingleton<LocalDbKeyService>();
         services.Replace(ServiceDescriptor.Singleton<IStoreKeyProvider>(p => p.GetRequiredService<LocalDbKeyService>()));
+        services.TryAddSingleton<IStoreKeyInstaller>(p => p.GetRequiredService<LocalDbKeyService>());
         services.TryAddSingleton<InstallationIdentity>();
         services.TryAddSingleton<ILocalInstallationIdentity, LocalInstallationIdentity>(); // B01 — read by SessionCurrentUserProvider.
 

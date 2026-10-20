@@ -28,6 +28,13 @@ public sealed class LocalStoreOptions
     public int WalCheckpointPages { get; set; } = 1000;
     public int BackupRetentionCount { get; set; } = 5;
 
+    /// <summary>
+    /// BAK-01: owner backup passphrase. When set (and the store is encrypted) every backup also gets a
+    /// <c>.keywrap</c> sidecar holding the store key wrapped under this passphrase, so the backup is restorable on a
+    /// machine with a fresh OS keystore. Unset = backups are machine-bound (a warning is logged in the maintenance log).
+    /// </summary>
+    public string? BackupKeyPassphrase { get; set; }
+
     /// <summary>SQL-02: relayed (<c>Succeeded</c>) outbox rows older than this are deleted. Dead-lettered rows are never pruned.
     /// Must be &gt;= <see cref="ActivityRetentionDays"/> so the activity feed can always be rebuilt for its whole retained window.</summary>
     public int OutboxRetentionDays { get; set; } = 180;

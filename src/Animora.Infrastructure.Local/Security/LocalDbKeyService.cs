@@ -12,9 +12,11 @@ namespace Animora.Infrastructure.Local.Security;
 /// Local store passphrase from the OS keystore (CONVENTIONS §7). Fails closed: when encryption is on and the
 /// key cannot be read, the store must not open.
 /// </summary>
-public sealed class LocalDbKeyService : IStoreKeyProvider
+public sealed class LocalDbKeyService : IStoreKeyProvider, IStoreKeyInstaller
 {
     public const string SecretName = "local-db-key";
+    /// <summary>BAK-01: the key replaced by an escrow install, retained so the quarantined previous store stays recoverable.</summary>
+    public const string PreviousSecretName = "local-db-key-previous";
     private const int KeyBytes = 32;
 
     private readonly ISecretStore _secrets;
@@ -55,6 +57,25 @@ public sealed class LocalDbKeyService : IStoreKeyProvider
             var write = _secrets.Write(SecretName, Encoding.UTF8.GetBytes(passphrase));
             if (write.IsFailure) return Result<string>.Fail(ErrorCodes.StoreKeyUnavailable, write.Detail);
             return _cached = passphrase;
+        }
+    }
+
+    /// <inheritdoc />
+    /// <remarks>BAK-01: used only when restoring a backup whose key was recovered from its passphrase-wrapped sidecar.</remarks>
+    public Result Install(string storeKey)
+    {
+        if (string.IsNullOrEmpty(storeKey)) return Result.Fail(ErrorCodes.StoreKeyUnavailable, "empty_store_key");
+        lock (_gate)
+        {
+            // Never orphan the quarantined previous store: keep the key it was sealed with under a separate secret name.
+            var previous = _secrets.TryRead(SecretName);
+            if (previous.IsSuccess && previous.Value is { Length: > 0 })
+                _secrets.Write(PreviousSecretName, previous.Value);
+
+            var write = _secrets.Write(SecretName, Encoding.UTF8.GetBytes(storeKey));
+            if (write.IsFailure) return Result.Fail(ErrorCodes.StoreKeyUnavailable, write.Detail);
+            _cached = storeKey;
+            return Result.Ok();
         }
     }
 

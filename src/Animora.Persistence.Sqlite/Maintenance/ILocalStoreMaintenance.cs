@@ -26,6 +26,13 @@ public interface ILocalStoreMaintenance
     /// <summary>Replaces the current store with a verified backup; the current store is quarantined, never deleted.</summary>
     Task<Result> RestoreAsync(string backupPath, CancellationToken ct);
 
+    /// <summary>
+    /// BAK-01: like <see cref="RestoreAsync(string, CancellationToken)"/> but, when the backup cannot be opened with this
+    /// machine's key and a <c>.keywrap</c> sidecar sits next to it, unwraps the store key with
+    /// <paramref name="backupPassphrase"/> and installs it into the keystore before opening. Use it to restore onto a new machine.
+    /// </summary>
+    Task<Result> RestoreAsync(string backupPath, string? backupPassphrase, CancellationToken ct);
+
     /// <summary>Moves the current store into quarantine (never deletes) and re-initializes an empty store.</summary>
     Task<Result<LocalStoreDiagnostics>> QuarantineAndRebuildAsync(CancellationToken ct);
 

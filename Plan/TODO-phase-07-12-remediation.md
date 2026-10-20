@@ -254,7 +254,7 @@ High → Medium → Low. Suggested sequence (IDs are this file's task numbers):
 
 # Report 10 — Backup System (`src/Animora.Persistence.Sqlite/Maintenance/**`, `src/Animora.Client.Services/Diagnostics/**`, `src/Animora.Persistence.PostgreSql/Operator/**`, `src/Animora.Server/Admin/**`)
 
-## [ ] T36 · BAK-01 — Make the local backup restorable off-machine (High, DR completeness)
+## [x] T36 · BAK-01 — Make the local backup restorable off-machine (High, DR completeness)
 - **File:** `src/Animora.Persistence.Sqlite/Maintenance/LocalStoreMaintenance.cs` (`BackupAsync`, `Open` via
   `connectionSetup.Prepare`), `src/Animora.Persistence.Sqlite/Context/KeySource.cs`
   (`OsKeystore`/`InsecureFallback`).
