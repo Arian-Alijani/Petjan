@@ -91,7 +91,8 @@ public sealed class CommandJournal(
     /// undone locally, ARCH §8.5 reversal-only; the operator acts on the flag); an acceptance marks it
     /// <c>Settled</c> once no other command on the invoice is still unsettled, and never clears an earlier,
     /// unresolved refusal. The server's invoice number cannot be rehydrated here — the settlement contract
-    /// does not carry it — so the local number stays provisional until a server-authored read replaces it.
+    /// does not carry it — so the local number stays provisional until a server-authored read replaces it
+    /// (SYN-02: <c>InvoiceSettlementReconciliation</c> adopts it from the peer ledger twin, at settlement or on the pull).
     /// </summary>
     private async Task ReconcileInvoiceAsync(PendingCommand row, SettlementState target, SettlementResult result,
         CancellationToken ct)
@@ -128,6 +129,10 @@ public sealed class CommandJournal(
                 invoice.MarkSettlement(pending
                     ? Animora.Domain.Sales.SettlementStatus.PendingSettlement
                     : Animora.Domain.Sales.SettlementStatus.Settled);
+                // SYN-02: the invoice just stopped being provisional - take the server's authoritative number now when its peer
+                // twin is already cached (otherwise the peer-ledger pull adopts it as soon as the twin lands).
+                if (!pending)
+                    await Animora.Persistence.Sqlite.Sales.InvoiceSettlementReconciliation.AdoptAsync(db, invoice, ct).ConfigureAwait(false);
                 break;
         }
     }

@@ -776,6 +776,23 @@ public sealed class Invoice : AggregateRoot
     }
 
     /// <summary>
+    /// SYN-02: replaces the device-allocated (provisional) number of an invoice the server has <b>accepted</b> with the server-authoritative
+    /// number. The only mutation a posted invoice permits to its number, and only for a <see cref="SettlementStatus.Settled"/> invoice —
+    /// a refused/pending one keeps its provisional number until the server decides. Idempotent: the same number is a no-op.
+    /// </summary>
+    /// <returns><see langword="true"/> when the number changed.</returns>
+    public Result<bool> AdoptServerInvoiceNumber(string serverNumber)
+    {
+        if (string.IsNullOrWhiteSpace(serverNumber)) return Result<bool>.Fail(ErrorCodes.ValidationFailed, "Server invoice number is empty.");
+        if (State == InvoiceState.Draft || Settlement != SettlementStatus.Settled)
+            return Result<bool>.Fail(ErrorCodes.ValidationFailed, $"Invoice '{Id}' is not server-settled; its number stays provisional.");
+        var number = serverNumber.Trim();
+        if (string.Equals(InvoiceNumber, number, StringComparison.Ordinal)) return Result<bool>.Ok(false);
+        InvoiceNumber = number;
+        return Result<bool>.Ok(true);
+    }
+
+    /// <summary>
     /// Records where this invoice's command stands with the server, with the error code that
     /// explains a rejection or conflict. Always surfaced to the user, never hidden
     /// (ARCHITECTURE.md §8.3).

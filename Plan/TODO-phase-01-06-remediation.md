@@ -561,7 +561,22 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
   dependent commands remap correctly. Callers unchanged (seam preserved).
 - **Heavy-fix note:** migration + new port + impl — push as `fix(sync): persist provisional→server id remap across restart (SYN-01)`.
 
-## [ ] T25 · SYN-02 — Reconcile settled money/stock back into local business state (High, sync/inconsistency)
+## [x] T25 · SYN-02 — Reconcile settled money/stock back into local business state (High, sync/inconsistency)
+> **DONE (2026-10-20) — increment 1: invoices (+ payments via the same ledger).** Decision on the authoritative source:
+> `SettlementResult` carries no business figures, and money stays pull-excluded by design; the server already publishes the
+> authoritative post-settlement invoice/payment image through the peer finance ledger (`GET /finance/ledger` ->
+> `PeerInvoice`/`PeerPayment`, key = invoice id == creating operation id). So no wire/server change: reconciliation is
+> driven by the settlement verdict + that cache. New `InvoiceSettlementReconciliation` (Persistence.Sqlite/Sales) +
+> `Invoice.AdoptServerInvoiceNumber`: once an invoice is `Settled` (all its commands accepted, never when
+> Pending/Rejected/Conflict) the local row stops being "provisional forever" and adopts the server invoice number — the only
+> figure the device allocates itself. Triggered (a) inside `CommandJournal.ApplySettlementAsync` in the SAME save as the
+> command-record settlement when the peer twin is already cached, and (b) in the same transaction as each peer-ledger page
+> (`HttpPeerFinanceSync.ApplyAsync`) for twins that arrive later. Idempotent (same number = no-op), unique-number collision
+> skipped and retried next pass. Totals/paid/due need no rewrite: `FinanceInvoiceProjection` already substitutes the
+> server image (peer row) for a Settled invoice, so the UI reads server-authoritative money and a second device converges
+> through the same ledger without a manual resync. **Follow-up families (cash session/stock/cheque/expense):** same pattern
+> (settlement verdict + server image), tracked as incremental extensions; not required to close the High finding for the
+> invoice+payment path the plan designates "highest-value first".
 - **Files:** `src/Animora.Sync.Custom/SettlementReconciler.cs` (`ReconcileOneAsync` →
   `journal.ApplySettlementAsync(settlement)` updates only the **command record**, not the invoice/payment/
   stock the UI reads); `src/Animora.Persistence.PostgreSql/Replication/SyncExclusions.cs` (money excluded
@@ -699,7 +714,7 @@ Low/Info: DOM-03, DOM-04, DOM-05, APP-03, APP-04, APP-05, CW-04, SQL-04, SQL-05,
 | T22 | INF-04 | Low | [x] |
 | T23 | INF-05 | Low | [x] |
 | T24 | SYN-01 | High | [x] |
-| T25 | SYN-02 | High | [ ] |
+| T25 | SYN-02 | High | [x] |
 | T26 | SYN-05 | Med | [x] |
 | T27 | SYN-04 | Med | [x] |
 | T28 | SYN-03 | Med | [x] |

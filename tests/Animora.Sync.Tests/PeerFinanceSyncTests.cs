@@ -253,4 +253,65 @@ public sealed class PeerFinanceSyncTests
         Assert.Equal(1, owner.InvoiceCount);
     }
 
+
+    private sealed class FixedClock(DateTimeOffset now) : Animora.Domain.Time.IClock
+    {
+        public DateTimeOffset UtcNow => now;
+    }
+
+    private static async Task<string> AddLocalInvoiceAsync(LocalStoreTestFixture fixture, string id, string number, SettlementStatus settlement)
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var invoice = Invoice.Create(fixture.TenantId, number, InvoiceKind.DirectSale, T0, "U1", ownerId: "O1", id: id).Value!;
+        invoice.AddLine(new InvoiceLine("L1", InvoiceLineKind.Service, null, null, null, "Exam",
+            new Quantity(1m, "PCS"), Money.Irt(1_000), 0m, 0m, InvoiceLineSource.Manual, null));
+        Assert.True(invoice.Post(new FixedClock(T0)).IsSuccess);
+        invoice.MarkSettlement(settlement);
+        db.Add(invoice);
+        await db.SaveChangesAsync();
+        return invoice.Id;
+    }
+
+    private static async Task<string> NumberOfAsync(LocalStoreTestFixture fixture, string id)
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        return await db.Set<Invoice>().AsNoTracking().Where(i => i.Id == id).Select(i => i.InvoiceNumber).SingleAsync();
+    }
+
+    [Fact]
+    public async Task Pull_AdoptsServerNumber_ForSettledLocalInvoice_AndIsIdempotent()
+    {
+        using var fixture = await NewFixtureAsync();
+        await AddLocalInvoiceAsync(fixture, "I1", "LOCAL-0001", SettlementStatus.Settled);
+        var pages = new Queue<FinanceReadPage>(
+        [
+            new([Inv("I1", 100)], [], 100, false),   // server number "INV-I1"
+            new([Inv("I1", 200)], [], 200, false),   // re-delivery: no further change
+        ]);
+        var sync = Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(pages.Dequeue())));
+
+        await sync.PullAsync();
+        Assert.Equal("INV-I1", await NumberOfAsync(fixture, "I1"));
+
+        await sync.PullAsync();
+        Assert.Equal("INV-I1", await NumberOfAsync(fixture, "I1"));
+    }
+
+    [Theory]
+    [InlineData(SettlementStatus.PendingSettlement)]
+    [InlineData(SettlementStatus.Rejected)]
+    [InlineData(SettlementStatus.Conflict)]
+    public async Task Pull_NeverAdoptsServerNumber_ForUnsettledLocalInvoice(SettlementStatus status)
+    {
+        using var fixture = await NewFixtureAsync();
+        await AddLocalInvoiceAsync(fixture, "I1", "LOCAL-0001", status);
+        var sync = Sync(fixture, new FakeFeedHandler(_ => FeedFixtures.JsonResponse(
+            new FinanceReadPage([Inv("I1", 100)], [], 100, false))));
+
+        await sync.PullAsync();
+
+        Assert.Equal("LOCAL-0001", await NumberOfAsync(fixture, "I1"));
+    }
 }

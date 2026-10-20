@@ -10,6 +10,7 @@ using Animora.Domain.Results;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Persistence.Sqlite.Entities;
 using Animora.Persistence.Sqlite.Maintenance;
+using Animora.Persistence.Sqlite.Sales;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -157,6 +158,17 @@ public sealed class HttpPeerFinanceSync(SyncFeedClient client, IServiceScopeFact
         else cursor.Advance(page.NextCursorTicks);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        // SYN-02: the authoritative twin of a locally-authored invoice just landed (or changed). Every local invoice the server has
+        // already ACCEPTED stops being provisional here: it adopts the server number. Same transaction, idempotent, refused/pending
+        // invoices untouched. Counted so the dashboard generation below invalidates for it too.
+        var reconciled = page.Invoices.Count > 0
+            ? await InvoiceSettlementReconciliation.SweepAsync(db, tenant, ct).ConfigureAwait(false) : 0;
+        if (reconciled > 0)
+        {
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            written += reconciled;
+        }
         // Peer finance is display-only and bypasses the business-table generation triggers. Invalidate the
         // dashboard atomically with the ledger page, including updates that append no new activity event.
         if (written > 0)
