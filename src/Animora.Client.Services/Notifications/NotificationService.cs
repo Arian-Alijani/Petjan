@@ -219,7 +219,7 @@ public sealed class NotificationService(
                               && u.TenantId == tenant && u.Status != UserStatus.Disabled && u.PasswordHash != null
                           orderby u.DisplayName, u.Id
                           select new { u.Id, u.DisplayName, m.Role }).ToListAsync(ct).ConfigureAwait(false);
-        return rows.Select(r => new NotificationRecipient(r.Id, r.DisplayName, UserProfileService.RoleLabel(r.Role.ToString())))
+        return rows.Select(r => new NotificationRecipient(r.Id, r.DisplayName, ProfileMapping.RoleLabel(r.Role.ToString())))
             .ToArray();
     }
 
