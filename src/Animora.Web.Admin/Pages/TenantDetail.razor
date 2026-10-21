@@ -25,6 +25,7 @@
 <input type="hidden" name="Form.Stamp" value="@Form!.Stamp" />
 <fieldset><legend>@Loc.T("op." + operation)</legend>
 @if (operation=="extend") { <label>@Loc.T("op.days") <InputNumber @bind-Value="Form.Days" /></label> }
+@if (operation=="reward") { <p class="hint">@Loc.T("reward.hint")</p><label>@Loc.T("reward.days") <InputNumber @bind-Value="Form.Days" min="1" max="3650" /></label><label>@Loc.T("reward.reason") <InputText @bind-Value="Form.Reason" maxlength="200" /></label> }
 @if (operation=="reduce") { <label>@Loc.T("op.until") <InputDate @bind-Value="Form.Until" /></label> }
 @if (operation=="suspend") { <label>@Loc.T("op.reason") <InputText @bind-Value="Form.Reason" maxlength="200" /></label> }
 @if (operation=="seats") { <label>@Loc.T("op.seats") <InputNumber @bind-Value="Form.Seats" /></label> }
@@ -43,7 +44,7 @@
     private string AuditUrl=>$"/admin/audit?tab=tenant&tenantId={Uri.EscapeDataString(Id)}&from={DateTime.UtcNow.AddDays(-30):yyyy-MM-dd}&to={DateTime.UtcNow.AddDays(1):yyyy-MM-dd}";
     [SupplyParameterFromForm] public SubscriptionActionForm? Form { get; set; }
     private Models.TenantDetail? Detail; private MutationReceipt? Receipt;
-    private static readonly string[] Operations=["extend","reduce","suspend","reinstate","cancel","renew","seats","plan","reset-owner-password"];
+    private static readonly string[] Operations=["extend","reward","reduce","suspend","reinstate","cancel","renew","seats","plan","reset-owner-password"];
     protected override async Task OnParametersSetAsync() { Detail=Capture(await Queries.GetAsync(Id,Cancellation)); Form??=new() { Stamp=Detail?.Subscription?.ConcurrencyStamp??"" }; }
     private string SeatsText=>Detail?.Subscription is { } sub?$"{Detail.SeatsUsed} / {sub.Seats}":Detail?.SeatsUsed.ToString()??"";
     private string EventLabel(string type)=>AdminStrings.Pair("event."+type) is not null?Loc.T("event."+type):type;
@@ -52,5 +53,6 @@
         var days=(int)Math.Ceiling((end-DateTimeOffset.UtcNow).TotalDays);
         return days>=0?$"{days} {Loc.T("tenant.daysLeft")}":$"{-days} {Loc.T("tenant.daysOver")}";
     }
-    private async Task Submit(string operation) { Receipt=Capture(await Commands.MutateAsync(Id,operation,Form!,Cancellation)); }
+    /// <summary>A reward is a vendor-granted free-days extension: it reuses the one subscription-extend path (no second mechanism).</summary>
+    private async Task Submit(string operation) { Receipt=Capture(operation=="reward"?await Commands.ExtendAsync(Id,Form!,Cancellation):await Commands.MutateAsync(Id,operation,Form!,Cancellation)); }
 }

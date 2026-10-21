@@ -198,7 +198,7 @@ This is where authoring MOVES TO. Pattern to copy (already in repo):
 - Run `scripts/sandbox/build.sh` → **must be 0/0**. Fix anything.
 - **Push:** `scripts/git/push.sh "refactor(notifications): make desktop client a read-only receiver; remove clinic-side compose/reward authoring"`
 
-### [ ] T4 — Admin panel: "grant reward (extra subscription days)" action (reuse ExtendAsync)
+### [x] T4 — Admin panel: "grant reward (extra subscription days)" action (reuse ExtendAsync)
 - This likely already exists as a subscription "extend" op on the tenant detail page
   (`src/Animora.Web.Admin/Pages/TenantDetail.razor` or `TenantLicenses.razor` — **open the tenant pages
   and grep for `op.extend`/`ExtendAsync` first**). If an extend/reward action is already present per

@@ -27,8 +27,8 @@ public sealed class SubscriptionService(AnimoraOperatorDbContext context, ISeatU
             : null;
         Result result = mutation.Operation switch
         {
-            "extend" when mutation.UntilUtc is { } until => s.Extend(until, now, actor),
-            "extend" when mutation.Days is { } days => s.Extend(days, now, actor),
+            "extend" when mutation.UntilUtc is { } until => s.Extend(until, now, actor, mutation.Reason),
+            "extend" when mutation.Days is { } days => s.Extend(days, now, actor, mutation.Reason),
             "reduce" when mutation.UntilUtc is { } until => s.Reduce(until, now, actor),
             "suspend" => s.Suspend(mutation.Reason ?? string.Empty, now, actor),
             "reinstate" => s.Reinstate(now, actor),

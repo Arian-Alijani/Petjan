@@ -50,13 +50,13 @@ public sealed class Subscription
         return Result<Subscription>.Ok(subscription);
     }
 
-    public Result Extend(int days, DateTimeOffset now, ActorRef? actor = null)
+    public Result Extend(int days, DateTimeOffset now, ActorRef? actor = null, string? reason = null)
     {
         if (days is < 1 or > 3650) return Result.Fail(ErrorCodes.ValidationFailed, "invalid_extension_days");
-        return Extend(CurrentPeriodEndUtc.AddDays(days), now, actor);
+        return Extend(CurrentPeriodEndUtc.AddDays(days), now, actor, reason);
     }
 
-    public Result Extend(DateTimeOffset untilUtc, DateTimeOffset now, ActorRef? actor = null)
+    public Result Extend(DateTimeOffset untilUtc, DateTimeOffset now, ActorRef? actor = null, string? reason = null)
     {
         if (Status is not (SubscriptionStatus.Active or SubscriptionStatus.Trial or SubscriptionStatus.GracePeriod))
             return Result.Fail(ErrorCodes.SubscriptionInvalidTransition);
@@ -65,7 +65,8 @@ public sealed class Subscription
         CurrentPeriodEndUtc = untilUtc.ToUniversalTime();
         if (Status == SubscriptionStatus.GracePeriod) Status = SubscriptionStatus.Active;
         GraceEndsUtc = null;
-        AppendEvent("subscription.extended", now, actor, new { untilUtc = CurrentPeriodEndUtc });
+        AppendEvent("subscription.extended", now, actor,
+            new { untilUtc = CurrentPeriodEndUtc, reason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim() });
         return Result.Ok();
     }
 
