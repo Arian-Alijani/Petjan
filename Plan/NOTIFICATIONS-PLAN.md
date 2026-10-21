@@ -193,12 +193,13 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 - رعایت قواعد perf: بدون LINQ غیرضروری در hot-path شدید، `AsNoTracking` برای خواندن.
 - **push:** `scripts/git/push.sh "feat(client-services): implement NotificationService (local)"`
 
-### T4 — ثبت DI در `App.axaml.cs` `[ ]`
+### T4 — ثبت DI در `App.axaml.cs` `[x]`
 - در `ConfigureServices` (کنار بقیهٔ سرویس‌ها، الگوی موجود):
   - `services.AddSingleton<INotificationService, Animora.Client.Services.Notifications.NotificationService>();`
   - `services.AddSingleton<NotificationsPageViewModel>();` (بعد از ساخت VM در T5).
   - اگر مودال‌ها VM جدا دارند: `services.AddTransient<ComposeNotificationViewModel>();`,
     `services.AddTransient<GrantRewardViewModel>();`.
+- **یادداشت اجرا:** در T4 فقط سرویس (concrete + اینترفیس) ثبت و `Start()` تایمر کنار `MaintenanceScheduler` صدا زده شد؛ ثبت VMهای صفحه/مودال‌ها هم‌زمان با ساختشان در T5 انجام می‌شود تا هیچ کامیتی بیلدنشدنی نباشد.
 - **push:** `scripts/git/push.sh "chore(di): register notification service + page vm"`
 
 ### T5 — Desktop UI: صفحهٔ «اعلان‌ها و پیام‌ها» `[ ]`
