@@ -317,7 +317,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   (JSON Schema draft 2020-12) exactly per §5, `formatVersion=2`. Add a short `FORMAT.md` documenting every
   field and its §4 mapping origin. PUSH.
 
-- [ ] **T3 — MDF page reader core.** In `converter/mdf_reader.py`: port+generalize the proven reader
+- [x] **T3 — MDF page reader core.** In `converter/mdf_reader.py`: port+generalize the proven reader
   (BASE=7680, 8192 pages, slot/record parsing from §2.1) into a reusable "read all rows of a named table"
   API. Resolve the system catalog (object id → table name → column order/types) from the MDF system pages
   so columns bind by name, not guesswork. Add row-overflow/LOB detection with warnings. Unit-smoke against
