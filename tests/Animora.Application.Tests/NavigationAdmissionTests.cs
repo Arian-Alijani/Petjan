@@ -214,3 +214,18 @@ namespace Animora.Desktop.Pages.Reception { public sealed class ReceptionPageVie
 namespace Animora.Desktop.Pages.Cashier { public sealed class CashierPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Statistics { public sealed class StatisticsPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Cheques { public sealed class ChequesPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
+namespace Animora.Desktop.Pages.Notifications { public sealed class NotificationsPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
+
+// NavigationService marshals to the Avalonia UI thread; the test project deliberately has no Avalonia reference, so an
+// inert single-threaded stand-in runs the callback inline.
+namespace Avalonia.Threading
+{
+    public sealed class Dispatcher
+    {
+        public static Dispatcher UIThread { get; } = new();
+
+        public bool CheckAccess() => true;
+
+        public void Post(System.Action action) => action();
+    }
+}
