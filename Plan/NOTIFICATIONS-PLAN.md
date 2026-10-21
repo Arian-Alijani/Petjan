@@ -170,7 +170,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 - **صحت‌سنجی:** فقط کامپایل پروژهٔ Persistence (نه full test). `dotnet build src/Animora.Persistence.Sqlite` یا بخشی از `scripts/sandbox/build.sh`.
 - **push:** `scripts/git/push.sh "feat(persistence): notifications tables + migration 040"`
 
-### T3 — لایهٔ Client.Services: پیاده‌سازی `NotificationService` `[ ]`
+### T3 — لایهٔ Client.Services: پیاده‌سازی `NotificationService` `[x]`
 - پوشهٔ `src/Animora.Client.Services/Notifications/`.
 - `NotificationService.cs : INotificationService` با constructor DI:
   وابستگی‌ها: `ILocalDbContextFactory`/DbContext (الگوی UserProfileService را ببین برای نحوهٔ دسترسی به store)،
@@ -189,6 +189,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
     (کد مجوز دقیق را از `Animora.Domain.Identity.PermissionCodes` انتخاب کن — نزدیک‌ترین «manage» موجود؛
     اگر مجوز اختصاصی نبود از `SettingsManage`/`UsersManage` استفاده کن.)
   - تمام کوئری‌ها LocalOnly: فیلتر `TenantId` صریح (مثل CommandIdRemap) چون این جداول global filter ندارند.
+- **یادداشت اجرا:** `CanManage` = نقش Manager + مجوز `SettingsWrite`؛ تایمر دقیقه‌ای داخل سرویس (`Start()`/`DisposeAsync`) با `FeedChanged`؛ `GetRecipientsAsync` برای انتخاب کاربر هدف اضافه شد؛ `IssueSystemNoticesAsync` فعلاً seam خالی برای T7.
 - رعایت قواعد perf: بدون LINQ غیرضروری در hot-path شدید، `AsNoTracking` برای خواندن.
 - **push:** `scripts/git/push.sh "feat(client-services): implement NotificationService (local)"`
 
