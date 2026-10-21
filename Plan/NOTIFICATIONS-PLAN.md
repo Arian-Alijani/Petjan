@@ -109,7 +109,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 > وضعیت‌ها: `[ ]` انجام‌نشده · `[~]` درحال‌انجام · `[x]` انجام‌شده.
 > **مسیر زنجیره‌ای:** Contracts → Persistence → Client.Services → DI → Desktop UI → Shell(هدر/سایدبار/بِج) → Reward → Build/Smoke.
 
-### T0 — آماده‌سازی برنچ `[ ]`
+### T0 — آماده‌سازی برنچ `[x]`
 - `git switch -c genspark_ai_developer` (اگر هست: `git switch genspark_ai_developer`).
   در عمل، اجرای `scripts/git/push.sh -b genspark_ai_developer "chore(plan): add notifications plan"`
   هم برنچ را می‌سازد/سوئیچ می‌کند و هم همین فایل پلن را پوش می‌کند. **این اولین پوش است.**
