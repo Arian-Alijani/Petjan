@@ -139,7 +139,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 - نکات: فقط DTO و اینترفیس؛ هیچ وابستگی به EF/Desktop. XML-doc فارسی/انگلیسی کوتاه مثل بقیهٔ Contracts.
 - **push:** `scripts/git/push.sh "feat(contracts): add notifications service interface + DTOs"`
 
-### T2 — لایهٔ Persistence (SQLite): Entity + Configuration + Migration 040 `[ ]`
+### T2 — لایهٔ Persistence (SQLite): Entity + Configuration + Migration 040 `[x]`
 - Entity ها در `src/Animora.Persistence.Sqlite/Entities/`:
   - `NotificationRow.cs` — `[LocalOnly] sealed class`, ctor خصوصی + یک factory `Create(...)` یا ctor با پارامتر
     (الگوی موجود: private set properties). ستون‌ها دقیقاً مطابق «تصمیم طراحی» بخش 0:
@@ -166,6 +166,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
     `...__040_Notifications.Designer.cs`، و به‌روزرسانی `AnimoraLocalDbContextModelSnapshot.cs`.
     Up: دو `CreateTable` (`Notifications`, `NotificationReceipts`) + دو ایندکس بالا + PKها. Down: دو `DropTable`.
     attributeها: `[DbContext(typeof(AnimoraLocalDbContext))]` + `[Migration("<timestamp>__040_Notifications")]`.
+- **یادداشت اجرا:** علاوه بر دو جدول پلن، جدول `RewardGrants` (ثبت محلی جایزه) و ستون `DedupKey` (یکتا per-tenant، برای idempotent بودن پیام سیستمی T7) اضافه شد؛ مایگریشن دستی (الگوی 039، بدون Designer) + snapshot به‌روز شد.
 - **صحت‌سنجی:** فقط کامپایل پروژهٔ Persistence (نه full test). `dotnet build src/Animora.Persistence.Sqlite` یا بخشی از `scripts/sandbox/build.sh`.
 - **push:** `scripts/git/push.sh "feat(persistence): notifications tables + migration 040"`
 

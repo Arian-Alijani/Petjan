@@ -86,6 +86,8 @@ public static class ModelConventions
         "ReplicaCheckpoint" => "repl_checkpoint",
         "ClientSessionRow" => "ClientSessions",
         "SealedEntitlementRow" => "SealedEntitlements",
+        "NotificationRow" => "Notifications",
+        "NotificationReceiptRow" => "NotificationReceipts",
         _ when name.EndsWith('y') && !"aeiou".Contains(char.ToLowerInvariant(name[^2])) => name[..^1] + "ies",
         _ when name.EndsWith('s') => name + "es",
         _ => name + "s"

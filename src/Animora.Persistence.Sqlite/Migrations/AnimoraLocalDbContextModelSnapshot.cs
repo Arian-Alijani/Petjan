@@ -4292,6 +4292,99 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("LoginAttemptLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.NotificationReceiptRow", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NotificationId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ReadAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId", "UserId", "NotificationId");
+
+                    b.ToTable("NotificationReceipts", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.NotificationRow", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AudienceKind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AudienceValue")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DedupKey")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ExpiresAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("PublishedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("ScheduledForUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Tag")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "DedupKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Notifications_TenantId_DedupKey");
+
+                    b.HasIndex("TenantId", "PublishedAtUtc")
+                        .HasDatabaseName("IX_Notifications_TenantId_PublishedAtUtc");
+
+                    b.HasIndex("TenantId", "ScheduledForUtc")
+                        .HasDatabaseName("IX_Notifications_TenantId_ScheduledForUtc");
+
+                    b.ToTable("Notifications", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.OutboxMessage", b =>
                 {
                     b.Property<string>("Id")
@@ -4678,6 +4771,46 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasDatabaseName("IX_ProductSalesFacts_TenantId_LocalDay_ProductId_VariantId");
 
                     b.ToTable("ProductSalesFacts", (string)null);
+                });
+
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.RewardGrant", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Days")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("GrantedAtUtc")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("GrantedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetUserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "TargetUserId")
+                        .HasDatabaseName("IX_RewardGrants_TenantId_TargetUserId");
+
+                    b.ToTable("RewardGrants", (string)null);
                 });
 
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.SealedEntitlementRow", b =>
