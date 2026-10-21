@@ -1,0 +1,8 @@
+# The converter is STDLIB-ONLY by default - nothing needs to be installed to
+# convert a Clinic.bak on a standard Python 3.10+ install.
+#
+# Optional fast path (only if you prefer restoring the .bak via a local SQL
+# Server / SqlLocalDB instead of the built-in page reader):
+#   pyodbc>=5.0    # requires the Microsoft ODBC Driver for SQL Server
+#
+# Leave this file empty of hard requirements on purpose.

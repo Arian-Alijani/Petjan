@@ -1,0 +1,6 @@
+# Never commit generated bundles or extracted data - they contain PII.
+*.animora.json
+clinic-import*.json
+*.bak
+__pycache__/
+*.pyc
