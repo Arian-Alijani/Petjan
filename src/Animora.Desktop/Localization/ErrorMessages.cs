@@ -90,6 +90,14 @@ public static class ErrorMessages
         // callers keep their own context-specific fallback for those.
         ["STORE_UNAVAILABLE"] = "پایگاه داده در دسترس نیست؛ کمی بعد دوباره تلاش کنید.",
         ["PERIOD_CLOSED"] = "دورهٔ مالی بسته شده است.",
+
+        // Patient-file attachments (images / PDF, ≤ 20 MiB, uploaded to the server's file store)
+        ["FILE_TYPE_NOT_ALLOWED"] = "فقط تصویر (JPG، PNG، WebP، GIF) یا PDF قابل بارگذاری است.",
+        ["FILE_TOO_LARGE"] = "حجم فایل بیشتر از حد مجاز (۲۰ مگابایت) است.",
+        ["NETWORK_UNAVAILABLE"] = "برای بارگذاری مدرک باید به سرور متصل باشید؛ اتصال برقرار نیست.",
+        ["VALET_KEY_INVALID"] = "مجوز بارگذاری منقضی شده است؛ فایل را دوباره انتخاب کنید.",
+        ["SERVER_BUSY"] = "سرور در حال پردازش بارگذاری‌های دیگر است؛ چند لحظه بعد دوباره تلاش کنید.",
+        ["FILE_HASH_MISMATCH"] = "فایل در حین انتقال تغییر کرد یا ناقص رسید؛ دوباره بارگذاری کنید.",
         // Safety net: the ledger refuses a journal with fewer than two lines — in practice this means a
         // zero-total invoice reached posting. Surface a human message instead of the raw accounting code.
         ["JOURNAL_TOO_FEW_LINES"] = "این فاکتور مبلغ قابل ثبتی ندارد؛ برای ردیف‌ها قیمت تعیین کنید و دوباره تلاش کنید.",

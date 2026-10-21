@@ -73,7 +73,7 @@ public sealed record RadiologyRowViewModel(
 /// <paramref name="Hash"/> its content-addressed store key — the handle the download command resolves
 /// (Task 10b). Both stay optional so an older row shape still constructs.
 /// </summary>
-public sealed record DocRowViewModel(string Name, string Meta, string? Id = null, string? Hash = null);
+public sealed record DocRowViewModel(string Name, string Meta, string? Id = null, string? Hash = null, string? FileId = null);
 
 /// <summary>One surgical-history alert row.</summary>
 public sealed record SurgeryRowViewModel(string Title, string Surgeon);
@@ -567,7 +567,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         Documents.ReplaceAll(pet.Documents.Select(d =>
             new DocRowViewModel(d.Name,
                 $"{HumanSize(d.Size)} · {JalaliDate.FromDateTime(d.Date).ToString("short")}",
-                d.Id, d.Hash)));
+                d.Id, d.Hash, d.FileId)));
 
         OnPropertyChanged(nameof(HasLabs));
         OnPropertyChanged(nameof(HasRadiology));
@@ -926,7 +926,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
                 $"{doc.Hash[..Math.Min(12, doc.Hash.Length)]}-{ParaclinicPresentation.SafeFileName(doc.Name)}");
             if (!File.Exists(path))
             {
-                await using var source = await _patients.OpenPetDocumentAsync(doc.Hash);
+                await using var source = await _patients.OpenPetDocumentAsync(doc.Hash, doc.FileId);
                 if (source is null)
                 {
                     _toast.Show("فایل مدرک پیدا نشد یا قابل خواندن نیست.", Controls.Tone.Danger);
@@ -969,7 +969,7 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         IReadOnlyList<PickedFile> picked;
         try
         {
-            picked = await _dialogs.PickFilesAsync("انتخاب مدرک", ParaclinicPresentation.AttachmentPatterns);
+            picked = await _dialogs.PickFilesAsync("انتخاب مدرک", DocumentFilePolicy.PickerPatterns);
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException)
         {
@@ -986,9 +986,9 @@ public sealed partial class PetFileViewModel : PageViewModelBase
         string? failure = null;
         foreach (var file in picked)
         {
-            if (file.Size is { } size && size > ParaclinicPresentation.MaxAttachmentBytes)
+            if (file.Size is { } size && size > DocumentFilePolicy.MaxBytes)
             {
-                failure ??= "حجم فایل بیشتر از حد مجاز است.";
+                failure ??= "حجم فایل بیشتر از حد مجاز (۲۰ مگابایت) است.";
                 continue;
             }
 

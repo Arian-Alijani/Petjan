@@ -102,7 +102,8 @@ public sealed record PetWeightReadModel(DateTimeOffset MeasuredUtc, decimal Weig
 /// open the payload, so the row can be downloaded without a second metadata read.
 /// </summary>
 public sealed record PetDocumentReadModel(
-    string Id, string Title, int Kind, long SizeBytes, DateTimeOffset UploadedUtc, string ContentHashSha256);
+    string Id, string Title, int Kind, long SizeBytes, DateTimeOffset UploadedUtc, string ContentHashSha256,
+    string? FileId = null);
 
 /// <summary>
 /// One recorded vaccine dose of a pet for the pet-file vaccinations tab (Task 9). <paramref name="AdministeredUtc"/>

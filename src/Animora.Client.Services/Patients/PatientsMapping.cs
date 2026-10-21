@@ -76,7 +76,7 @@ internal static class PatientsMapping
     /// </summary>
     private static DocumentRef ToDocumentRef(PetDocumentReadModel d) => new(
         d.Title, d.SizeBytes.ToString(System.Globalization.CultureInfo.InvariantCulture),
-        d.UploadedUtc.UtcDateTime, d.Id, d.ContentHashSha256);
+        d.UploadedUtc.UtcDateTime, d.Id, d.ContentHashSha256, d.FileId);
 
     /// <summary>One visit-flattened radiology study → the pet-file documents row (previously dropped entirely).</summary>
     private static RadiologySummary ToRadiologySummary(RadiologySummaryReadModel r) => new(

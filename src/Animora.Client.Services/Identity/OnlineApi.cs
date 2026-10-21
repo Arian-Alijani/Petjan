@@ -23,11 +23,21 @@ public sealed class OnlineApi(IHttpClientFactory httpFactory, ServerEndpointOpti
 
     /// <summary>Sends <paramref name="method"/> <paramref name="path"/> (relative to the server root) with an optional JSON body and bearer.</summary>
     /// <param name="bearer">Explicit access token; when <see langword="null"/> the bearer handler attaches the stored session's token (if any).</param>
-    public async Task<Exchange> SendAsync(HttpMethod method, string path, object? body, string? bearer, CancellationToken ct = default)
+    /// <param name="headers">Extra request headers (e.g. a file-upload valet key).</param>
+    public async Task<Exchange> SendAsync(HttpMethod method, string path, object? body, string? bearer, CancellationToken ct = default,
+        IReadOnlyDictionary<string, string>? headers = null)
     {
         using var request = new HttpRequestMessage(method, path);
         request.Headers.TryAddWithoutValidation(WireContract.HeaderName, WireContract.Version.ToString(CultureInfo.InvariantCulture));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        if (headers is not null)
+        {
+            foreach (var (name, value) in headers)
+            {
+                request.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
+
         if (body is not null) request.Content = JsonContent.Create(body, body.GetType(), options: JsonOptions);
         if (!string.IsNullOrEmpty(bearer)) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
 
@@ -37,6 +47,45 @@ public sealed class OnlineApi(IHttpClientFactory httpFactory, ServerEndpointOpti
         {
             var http = httpFactory.CreateClient(SyncFeedClient.HttpClientName);
             // Content is buffered here (identity payloads are tiny); the caller owns the response and disposes it.
+            var response = await http.SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
+            return new Exchange(response, null);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return new Exchange(null, "The server did not answer in time.");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new Exchange(null, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Sends one raw <c>application/octet-stream</c> body (a chunk of a file upload) with extra request headers.
+    /// Same contract as <see cref="SendAsync"/>: transport faults and timeouts come back as an
+    /// <see cref="Exchange"/> with a null response, and the caller owns the response.
+    /// </summary>
+    public async Task<Exchange> SendBytesAsync(HttpMethod method, string path, ReadOnlyMemory<byte> content,
+        IReadOnlyDictionary<string, string>? headers, CancellationToken ct = default)
+    {
+        using var request = new HttpRequestMessage(method, path);
+        request.Headers.TryAddWithoutValidation(WireContract.HeaderName, WireContract.Version.ToString(CultureInfo.InvariantCulture));
+        if (headers is not null)
+        {
+            foreach (var (name, value) in headers)
+            {
+                request.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
+
+        request.Content = new ReadOnlyMemoryContent(content);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(options.RequestTimeout);
+        try
+        {
+            var http = httpFactory.CreateClient(SyncFeedClient.HttpClientName);
             var response = await http.SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token).ConfigureAwait(false);
             return new Exchange(response, null);
         }

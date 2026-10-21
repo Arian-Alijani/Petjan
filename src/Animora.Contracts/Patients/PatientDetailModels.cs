@@ -146,7 +146,8 @@ public sealed record RadiologySummary(
 /// <c>DocumentReference</c> id and <see cref=\"Hash\"/> its content-addressed store key — both
 /// optional so existing positional callers keep compiling, and both required to download the payload.
 /// </summary>
-public sealed record DocumentRef(string Name, string Size, DateTime Date, string? Id = null, string? Hash = null);
+public sealed record DocumentRef(string Name, string Size, DateTime Date, string? Id = null, string? Hash = null,
+    string? FileId = null);
 
 /// <summary>
 /// Full pet record backing the Pet File screen, plus its owner id. Combines the

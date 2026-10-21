@@ -38,6 +38,9 @@ public static class OnlineIdentityServiceCollectionExtensions
 
         // Online clients over the shared named HttpClient.
         services.TryAddSingleton<OnlineApi>();
+        // Patient-file attachments: the payload goes through /files (declare → chunks → complete). Registered only
+        // when a server is configured, so an offline-only install never pretends it can store a document.
+        services.TryAddSingleton<Animora.Client.Services.Patients.PetDocumentUploader>();
         services.TryAddSingleton<LicenseKeyCache>();
         services.TryAddSingleton<CapabilityMirrorWriter>();
         services.TryAddSingleton<EntitlementSealer>();

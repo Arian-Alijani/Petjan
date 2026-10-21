@@ -61,17 +61,20 @@ public interface IPatientsQueryService
     Task<PetDetail> AddWeightEntryAsync(string petId, WeightEntry entry);
 
     /// <summary>
-    /// Stores a file for a pet: the bytes go into the local content-addressed store and a journaled
-    /// <c>DocumentReference</c> row records the metadata, so the file survives reload, shows in the documents
-    /// tab, replicates to peers, and can be re-opened by its content hash. Returns the updated pet record.
+    /// Stores a file for a pet. The payload is validated against <c>DocumentFilePolicy</c> (JPEG/PNG/WebP/GIF or PDF,
+    /// at most 20 MiB, magic bytes must match), uploaded to the server's content-addressed file store, cached in the
+    /// local store, and then recorded as a journaled <c>DocumentReference</c> row. Throws
+    /// <see cref="Animora.Client.Services.ServiceException"/> with <c>FILE_TYPE_NOT_ALLOWED</c>, <c>FILE_TOO_LARGE</c> or
+    /// <c>NETWORK_UNAVAILABLE</c>; a rejected upload leaves no half-recorded document behind. Returns the updated pet.
     /// </summary>
     Task<PetDetail> AddPetDocumentAsync(string petId, string title, string fileName, Stream content, string contentType);
 
     /// <summary>
-    /// Opens the stored payload of a pet document by its <paramref name="contentHashSha256"/>; null when the
-    /// file is no longer in the local store. The caller owns and disposes the returned stream.
+    /// Opens the stored payload of a pet document by its <paramref name="contentHashSha256"/>. The local copy is
+    /// preferred; when it is gone and the row carries a <paramref name="serverFileId"/>, the payload is fetched from
+    /// the server and cached locally again. Null when neither source has it. The caller owns the returned stream.
     /// </summary>
-    Task<Stream?> OpenPetDocumentAsync(string contentHashSha256);
+    Task<Stream?> OpenPetDocumentAsync(string contentHashSha256, string? serverFileId = null);
 
     /// <summary>Creates a new pet under an existing owner; returns the created record.</summary>
     Task<PetDetail> CreatePetAsync(string ownerId, NewPetRequest request);

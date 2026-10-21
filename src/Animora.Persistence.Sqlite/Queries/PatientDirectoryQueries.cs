@@ -264,7 +264,7 @@ public sealed class PatientDirectoryQueries(AnimoraLocalDbContext db, IOptions<L
             .OrderByDescending(d => d.UploadedUtc).ThenBy(d => d.Id)
             .Take(PetDocumentTake)
             .Select(d => new PetDocumentReadModel(
-                d.Id, d.Title, (int)d.Kind, d.SizeBytes, d.UploadedUtc, d.ContentHashSha256))
+                d.Id, d.Title, (int)d.Kind, d.SizeBytes, d.UploadedUtc, d.ContentHashSha256, d.FileId))
             .ToListAsync(ct);
 
     /// <summary>

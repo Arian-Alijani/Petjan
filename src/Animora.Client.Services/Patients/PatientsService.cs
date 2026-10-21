@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Animora.Application.Abstractions;
 using Animora.Application.Security;
 using Animora.Application.Ports;
@@ -381,28 +382,55 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         var name = Path.GetFileName(fileName);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        // 1) bytes first: content-addressed, deduplicated, local-only (mirrors the visit attachment design).
-        // The stream is buffered so the size is exact even for a non-seekable picker stream.
-        string hash;
-        long size;
-        using var buffered = new MemoryStream();
-        await content.CopyToAsync(buffered);
-        size = buffered.Length;
-        buffered.Position = 0;
-        await using (var scope = scopes.CreateAsyncScope())
+        // 1) Reject before reading a byte: the extension and the declared type must be an allowed pair.
+        if (DocumentFilePolicy.ValidateType(name, contentType) is var typeProblem && typeProblem != DocumentFileProblem.None)
         {
-            var stored = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>().PutAsync(buffered, default);
-            if (stored.IsFailure) throw new ServiceException(stored.Error);
-            hash = stored.Value!;
+            throw new ServiceException(ProblemError(typeProblem));
         }
 
-        // 2) then the journaled metadata row, so the file replicates and shows in the pet file.
+        // 2) Bounded read: an oversized pick is stopped mid-stream, never buffered whole.
+        using var payload = await ReadBoundedAsync(content, default);
+        var bytes = payload.GetBuffer().AsMemory(0, (int)payload.Length);
+        if (DocumentFilePolicy.ValidateSize(bytes.Length) is var sizeProblem && sizeProblem != DocumentFileProblem.None)
+        {
+            throw new ServiceException(ProblemError(sizeProblem));
+        }
+
+        // 3) The extension and the MIME type are claims; the leading bytes are the evidence.
+        if (!DocumentFilePolicy.MatchesContentType(contentType,
+                bytes.Span[..Math.Min(bytes.Length, DocumentFilePolicy.SignatureBytes)]))
+        {
+            throw new ServiceException(ErrorCodes.FileTypeNotAllowed);
+        }
+
+        var hash = Convert.ToHexStringLower(SHA256.HashData(bytes.Span));
+
+        // 4) Payload to the server first. The reference is only written once the bytes are durably stored there,
+        //    so an offline or rejected upload leaves nothing half-recorded.
+        string fileId;
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            var uploaded = await Uploader(scope).UploadAsync(name, contentType, bytes, hash, default);
+            if (uploaded.IsFailure) throw new ServiceException(uploaded.Error);
+            fileId = uploaded.Value!;
+        }
+
+        // 5) Local content-addressed cache (instant re-open offline, and the same key the UI already uses).
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            using var cache = new MemoryStream(payload.GetBuffer(), 0, (int)payload.Length, writable: false);
+            var stored = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>().PutAsync(cache, default);
+            if (stored.IsFailure) throw new ServiceException(stored.Error);
+        }
+
+        // 6) Then the journaled metadata row, so the document shows in the pet file.
         await using (var scope = scopes.CreateAsyncScope())
         {
             var (dispatcher, provider) = Resolve(scope);
             var cc = await provider.BuildCommandContextAsync(null, null, null, default);
             if (cc.IsFailure) throw new ServiceException(cc.Error);
-            var cmd = new AddPetDocumentCommand(petId, Title(title, name), KindFor(name, contentType), hash, size, hash);
+            var cmd = new AddPetDocumentCommand(petId, Title(title, name), KindFor(name, contentType), fileId,
+                bytes.Length, hash);
             var r = await dispatcher.SendAsync(cmd, cc.Value!);
             if (r.IsFailure) throw new ServiceException(r.Error);
         }
@@ -410,14 +438,85 @@ public sealed class PatientsService(IServiceScopeFactory scopes) : IPatientsQuer
         return (await GetPetAsync(petId))!;
     }
 
-    public async Task<Stream?> OpenPetDocumentAsync(string contentHashSha256)
+    public async Task<Stream?> OpenPetDocumentAsync(string contentHashSha256, string? serverFileId = null)
     {
         if (string.IsNullOrWhiteSpace(contentHashSha256)) return null;
-        await using var scope = scopes.CreateAsyncScope();
-        var opened = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>()
-            .OpenAsync(contentHashSha256, default);
-        // A missing/damaged payload is a display concern (toast), not a fault — report it as null.
-        return opened.IsFailure ? null : opened.Value;
+
+        // Local cache first — the common case, and the only case while offline.
+        await using (var scope = scopes.CreateAsyncScope())
+        {
+            var opened = await scope.ServiceProvider.GetRequiredService<ILocalFileStore>()
+                .OpenAsync(contentHashSha256, default);
+            // A missing/damaged local payload is not a fault: fall through to the server copy.
+            if (opened.IsSuccess) return opened.Value;
+        }
+
+        if (string.IsNullOrWhiteSpace(serverFileId)) return null;
+
+        await using var downloadScope = scopes.CreateAsyncScope();
+        var downloaded = await Uploader(downloadScope).DownloadAsync(serverFileId, default);
+        if (downloaded.IsFailure) return null;
+
+        await using var remote = downloaded.Value!;
+        using var buffer = new MemoryStream();
+        await remote.CopyToAsync(buffer);
+        buffer.Position = 0;
+
+        // Re-cache under the same content-addressed key so the next open is local again.
+        var cache = await downloadScope.ServiceProvider.GetRequiredService<ILocalFileStore>()
+            .PutAsync(new MemoryStream(buffer.GetBuffer(), 0, (int)buffer.Length, writable: false), default);
+        _ = cache; // a failed re-cache only costs a second download; the caller still gets the bytes.
+
+        buffer.Position = 0;
+        return buffer;
+    }
+
+    /// <summary>
+    /// The file-upload client, or a clear <c>NETWORK_UNAVAILABLE</c> when this installation has no server configured
+    /// (the uploader is only registered for an online install). A document cannot be recorded without its payload,
+    /// so there is no silent local-only fallback.
+    /// </summary>
+    private static PetDocumentUploader Uploader(IServiceScope scope) =>
+        scope.ServiceProvider.GetService<PetDocumentUploader>()
+        ?? throw new ServiceException(ErrorCodes.NetworkUnavailable);
+
+    /// <summary>The domain error code of one upload-policy problem (the policy itself stays dependency-free).</summary>
+    private static ErrorCode ProblemError(DocumentFileProblem problem) => problem switch
+    {
+        DocumentFileProblem.UnsupportedType => ErrorCodes.FileTypeNotAllowed,
+        DocumentFileProblem.TooLarge => ErrorCodes.FileTooLarge,
+        _ => ErrorCodes.ValidationFailed,
+    };
+
+    /// <summary>
+    /// Reads <paramref name="content"/> into memory, refusing to buffer more than
+    /// <see cref="DocumentFilePolicy.MaxBytes"/>. The stream is drained in fixed 80 KiB reads, so a hostile or
+    /// accidental 2 GiB pick costs one buffer, not the process.
+    /// </summary>
+    private static async Task<MemoryStream> ReadBoundedAsync(Stream content, CancellationToken ct)
+    {
+        var buffer = new MemoryStream();
+        try
+        {
+            var chunk = new byte[81920];
+            int read;
+            while ((read = await content.ReadAsync(chunk, ct).ConfigureAwait(false)) > 0)
+            {
+                if (buffer.Length + read > DocumentFilePolicy.MaxBytes)
+                {
+                    throw new ServiceException(ErrorCodes.FileTooLarge);
+                }
+
+                buffer.Write(chunk, 0, read);
+            }
+
+            return buffer;
+        }
+        catch
+        {
+            buffer.Dispose();
+            throw;
+        }
     }
 
     /// <summary>Uses the caller's title when given, otherwise the file name — so a row always has a label.</summary>

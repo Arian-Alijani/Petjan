@@ -50,6 +50,9 @@ internal static class CommandPermissionTable
             [CommandTypes.PatientsOwnerUpdate] = PermissionCodes.PatientsOwnerEdit,
             [CommandTypes.PatientsPetCreate] = PermissionCodes.PatientsPetEdit,
             [CommandTypes.PatientsPetDelete] = PermissionCodes.PatientsPetEdit,
+            // Attaching a file to the patient record is a pet edit — the same permission the command itself
+            // declares. Without this row the authorizer failed closed and every upload was rejected.
+            [CommandTypes.PatientsPetDocumentAdd] = PermissionCodes.PatientsPetEdit,
             [CommandTypes.PatientsPetUpdate] = PermissionCodes.PatientsPetEdit,
             [CommandTypes.PatientsPetWeightAdd] = PermissionCodes.PatientsPetEdit,
             [CommandTypes.PurchasingOrderCancel] = PermissionCodes.PurchasingManage,

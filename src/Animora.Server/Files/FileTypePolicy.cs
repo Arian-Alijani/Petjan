@@ -1,14 +1,19 @@
 namespace Animora.Server.Files;
 
+/// <summary>
+/// The server's own allowlist for uploaded payloads, mirroring <c>Animora.Domain.Patients.DocumentFilePolicy</c>:
+/// images and PDF only. The client checks the same list first (so a rejected file is never uploaded), but the
+/// server never trusts that — it re-checks the content type, the extension and the magic bytes here.
+/// </summary>
 internal static class FileTypePolicy
 {
     private static readonly HashSet<string> Allowed = new(StringComparer.Ordinal)
-    { "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "text/plain" };
+    { "image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf" };
     // IMP-08: extensions each allowed content type may carry; an empty/absent extension is tolerated (names are display-only).
     private static readonly Dictionary<string, string[]> Extensions = new(StringComparer.Ordinal)
     {
         ["image/jpeg"] = [".jpg", ".jpeg", ".jpe"], ["image/png"] = [".png"], ["image/gif"] = [".gif"],
-        ["image/webp"] = [".webp"], ["application/pdf"] = [".pdf"], ["text/plain"] = [".txt", ".text", ".log", ".csv", ".md"],
+        ["image/webp"] = [".webp"], ["application/pdf"] = [".pdf"],
     };
 
     /// <summary>IMP-08: true when the file name's extension (if any) is consistent with the declared content type.</summary>
@@ -30,7 +35,6 @@ internal static class FileTypePolicy
             "image/gif" => prefix.StartsWith("GIF87a"u8) || prefix.StartsWith("GIF89a"u8),
             "image/webp" => prefix.Length >= 12 && prefix[..4].SequenceEqual("RIFF"u8) && prefix.Slice(8, 4).SequenceEqual("WEBP"u8),
             "application/pdf" => prefix.StartsWith("%PDF-"u8),
-            "text/plain" => !prefix.Contains((byte)0),
             _ => false
         };
     }

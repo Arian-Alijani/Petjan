@@ -4,6 +4,7 @@ using Animora.Application.Commands;
 using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Application.Validation;
+using Animora.Contracts.Patients;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
@@ -17,6 +18,11 @@ namespace Animora.Application.UseCases.Patients;
 /// file store (that write happens in the client service, which owns the store); this command journals the
 /// <see cref="DocumentReference"/> metadata so the row replicates, shows in the pet file, and can be re-opened
 /// by its content hash. Reuses the pet-edit permission (no catalog churn).
+/// <para>
+/// <c>FileId</c> is the server file object's id (the payload is uploaded through <c>/files</c> before this command
+/// is dispatched, so the bytes exist server-side and can be re-fetched on a rebuilt store); <c>ContentHashSha256</c>
+/// is the SHA-256 of the same bytes and stays the local content-addressed key.
+/// </para>
 /// </summary>
 [RequiresPermission(PermissionCodes.PatientsPetEdit)]
 [Auditable(AuditCategory.Clinical, "patients.pet.document.add")]
@@ -38,6 +44,12 @@ public sealed class AddPetDocumentCommandValidator : IValidator<AddPetDocumentCo
         else if (Rules.MaxLength(c.Title, 200, nameof(c.Title)) is { } tooLong) failures.Add(tooLong);
         if (Rules.Required(c.FileId, nameof(c.FileId)) is { } file) failures.Add(file);
         if (Rules.Required(c.ContentHashSha256, nameof(c.ContentHashSha256)) is { } hash) failures.Add(hash);
+        // The byte count is the one property of the payload this layer can see, so it is bounded here too: a
+        // client that skipped its own pre-flight still cannot record an empty or oversized attachment.
+        if (Rules.Range(c.SizeBytes, 1L, DocumentFilePolicy.MaxBytes, nameof(c.SizeBytes)) is { } size)
+            failures.Add(size);
+        else if (c.ContentHashSha256 is { Length: 64 } sha && !sha.All(Uri.IsHexDigit))
+            failures.Add(new ValidationFailure(nameof(c.ContentHashSha256), ErrorCodes.FileHashMismatch.Code));
         return ValueTask.FromResult<IReadOnlyList<ValidationFailure>>(failures);
     }
 }
