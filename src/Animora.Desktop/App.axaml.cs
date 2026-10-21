@@ -556,6 +556,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<Animora.Contracts.Notifications.INotificationService>(sp =>
             sp.GetRequiredService<Animora.Client.Services.Notifications.NotificationService>());
         services.AddSingleton<Animora.Desktop.Pages.Notifications.NotificationsPageViewModel>();
+        services.AddSingleton<NotificationBadgeState>(); // shared unread count (bell + sidebar)
         services.AddSingleton<NotificationBridge>(); // feed change -> DataDomain.Notifications + toast for a new message
 
         // Local offline sync status. E04 swaps engine internals behind the same contract.

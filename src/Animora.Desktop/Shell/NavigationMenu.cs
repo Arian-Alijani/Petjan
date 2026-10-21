@@ -6,6 +6,7 @@ using Animora.Desktop.Pages.Cheques;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.History;
 using Animora.Desktop.Pages.Inventory;
+using Animora.Desktop.Pages.Notifications;
 using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Profile;
 using Animora.Desktop.Pages.Sales;
@@ -45,6 +46,7 @@ public static class NavigationMenu
         new("statistics", "آمار", "IconChart", typeof(StatisticsPageViewModel), "کسب و کار"),
 
         new("history", "تاریخچه", "IconClock", typeof(HistoryPageViewModel), "سیستم"),
+        new("notifications", "اعلان‌ها و پیام‌ها", "IconBell", typeof(NotificationsPageViewModel), "سیستم"),
         new("profile", "پروفایل و تنظیمات", "IconShield", typeof(ProfilePageViewModel), "سیستم"),
     };
 }

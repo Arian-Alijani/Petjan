@@ -16,8 +16,8 @@ namespace Animora.Desktop.Shell;
 /// <summary>
 /// Drives the topbar: the page title/breadcrumb block (tracked from the
 /// navigation service's current page), the command-palette search trigger, the
-/// sync-status box (backed by <see cref="ISyncStatusService"/>), an inert
-/// notification bell, and the user chip bound to <see cref="ICurrentUserContext"/>.
+/// sync-status box (backed by <see cref="ISyncStatusService"/>), the
+/// notification bell (unread badge + link to the messages page), and the user chip bound to <see cref="ICurrentUserContext"/>.
 /// </summary>
 /// <remarks>
 /// B04c: while the capability gate reports no permitted write capability (offline / no snapshot), the topbar's
@@ -32,6 +32,7 @@ public sealed partial class TopbarViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IServiceProvider _services;
     private readonly ICapabilityGate _gate;
+    private readonly NotificationBadgeState _badge;
 
     /// <summary>
     /// Resolves the clinic timezone so "last synced" is rendered in the clinic's local time, not the device's —
@@ -104,7 +105,8 @@ public sealed partial class TopbarViewModel : ObservableObject
         IServiceProvider services,
         ICurrentUserContext currentUser,
         ICapabilityGate gate,
-        IClinicTimeZoneProvider clinicZone)
+        IClinicTimeZoneProvider clinicZone,
+        NotificationBadgeState badge)
     {
         _navigation = navigation;
         _toast = toast;
@@ -113,6 +115,7 @@ public sealed partial class TopbarViewModel : ObservableObject
         _services = services;
         _gate = gate;
         _clinicZone = clinicZone;
+        _badge = badge;
         CurrentUser = currentUser;
 
         _navigation.CurrentViewModelChanged += OnCurrentViewModelChanged;
@@ -123,6 +126,10 @@ public sealed partial class TopbarViewModel : ObservableObject
         RefreshSyncPresentation();
 
         _gate.CapabilitiesChanged += OnCapabilitiesChanged;
+
+        // Unread-message badge on the bell: shared state, raised on the UI thread by DataDomain.Notifications.
+        _badge.Changed += (_, _) => RaiseBadgeChanged();
+        _ = _badge.RefreshAsync();
 
         // Cheap 60s ticker only to keep the relative caption fresh; no work is
         // done when the shell isn't visible (DispatcherTimer is UI-thread bound).
@@ -148,9 +155,24 @@ public sealed partial class TopbarViewModel : ObservableObject
         _dialogs.ShowModal(palette, maxWidth: 660);
     }
 
+    /// <summary>Unread messages for the signed-in user (drives the bell badge).</summary>
+    public int UnreadCount => _badge.Count;
+
+    public bool HasUnread => _badge.Count > 0;
+
+    /// <summary>«۳» / «۹۹+» inside the bell badge.</summary>
+    public string UnreadBadgeText => _badge.Text;
+
+    private void RaiseBadgeChanged()
+    {
+        OnPropertyChanged(nameof(UnreadCount));
+        OnPropertyChanged(nameof(HasUnread));
+        OnPropertyChanged(nameof(UnreadBadgeText));
+    }
+
+    /// <summary>The bell opens the real «اعلان‌ها و پیام‌ها» page (admission is enforced by the navigation service).</summary>
     [RelayCommand]
-    private void OpenNotifications() =>
-        _toast.Show("۵ اعلان تازه دارید.");
+    private void OpenNotifications() => _navigation.NavigateTo<Pages.Notifications.NotificationsPageViewModel>();
 
     /// <summary>
     /// Raised when the fold button is pressed. The shell (MainWindowViewModel)

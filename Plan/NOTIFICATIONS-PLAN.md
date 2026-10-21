@@ -233,7 +233,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 - **صحت‌سنجی:** بیلد فقط روی گیت‌اکشن (T8).
 - **push:** `scripts/git/push.sh "feat(desktop): notifications & messages page + compose/reward modals"`
 
-### T6 — Shell: اتصال هدر، سایدبار و بِج عددی `[ ]`
+### T6 — Shell: اتصال هدر، سایدبار و بِج عددی `[x]`
 - **سایدبار nav:** در `src/Animora.Desktop/Shell/NavigationMenu.cs` یک آیتم اضافه کن، گروه «سیستم»
   (قبل از profile منطقی است): `new("notifications","اعلان‌ها و پیام‌ها","IconBell", typeof(NotificationsPageViewModel), "سیستم")`.
   using مربوط به namespace `Animora.Desktop.Pages.Notifications` را بالای فایل اضافه کن.
@@ -255,7 +255,8 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
   - در `TopbarView.axaml` دکمهٔ زنگ: `Ellipse` قرمز ثابت فعلی را به یک **بِج عددی** تبدیل کن:
     Border کوچک گوشهٔ بالا-راست با `IsVisible="{Binding HasUnread}"` و `TextBlock` متن = عدد فارسیِ UnreadCount
     (مثلاً از `PersianNumberFormatter.ToPersianDigits`). استایل هماهنگ با تم (DangerBrush پس‌زمینه، متن سفید، گرد).
-- **صحت‌سنجی:** `scripts/sandbox/build.sh` 0/0 + در صورت دست‌زدن به DI/شل یک اسموک `scripts/sandbox/run.sh` → `SMOKE RUN OK`.
+- **یادداشت اجرا:** مجوز nav = `SettingsRead` (نه `PatientsRead`؛ نقش حسابدار `patients.read` ندارد ولی `settings.read` دارد). عدد بِج از یک `NotificationBadgeState` مشترک (Services) می‌آید که فقط با `DataDomain.Notifications` بازمحاسبه می‌شود (بدون polling)؛ هدر + سایدبار هر دو به آن وصل‌اند.
+- **صحت‌سنجی:** بیلد/اسموک فقط روی گیت‌اکشن (T8).
 - **push:** `scripts/git/push.sh "feat(shell): wire header bell + sidebar entry + unread badge"`
 
 ### T7 — پیام سیستمی «نزدیک شدن به اتمام اشتراک» `[ ]`
