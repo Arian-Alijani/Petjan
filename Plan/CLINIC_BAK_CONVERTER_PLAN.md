@@ -308,7 +308,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
 > After each task: `scripts/git/push.sh "feat(import): <task summary>"`. If push exits 3 →
 > call `setup_github_environment` tool once, re-run. If exit 2 → resolve rebase, re-run.
 
-- [ ] **T1 — Scaffold converter project.** Create `tools/clinic-bak-converter/` with: `converter/`
+- [x] **T1 — Scaffold converter project.** Create `tools/clinic-bak-converter/` with: `converter/`
   (package), `run-converter.cmd` (Windows one-click: prompts for input `.bak` + output path, calls Python),
   `README.md` (usage, Windows + fallback), `requirements.txt` (stdlib-only default; optional pyodbc extra).
   No logic yet beyond CLI argparse skeleton (`--bak`, `--out`, `--raw`, `--verbose`). PUSH.
