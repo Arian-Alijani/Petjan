@@ -1483,7 +1483,7 @@ public static class ClinicBundleImportService
         foreach (var inv in b.Invoices)
         {
             if (string.IsNullOrWhiteSpace(inv.SourceId) || inv.TotalMinor < 0 || inv.DiscountMinor < 0 ||
-                inv.InsurancePayMinor < 0 || inv.TaxMinor < 0 || inv.PaidMinor < 0 ||
+                inv.InsurancePayMinor < 0 || inv.TaxTotalMinor < 0 || inv.PaidMinor < 0 ||
                 (inv.PetSourceId is not null && !petIds.Contains(inv.PetSourceId)) ||
                 (inv.InsurerSourceId is not null && !insurerIds.Contains(inv.InsurerSourceId)) ||
                 (inv.PaymentTypeSourceId is not null && !paymentTypeIds.Contains(inv.PaymentTypeSourceId)))
