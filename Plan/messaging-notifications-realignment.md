@@ -173,7 +173,7 @@ This is where authoring MOVES TO. Pattern to copy (already in repo):
   first green state. If you prefer, you may do T1–T3 as one commit — acceptable since they're one atomic
   contract change.) **Push:** done at end of T3.
 
-### [ ] T2 — Client service: drop authoring members
+### [x] T2 — Client service: drop authoring members
 - Edit `src/Animora.Client.Services/Notifications/NotificationService.cs`: remove `CreateAsync`,
   `GrantRewardAsync`, `GetRecipientsAsync`, `CanManage`, and the now-unused private helpers
   `RequireManager`, `IsManager`, `ResolveAudienceAsync`, `IsActiveUserAsync`, the `AudRole`/`AudUser`

@@ -1,8 +1,6 @@
 using System.Linq.Expressions;
 using Animora.Application.Ports;
 using Animora.Application.Security;
-using Animora.Client.Services.Profile;
-using Animora.Contracts.Identity;
 using Animora.Contracts.Notifications;
 using Animora.Contracts.Profile;
 using Animora.Domain.Identity;
@@ -16,40 +14,32 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Animora.Client.Services.Notifications;
 
 /// <summary>
-/// Real <see cref="INotificationService"/>: a purely local, offline-first message feed over the SQLite store.
-/// An administrator's write is committed to the local database and visible at once - no sync, no polling - and
-/// <see cref="FeedChanged"/> is the in-process signal the Desktop turns into a UI refresh. Scheduled messages become
-/// visible when due (swept on every read and by the optional <see cref="Start">minute timer</see>).
+/// Real <see cref="INotificationService"/>: a read-only, offline-first receiver feed over the local SQLite store.
+/// Messages and rewards are authored by the vendor in the browser admin panel and land in the local store through
+/// sync; this service only reads them (audience-filtered for the signed-in user), tracks read receipts, publishes
+/// scheduled rows when due (swept on every read and by the optional <see cref="Start">minute timer</see>) and raises
+/// <see cref="FeedChanged"/>, the in-process signal the Desktop turns into a UI refresh.
 ///
-/// <para><b>Security.</b> Composing a message and granting a reward are guarded <i>here</i>, not in the view:
-/// <see cref="CanManage"/> requires the Manager role AND the <see cref="PermissionCodes.SettingsWrite"/> capability
-/// (fail closed: no session / locked / no warm gate means no). A non-manager gets a <see cref="ServiceException"/>
-/// carrying <c>PERMISSION_DENIED</c> even if a view mistakenly offered the action.</para>
+/// <para><b>No client authoring.</b> There is deliberately no code path here that creates a message or a
+/// <see cref="RewardGrant"/> from user input. The only rows the client writes are automatic, local, read-only
+/// system notices (subscription-expiry reminders for the manager) and read receipts.</para>
 ///
-/// <para><b>Reward.</b> <see cref="GrantRewardAsync"/> records the grant (<see cref="RewardGrant"/>), notifies the user,
-/// AND actually extends their effective subscription: the grant days are applied as a local overlay by
-/// <see cref="RewardOverlay"/>, so <see cref="IUserProfileService.GetAccountStatusAsync"/> returns the longer expiry at
-/// once — working today, offline, with no server round-trip. The vendor server (licensing) stays the long-term
-/// authority: replaying these grant rows to it is the remaining sync step (Tracks D-E). Until then the overlay is the
-/// real behaviour and the grant rows are the audit trail that sync replays.</para>
+/// <para><b>Rewards.</b> A vendor-granted reward arrives as a <see cref="RewardGrant"/> row (sync landing target)
+/// and is applied to the effective subscription by <see cref="RewardOverlay"/>; this service only displays the
+/// accompanying message.</para>
 ///
 /// <para>LocalOnly tables carry no global tenant filter, so every query predicates on the tenant explicitly.</para>
 /// </summary>
 public sealed class NotificationService(
     IServiceScopeFactory scopes,
     SessionContextCache session,
-    ICapabilityGate gate,
     IClock clock,
     IUserProfileService profile,
     IClinicTimeZoneProvider zones) : INotificationService, IAsyncDisposable
 {
-    internal const int MaxTitleLength = 200;
-    internal const int MaxTagLength = 40;
-    internal const int MaxDays = 3650;
     private const int FeedPageSize = 200;
     private const int AudAll = (int)NotificationAudienceKind.AllUsers;
     private const int AudRole = (int)NotificationAudienceKind.Role;
-    private const int AudUser = (int)NotificationAudienceKind.SpecificUser;
 
     /// <summary>Soonest the subscription status is asked for again (it is a server call, never made per read).</summary>
     internal static readonly TimeSpan NoticeCheckInterval = TimeSpan.FromMinutes(30);
@@ -64,9 +54,6 @@ public sealed class NotificationService(
 
     /// <inheritdoc />
     public event EventHandler? FeedChanged;
-
-    /// <inheritdoc />
-    public bool CanManage => IsManager(session.Current) && gate.Can(PermissionCodes.SettingsWrite);
 
     /// <summary>Starts the once-a-minute due-sweep (idempotent). Called by the composition root after start-up.</summary>
     public void Start() => _loop ??= Task.Run(() => RunAsync(_stop.Token));
@@ -146,87 +133,6 @@ public sealed class NotificationService(
         if (unreadIds.Count == 0) return;
         if (await AddReceiptsAsync(db, tenant, viewer.UserId, unreadIds, now, ct).ConfigureAwait(false))
             FeedChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <inheritdoc />
-    public async Task CreateAsync(CreateNotificationRequest request, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var actor = RequireManager();
-        var title = (request.Title ?? string.Empty).Trim();
-        var body = (request.Body ?? string.Empty).Trim();
-        var tag = string.IsNullOrWhiteSpace(request.Tag) ? null : request.Tag.Trim();
-        if (title.Length is 0 or > MaxTitleLength || body.Length is 0 or > NotificationRow.BodyMaxLength
-            || (tag is not null && tag.Length > MaxTagLength) || !Enum.IsDefined(request.Kind)
-            || !Enum.IsDefined(request.AudienceKind))
-            throw new ServiceException(ErrorCodes.ValidationFailed);
-
-        await using var scope = scopes.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        var tenant = scope.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
-        var now = clock.UtcNow;
-        var audienceValue = await ResolveAudienceAsync(db, tenant, request, ct).ConfigureAwait(false);
-
-        // A schedule that is already due publishes now; otherwise the row waits for the sweep.
-        DateTimeOffset? scheduled = request.ScheduledForUtc is { } at && at > now ? at : null;
-        DateTimeOffset? published = scheduled is null ? now : null;
-        if (request.ExpiresAtUtc is { } expires && expires <= (scheduled ?? now))
-            throw new ServiceException(ErrorCodes.ValidationFailed);
-
-        db.Add(NotificationRow.Create(tenant, (int)request.AudienceKind, audienceValue, (int)request.Kind, tag, title, body,
-            actor, now, scheduled, published, request.ExpiresAtUtc));
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
-        FeedChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <inheritdoc />
-    public async Task GrantRewardAsync(GrantRewardRequest request, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var actor = RequireManager();
-        var reason = (request.Reason ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(request.TargetUserId) || request.Days is < 1 or > MaxDays
-            || reason.Length > RewardGrant.ReasonMaxLength)
-            throw new ServiceException(ErrorCodes.ValidationFailed);
-
-        await using var scope = scopes.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        var tenant = scope.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
-        var now = clock.UtcNow;
-        if (!await IsActiveUserAsync(db, tenant, request.TargetUserId, ct).ConfigureAwait(false))
-            throw new ServiceException(ErrorCodes.NotFound);
-
-        // The grant row both audits the reward AND drives the real subscription extension: RewardOverlay sums these
-        // rows into the account status, so GetAccountStatusAsync returns the longer expiry immediately (offline-first).
-        // TODO(server, Tracks D-E): replay this grant to the vendor's licensing authority once Datasync is wired, so
-        // the server becomes the baseline again; the overlay then folds into the synced expiry. Grant + its message
-        // commit in ONE transaction (no reward without its message, no message without its grant).
-        db.Add(RewardGrant.Create(tenant, request.TargetUserId, request.Days, reason, actor, now));
-        var days = request.Days.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var text = reason.Length == 0
-            ? $"مدیر کلینیک {PersianDigits(days)} روز اشتراک رایگان به‌عنوان جایزه برای شما فعال کرد."
-            : $"مدیر کلینیک {PersianDigits(days)} روز اشتراک رایگان به‌عنوان جایزه برای شما فعال کرد. دلیل: {reason}";
-        db.Add(NotificationRow.Create(tenant, AudUser, request.TargetUserId, (int)NotificationKind.Reward, "جایزه",
-            "جایزهٔ اشتراک", text, actor, now, null, now, null));
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
-        FeedChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<NotificationRecipient>> GetRecipientsAsync(CancellationToken ct = default)
-    {
-        if (!CanManage) return [];
-        await using var scope = scopes.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-        var tenant = scope.ServiceProvider.GetRequiredService<ILocalTenantContext>().TenantId;
-        var rows = await (from m in db.Set<StaffMembership>().AsNoTracking()
-                          join u in db.Set<User>().AsNoTracking() on m.UserId equals u.Id
-                          where m.TenantId == tenant && m.Status == MembershipStatus.Active
-                              && u.TenantId == tenant && u.Status != UserStatus.Disabled && u.PasswordHash != null
-                          orderby u.DisplayName, u.Id
-                          select new { u.Id, u.DisplayName, m.Role }).ToListAsync(ct).ConfigureAwait(false);
-        return rows.Select(r => new NotificationRecipient(r.Id, r.DisplayName, ProfileMapping.RoleLabel(r.Role.ToString())))
-            .ToArray();
     }
 
     /// <inheritdoc />
@@ -327,32 +233,6 @@ public sealed class NotificationService(
         return true;
     }
 
-    private async Task<string?> ResolveAudienceAsync(AnimoraLocalDbContext db, string tenant, CreateNotificationRequest request,
-        CancellationToken ct)
-    {
-        switch (request.AudienceKind)
-        {
-            case NotificationAudienceKind.AllUsers:
-                return null;
-            case NotificationAudienceKind.Role:
-                if (!Enum.TryParse<StaffRole>(request.AudienceValue, out var role) || !Enum.IsDefined(role))
-                    throw new ServiceException(ErrorCodes.ValidationFailed);
-                return role.ToString();
-            default:
-                if (string.IsNullOrWhiteSpace(request.AudienceValue)) throw new ServiceException(ErrorCodes.ValidationFailed);
-                if (!await IsActiveUserAsync(db, tenant, request.AudienceValue, ct).ConfigureAwait(false))
-                    throw new ServiceException(ErrorCodes.NotFound);
-                return request.AudienceValue;
-        }
-    }
-
-    private static Task<bool> IsActiveUserAsync(AnimoraLocalDbContext db, string tenant, string userId, CancellationToken ct) =>
-        (from m in db.Set<StaffMembership>().AsNoTracking()
-         join u in db.Set<User>().AsNoTracking() on m.UserId equals u.Id
-         where m.TenantId == tenant && m.UserId == userId && m.Status == MembershipStatus.Active
-             && u.TenantId == tenant && u.Status != UserStatus.Disabled
-         select u.Id).AnyAsync(ct);
-
     /// <summary>The audience predicate: published, not expired, and addressed to everyone / the viewer's role / the viewer.</summary>
     private static Expression<Func<NotificationRow, bool>> VisibleTo(string tenant, Reader viewer, DateTimeOffset now)
     {
@@ -365,20 +245,9 @@ public sealed class NotificationService(
                 || (n.AudienceKind == AudUser && n.AudienceValue == userId));
     }
 
-    private string RequireManager()
-    {
-        var current = session.Current;
-        if (current?.UserId is not { Length: > 0 } userId) throw new ServiceException(ErrorCodes.SessionExpired);
-        if (!CanManage) throw new ServiceException(ErrorCodes.PermissionDenied);
-        return userId;
-    }
-
     private Reader? CurrentReader() => session.Current is { UserId: { Length: > 0 } userId, IsLocked: false } current
         ? new Reader(userId, current.Role?.ToString() ?? string.Empty)
         : null;
-
-    private static bool IsManager(SessionSnapshot? current) =>
-        current is { UserId.Length: > 0, IsLocked: false, Role: StaffRole.Manager };
 
     private static NotificationDto ToDto(NotificationRow n, bool isRead) => new(n.Id, (NotificationKind)n.Kind, n.Tag,
         n.Title, n.Body, n.CreatedAtUtc, n.ScheduledForUtc, n.PublishedAtUtc, n.ExpiresAtUtc, isRead);
