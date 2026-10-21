@@ -323,7 +323,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   so columns bind by name, not guesswork. Add row-overflow/LOB detection with warnings. Unit-smoke against
   `db-sample/Clinic.bak` (expect 960 data pages). Keep it stdlib-only. PUSH.
 
-- [ ] **T4 — Typed table extractors.** In `converter/tables.py`: one typed reader per source table in §2.3
+- [x] **T4 — Typed table extractors.** In `converter/tables.py`: one typed reader per source table in §2.3
   (Patient, EnglishInfo, lookups, PatientRecord(+detail+type), Vaccination(+type), AntiParasite, Appointments,
   Charge(+details+pay), PaymentType, FactorType, Services, Stuff(+group), Stock(+head), Ware(+detail),
   ConsumerStuff(+head), BloodTest(+result), Urine, EtcTest, Radiology, Staff, Days/HolyDays). Each returns
