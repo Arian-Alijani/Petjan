@@ -14,7 +14,7 @@ public enum NotificationKind
     Reward = 5,
 }
 
-/// <summary>Who a message is addressed to.</summary>
+/// <summary>Who a message is addressed to (set by the vendor when it authors the message).</summary>
 public enum NotificationAudienceKind
 {
     /// <summary>Every user of the clinic.</summary>
@@ -50,22 +50,5 @@ public sealed record NotificationDto(
     DateTimeOffset? ExpiresAtUtc,
     bool IsRead);
 
-/// <summary>Compose request (needs the manage capability). A null <see cref="ScheduledForUtc"/> publishes immediately.</summary>
-public sealed record CreateNotificationRequest(
-    NotificationAudienceKind AudienceKind,
-    string? AudienceValue,
-    NotificationKind Kind,
-    string? Tag,
-    string Title,
-    string Body,
-    DateTimeOffset? ScheduledForUtc,
-    DateTimeOffset? ExpiresAtUtc);
-
-/// <summary>Grants <paramref name="Days"/> of subscription to one user as a reward (needs the manage capability).</summary>
-public sealed record GrantRewardRequest(string TargetUserId, int Days, string Reason);
-
 /// <summary>The signed-in user's feed plus the unread total (badge source).</summary>
 public sealed record NotificationFeed(IReadOnlyList<NotificationDto> Items, int UnreadCount);
-
-/// <summary>A user a message or reward can be addressed to (compose/reward pickers).</summary>
-public sealed record NotificationRecipient(string UserId, string Name, string RoleLabel);

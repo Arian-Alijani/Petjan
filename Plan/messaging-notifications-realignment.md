@@ -162,7 +162,7 @@ This is where authoring MOVES TO. Pattern to copy (already in repo):
 
 > Status legend: `[ ]` todo · `[~]` in progress · `[x]` done. Push command shown per task.
 
-### [ ] T1 — Contracts: make `INotificationService` read-only
+### [x] T1 — Contracts: make `INotificationService` read-only
 - Edit `src/Animora.Contracts/Notifications/INotificationService.cs`: delete `CreateAsync`,
   `GrantRewardAsync`, `GetRecipientsAsync`, `bool CanManage`. Update the XML summary (remove "admin
   write"/"compose" wording; state it is a read-only receiver feed; vendor authoring is in the admin panel).
