@@ -2,6 +2,7 @@ using Animora.Application.Ports;
 using Animora.Application.UseCases.Visits;
 using Animora.Application.UseCases.Visits.ReadModels;
 using Animora.Domain.Clinical;
+using Animora.Domain.Patients;
 using Animora.Domain.Results;
 using Xunit;
 using static Animora.Server.Tests.HandlersS07.ReceptionTestDoubles;
@@ -15,6 +16,7 @@ public sealed class VisitEncounterUseCaseTests
     private readonly FakeQueueRepository _queue = new();
     private readonly RecordingHistory _history = new();
     private readonly RecordingHandoff _handoff = new();
+    private readonly RecordingWeights _weights = new();
 
     private Visit OpenVisit()
     {
@@ -25,7 +27,7 @@ public sealed class VisitEncounterUseCaseTests
     }
 
     private CompleteVisitCommandHandler CompleteHandler() =>
-        new(_visits, _history, _handoff, _queue, _pets, new EmptyTriage(), new FakeAppointmentRepository(), Clock);
+        new(_visits, _history, _handoff, _queue, _pets, _weights, new EmptyTriage(), new FakeAppointmentRepository(), Clock);
 
     [Fact]
     public async Task EditingNoteOnCompletedVisit_IsRejected()
@@ -92,5 +94,11 @@ public sealed class VisitEncounterUseCaseTests
 
         public Task<IReadOnlyList<TriagePatientReadModel>> GetRecentPatientsAsync(string? search, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<TriagePatientReadModel>>([]);
+    }
+
+    private sealed class RecordingWeights : IWeightEntryRepository
+    {
+        public List<WeightEntry> Rows { get; } = [];
+        public void Add(WeightEntry entry) => Rows.Add(entry);
     }
 }

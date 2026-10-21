@@ -4,7 +4,9 @@ using Animora.Application.Ports;
 using Animora.Application.UseCases.Boarding;
 using Animora.Application.UseCases.Boarding.ReadModels;
 using Animora.Domain.Boarding;
+using Animora.Domain.Inventory;
 using Animora.Domain.Results;
+using Animora.Domain.Sales;
 using Animora.Domain.Time;
 using Animora.Domain.ValueObjects;
 using Xunit;
@@ -51,7 +53,11 @@ public sealed class BoardingUseCaseTests
         stay.AddItem(new StayItem("second", StayItemKind.Custom, "b", "B", new Quantity(1, "PCS"),
             Money.Irt(20), Now, "user"));
 
-        var result = await new RemoveStayItemCommandHandler(new BoardingRepositoryFake(stay))
+        var result = await new RemoveStayItemCommandHandler(
+                new BoardingRepositoryFake(stay),
+                new BoardingSalesDraftFake(),
+                new BoardingStockMovementsFake(),
+                Clock)
             .HandleAsync(new RemoveStayItemCommand(stay.Id, 0, "second"), Context, default);
 
         Assert.Equal(ErrorCodes.StayItemIndexStale, result.Error);
@@ -141,4 +147,25 @@ internal sealed class BoardingQueriesFake(params Room[] rooms) : IBoardingQuerie
         Task.FromResult(KnownPet?.Id == petId ? KnownPet : null);
     public Task<BoardingHistoryResult> GetHistoryAsync(BoardingHistoryCriteria criteria, CancellationToken ct) =>
         Task.FromResult(new BoardingHistoryResult([], 0, 0, 0));
+}
+
+internal sealed class BoardingSalesDraftFake : ISalesDraftData
+{
+    public Task<SalesHandoff?> FindHandoffAsync(string source, string id, CancellationToken ct) =>
+        Task.FromResult<SalesHandoff?>(null);
+    public Task<Insurer?> FindInsurerAsync(string id, CancellationToken ct) =>
+        Task.FromResult<Insurer?>(null);
+    public Task<SalesCatalogEntry?> FindCatalogEntryAsync(string id, CancellationToken ct) =>
+        Task.FromResult<SalesCatalogEntry?>(null);
+}
+
+internal sealed class BoardingStockMovementsFake : IStockMovementRepository
+{
+    public List<StockMovement> Rows { get; } = [];
+    public Task<StockMovement?> FindAsync(string id, CancellationToken ct = default) =>
+        Task.FromResult(Rows.FirstOrDefault(m => m.Id == id));
+    public Task<StockMovement> RequireAsync(string id, CancellationToken ct = default) =>
+        Task.FromResult(Rows.Single(m => m.Id == id));
+    public void Add(StockMovement entity) => Rows.Add(entity);
+    public void AddRange(IEnumerable<StockMovement> entities) => Rows.AddRange(entities);
 }
