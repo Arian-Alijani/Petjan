@@ -68,7 +68,7 @@
         </Style>
         <Style Selector="Border.chip:pointerover">
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
-            <Setter Property="Background" Value="#f6faf8" />
+            <Setter Property="Background" Value="#f6f8fb" />
         </Style>
         <Style Selector="Border.chip.on">
             <Setter Property="Background" Value="{StaticResource Brand600Brush}" />

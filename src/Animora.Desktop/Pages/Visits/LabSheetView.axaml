@@ -26,7 +26,7 @@
             <Setter Property="FontSize" Value="14" />
         </Style>
         <Style Selector="Border.ls-row">
-            <Setter Property="Background" Value="#fbfefd" />
+            <Setter Property="Background" Value="#fbfcfe" />
             <Setter Property="BorderBrush" Value="{StaticResource Brand100Brush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />

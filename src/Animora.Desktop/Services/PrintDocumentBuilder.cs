@@ -113,7 +113,7 @@ public static class PrintDocumentBuilder
         "@page{size:A4;margin:12mm}*{box-sizing:border-box}" +
         "body{margin:0;font-family:'Vazirmatn',Tahoma,sans-serif;color:#101828;font-size:12px;background:#f2f4f7}" +
         ".bar{display:flex;justify-content:space-between;align-items:center;padding:10px 18px;background:#fff;border-bottom:1px solid #e4e7ec}" +
-        ".bar button{font-family:inherit;padding:7px 16px;border:0;border-radius:8px;background:#0d9488;color:#fff;cursor:pointer}" +
+        ".bar button{font-family:inherit;padding:7px 16px;border:0;border-radius:8px;background:#4a6cf7;color:#fff;cursor:pointer}" +
         ".sheet{max-width:190mm;margin:14px auto;padding:14mm;background:#fff}" +
         "h1{margin:0;font-size:20px;font-weight:800}.sub{margin:4px 0 0;color:#667085}" +
         ".meta{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 18px;margin:14px 0;padding:10px 12px;border:1px solid #e4e7ec;border-radius:8px}" +

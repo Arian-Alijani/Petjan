@@ -38,7 +38,7 @@ public sealed partial class VisitTypeOptionViewModel : ObservableObject
     /// mirroring the reference's inline <c>background: ${t.ac}22; color: ${t.ac}</c>.
     /// </summary>
     public IBrush IconTileBackground => IsSelected
-        ? VisitsPresentation.Fill("#0d9488")
+        ? VisitsPresentation.Fill("#4a6cf7")
         : AccentSoft;
 
     public IBrush IconGlyph => IsSelected ? Brushes.White : Accent;

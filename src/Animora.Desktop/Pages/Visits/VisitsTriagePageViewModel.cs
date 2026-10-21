@@ -672,7 +672,7 @@ public sealed partial class VisitsTriagePageViewModel : PageViewModelBase
     private VisitTypeInfo ResolveType(string typeId) =>
         Types.FirstOrDefault(t => t.Type.Id == typeId)?.Type
         ?? Types.FirstOrDefault()?.Type
-        ?? new VisitTypeInfo("visit", "ویزیت عمومی", "IconBriefcase", "#0d9488", 30);
+        ?? new VisitTypeInfo("visit", "ویزیت عمومی", "IconBriefcase", "#4a6cf7", 30);
 
     private void NotifyState()
     {

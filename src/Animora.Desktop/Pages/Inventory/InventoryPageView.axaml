@@ -84,7 +84,7 @@
         <Style Selector="Button.chip:pointerover">
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
             <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
-            <Setter Property="Background" Value="#f6faf8" />
+            <Setter Property="Background" Value="#f6f8fb" />
         </Style>
         <Style Selector="Button.chip.on">
             <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
@@ -665,7 +665,7 @@
                                 </Button>
 
                                 <!-- inline variant sub-rows (.subrow-wrap / .subrow) -->
-                                <Border IsVisible="{Binding IsExpanded}" Background="#f7fbfa"
+                                <Border IsVisible="{Binding IsExpanded}" Background="#f7f9fc"
                                         BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
                                     <StackPanel Margin="46,6,16,12" Spacing="6">
                                         <!-- sub-row head -->

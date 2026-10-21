@@ -28,7 +28,7 @@
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         </Style>
         <Style Selector="Button.doc-card:pointerover">
-            <Setter Property="Background" Value="#fbfefd" />
+            <Setter Property="Background" Value="#fbfcfe" />
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
         </Style>
         <Style Selector="Button.doc-card.is-selected">
@@ -142,7 +142,7 @@
         </Style>
         <Style Selector="Button.type-opt:pointerover">
             <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
-            <Setter Property="Background" Value="#fbfefd" />
+            <Setter Property="Background" Value="#fbfcfe" />
         </Style>
         <Style Selector="Button.type-opt.is-active">
             <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
@@ -583,7 +583,7 @@
                         </Grid>
                         <Border Height="1" Background="{StaticResource Line2Brush}" />
 
-                        <Border Padding="14,10" Background="#fbfefd" BorderBrush="{StaticResource Brand100Brush}"
+                        <Border Padding="14,10" Background="#fbfcfe" BorderBrush="{StaticResource Brand100Brush}"
                                 BorderThickness="0,0,0,1">
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                                 <Path Grid.Column="0" Classes="icon" Width="14" Height="14"
@@ -764,7 +764,7 @@
                             </ItemsControl>
 
                             <Border IsVisible="{Binding IsBookedListEmpty}" Padding="20,40" CornerRadius="14"
-                                    Background="#fbfcfb" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
+                                    Background="#fbfcfe" BorderBrush="{StaticResource LineBrush}" BorderThickness="1">
                                 <StackPanel HorizontalAlignment="Center">
                                     <Border Width="64" Height="64" CornerRadius="18" Background="{StaticResource PanelBrush}"
                                             BorderBrush="{StaticResource LineBrush}" BorderThickness="1"

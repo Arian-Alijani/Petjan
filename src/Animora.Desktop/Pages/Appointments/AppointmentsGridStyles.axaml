@@ -37,7 +37,7 @@
         <Setter Property="BorderThickness" Value="1,0,0,0" />
     </Style>
     <Style Selector="Border.tg-col.off">
-        <Setter Property="Background" Value="#fbfcfb" />
+        <Setter Property="Background" Value="#fbfcfe" />
     </Style>
 
     <!-- header cell -->
@@ -51,7 +51,7 @@
         <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
     </Style>
     <Style Selector="Border.tg-hcell.off">
-        <Setter Property="Background" Value="#fafbfa" />
+        <Setter Property="Background" Value="#fafbfe" />
     </Style>
     <Style Selector="Border.tg-hcell.first">
         <Setter Property="BorderThickness" Value="0" />

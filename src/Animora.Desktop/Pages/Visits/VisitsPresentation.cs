@@ -71,7 +71,7 @@ public static class VisitsPresentation
         "dog" => Fill("#3057a6"),
         "bird" => Fill("#2a7f5f"),
         "rabbit" => Fill("#b6448a"),
-        _ => Fill("#0e7566"),
+        _ => Fill("#3a56d4"),
     };
 
     /// <summary>
@@ -85,7 +85,7 @@ public static class VisitsPresentation
         "cat" => (Fill("#fdf1e7"), Fill("#d47a3f")),
         "bird" => (Fill("#d9f4ea"), Fill("#2a7f5f")),
         "rabbit" => (Fill("#fde5f0"), Fill("#b6448a")),
-        _ => (Fill("#f0fdfa"), Fill("#0e7566")),
+        _ => (Fill("#eef2fe"), Fill("#3a56d4")),
     };
 
     /// <summary>A solid fill brush from a hex string (shared via <see cref="BrushCache"/>).</summary>

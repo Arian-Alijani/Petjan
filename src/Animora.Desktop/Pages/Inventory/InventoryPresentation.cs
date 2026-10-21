@@ -70,7 +70,7 @@ public static class InventoryPresentation
     /// </summary>
     public static (IBrush Background, IBrush Foreground) CategoryTag(string tone) => ToneName(tone) switch
     {
-        "teal" => (Fill("#f0fdfa"), Fill("#104a43")),
+        "teal" => (Fill("#eef2fe"), Fill("#233072")),
         "peach" => (Fill("#fdf1e7"), Fill("#a8623a")),
         "lilac" => (Fill("#f4f3ff"), Fill("#6c4bb8")),
         "amber" => (Fill("#fffaeb"), Fill("#8a5b18")),
@@ -85,13 +85,13 @@ public static class InventoryPresentation
     /// </summary>
     public static IBrush ToneDot(string tone) => Fill(ToneName(tone) switch
     {
-        "teal" => "#14b8a6",
+        "teal" => "#5b7cfa",
         "peach" => "#e79b70",
         "lilac" => "#9b7bd8",
         "amber" => "#d6a52f",
         "blue" => "#6f9be8",
         "green" => "#4aa578",
-        _ => "#14b8a6",
+        _ => "#5b7cfa",
     });
 
     /// <summary>
@@ -100,7 +100,7 @@ public static class InventoryPresentation
     /// </summary>
     public static IBrush ChipDot(string tone) => Fill(ToneName(tone) switch
     {
-        "teal" => "#0d9488",
+        "teal" => "#4a6cf7",
         "peach" => "#f0b593",
         "lilac" => "#a48afb",
         "amber" => "#b54708",
@@ -147,7 +147,7 @@ public static class InventoryPresentation
         {
             "low" => ("#b54708", "#b54708"),   // .warn
             "out" => ("#d92d20", "#d92d20"),   // .low (danger)
-            _ => ("#14b8a6", "#14b8a6"),       // --brand-500
+            _ => ("#5b7cfa", "#5b7cfa"),       // --brand-500 (blue)
         };
 
         // Shared via GradientBrushCache. The reference has a single-colour fill
@@ -203,7 +203,7 @@ public static class InventoryPresentation
     /// </summary>
     public static IBrush KpiTileBackground(string tone) => Fill(tone switch
     {
-        "teal" => "#f0fdfa",
+        "teal" => "#eef2fe",
         "danger" => "#fef3f2",
         "warn" => "#fffaeb",
         "info" => "#eff8ff",
@@ -214,7 +214,7 @@ public static class InventoryPresentation
     /// <summary>The product-modal KPI icon glyph color, mirroring <c>.inv-kpi .ic.&lt;tone&gt;</c>.</summary>
     public static IBrush KpiTileForeground(string tone) => Fill(tone switch
     {
-        "teal" => "#0e7566",
+        "teal" => "#3a56d4",
         "danger" => "#d92d20",
         "warn" => "#b54708",
         "info" => "#1570cd",
@@ -230,7 +230,7 @@ public static class InventoryPresentation
     {
         // Shared via GradientBrushCache — a single fixed brand pair
         // (PERFORMANCE.md §10).
-        return GradientBrushCache.LinearGradient("#2dd4bf", "#0d9488", 0, 0, 1, 1);
+        return GradientBrushCache.LinearGradient("#8aa2fb", "#4a6cf7", 0, 0, 1, 1);
     }
 
     /// <summary>

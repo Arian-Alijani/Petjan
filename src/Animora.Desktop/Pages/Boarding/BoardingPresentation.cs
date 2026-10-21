@@ -83,7 +83,7 @@ public static class BoardingPresentation
     /// reference's <c>.pill-ok/.pill-warn/.pill-danger/.pill-info/.pill-mute</c>
     /// (styles.css) — bg from the phase-02 soft-bg token, text from the
     /// matching semantic token. «mute» uses the reference's literal
-    /// <c>#eef2f0</c>/<c>#536b68</c> (no token exists for it).
+    /// <c>#eef1f8</c>/<c>#536b68</c> (no token exists for it).
     /// </summary>
     public static (IBrush Background, IBrush Foreground) PillBrushes(string tone) => tone switch
     {
@@ -91,7 +91,7 @@ public static class BoardingPresentation
         "warn" => (Fill("#fffaeb"), Fill("#b54708")),
         "danger" => (Fill("#fef3f2"), Fill("#d92d20")),
         "info" => (Fill("#eff8ff"), Fill("#1570cd")),
-        _ => (Fill("#eef2f0"), Fill("#536b68")), // mute
+        _ => (Fill("#eef1f8"), Fill("#536b68")), // mute
     };
 
     /// <summary>
@@ -121,7 +121,7 @@ public static class BoardingPresentation
             ? ("#d92d20", "#c03030")
             : urgent
                 ? ("#b54708", "#d9980f")
-                : ("#2dd4bf", "#0d9488");
+                : ("#8aa2fb", "#4a6cf7");
 
         // Shared via GradientBrushCache — three fixed tone pairs (PERFORMANCE.md §10).
         return GradientBrushCache.LinearGradient(from, to, 0, 0, 1, 0);
@@ -140,7 +140,7 @@ public static class BoardingPresentation
             ? ("#d92d20", "#c03030")
             : urgent
                 ? ("#b54708", "#d9980f")
-                : ("#2dd4bf", "#0d9488");
+                : ("#8aa2fb", "#4a6cf7");
 
         // Shared via GradientBrushCache. The three tone pairs and the single
         // track colour are fixed; the only continuous input, `percent`, is
@@ -261,5 +261,5 @@ public static class BoardingPresentation
     public static (IBrush Background, IBrush Foreground) ItemTagBrushes(BoardingItemKind kind) =>
         kind == BoardingItemKind.Item
             ? (Fill("#efe7fb"), Fill("#7b5cc4"))
-            : (Fill("#effcf9"), Fill("#0f766e"));
+            : (Fill("#eef2fe"), Fill("#3a56d4"));
 }

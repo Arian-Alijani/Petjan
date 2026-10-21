@@ -50,8 +50,8 @@ public static class PatientsPresentation
             PetSpecies.Dog => ("#fbe7d6", "#fff7f0"),
             PetSpecies.Bird => ("#fffaeb", "#fffaf0"),
             PetSpecies.Rabbit => ("#fbe4f1", "#fff5fb"),
-            PetSpecies.Rodent => ("#ddf0e9", "#f3fbf8"),
-            PetSpecies.Reptile => ("#e6f3d9", "#f6fbf0"),
+            PetSpecies.Rodent => ("#ddf0e9", "#f3f7fc"),
+            PetSpecies.Reptile => ("#e6f3d9", "#f6f8fb"),
             _ => ("#eff8ff", "#f4f8ff"),
         };
         return Diagonal(from, to);
@@ -99,7 +99,7 @@ public static class PatientsPresentation
     {
         PetGender.Male => new SexDotInfo("♂", "نر", Brush("#eff8ff"), Brush("#1570cd")),
         PetGender.Female => new SexDotInfo("♀", "ماده", Brush("#fbe4f1"), Brush("#a8478a")),
-        _ => new SexDotInfo("؟", "نامشخص", Brush("#eef2f0"), Brush("#7a8b89")),
+        _ => new SexDotInfo("؟", "نامشخص", Brush("#eef1f8"), Brush("#7a8b89")),
     };
 
     // ---- owner gender / tags (patients-data.js + patients.css) ----
@@ -112,7 +112,7 @@ public static class PatientsPresentation
     {
         "VIP" => (Brush("#f4f3ff"), Brush("#7b5cc4")),
         "مشتری وفادار" => (Brush("#ecfdf3"), Brush("#027a48")),
-        _ => (Brush("#eef2f0"), Brush("#536b68")),
+        _ => (Brush("#eef1f8"), Brush("#536b68")),
     };
 
     /// <summary>Initials for an owner avatar (patients-ui.js initials).</summary>

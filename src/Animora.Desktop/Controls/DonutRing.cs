@@ -30,7 +30,7 @@ public sealed class DonutRing : Control
 
     public static readonly StyledProperty<IBrush> TrackBrushProperty =
         AvaloniaProperty.Register<DonutRing, IBrush>(nameof(TrackBrush),
-            new SolidColorBrush(Color.Parse("#f0f4f2")));
+            new SolidColorBrush(Color.Parse("#f0f3f9")));
 
     public static readonly StyledProperty<int> ActiveIndexProperty =
         AvaloniaProperty.Register<DonutRing, int>(nameof(ActiveIndex), -1);

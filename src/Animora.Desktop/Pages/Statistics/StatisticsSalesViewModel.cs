@@ -136,7 +136,7 @@ public sealed partial class StatisticsSalesViewModel(IStatisticsQueryService ser
         PaidSegments = HasInvoices
             ?
             [
-                new BarSegment(fraction, StatisticsFormat.Brush("#0d9488")),
+                new BarSegment(fraction, StatisticsFormat.Brush("#4a6cf7")),
                 new BarSegment(1 - fraction, StatisticsFormat.Brush("#f79009")),
             ]
             : [];

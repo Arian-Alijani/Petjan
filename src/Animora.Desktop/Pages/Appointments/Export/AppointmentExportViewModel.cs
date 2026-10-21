@@ -128,18 +128,18 @@ public sealed partial class AppointmentExportViewModel : ObservableObject
         string[] wd = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
         for (var i = 0; i < 7; i++)
         {
-            WeekdayChips.Add(new ExportChipViewModel(i.ToString(CultureInfo.InvariantCulture), wd[i], Brush("#0d9488"), true));
+            WeekdayChips.Add(new ExportChipViewModel(i.ToString(CultureInfo.InvariantCulture), wd[i], Brush("#4a6cf7"), true));
         }
 
         string[] presets = ["today", "امروز", "tomorrow", "فردا", "week", "این هفته", "nextweek", "هفته بعد", "next7", "۷ روز آینده", "month", "این ماه"];
         for (var i = 0; i < presets.Length; i += 2)
         {
-            PresetChips.Add(new ExportChipViewModel(presets[i], presets[i + 1], Brush("#0d9488"), false));
+            PresetChips.Add(new ExportChipViewModel(presets[i], presets[i + 1], Brush("#4a6cf7"), false));
         }
 
         if (initialStart != initialEnd)
         {
-            PresetChips.Insert(0, new ExportChipViewModel("view", "نمای فعلی تقویم", Brush("#0d9488"), false));
+            PresetChips.Insert(0, new ExportChipViewModel("view", "نمای فعلی تقویم", Brush("#4a6cf7"), false));
         }
 
         _initialStart = initialStart;

@@ -81,7 +81,7 @@
         <Setter Property="CornerRadius" Value="12" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="Transparent" />
-        <Setter Property="Background" Value="#fbfcfb" />
+        <Setter Property="Background" Value="#fbfcfe" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
@@ -108,7 +108,7 @@
         <Setter Property="CornerRadius" Value="14" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
-        <Setter Property="Background" Value="#fbfcfb" />
+        <Setter Property="Background" Value="#fbfcfe" />
     </Style>
 
     <Style Selector="Button.pat-new">
@@ -323,14 +323,14 @@
         <Setter Property="CornerRadius" Value="13" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
-        <Setter Property="Background" Value="#fbfcfb" />
+        <Setter Property="Background" Value="#fbfcfe" />
     </Style>
     <Style Selector="ToggleButton.bk-switch">
         <Setter Property="Width" Value="38" />
         <Setter Property="Height" Value="22" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="CornerRadius" Value="99" />
-        <Setter Property="Background" Value="#d7dedb" />
+        <Setter Property="Background" Value="#d8deea" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>

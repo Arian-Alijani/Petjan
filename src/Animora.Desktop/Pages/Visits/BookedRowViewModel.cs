@@ -78,13 +78,13 @@ public sealed class BookedRowViewModel
 
     public IBrush TimeBackground => IsUrgent
         ? VisitsPresentation.Fill("#fef3f2")
-        : VisitsPresentation.Fill("#f0fdfa");
+        : VisitsPresentation.Fill("#eef2fe");
 
     public IBrush TimeForeground => IsUrgent
         ? VisitsPresentation.Fill("#d92d20")
-        : VisitsPresentation.Fill("#0e7566");
+        : VisitsPresentation.Fill("#3a56d4");
 
     public IBrush CtaBackground => IsUrgent
         ? VisitsPresentation.Fill("#d92d20")
-        : VisitsPresentation.Fill("#0d9488");
+        : VisitsPresentation.Fill("#4a6cf7");
 }

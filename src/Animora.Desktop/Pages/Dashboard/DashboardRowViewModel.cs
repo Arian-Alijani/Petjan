@@ -100,7 +100,7 @@ public sealed class DashboardRowViewModel
     public static string IconColorHex(string? iconKey) => iconKey switch
     {
         "IconCalendar" => "#4a6cf7",   // appointments — brand indigo
-        "IconClipboard" => "#0d9488",  // visits — teal
+        "IconClipboard" => "#4a6cf7",  // visits — blue
         "IconSyringe" => "#8b5cf6",    // vaccines — violet
         "IconBriefcase" => "#f59e0b",  // boarding — amber
         "IconCart" => "#0ea5e9",       // purchases — sky
@@ -108,7 +108,7 @@ public sealed class DashboardRowViewModel
         "IconReceipt" => "#16a34a",    // sales / invoices — green
         "IconCheque" => "#ec4899",     // cheques — rose
         "IconBell" => "#f59e0b",       // alerts — amber
-        "IconWallet" => "#059669",     // money — emerald
+        "IconWallet" => "#3a56d4",     // money — blue
         "IconUsers" => "#2563eb",      // people — blue
         _ => "#64748b",                // other — slate
     };

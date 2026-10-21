@@ -66,7 +66,7 @@
             <StackPanel>
 
                 <!-- owner-mini-preview -->
-                <Border Background="#fafbfa" BorderBrush="{StaticResource Line2Brush}"
+                <Border Background="#fafbfe" BorderBrush="{StaticResource Line2Brush}"
                         BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="0,0,0,16">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">
                         <Border Grid.Column="0" Width="38" Height="38" CornerRadius="12"

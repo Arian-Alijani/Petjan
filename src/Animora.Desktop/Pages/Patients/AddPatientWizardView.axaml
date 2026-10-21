@@ -37,7 +37,7 @@
         <!-- wiz-steps -->
         <Style Selector="Border.wstep">
             <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Background" Value="#fafbfa" />
+            <Setter Property="Background" Value="#fafbfe" />
             <Setter Property="Padding" Value="9,12" />
         </Style>
         <Style Selector="Border.wstep.on">
@@ -416,7 +416,7 @@
             <StackPanel IsVisible="{Binding IsStepTwo}">
 
                 <!-- owner-mini-preview (existing-owner mode) -->
-                <Border IsVisible="{Binding IsExistingMode}" Background="#fafbfa"
+                <Border IsVisible="{Binding IsExistingMode}" Background="#fafbfe"
                         BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
                         CornerRadius="14" Padding="14,12" Margin="0,0,0,16">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="11">

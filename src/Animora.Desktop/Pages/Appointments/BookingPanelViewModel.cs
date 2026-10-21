@@ -474,7 +474,7 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     }
 
     private AppointmentType TypeOf(string id) =>
-        _types.FirstOrDefault(t => t.Id == id) ?? _types.FirstOrDefault() ?? new AppointmentType(id, "—", id, "#98a2b3", "#eef2f0", "#536b68", "IconPaw", 30);
+        _types.FirstOrDefault(t => t.Id == id) ?? _types.FirstOrDefault() ?? new AppointmentType(id, "—", id, "#98a2b3", "#eef1f8", "#536b68", "IconPaw", 30);
 
     private AppointmentDoctor DocOf(string id) =>
         _doctors.FirstOrDefault(d => d.Id == id) ?? _doctors.FirstOrDefault() ?? new AppointmentDoctor(id, "—", "—", string.Empty, "—", "#98a2b3");

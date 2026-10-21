@@ -137,7 +137,7 @@ public sealed partial class BookingDetailViewModel : ObservableObject
     private bool _canOpenVisit;
 
     private static readonly AppointmentType RemovedType =
-        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef2f0", "#536b68", "calendar", 30);
+        new("removed", "نوع حذف‌شده", "removed", "#98a2b3", "#eef1f8", "#536b68", "calendar", 30);
 
     /// <summary>Loads (or re-loads) the drawer content from the service.</summary>
     public async Task<bool> LoadAsync(string appointmentId)

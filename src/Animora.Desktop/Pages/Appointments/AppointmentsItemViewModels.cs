@@ -305,8 +305,8 @@ public sealed class MonthCellViewModel
 
     /// <summary>The out/friday cell background (transparent otherwise), matching the reference.</summary>
     public IBrush CellBackground =>
-        IsOut ? AppointmentsPresentation.Accent("#fafbfa")
-        : IsOffDay ? AppointmentsPresentation.Accent("#fbfcfb")
+        IsOut ? AppointmentsPresentation.Accent("#fafbfe")
+        : IsOffDay ? AppointmentsPresentation.Accent("#fbfcfe")
         : Brushes.Transparent;
 
     /// <summary>The day-number text brush (muted ink on out-of-month days).</summary>

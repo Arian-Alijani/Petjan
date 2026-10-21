@@ -31,7 +31,7 @@ public static class StatisticsFormat
 
     private static readonly Dictionary<string, string> CategoryColors = new(StringComparer.Ordinal)
     {
-        ["RENT"] = "#0d9488",
+        ["RENT"] = "#4a6cf7",
         ["UTILITIES"] = "#1570cd",
         ["SALARY"] = "#7c3aed",
         ["SUPPLIES"] = "#f79009",
@@ -52,7 +52,7 @@ public static class StatisticsFormat
 
     private static readonly Dictionary<string, string> SourceColors = new(StringComparer.Ordinal)
     {
-        ["visit"] = "#0d9488",
+        ["visit"] = "#4a6cf7",
         ["product"] = "#1570cd",
         ["boarding"] = "#7c3aed",
         ["other"] = "#98a2b3",

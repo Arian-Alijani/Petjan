@@ -16,7 +16,7 @@
         <Grid RowDefinitions="Auto,*">
 
             <!-- ═══ header (bk-head) ═══ -->
-            <Border Grid.Row="0" Padding="22,16" Background="#f7fbfa"
+            <Border Grid.Row="0" Padding="22,16" Background="#f7f9fc"
                     BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,0,0,1">
                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="13">
                     <Border Grid.Column="0" Width="42" Height="42" CornerRadius="14"

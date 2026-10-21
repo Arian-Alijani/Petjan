@@ -31,7 +31,7 @@ public sealed class TrendChart : Control
 
     public static readonly StyledProperty<IBrush> RevenueBrushProperty =
         AvaloniaProperty.Register<TrendChart, IBrush>(nameof(RevenueBrush),
-            new SolidColorBrush(Color.Parse("#0d9488")));
+            new SolidColorBrush(Color.Parse("#4a6cf7")));
 
     public static readonly StyledProperty<IBrush> ExpenseBrushProperty =
         AvaloniaProperty.Register<TrendChart, IBrush>(nameof(ExpenseBrush),
@@ -45,7 +45,7 @@ public sealed class TrendChart : Control
         PointsProperty, RevenueBrushProperty, ExpenseBrushProperty, ProfitBrushProperty);
 
     // Hoisted render-time resources (charts re-render on every layout/resize).
-    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef2f0"));
+    private static readonly IBrush GridBrush = new SolidColorBrush(Color.Parse("#eef1f8"));
     private static readonly IBrush AxisBrush = new SolidColorBrush(Color.Parse("#98a2b3"));
     private static readonly Pen GridPen = new(GridBrush, 1, new DashStyle([2, 6], 0));
 
@@ -303,7 +303,7 @@ internal static class FinanceChartBrushes
     /// <summary>The vertical area gradient under a line (top color@alpha → transparent), matching the SVG linearGradient stops.</summary>
     public static IBrush Area(IBrush line, double topOpacity)
     {
-        var c = (line as SolidColorBrush)?.Color ?? Color.Parse("#0d9488");
+        var c = (line as SolidColorBrush)?.Color ?? Color.Parse("#4a6cf7");
         return new LinearGradientBrush
         {
             StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
@@ -331,7 +331,7 @@ public sealed class DonutChart : Control
 
     public static readonly StyledProperty<IBrush> TrackBrushProperty =
         AvaloniaProperty.Register<DonutChart, IBrush>(nameof(TrackBrush),
-            new SolidColorBrush(Color.Parse("#f0f4f2")));
+            new SolidColorBrush(Color.Parse("#f0f3f9")));
 
     static DonutChart() => AffectsRender<DonutChart>(SlicesProperty, TrackBrushProperty);
 
@@ -520,7 +520,7 @@ public sealed class MarginGauge : Control
 
     public static readonly StyledProperty<IBrush> TrackBrushProperty =
         AvaloniaProperty.Register<MarginGauge, IBrush>(nameof(TrackBrush),
-            new SolidColorBrush(Color.Parse("#f0f4f2")));
+            new SolidColorBrush(Color.Parse("#f0f3f9")));
 
     static MarginGauge() => AffectsRender<MarginGauge>(PercentProperty, FillProperty, TrackBrushProperty);
 

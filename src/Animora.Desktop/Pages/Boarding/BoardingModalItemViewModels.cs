@@ -25,18 +25,18 @@ public sealed class BoardingDayCellViewModel
         // Reference .bd-dm-day states: today → brand-600 fill (white text);
         // past → brand-50 fill with brand-100 border; otherwise panel white.
         Background = isToday
-            ? BoardingPresentation.Fill("#0d9488")
+            ? BoardingPresentation.Fill("#4a6cf7")
             : isPast
-                ? BoardingPresentation.Fill("#f0fdfa")
+                ? BoardingPresentation.Fill("#eef2fe")
                 : BoardingPresentation.Fill("#ffffff");
         BorderBrush = isToday
-            ? BoardingPresentation.Fill("#0d9488")
+            ? BoardingPresentation.Fill("#4a6cf7")
             : isPast
-                ? BoardingPresentation.Fill("#ccfbf1")
+                ? BoardingPresentation.Fill("#dbe4fe")
                 : BoardingPresentation.Fill("#e6e9ec");
         NumberBrush = isToday ? BoardingPresentation.Fill("#ffffff") : BoardingPresentation.Fill("#101828");
-        DateBrush = isToday ? BoardingPresentation.Fill("#ccf2ee") : BoardingPresentation.Fill("#667085");
-        DotBrush = isToday ? BoardingPresentation.Fill("#ffffff") : BoardingPresentation.Fill("#0d9488");
+        DateBrush = isToday ? BoardingPresentation.Fill("#c3cef0") : BoardingPresentation.Fill("#667085");
+        DotBrush = isToday ? BoardingPresentation.Fill("#ffffff") : BoardingPresentation.Fill("#4a6cf7");
     }
 
     public string NumberText { get; }
