@@ -273,6 +273,8 @@ public static class AdminStrings
         ["notify.audience.2"] = ("One user", "یک کاربر مشخص"),
         ["notify.role"] = ("Role (when audience is a role)", "نقش (در حالت «نقش مشخص»)"),
         ["notify.user"] = ("User (when audience is one user)", "کاربر (در حالت «کاربر مشخص»)"),
+        ["notify.userPick"] = ("— choose a user —", "— یک کاربر انتخاب کنید —"),
+        ["notify.noUsers"] = ("This clinic has no active users", "این کلینیک کاربر فعالی ندارد"),
         ["notify.kind"] = ("Type / style", "نوع و ظاهر پیام"),
         ["notify.kind.0"] = ("Announcement", "اطلاعیه"),
         ["notify.kind.1"] = ("Success", "موفقیت"),

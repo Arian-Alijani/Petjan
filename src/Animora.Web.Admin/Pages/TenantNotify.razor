@@ -2,15 +2,16 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminNotificationCommands Commands
+@inject IAdminStaffQueries StaffQueries
 <h1>@Loc.T("notify.title")</h1><FormError Code="@Error" />
 <p><a href="@($"/admin/tenants/{Id}")">@Loc.T("staff.backToTenant")</a></p>
 @if (Receipt is not null) { <p class="notice" role="status">@Loc.T("notify.sent")</p> }
 <p class="hint">@Loc.T("notify.hint")</p>
 <EditForm Model="Form" FormName="send-notification" method="post" OnSubmit="Send">
 <fieldset><legend>@Loc.T("notify.title")</legend>
-<label>@Loc.T("notify.audience") <InputSelect @bind-Value="Form!.AudienceKind">@foreach (var a in Audiences) { <option value="@a">@Loc.T("notify.audience." + a)</option> }</InputSelect></label>
+<label>@Loc.T("notify.audience") <InputSelect @bind-Value="Form!.AudienceKind">@foreach (var a in Audiences) { <option value="@a" disabled="@(a == 2 && Users.Count == 0)">@Loc.T("notify.audience." + a)</option> }</InputSelect></label>
 <label>@Loc.T("notify.role") <InputSelect @bind-Value="Form.RoleValue"><option value="">—</option>@foreach (var r in Roles) { <option value="@r">@Loc.T("role." + r)</option> }</InputSelect></label>
-<label>@Loc.T("notify.user") <InputText @bind-Value="Form.UserValue" maxlength="26" dir="ltr" /></label>
+<label>@Loc.T("notify.user") <InputSelect @bind-Value="Form.UserValue" disabled="@(Users.Count == 0)"><option value="">@(Users.Count == 0 ? Loc.T("notify.noUsers") : Loc.T("notify.userPick"))</option>@foreach (var u in Users) { <option value="@u.UserId">@u.Name (@u.UserName) — @Loc.T("role." + u.Role)</option> }</InputSelect></label>
 <label>@Loc.T("notify.kind") <InputSelect @bind-Value="Form.Kind">@foreach (var k in Kinds) { <option value="@k">@Loc.T("notify.kind." + k)</option> }</InputSelect></label>
 <label>@Loc.T("notify.tag") <InputText @bind-Value="Form.Tag" maxlength="40" /></label>
 <label>@Loc.T("notify.subject") <InputText @bind-Value="Form.Title" maxlength="200" /></label>
@@ -25,6 +26,19 @@
     private static readonly int[] Kinds=[0,1,2,3,4,5];
     private static readonly string[] Roles=["Manager","Doctor","Receptionist","Cashier","Accountant"];
     private MutationReceipt? Receipt;
-    protected override void OnInitialized() { Form??=new(); }
-    private async Task Send(EditContext _) { Receipt=Capture(await Commands.SendAsync(Id,Form!,Cancellation)); }
+    private IReadOnlyList<StaffAccountSummary> Users=[];
+    protected override async Task OnInitializedAsync()
+    {
+        Form??=new();
+        // The "one user" audience is a dropdown of this clinic's real, active users, so the operator never types an id; the posted value is the real UserId
+        // that the server re-validates as an active membership of the clinic.
+        var staff=Capture(await StaffQueries.ListAsync(Id,new StaffListQuery(null,null,1,200),Cancellation));
+        Users=staff?.Items.Where(u=>u.Active).OrderBy(u=>u.Name).ToList()??[];
+    }
+    private async Task Send(EditContext _)
+    {
+        var loadError=Error;
+        Receipt=Capture(await Commands.SendAsync(Id,Form!,Cancellation));
+        Error??=loadError;
+    }
 }

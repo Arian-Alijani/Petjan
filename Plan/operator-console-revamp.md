@@ -136,7 +136,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 ### [ ] T5 — Messages & notifications tab (NEW broadcast page + fix per-clinic user dropdown)
 **Goal:** add a top-level "پیام و اعلان" tab that can (a) message **all clinics**, (b) message **specific clinics by category/filter**, (c) target **roles**. AND fix the per-clinic notify so selecting a specific user is a **dropdown of that clinic's users** (not a typed user id).
 
-#### T5a — Fix per-clinic user selection (`Pages/TenantNotify.razor`)
+#### [x] T5a — Fix per-clinic user selection (`Pages/TenantNotify.razor`)
 **Do:**
 1. Inject `IAdminStaffQueries` into `TenantNotify.razor`. In `OnInitializedAsync`, load the clinic's users: `Queries.ListAsync(Id, new StaffListQuery(null, null, 1, 200), Cancellation)` → `AdminPage<StaffAccountSummary>` (has `UserId`, `Name`, `UserName`, `Role`).
 2. Replace the `Form.UserValue` free-text `<InputText>` with an `<InputSelect @bind-Value="Form.UserValue">` whose options are the loaded users: `value="@u.UserId"` text `@u.Name (@u.UserName) — @Loc.T("role."+u.Role)`. Add a placeholder "—" option.
