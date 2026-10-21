@@ -259,7 +259,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 - **صحت‌سنجی:** بیلد/اسموک فقط روی گیت‌اکشن (T8).
 - **push:** `scripts/git/push.sh "feat(shell): wire header bell + sidebar entry + unread badge"`
 
-### T7 — پیام سیستمی «نزدیک شدن به اتمام اشتراک» `[ ]`
+### T7 — پیام سیستمی «نزدیک شدن به اتمام اشتراک» `[x]`
 - در `NotificationService` یک متد `EnsureSubscriptionExpiryNoticesAsync()`:
   وضعیت اشتراک را از `IUserProfileService.GetAccountStatusAsync()` بگیر (الگوی موجود در Contracts/Profile).
   اگر تاریخ انقضا نزدیک است (مثلاً ≤ ۷ روز) و پیام سیستمیِ متناظر هنوز ساخته نشده (برای جلوگیری از تکرار
@@ -267,6 +267,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
   این متد در `GetFeedAsync`/`GetUnreadCountAsync` یا تایمر دقیقه‌ای فراخوانی شود (idempotent).
 - اگر `GetAccountStatusAsync` فیلد انقضا ندارد یا نامشخص است، این تسک را به حداقل برسان (کامنت TODO + گارد null)
   تا بیلد نشکند؛ هستهٔ مکانیزم مهم‌تر از داده واقعی است (سرور هنوز نیست).
+- **یادداشت اجرا:** `EnsureSubscriptionExpiryNoticesAsync` از `IUserProfileService.GetAccountStatusAsync` می‌خواند (وضعیت stale/نامشخص = هیچ پیامی)؛ سه مرحله `soon` (≤۷ روز) / `last-day` / `expired` با `DedupKey = system:sub-expiry:<yyyyMMdd>:<stage>` (یکتا در DB)؛ مخاطب نقش Manager؛ چک هر ۳۰ دقیقه حداکثر یک‌بار، پس‌زمینه و فقط وقتی مدیر وارد است (خواندن/تایمر را کند نمی‌کند).
 - **push:** `scripts/git/push.sh "feat(notifications): system subscription-expiry notices"`
 
 ### T8 — بیلد نهایی + اسموک + جمع‌بندی `[ ]`

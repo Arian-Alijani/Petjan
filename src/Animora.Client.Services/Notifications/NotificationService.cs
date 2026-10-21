@@ -1,8 +1,10 @@
 using System.Linq.Expressions;
+using Animora.Application.Ports;
 using Animora.Application.Security;
 using Animora.Client.Services.Profile;
 using Animora.Contracts.Identity;
 using Animora.Contracts.Notifications;
+using Animora.Contracts.Profile;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -34,7 +36,9 @@ public sealed class NotificationService(
     IServiceScopeFactory scopes,
     SessionContextCache session,
     ICapabilityGate gate,
-    IClock clock) : INotificationService, IAsyncDisposable
+    IClock clock,
+    IUserProfileService profile,
+    IClinicTimeZoneProvider zones) : INotificationService, IAsyncDisposable
 {
     internal const int MaxTitleLength = 200;
     internal const int MaxTagLength = 40;
@@ -44,8 +48,16 @@ public sealed class NotificationService(
     private const int AudRole = (int)NotificationAudienceKind.Role;
     private const int AudUser = (int)NotificationAudienceKind.SpecificUser;
 
+    /// <summary>Soonest the subscription status is asked for again (it is a server call, never made per read).</summary>
+    internal static readonly TimeSpan NoticeCheckInterval = TimeSpan.FromMinutes(30);
+
+    /// <summary>A notice is issued when the subscription ends within this many days.</summary>
+    internal const int ExpiryWarningDays = 7;
+
     private readonly CancellationTokenSource _stop = new();
     private Task? _loop;
+    private long _nextNoticeCheckTicks; // UtcTicks; 0 = due now
+    private int _noticeCheckRunning;
 
     /// <inheritdoc />
     public event EventHandler? FeedChanged;
@@ -375,7 +387,113 @@ public sealed class NotificationService(
 
     private sealed record Reader(string UserId, string Role);
 
-    // Implemented by T7 (subscription-expiry notices); kept as a no-op seam so the read paths already call it.
+    /// <summary>
+    /// Subscription-expiry notices (idempotent, throttled, never on the read path): the first read after
+    /// <see cref="NoticeCheckInterval"/> kicks ONE background check; it asks the account authority for the expiry and,
+    /// when the subscription ends within <see cref="ExpiryWarningDays"/> days (or already ended), issues a
+    /// <see cref="NotificationKind.System"/> notice to the clinic managers - once per (expiry date, stage), guarded by
+    /// the unique <c>DedupKey</c>. Only a manager triggers it (they are the audience that can act on it), which also
+    /// keeps the server call to one device-user. An unknown/stale status or a failure issues nothing and retries later.
+    /// </summary>
     private Task IssueSystemNoticesAsync(AnimoraLocalDbContext db, string tenant, Reader viewer, DateTimeOffset now,
-        CancellationToken ct) => Task.CompletedTask;
+        CancellationToken ct)
+    {
+        if (viewer.Role != nameof(StaffRole.Manager) || now.UtcTicks < Interlocked.Read(ref _nextNoticeCheckTicks))
+            return Task.CompletedTask;
+        if (Interlocked.CompareExchange(ref _noticeCheckRunning, 1, 0) != 0) return Task.CompletedTask;
+
+        Interlocked.Exchange(ref _nextNoticeCheckTicks, (now + NoticeCheckInterval).UtcTicks);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await EnsureSubscriptionExpiryNoticesAsync(tenant, viewer.UserId, _stop.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Best effort: no status / offline / store hiccup. The next interval retries; nothing is half-written.
+                Interlocked.Exchange(ref _nextNoticeCheckTicks, 0);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _noticeCheckRunning, 0);
+            }
+        });
+        return Task.CompletedTask;
+    }
+
+    /// <summary>Issues the due expiry notices for the current account status; returns how many were created.</summary>
+    internal async Task<int> EnsureSubscriptionExpiryNoticesAsync(string tenant, string actorUserId, CancellationToken ct)
+    {
+        var status = await profile.GetAccountStatusAsync().ConfigureAwait(false);
+        if (status.IsStale || status.SubscriptionExpiresAtUtc is not { } expiresAt) return 0; // unknown is not "ending"
+
+        var now = clock.UtcNow;
+        var remaining = expiresAt - now;
+        string stage;
+        NotificationKind kind;
+        string title;
+        string body;
+        var day = ToJalali(expiresAt, zones.GetClinicTimeZone());
+        if (remaining <= TimeSpan.Zero)
+        {
+            stage = "expired";
+            kind = NotificationKind.Warning;
+            title = "اشتراک شما به پایان رسید";
+            body = $"اشتراک کلینیک در تاریخ {day} به پایان رسیده است. برای ادامهٔ استفاده بدون وقفه، اشتراک را تمدید کنید.";
+        }
+        else if (remaining <= TimeSpan.FromDays(1))
+        {
+            stage = "last-day";
+            kind = NotificationKind.Warning;
+            title = "اشتراک شما تا ۲۴ ساعت دیگر تمام می‌شود";
+            body = $"اشتراک کلینیک در تاریخ {day} به پایان می‌رسد. همین حالا تمدید کنید تا کار کلینیک متوقف نشود.";
+        }
+        else if (remaining <= TimeSpan.FromDays(ExpiryWarningDays))
+        {
+            var days = (int)Math.Ceiling(remaining.TotalDays);
+            stage = "soon";
+            kind = NotificationKind.System;
+            title = "نزدیک شدن به پایان اشتراک";
+            body = $"حدود {PersianDigits(days.ToString(System.Globalization.CultureInfo.InvariantCulture))} روز تا پایان اشتراک کلینیک "
+                + $"({day}) باقی مانده است. برای جلوگیری از وقفه، اشتراک را تمدید کنید.";
+        }
+        else
+        {
+            return 0;
+        }
+
+        // One notice per (expiry date, stage): renewing moves the expiry date, which re-arms the whole cycle.
+        var key = $"system:sub-expiry:{expiresAt.UtcDateTime:yyyyMMdd}:{stage}";
+        await using var scope = scopes.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        if (await db.Set<NotificationRow>().AsNoTracking()
+                .AnyAsync(n => n.TenantId == tenant && n.DedupKey == key, ct).ConfigureAwait(false))
+            return 0;
+
+        db.Add(NotificationRow.Create(tenant, AudRole, nameof(StaffRole.Manager), (int)kind, "اشتراک", title, body,
+            actorUserId, now, null, now, kind == NotificationKind.Warning && stage == "expired" ? null : expiresAt.AddDays(30),
+            key));
+        try
+        {
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        catch (DbUpdateException)
+        {
+            return 0; // another pass issued the very same notice first (unique DedupKey) - exactly what we wanted
+        }
+
+        FeedChanged?.Invoke(this, EventArgs.Empty);
+        return 1;
+    }
+
+    /// <summary>The Jalali (Persian-calendar) date of an instant in the clinic zone, as «۱۴۰۵/۰۷/۲۰».</summary>
+    private static string ToJalali(DateTimeOffset instant, TimeZoneInfo zone)
+    {
+        var local = TimeZoneInfo.ConvertTime(instant, zone).DateTime;
+        var calendar = new System.Globalization.PersianCalendar();
+        var text = string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"{calendar.GetYear(local):D4}/{calendar.GetMonth(local):D2}/{calendar.GetDayOfMonth(local):D2}");
+        return PersianDigits(text);
+    }
 }
