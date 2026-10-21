@@ -40,6 +40,7 @@ public sealed class NotificationService(
     private const int FeedPageSize = 200;
     private const int AudAll = (int)NotificationAudienceKind.AllUsers;
     private const int AudRole = (int)NotificationAudienceKind.Role;
+    private const int AudUser = (int)NotificationAudienceKind.SpecificUser;
 
     /// <summary>Soonest the subscription status is asked for again (it is a server call, never made per read).</summary>
     internal static readonly TimeSpan NoticeCheckInterval = TimeSpan.FromMinutes(30);
