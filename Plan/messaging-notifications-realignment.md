@@ -210,7 +210,7 @@ This is where authoring MOVES TO. Pattern to copy (already in repo):
   `scripts/sandbox/build.sh full`) → **0/0**.
 - **Push:** `scripts/git/push.sh "feat(admin): vendor grants subscription-day rewards to a clinic via existing extend path"`
 
-### [ ] T5 — Admin panel: "send message to clinic/users" composer (new vendor authoring)
+### [x] T5 — Admin panel: "send message to clinic/users" composer (new vendor authoring)
 - **PostgreSQL store:** add a `TenantNotification` entity + EF config in
   `src/Animora.Persistence.PostgreSql` (fields: Id, TenantId, AudienceKind, AudienceValue, Kind, Tag,
   Title, Body, CreatedByOperatorId, CreatedAtUtc, ScheduledForUtc?, ExpiresAtUtc?) + one new migration

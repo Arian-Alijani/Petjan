@@ -1,0 +1,30 @@
+@page "/admin/tenants/{Id}/notify"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminNotificationCommands Commands
+<h1>@Loc.T("notify.title")</h1><FormError Code="@Error" />
+<p><a href="@($"/admin/tenants/{Id}")">@Loc.T("staff.backToTenant")</a></p>
+@if (Receipt is not null) { <p class="notice" role="status">@Loc.T("notify.sent")</p> }
+<p class="hint">@Loc.T("notify.hint")</p>
+<EditForm Model="Form" FormName="send-notification" method="post" OnSubmit="Send">
+<fieldset><legend>@Loc.T("notify.title")</legend>
+<label>@Loc.T("notify.audience") <InputSelect @bind-Value="Form!.AudienceKind">@foreach (var a in Audiences) { <option value="@a">@Loc.T("notify.audience." + a)</option> }</InputSelect></label>
+<label>@Loc.T("notify.role") <InputSelect @bind-Value="Form.RoleValue"><option value="">—</option>@foreach (var r in Roles) { <option value="@r">@Loc.T("role." + r)</option> }</InputSelect></label>
+<label>@Loc.T("notify.user") <InputText @bind-Value="Form.UserValue" maxlength="26" dir="ltr" /></label>
+<label>@Loc.T("notify.kind") <InputSelect @bind-Value="Form.Kind">@foreach (var k in Kinds) { <option value="@k">@Loc.T("notify.kind." + k)</option> }</InputSelect></label>
+<label>@Loc.T("notify.tag") <InputText @bind-Value="Form.Tag" maxlength="40" /></label>
+<label>@Loc.T("notify.subject") <InputText @bind-Value="Form.Title" maxlength="200" /></label>
+<label>@Loc.T("notify.body") <InputTextArea @bind-Value="Form.Body" maxlength="2000" rows="6" /></label>
+<label>@Loc.T("notify.schedule") <InputDate @bind-Value="Form.ScheduledForUtc" Type="InputDateType.DateTimeLocal" /></label>
+<label>@Loc.T("notify.expires") <InputDate @bind-Value="Form.ExpiresAtUtc" Type="InputDateType.DateTimeLocal" /></label>
+<ConfirmCheckbox Name="Form.Confirmed" /><button type="submit">@Loc.T("notify.send")</button></fieldset></EditForm>
+@code {
+    [Parameter] public string Id { get; set; }="";
+    [SupplyParameterFromForm] public SendNotificationForm? Form { get; set; }
+    private static readonly int[] Audiences=[0,1,2];
+    private static readonly int[] Kinds=[0,1,2,3,4,5];
+    private static readonly string[] Roles=["Manager","Doctor","Receptionist","Cashier","Accountant"];
+    private MutationReceipt? Receipt;
+    protected override void OnInitialized() { Form??=new(); }
+    private async Task Send(EditContext _) { Receipt=Capture(await Commands.SendAsync(Id,Form!,Cancellation)); }
+}

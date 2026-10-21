@@ -2172,6 +2172,25 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.ToTable("OperatorAudit", "public");
             });
 
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Operator.TenantNotification", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<string>("TenantId").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<short>("AudienceKind").HasColumnType("smallint");
+                b.Property<string>("AudienceValue").HasMaxLength(64).HasColumnType("character varying(64)");
+                b.Property<short>("Kind").HasColumnType("smallint");
+                b.Property<string>("Tag").HasMaxLength(40).HasColumnType("character varying(40)");
+                b.Property<string>("Title").HasMaxLength(200).HasColumnType("character varying(200)").IsRequired();
+                b.Property<string>("Body").HasMaxLength(2000).HasColumnType("character varying(2000)").IsRequired();
+                b.Property<string>("CreatedByOperatorId").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<DateTimeOffset>("CreatedAtUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset?>("ScheduledForUtc").HasColumnType("timestamp(6) with time zone");
+                b.Property<DateTimeOffset?>("ExpiresAtUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("Id");
+                b.HasIndex("TenantId", "CreatedAtUtc").HasDatabaseName("IX_TenantNotifications_TenantId_CreatedAtUtc");
+                b.ToTable("TenantNotifications", "public");
+            });
+
             modelBuilder.Entity("Animora.Persistence.PostgreSql.Subscriptions.ProvisioningLedger", b =>
             {
                 b.Property<string>("IdempotencyKey").HasMaxLength(128).HasColumnType("character varying(128)") .IsRequired();

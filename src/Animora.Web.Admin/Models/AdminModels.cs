@@ -68,6 +68,17 @@ public sealed class SubscriptionActionForm
     public int? Days { get; set; } public DateTime? Until { get; set; } public int? Seats { get; set; }
     public string Reason { get; set; }=""; public string PlanCode { get; set; }="";
 }
+/// <summary>
+/// Vendor message composer form. <c>AudienceKind</c>: 0 all users, 1 a staff role (<c>RoleValue</c> = role name), 2 one user
+/// (<c>UserValue</c> = user id); only the value matching the kind is used. <c>Kind</c> is the tag/style selector: 0 info, 1 success, 2 warning, 3 promo, 4 system, 5 reward.
+/// </summary>
+public sealed class SendNotificationForm
+{
+    public int AudienceKind { get; set; } public string? RoleValue { get; set; } public string? UserValue { get; set; }
+    public int Kind { get; set; } public string? Tag { get; set; }
+    public string? Title { get; set; } public string? Body { get; set; }
+    public DateTime? ScheduledForUtc { get; set; } public DateTime? ExpiresAtUtc { get; set; } public bool Confirmed { get; set; }
+}
 public sealed class CreateTenantForm
 {
     public string Code { get; set; }=""; public string Name { get; set; }=""; public string OwnerUserName { get; set; }="";

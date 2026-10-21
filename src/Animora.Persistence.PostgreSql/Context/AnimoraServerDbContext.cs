@@ -167,6 +167,7 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
         typeof(Animora.Persistence.PostgreSql.Licensing.LicenseGrant),
         typeof(Animora.Persistence.PostgreSql.Subscriptions.ProvisioningLedger),
         typeof(Animora.Persistence.PostgreSql.Operator.OperatorAudit),
+        typeof(Animora.Persistence.PostgreSql.Operator.TenantNotification),
     };
 
     /// <inheritdoc />

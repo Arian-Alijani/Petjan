@@ -58,6 +58,11 @@ public interface IAdminSubscriptionCommands
     Task<Result<MutationReceipt>> ResetOwnerPasswordAsync(string id,SubscriptionActionForm form,CancellationToken ct=default)=>MutateAsync(id,"reset-owner-password",form,ct);
     Task<Result<MutationReceipt>> CreateTenantAsync(CreateTenantForm form,string idempotencyKey,CancellationToken ct=default);
 }
+/// <summary>Vendor-authored messages to a clinic's users (read-only on the desktop). <see cref="SendNotificationForm.Confirmed"/> is mandatory.</summary>
+public interface IAdminNotificationCommands
+{
+    Task<Result<MutationReceipt>> SendAsync(string tenantId,SendNotificationForm form,CancellationToken ct=default);
+}
 public interface IAdminPlanCommands
 {
     Task<Result<AdminPage<PlanSummary>>> ListAsync(int page=1,int pageSize=50,CancellationToken ct=default);
