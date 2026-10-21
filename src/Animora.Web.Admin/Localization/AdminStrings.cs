@@ -82,6 +82,12 @@ public static class AdminStrings
         ["dash.enabled"] = ("enabled", "فعال"),
         ["dash.disabled"] = ("disabled", "غیرفعال"),
         ["dash.disabledNoAdr"] = ("disabled (no consent ADR)", "غیرفعال (بدون ADR رضایت)"),
+        ["dash.clinics"] = ("Total clinics", "کل کلینیک‌ها"),
+        ["dash.activeClinics"] = ("Active clinics", "کلینیک‌های فعال"),
+        ["dash.health"] = ("Service health", "سلامت سرویس‌ها"),
+        ["dash.healthy"] = ("All systems healthy", "همه‌چیز سالم است"),
+        ["dash.unhealthy"] = ("Attention needed", "نیازمند بررسی"),
+        ["dash.details"] = ("Service & worker details", "جزئیات سرویس‌ها و کارگرها"),
 
         // ── tenants ─────────────────────────────────────────────────────────────────────────────────────
         ["tenants.title"] = ("Tenants", "کلینیک‌ها"),
