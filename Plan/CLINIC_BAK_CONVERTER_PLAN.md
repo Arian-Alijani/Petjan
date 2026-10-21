@@ -329,7 +329,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   ConsumerStuff(+head), BloodTest(+result), Urine, EtcTest, Radiology, Staff, Days/HolyDays). Each returns
   dict rows keyed by the §2.3 column names. Handle UTF-16LE text, numeric, and date columns. PUSH.
 
-- [ ] **T5 — Value converters.** In `converter/convert.py`: Jalali→Gregorian UTC (`PersianCalendar`-equivalent
+- [x] **T5 — Value converters.** In `converter/convert.py`: Jalali→Gregorian UTC (`PersianCalendar`-equivalent
   pure-python, or use `jdatetime` only if you vendor it — prefer pure python, no network), Persian/Arabic
   digit folding, phone normalization (mirror `Owner.NormalizePhone`), species/gender/status enum maps (§4),
   money passthrough (IRT scale 0). Deterministic source-key → stable id helper. Pure functions, unit-smoke. PUSH.
