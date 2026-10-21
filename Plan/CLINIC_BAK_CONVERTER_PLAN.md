@@ -313,7 +313,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   `README.md` (usage, Windows + fallback), `requirements.txt` (stdlib-only default; optional pyodbc extra).
   No logic yet beyond CLI argparse skeleton (`--bak`, `--out`, `--raw`, `--verbose`). PUSH.
 
-- [ ] **T2 — Define bundle schema (file B contract).** Write `tools/clinic-bak-converter/schema/clinic-import.schema.json`
+- [x] **T2 — Define bundle schema (file B contract).** Write `tools/clinic-bak-converter/schema/clinic-import.schema.json`
   (JSON Schema draft 2020-12) exactly per §5, `formatVersion=2`. Add a short `FORMAT.md` documenting every
   field and its §4 mapping origin. PUSH.
 
