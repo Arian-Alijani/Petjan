@@ -26,9 +26,12 @@ namespace Animora.Client.Services.Notifications;
 /// (fail closed: no session / locked / no warm gate means no). A non-manager gets a <see cref="ServiceException"/>
 /// carrying <c>PERMISSION_DENIED</c> even if a view mistakenly offered the action.</para>
 ///
-/// <para><b>Reward limit (server TODO, Tracks D-E).</b> <see cref="GrantRewardAsync"/> only records the grant locally
-/// (<see cref="RewardGrant"/>) and notifies the user. Extending the real subscription/licence is a vendor-server
-/// operation that is not wired yet; the local record is the audit trail a later sync/licensing phase replays.</para>
+/// <para><b>Reward.</b> <see cref="GrantRewardAsync"/> records the grant (<see cref="RewardGrant"/>), notifies the user,
+/// AND actually extends their effective subscription: the grant days are applied as a local overlay by
+/// <see cref="RewardOverlay"/>, so <see cref="IUserProfileService.GetAccountStatusAsync"/> returns the longer expiry at
+/// once — working today, offline, with no server round-trip. The vendor server (licensing) stays the long-term
+/// authority: replaying these grant rows to it is the remaining sync step (Tracks D-E). Until then the overlay is the
+/// real behaviour and the grant rows are the audit trail that sync replays.</para>
 ///
 /// <para>LocalOnly tables carry no global tenant filter, so every query predicates on the tenant explicitly.</para>
 /// </summary>
@@ -193,8 +196,11 @@ public sealed class NotificationService(
         if (!await IsActiveUserAsync(db, tenant, request.TargetUserId, ct).ConfigureAwait(false))
             throw new ServiceException(ErrorCodes.NotFound);
 
-        // TODO(server, Tracks D-E): bind this to the vendor's real subscription/licence grant; today it is the local
-        // audit record + the in-app message only. Both rows commit in ONE transaction (no reward without its message).
+        // The grant row both audits the reward AND drives the real subscription extension: RewardOverlay sums these
+        // rows into the account status, so GetAccountStatusAsync returns the longer expiry immediately (offline-first).
+        // TODO(server, Tracks D-E): replay this grant to the vendor's licensing authority once Datasync is wired, so
+        // the server becomes the baseline again; the overlay then folds into the synced expiry. Grant + its message
+        // commit in ONE transaction (no reward without its message, no message without its grant).
         db.Add(RewardGrant.Create(tenant, request.TargetUserId, request.Days, reason, actor, now));
         var days = request.Days.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var text = reason.Length == 0

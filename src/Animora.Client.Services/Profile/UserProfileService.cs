@@ -10,6 +10,7 @@ using Animora.Contracts.Profile;
 using Animora.Contracts.Wire.Auth;
 using Animora.Domain.Identity;
 using Animora.Domain.Results;
+using Animora.Persistence.Sqlite.Context;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Animora.Client.Services.Profile;
@@ -88,7 +89,21 @@ public sealed class UserProfileService(IServiceScopeFactory scopes) : IUserProfi
         if (context.IsFailure) throw new ServiceException(context.Error);
         // Licensing and SMS integrations are not implemented yet. Unknown is not an active/free subscription.
         var source = scope.ServiceProvider.GetService<IClinicAccountStatusSource>();
-        return source is null ? new ClinicAccountStatus() : await source.GetAsync().ConfigureAwait(false);
+        var status = source is null ? new ClinicAccountStatus() : await source.GetAsync().ConfigureAwait(false);
+
+        // Admin-granted subscription rewards extend the effective subscription locally, so a reward actually lengthens
+        // the window the user sees — today, offline — not just an audit row. The server (licensing) is the long-term
+        // authority once the grants are synced (Tracks D-E); until then this overlay is the real behaviour.
+        var db = scope.ServiceProvider.GetService<AnimoraLocalDbContext>();
+        if (db is not null)
+        {
+            var (bonusDays, lastGrantedAtUtc) = await Notifications.RewardOverlay
+                .BonusForUserAsync(db, context.Value!.TenantId, context.Value!.UserId, default).ConfigureAwait(false);
+            if (bonusDays > 0)
+                status = Notifications.RewardOverlay.Apply(status, bonusDays, lastGrantedAtUtc, DateTimeOffset.UtcNow);
+        }
+
+        return status;
     }
 
     public async Task<StaffDirectory> GetStaffAsync()

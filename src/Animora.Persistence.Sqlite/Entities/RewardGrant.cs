@@ -3,9 +3,11 @@ using Animora.Domain.Primitives;
 namespace Animora.Persistence.Sqlite.Entities;
 
 /// <summary>
-/// A subscription reward an administrator granted to one user (n free days). Device-local record only: binding the
-/// reward to the vendor's real subscription/licence grant is server work (backend Tracks D-E) and is not wired yet,
-/// so this row is the durable audit trail that a later sync/licensing phase can replay.
+/// A subscription reward an administrator granted to one user (n free days). This row both audits the reward and,
+/// through the <c>RewardOverlay</c>, actually extends the recipient's effective subscription locally (offline-first) —
+/// so the account status reflects the longer expiry at once. Binding the reward to the vendor's real subscription/
+/// licence grant stays server work (backend Tracks D-E): a later sync/licensing phase replays these rows so the server
+/// becomes the baseline again and the overlay folds into the synced expiry.
 /// </summary>
 [LocalOnly]
 public sealed class RewardGrant
