@@ -1931,6 +1931,3 @@ public sealed class ClinicImportHoliday
     public string? DateUtc { get; set; }
     public Dictionary<string, JsonElement>? Legacy { get; set; }
 }
-tc { get; set; }
-    public Dictionary<string, JsonElement>? Legacy { get; set; }
-}
