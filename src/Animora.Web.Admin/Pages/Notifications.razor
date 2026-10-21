@@ -1,0 +1,56 @@
+@page "/admin/notifications"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminBroadcastCommands Commands
+@inject IAdminTenantQueries TenantQueries
+<div class="dash-head"><h1>@Loc.T("notify.broadcast.title")</h1></div><FormError Code="@Error" />
+@if (Receipt is not null) {
+<section class="card" role="status" aria-live="polite">
+<p class="notice">@Loc.T("notify.result"): <strong>@Receipt.Sent</strong> · @Loc.T("notify.skipped"): <strong>@Receipt.Skipped</strong></p>
+<p class="hint">@Loc.T("notify.sent")</p>
+@if (Receipt.Errors.Count > 0) { <ul class="hint" dir="ltr">@foreach (var e in Receipt.Errors) { <li>@e</li> }</ul> }
+</section>
+}
+<p class="hint">@Loc.T("notify.hint")</p>
+<EditForm Model="Form" FormName="broadcast-notification" method="post" OnSubmit="Send">
+<fieldset class="form-grid"><legend>@Loc.T("notify.scope")</legend>
+<label>@Loc.T("notify.scope") <InputSelect @bind-Value="Form!.ScopeKind">@foreach (var k in Scopes) { <option value="@k">@Loc.T("notify.scope." + k)</option> }</InputSelect></label>
+<label>@Loc.T("common.status") <InputSelect @bind-Value="Form.Status"><option value="">@Loc.T("common.all")</option>@foreach (var s in StatusFilters) { <option value="@s">@Loc.T("tfilter." + s)</option> }</InputSelect></label>
+<label>@Loc.T("tenants.search") <InputText @bind-Value="Form.Search" maxlength="200" /></label>
+<label>@Loc.T("notify.clinics") <InputSelect @bind-Value="Form.TenantIds" multiple="multiple" size="8">@foreach (var t in Clinics) { <option value="@t.Id">@(string.IsNullOrWhiteSpace(t.Name) ? t.Code : t.Name) (@t.Code)</option> }</InputSelect></label>
+<p class="hint">@Loc.T("notify.scope.hint")</p>
+</fieldset>
+<fieldset class="form-grid"><legend>@Loc.T("notify.broadcast.message")</legend>
+<label>@Loc.T("notify.audience") <InputSelect @bind-Value="Form.AudienceKind">@foreach (var a in Audiences) { <option value="@a">@Loc.T("notify.audience." + a)</option> }</InputSelect></label>
+<label>@Loc.T("notify.role") <InputSelect @bind-Value="Form.RoleValue"><option value="">—</option>@foreach (var r in Roles) { <option value="@r">@Loc.T("role." + r)</option> }</InputSelect></label>
+<label>@Loc.T("notify.kind") <InputSelect @bind-Value="Form.Kind">@foreach (var k in Kinds) { <option value="@k">@Loc.T("notify.kind." + k)</option> }</InputSelect></label>
+<label>@Loc.T("notify.tag") <InputText @bind-Value="Form.Tag" maxlength="40" /></label>
+<label>@Loc.T("notify.subject") <InputText @bind-Value="Form.Title" maxlength="200" /></label>
+<label>@Loc.T("notify.body") <InputTextArea @bind-Value="Form.Body" maxlength="2000" rows="6" /></label>
+<label>@Loc.T("notify.schedule") <InputDate @bind-Value="Form.ScheduledForUtc" Type="InputDateType.DateTimeLocal" /></label>
+<label>@Loc.T("notify.expires") <InputDate @bind-Value="Form.ExpiresAtUtc" Type="InputDateType.DateTimeLocal" /></label>
+</fieldset>
+<ConfirmCheckbox Name="Form.Confirmed" /><button type="submit" class="btn-primary">@Loc.T("notify.send")</button></EditForm>
+@code {
+    [SupplyParameterFromForm] public BroadcastNotificationForm? Form { get; set; }
+    private static readonly int[] Scopes=[0,1,2];
+    private static readonly int[] Audiences=[0,1];
+    private static readonly int[] Kinds=[0,1,2,3,4,5];
+    private static readonly string[] Roles=["Manager","Doctor","Receptionist","Cashier","Accountant"];
+    private static readonly string[] StatusFilters=["Active","Suspended","Closed","expiring","past-due","dead-lettered"];
+    private BroadcastReceipt? Receipt;
+    private IReadOnlyList<TenantSummary> Clinics=[];
+    protected override async Task OnInitializedAsync()
+    {
+        Form??=new();
+        // Picker for the "specific clinics" scope: the first 200 clinics by name (the server re-validates every posted id).
+        var page=Capture(await TenantQueries.ListAsync(new(null,null,1,200,"name"),Cancellation));
+        Clinics=page?.Items??[];
+    }
+    private async Task Send(EditContext _)
+    {
+        var loadError=Error;
+        Receipt=Capture(await Commands.BroadcastAsync(Form!,Cancellation));
+        Error??=loadError;
+    }
+}

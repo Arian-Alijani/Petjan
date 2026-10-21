@@ -63,6 +63,11 @@ public interface IAdminNotificationCommands
 {
     Task<Result<MutationReceipt>> SendAsync(string tenantId,SendNotificationForm form,CancellationToken ct=default);
 }
+/// <summary>Vendor message fan-out to many clinics. <see cref="BroadcastNotificationForm.Confirmed"/> is mandatory; each clinic is stored + audited independently.</summary>
+public interface IAdminBroadcastCommands
+{
+    Task<Result<BroadcastReceipt>> BroadcastAsync(BroadcastNotificationForm form,CancellationToken ct=default);
+}
 public interface IAdminPlanCommands
 {
     Task<Result<AdminPage<PlanSummary>>> ListAsync(int page=1,int pageSize=50,CancellationToken ct=default);

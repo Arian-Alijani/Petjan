@@ -81,6 +81,20 @@ public sealed class SendNotificationForm
     public string? Title { get; set; } public string? Body { get; set; }
     public DateTime? ScheduledForUtc { get; set; } public DateTime? ExpiresAtUtc { get; set; } public bool Confirmed { get; set; }
 }
+/// <summary>
+/// Operator broadcast composer. <c>ScopeKind</c>: 0 every clinic, 1 clinics matching <c>Status</c>/<c>Search</c> (same filters as the clinic list),
+/// 2 an explicit clinic-id set (<c>TenantIds</c>). <c>AudienceKind</c>: 0 all users of each clinic, 1 one staff role (<c>RoleValue</c>) — one user is not broadcastable.
+/// </summary>
+public sealed class BroadcastNotificationForm
+{
+    public int ScopeKind { get; set; } public string? Status { get; set; } public string? Search { get; set; } public string[] TenantIds { get; set; }=[];
+    public int AudienceKind { get; set; } public string? RoleValue { get; set; }
+    public int Kind { get; set; } public string? Tag { get; set; }
+    public string? Title { get; set; } public string? Body { get; set; }
+    public DateTime? ScheduledForUtc { get; set; } public DateTime? ExpiresAtUtc { get; set; } public bool Confirmed { get; set; }
+}
+/// <summary>Broadcast outcome: clinics reached, clinics skipped, and up to 20 <c>clinic:ERROR_CODE</c> entries.</summary>
+public sealed record BroadcastReceipt(int Sent,int Skipped,IReadOnlyList<string> Errors);
 public sealed class CreateTenantForm
 {
     public string Code { get; set; }=""; public string Name { get; set; }=""; public string OwnerUserName { get; set; }="";

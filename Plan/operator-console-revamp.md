@@ -133,7 +133,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] T5 — Messages & notifications tab (NEW broadcast page + fix per-clinic user dropdown)
+### [x] T5 — Messages & notifications tab (NEW broadcast page + fix per-clinic user dropdown)
 **Goal:** add a top-level "پیام و اعلان" tab that can (a) message **all clinics**, (b) message **specific clinics by category/filter**, (c) target **roles**. AND fix the per-clinic notify so selecting a specific user is a **dropdown of that clinic's users** (not a typed user id).
 
 #### [x] T5a — Fix per-clinic user selection (`Pages/TenantNotify.razor`)
@@ -146,7 +146,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 **Acceptance:** on `/admin/tenants/{id}/notify`, choosing "یک کاربر مشخص" shows a dropdown of that clinic's real users; sending to a picked user succeeds without typing any id.
 
-#### T5b — New global Messages tab (broadcast to all / by category / by role)
+#### [x] T5b — New global Messages tab (broadcast to all / by category / by role)
 **Do:**
 1. **Nav:** add `<NavLink href="/admin/notifications">@Loc.T("nav.notifications")</NavLink>` to `Layout/NavMenu.razor` (place it after Plans, logically grouped). Add `nav.notifications` string.
 2. **New page** `Pages/Notifications.razor`, route `/admin/notifications`, `[Authorize(Policy="AdminOnly")]`, inherits `AdminPageComponent`. A composer form to broadcast:

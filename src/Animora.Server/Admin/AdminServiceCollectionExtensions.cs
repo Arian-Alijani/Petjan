@@ -48,6 +48,7 @@ internal static class AdminServiceCollectionExtensions
         services.AddScoped<AdminSession>();services.AddScoped<IAdminSession>(sp=>sp.GetRequiredService<AdminSession>());
         services.AddScoped<OperatorReadQueries>();services.AddScoped<OperatorPlanAdministration>();
         services.AddScoped<OperatorNotificationAdministration>();services.AddScoped<IAdminNotificationCommands,AdminNotificationAdapter>();
+        services.AddScoped<OperatorNotificationBroadcast>();services.AddScoped<IAdminBroadcastCommands,AdminBroadcastAdapter>();
         services.AddScoped<IAdminStatusReader,AdminStatusReader>();services.AddScoped<IAdminLiveLog,AdminLiveLogAdapter>();services.AddScoped<IAdminTenantQueries,AdminTenantQueries>();
         services.AddScoped<IAdminSubscriptionCommands,AdminSubscriptionAdapter>();services.AddScoped<IAdminPlanCommands,AdminPlanAdapter>();
         services.AddScoped<IAdminLicenseCommands,AdminLicenseAdapter>();
