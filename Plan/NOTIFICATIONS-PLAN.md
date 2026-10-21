@@ -114,7 +114,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
   در عمل، اجرای `scripts/git/push.sh -b genspark_ai_developer "chore(plan): add notifications plan"`
   هم برنچ را می‌سازد/سوئیچ می‌کند و هم همین فایل پلن را پوش می‌کند. **این اولین پوش است.**
 
-### T1 — لایهٔ Contracts: اینترفیس + DTOها `[ ]`
+### T1 — لایهٔ Contracts: اینترفیس + DTOها `[x]`
 - پوشهٔ جدید: `src/Animora.Contracts/Notifications/`.
 - فایل `NotificationModels.cs`:
   - enum `NotificationKind { Info, Success, Warning, Promo, System, Reward }`.
