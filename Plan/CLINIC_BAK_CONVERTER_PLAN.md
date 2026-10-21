@@ -351,7 +351,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   via the domain aggregates/commands with deterministic ids (idempotent upsert by source key). Reuse the
   tenant-stamping path (no raw writes). Keep the preview path intact. PUSH (heavy-code checkpoint if large).
 
-- [ ] **T9 — Admin panel per-clinic import page.** Add `src/Animora.Web.Admin/Pages/TenantImport.razor`
+- [x] **T9 — Admin panel per-clinic import page.** Add `src/Animora.Web.Admin/Pages/TenantImport.razor`
   (linked from `TenantDetail.razor`): upload file B, show validation summary + warnings, confirm, submit to
   the T8 endpoint, show result. Follow existing admin page conventions (localization strings, StatusBadge,
   FormError, ConfirmCheckbox, RenderModePolicy). PUSH.

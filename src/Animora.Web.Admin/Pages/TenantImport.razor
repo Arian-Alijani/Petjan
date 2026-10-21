@@ -1,0 +1,108 @@
+@page "/admin/tenants/{Id}/import"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminTenantQueries Queries
+@inject IAdminTenantImport Importer
+<h1>@Loc.T("import.title")</h1><FormError Code="@Error" />
+<p><a href="@($"/admin/tenants/{Id}")">@Loc.T("staff.backToTenant")</a></p>
+@if (Detail is not null) {
+<h2>@Detail.Core.Name (<span dir="ltr">@Detail.Core.Code</span>) <StatusBadge Status="@Detail.Core.Status" /></h2>
+<p class="hint">@Loc.T("import.hint")</p>
+@if (Completed is not null) {
+<p class="notice" role="status">@Loc.T("import.completed") · <StatusBadge Status="Completed" Tone="ok" /></p>
+} else if (Preview is not null) {
+<p class="notice" role="status">@Loc.T("import.validated") · <StatusBadge Status="healthy" Tone="ok" /></p>
+}
+@if ((Completed ?? Preview) is { } summary) {
+<h2>@Loc.T("import.summary")</h2>
+<dl>
+<dt>@Loc.T("import.format")</dt><dd dir="ltr">v@summary.FormatVersion</dd>
+<dt>@Loc.T("import.fingerprint")</dt><dd dir="ltr"><code>@summary.SourceFingerprint</code></dd>
+</dl>
+<div class="cards">
+<div class="card"><strong>@summary.Owners</strong><span>@Loc.T("import.owners")</span></div>
+<div class="card"><strong>@summary.Pets</strong><span>@Loc.T("import.pets")</span></div>
+<div class="card"><strong>@summary.Visits</strong><span>@Loc.T("import.visits")</span></div>
+<div class="card"><strong>@summary.Vaccinations</strong><span>@Loc.T("import.vaccinations")</span></div>
+<div class="card"><strong>@summary.Antiparasites</strong><span>@Loc.T("import.antiparasites")</span></div>
+<div class="card"><strong>@summary.LabResults</strong><span>@Loc.T("import.labs")</span></div>
+<div class="card"><strong>@summary.Appointments</strong><span>@Loc.T("import.appointments")</span></div>
+<div class="card"><strong>@summary.Invoices</strong><span>@Loc.T("import.invoices")</span></div>
+<div class="card"><strong>@summary.StockReceipts</strong><span>@Loc.T("import.receipts")</span></div>
+<div class="card"><strong>@summary.Products</strong><span>@Loc.T("import.products")</span></div>
+<div class="card"><strong>@summary.Services</strong><span>@Loc.T("import.services")</span></div>
+<div class="card"><strong>@summary.Categories</strong><span>@Loc.T("import.categories")</span></div>
+<div class="card"><strong>@summary.Insurers</strong><span>@Loc.T("import.insurers")</span></div>
+</div>
+@if (summary.Warnings.Count > 0) {
+<h3>@Loc.T("import.warnings") (@summary.Warnings.Count)</h3>
+<ul>
+@foreach (var w in summary.Warnings) { <li dir="ltr">@w</li> }
+</ul>
+}
+}
+<EditForm Model="ValidateForm" FormName="validate-tenant-import" method="post" enctype="multipart/form-data" OnSubmit="ValidateBundle">
+<fieldset><legend>@Loc.T("import.validate")</legend>
+<label>@Loc.T("import.file") <input type="file" name="bundle" accept=".json,application/json" /></label>
+<button type="submit" class="secondary">@Loc.T("import.validate")</button>
+</fieldset></EditForm>
+<EditForm Model="Form" FormName="submit-tenant-import" method="post" enctype="multipart/form-data" OnSubmit="SubmitImport">
+<fieldset><legend>@Loc.T("import.submit")</legend>
+<input type="hidden" name="Form.BundleJson" value="@Form!.BundleJson" />
+<label>@Loc.T("import.file") <input type="file" name="bundle" accept=".json,application/json" /></label>
+<ConfirmCheckbox Name="Form.Confirmed" />
+<button type="submit">@Loc.T("import.submit")</button>
+</fieldset></EditForm>
+}
+@code {
+    [Parameter] public string Id { get; set; }="";
+    [SupplyParameterFromForm(FormName="validate-tenant-import")] public TenantImportForm? ValidateForm { get; set; }
+    [SupplyParameterFromForm(FormName="submit-tenant-import")] public TenantImportForm? Form { get; set; }
+    private Models.TenantDetail? Detail;
+    private TenantImportReceipt? Preview;
+    private TenantImportReceipt? Completed;
+    protected override async Task OnParametersSetAsync()
+    {
+        ValidateForm??=new();
+        Form??=new();
+        Detail=Capture(await Queries.GetAsync(Id,Cancellation));
+    }
+    private async Task ValidateBundle(EditContext _)
+    {
+        var bytes=await ReadUploadedBytesAsync(ValidateForm?.BundleJson);
+        if(bytes is null){ Error=ErrorCodes.ValidationFailed.Code; return; }
+        Preview=Capture(await Importer.ValidateAsync(Id,bytes.Value,Cancellation));
+        if(Preview is not null && bytes.Value.Length <= 8 * 1024 * 1024)
+        {
+            Form=new TenantImportForm { BundleJson=global::System.Text.Encoding.UTF8.GetString(bytes.Value.Span) };
+        }
+    }
+    private async Task SubmitImport(EditContext _)
+    {
+        if(Form is null || !Form.Confirmed){ Error=ErrorCodes.ValidationFailed.Code; return; }
+        var bytes=await ReadUploadedBytesAsync(Form.BundleJson);
+        if(bytes is null){ Error=ErrorCodes.ValidationFailed.Code; return; }
+        Completed=Capture(await Importer.ImportAsync(Id,bytes.Value,Form.Confirmed,Cancellation));
+    }
+    private async Task<ReadOnlyMemory<byte>?> ReadUploadedBytesAsync(string? fallbackJson)
+    {
+        if(Http?.Request.HasFormContentType == true)
+        {
+            var form=await Http.Request.ReadFormAsync(Cancellation);
+            var file=form.Files.GetFile("bundle")??(form.Files.Count>0?form.Files[0]:null);
+            if(file is not null)
+            {
+                if(file.Length is <= 0 or > 32L * 1024 * 1024) return null;
+                await using var stream=file.OpenReadStream();
+                using var ms=new MemoryStream((int)file.Length);
+                await stream.CopyToAsync(ms,Cancellation);
+                return ms.ToArray();
+            }
+            if(form["bundleJson"].ToString() is { Length: > 0 } rawForm)
+                return global::System.Text.Encoding.UTF8.GetBytes(rawForm);
+        }
+        if(!string.IsNullOrWhiteSpace(fallbackJson))
+            return global::System.Text.Encoding.UTF8.GetBytes(fallbackJson);
+        return null;
+    }
+}

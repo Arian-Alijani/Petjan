@@ -13,6 +13,7 @@
 <nav class="quick" aria-label="@Loc.T("tenant.detail")"><a href="@($"/admin/tenants/{Id}/licenses")">@Loc.T("tenant.manageLicences")</a>
 <a href="@($"/admin/tenants/{Id}/staff")">@Loc.T("tenant.staffLink")</a>
 <a href="@($"/admin/tenants/{Id}/products")">@Loc.T("tenant.productsLink")</a>
+<a href="@($"/admin/tenants/{Id}/import")">@Loc.T("tenant.importLink")</a>
 <a href="@AuditUrl">@Loc.T("tenant.auditLink")</a></nav>
 @if (Detail.Subscription is { } subscription) {
 <h2>@Loc.T("tenant.subscription")</h2>
