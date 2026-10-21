@@ -11,7 +11,7 @@ REM
 REM  You can also pass the paths directly:
 REM    run-converter.cmd "C:\path\Clinic.bak" "C:\path\clinic-import.animora.json"
 REM ============================================================================
-setlocal EnableDelayedExpansion
+setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 
 REM --- locate Python 3 -------------------------------------------------------
@@ -29,12 +29,20 @@ if not defined PY (
 )
 
 REM --- resolve input path ----------------------------------------------------
+REM  %~1 already strips surrounding quotes from a dragged/quoted argument.
+REM  :ask reads interactively (when no argument) and strips typed quotes safely.
 set "BAK=%~1"
-if "%BAK%"=="" (
-  set /p "BAK=Enter the full path to the Clinic.bak file: "
+if defined BAK (
+  call :dequote BAK "%BAK%"
+) else (
+  call :ask BAK "Enter the full path to the Clinic.bak file: "
 )
-REM strip surrounding quotes if the user pasted a quoted path
-set "BAK=%BAK:"=%"
+if not defined BAK (
+  echo [ERROR] No input file was provided.
+  echo.
+  pause
+  exit /b 1
+)
 if not exist "%BAK%" (
   echo [ERROR] Input file not found: %BAK%
   echo.
@@ -44,11 +52,12 @@ if not exist "%BAK%" (
 
 REM --- resolve output path ---------------------------------------------------
 set "OUT=%~2"
-if "%OUT%"=="" (
-  set /p "OUT=Enter output bundle path [default: clinic-import.animora.json]: "
+if defined OUT (
+  call :dequote OUT "%OUT%"
+) else (
+  call :ask OUT "Enter output bundle path [default: clinic-import.animora.json]: "
 )
-set "OUT=%OUT:"=%"
-if "%OUT%"=="" set "OUT=clinic-import.animora.json"
+if not defined OUT set "OUT=clinic-import.animora.json"
 
 echo.
 echo === Converting ===
@@ -69,3 +78,31 @@ if "%RC%"=="0" (
 echo.
 pause
 exit /b %RC%
+
+REM ============================================================================
+REM  :ask <varName> <promptText>
+REM  Prompts the user and stores the (de-quoted) reply in <varName>. Delayed
+REM  expansion is left OFF so special characters such as & ( ) ^ in a pasted
+REM  path stay literal, and the surrounding quotes are stripped with a FOR
+REM  tokenizer, so pasted paths never break the script.
+REM ============================================================================
+:ask
+setlocal DisableDelayedExpansion
+set "_reply="
+set /p "_reply=%~2"
+REM  strip one surrounding pair of double quotes via a FOR tokenizer (always
+REM  quote-balanced; cannot produce the odd-quote syntax error that crashed
+REM  the original script). Empty reply -> loop skipped -> _reply stays empty.
+if defined _reply for /f "tokens=* delims=" %%A in ("%_reply%") do set "_reply=%%~A"
+endlocal & set "%~1=%_reply%"
+goto :eof
+
+REM ============================================================================
+REM  :dequote <varName> "<value>"
+REM  Stores <value> into <varName> with any surrounding quotes removed. The
+REM  value arrives as %~2 (already quote-safe), so the body never evaluates an
+REM  unbalanced-quote expression.
+REM ============================================================================
+:dequote
+set "%~1=%~2"
+goto :eof
