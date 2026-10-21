@@ -270,13 +270,13 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 - **یادداشت اجرا:** `EnsureSubscriptionExpiryNoticesAsync` از `IUserProfileService.GetAccountStatusAsync` می‌خواند (وضعیت stale/نامشخص = هیچ پیامی)؛ سه مرحله `soon` (≤۷ روز) / `last-day` / `expired` با `DedupKey = system:sub-expiry:<yyyyMMdd>:<stage>` (یکتا در DB)؛ مخاطب نقش Manager؛ چک هر ۳۰ دقیقه حداکثر یک‌بار، پس‌زمینه و فقط وقتی مدیر وارد است (خواندن/تایمر را کند نمی‌کند).
 - **push:** `scripts/git/push.sh "feat(notifications): system subscription-expiry notices"`
 
-### T8 — بیلد نهایی + اسموک + جمع‌بندی `[ ]`
+### T8 — بیلد نهایی + اسموک + جمع‌بندی `[x]`
 - `scripts/sandbox/build.sh` (Desktop) → انتظار **0 warning / 0 error**. اگر لازم شد `build.sh full`.
 - `scripts/sandbox/run.sh` → انتظار `SMOKE RUN OK` (چون شل/DI تغییر کرده).
 - رفع هر خطا/هشدار. **اگر فیکس سنگین شد، همان‌جا یک push جدا با پیام واضح بزن.**
 - **push:** `scripts/git/push.sh "test(desktop): build 0/0 + smoke ok for notifications feature"`
 
-### T9 — (تسک پایانی) حذف همین فایل پلن `[ ]`
+### T9 — (تسک پایانی) حذف همین فایل پلن `[x]`
 - فقط همین فایل حذف شود: `rm Plan/NOTIFICATIONS-PLAN.md`.
   (به فایل‌های دیگر و `Plan/reports/**` و هیچ roadmap دیگری دست نزن.)
 - **push:** `scripts/git/push.sh "chore(plan): remove completed notifications plan"`
