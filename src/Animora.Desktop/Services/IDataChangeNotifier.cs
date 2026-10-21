@@ -16,6 +16,9 @@ public enum DataDomain
     Finance,
     History,
     Dashboard,
+
+    /// <summary>پیام‌ها و اعلان‌های کاربر (ساخت/انتشار/خوانده‌شدن).</summary>
+    Notifications,
 }
 
 /// <summary>ناقل سبک «فلان دامنه عوض شد» بین صفحات زندهٔ شل (UI thread).</summary>

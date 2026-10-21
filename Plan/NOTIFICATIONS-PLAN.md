@@ -202,7 +202,7 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
 - **یادداشت اجرا:** در T4 فقط سرویس (concrete + اینترفیس) ثبت و `Start()` تایمر کنار `MaintenanceScheduler` صدا زده شد؛ ثبت VMهای صفحه/مودال‌ها هم‌زمان با ساختشان در T5 انجام می‌شود تا هیچ کامیتی بیلدنشدنی نباشد.
 - **push:** `scripts/git/push.sh "chore(di): register notification service + page vm"`
 
-### T5 — Desktop UI: صفحهٔ «اعلان‌ها و پیام‌ها» `[ ]`
+### T5 — Desktop UI: صفحهٔ «اعلان‌ها و پیام‌ها» `[x]`
 - پوشهٔ `src/Animora.Desktop/Pages/Notifications/`.
 - `NotificationsPageViewModel.cs : PageViewModelBase`:
   - ctor: `INotificationService`, `IToastService`, `IDialogService`, `ICurrentUserContext`, `IDataChangeNotifier`.
@@ -229,7 +229,8 @@ IconClock, IconCalendar, IconCreditCard(برای اشتراک/جایزه), IconS
     نوع (Combo)، تگ (text)، عنوان، متن، زمان‌بندی اختیاری (JalaliDatePicker موجود در Controls + ساعت)، انقضا اختیاری.
     دکمهٔ ارسال → `INotificationService.CreateAsync` → بستن مودال + توست موفقیت.
   - `GrantRewardView + GrantRewardViewModel`: کاربر هدف (userId/نام)، تعداد روز، دلیل → `GrantRewardAsync`.
-- **صحت‌سنجی:** `scripts/sandbox/build.sh` باید 0/0 باشد.
+- **یادداشت اجرا:** `DataDomain.Notifications` اضافه شد؛ `NotificationBridge` (Services) رویداد `FeedChanged` را به `DataDomain.Notifications` + توست پیام جدید تبدیل می‌کند (بدون sync)؛ مودال‌ها مثل Cheques با `new` و `IDialogService.ShowModal` ساخته می‌شوند (بدون ثبت Transient)؛ ViewFactory ثبت شد.
+- **صحت‌سنجی:** بیلد فقط روی گیت‌اکشن (T8).
 - **push:** `scripts/git/push.sh "feat(desktop): notifications & messages page + compose/reward modals"`
 
 ### T6 — Shell: اتصال هدر، سایدبار و بِج عددی `[ ]`

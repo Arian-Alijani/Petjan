@@ -104,6 +104,11 @@ public static class ViewFactory
         // Profile.
         Register<global::Animora.Desktop.Pages.Profile.ProfilePageViewModel, global::Animora.Desktop.Pages.Profile.ProfilePageView>(factories);
 
+        // Notifications & messages.
+        Register<global::Animora.Desktop.Pages.Notifications.NotificationsPageViewModel, global::Animora.Desktop.Pages.Notifications.NotificationsPageView>(factories);
+        Register<global::Animora.Desktop.Pages.Notifications.ComposeNotificationViewModel, global::Animora.Desktop.Pages.Notifications.ComposeNotificationView>(factories);
+        Register<global::Animora.Desktop.Pages.Notifications.GrantRewardViewModel, global::Animora.Desktop.Pages.Notifications.GrantRewardView>(factories);
+
         // Reception.
         Register<global::Animora.Desktop.Pages.Reception.ReceptionPageViewModel, global::Animora.Desktop.Pages.Reception.ReceptionPageView>(factories);
         Register<global::Animora.Desktop.Pages.Reception.WalkInModalViewModel, global::Animora.Desktop.Pages.Reception.WalkInModalView>(factories);
