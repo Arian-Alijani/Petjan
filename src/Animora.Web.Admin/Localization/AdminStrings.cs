@@ -134,6 +134,12 @@ public static class AdminStrings
         ["new.seatsHint"] = ("Leave empty to use the plan's user limit.", "خالی بگذارید تا سقف کاربران همان پلن اعمال شود."),
         ["new.demo"] = ("Demo account (start with a trial period)", "اکانت دمو (شروع با دوره آزمایشی)"),
         ["new.demoHint"] = ("Unchecked creates a regular account without a trial period.", "اگر تیک نخورد، اکانت معمولی بدون دوره آزمایشی ساخته می‌شود."),
+        ["new.clinicHint"] = ("Identity of the clinic. The code is permanent and used for sign-in.", "مشخصات هویتی کلینیک. کد ثابت است و در ورود استفاده می‌شود."),
+        ["new.ownerGroupHint"] = ("The clinic manager account; its temporary password is shown once after creation.", "حساب مدیر کلینیک؛ رمز موقت آن پس از ساخت فقط یک‌بار نمایش داده می‌شود."),
+        ["new.customDays"] = ("Custom subscription days (optional)", "روز اشتراک سفارشی (اختیاری)"),
+        ["new.customDaysHint"] = ("Extra days added on top of the plan's period right after creation. Leave empty for the plan default.", "روزهای اضافه که بلافاصله پس از ساخت به اشتراک افزوده می‌شود. خالی = پیش‌فرض پلن."),
+        ["new.extended"] = ("Subscription extended", "اشتراک تمدید شد"),
+        ["new.extendFailed"] = ("Clinic created, but the custom days could not be applied — use Extend on the clinic page.", "کلینیک ساخته شد اما روزهای سفارشی اعمال نشد — از بخش تمدید در صفحه کلینیک استفاده کنید."),
 
         // ── other page titles ───────────────────────────────────────────────────────────────────────────
         ["audit.title"] = ("Audit viewer", "نمایشگر ممیزی"),

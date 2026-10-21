@@ -3,40 +3,48 @@
 @inherits AdminPageComponent
 @inject IAdminSubscriptionCommands Commands
 @inject IAdminPlanCommands Plans
-<h1>@Loc.T("new.title")</h1><FormError Code="@Error" />
+@inject IAdminTenantQueries TenantQueries
+<div class="dash-head"><h1>@Loc.T("new.title")</h1><a class="ghost-link" href="/admin/tenants">@Loc.T("nav.tenants")</a></div><FormError Code="@Error" />
 @if (Receipt is not null) {
 <section class="card" aria-live="polite">
 <p>@Loc.T("new.created"): <a href="@($"/admin/tenants/{Receipt.TenantId}")">@Form!.Name (<span dir="ltr">@Form.Code</span>)</a></p>
 @if (Receipt.TemporaryPassword is { } password) { <p class="secret">@Loc.T("tenant.tempPassword"): <code>@password</code></p>
 <p class="hint">@Loc.T("new.ownerHint"): <code dir="ltr">@Form.OwnerUserName</code></p> }
+@if (ExtendedDays is { } added) { <p class="hint">@Loc.T("new.extended"): +@added @Loc.T("tenants.daysLeft")</p> }
+@if (ExtendError is { } extendError) { <p class="error" role="alert">@Loc.T("new.extendFailed") <span dir="ltr">(@extendError)</span></p> }
 <p><a href="@($"/admin/tenants/{Receipt.TenantId}/staff")">@Loc.T("tenant.staffLink")</a></p>
 </section>
 } else {
 <EditForm Model="Form" FormName="create-tenant" method="post" Enhance OnSubmit="Submit">
 <input type="hidden" name="Form.IdempotencyKey" value="@Form!.IdempotencyKey" />
-<fieldset><legend>@Loc.T("new.clinic")</legend>
+<fieldset class="form-grid"><legend>@Loc.T("new.clinic")</legend>
+<p class="hint">@Loc.T("new.clinicHint")</p>
 <label>@Loc.T("new.code") <InputText @bind-Value="Form.Code" maxlength="32" dir="ltr" required="required" /></label>
 <label>@Loc.T("new.name") <InputText @bind-Value="Form.Name" maxlength="200" required="required" /></label>
 </fieldset>
-<fieldset><legend>@Loc.T("new.owner")</legend>
+<fieldset class="form-grid"><legend>@Loc.T("new.owner")</legend>
+<p class="hint">@Loc.T("new.ownerGroupHint")</p>
 <label>@Loc.T("new.ownerUser") <InputText @bind-Value="Form.OwnerUserName" maxlength="64" dir="ltr" required="required" /></label>
 <label>@Loc.T("new.ownerName") <InputText @bind-Value="Form.OwnerName" maxlength="200" required="required" /></label>
 </fieldset>
-<fieldset><legend>@Loc.T("new.subscription")</legend>
+<fieldset class="form-grid"><legend>@Loc.T("new.subscription")</legend>
 <label>@Loc.T("new.plan")
 @if (PlanOptions.Count > 0) { <InputSelect @bind-Value="Form.PlanCode">@foreach (var p in PlanOptions) { <option value="@p.Code">@p.Name (@p.Code) — @Loc.T("new.planSeats"): @p.Seats</option> }</InputSelect> }
 else { <InputText @bind-Value="Form.PlanCode" maxlength="32" dir="ltr" required="required" /> }
 </label>
 <label>@Loc.T("new.seats") <InputNumber @bind-Value="Form.Seats" min="1" max="1000" /></label>
 <p class="hint">@Loc.T("new.seatsHint")</p>
+<label>@Loc.T("new.customDays") <InputNumber @bind-Value="Form.CustomDays" min="1" max="3650" /></label>
+<p class="hint">@Loc.T("new.customDaysHint")</p>
 <label><InputCheckbox @bind-Value="Form.StartTrial" /> @Loc.T("new.demo")</label>
 <p class="hint">@Loc.T("new.demoHint")</p>
 </fieldset>
-<button type="submit">@Loc.T("tenants.create")</button></EditForm>
+<button type="submit" class="btn-primary">@Loc.T("tenants.create")</button></EditForm>
 }
 @code {
     [SupplyParameterFromForm] public CreateTenantForm? Form { get; set; }
     private MutationReceipt? Receipt;
+    private int? ExtendedDays; private string? ExtendError;
     private IReadOnlyList<PlanSummary> PlanOptions=[];
     protected override async Task OnInitializedAsync()
     {
@@ -50,7 +58,26 @@ else { <InputText @bind-Value="Form.PlanCode" maxlength="32" dir="ltr" required=
     {
         var f=Form!;
         f.Code=f.Code.Trim(); f.Name=f.Name.Trim(); f.OwnerUserName=f.OwnerUserName.Trim(); f.OwnerName=f.OwnerName.Trim();
-        if(f.Code.Length==0||f.Name.Length==0||f.OwnerUserName.Length==0||f.OwnerName.Length==0||f.PlanCode.Length==0) { Error=ErrorCodes.ValidationFailed.Code; return; }
+        if(f.Code.Length==0||f.Name.Length==0||f.OwnerUserName.Length==0||f.OwnerName.Length==0||f.PlanCode.Length==0
+            || f.Seats is < 1 or > 1000 || f.CustomDays is < 1 or > 3650) { Error=ErrorCodes.ValidationFailed.Code; return; }
         Receipt=Capture(await Commands.CreateTenantAsync(f,f.IdempotencyKey,Cancellation));
+        if(Receipt?.TenantId is { } tenantId && f.CustomDays is { } days) await ExtendAsync(tenantId,days);
+    }
+    /// <summary>
+    /// Custom subscription length: the plan carries no duration, so the requested days are applied by chaining the existing subscription
+    /// "extend" operation right after provisioning (the same single mechanism the clinic page uses for extend/reward). The clinic is already
+    /// created at this point, so a failure here is surfaced next to the receipt instead of failing the whole create.
+    /// </summary>
+    private async Task ExtendAsync(string tenantId,int days)
+    {
+        try
+        {
+            var detail=await TenantQueries.GetAsync(tenantId,Cancellation);
+            if(detail.IsFailure||detail.Value?.Subscription is not { } sub) { ExtendError=detail.IsFailure?detail.Error.Code:"subscription_not_found"; return; }
+            var result=await Commands.ExtendAsync(tenantId,new SubscriptionActionForm { Stamp=sub.ConcurrencyStamp,Days=days,Reason="custom days at creation" },Cancellation);
+            if(result.IsFailure) ExtendError=result.Error.Code; else ExtendedDays=days;
+        }
+        catch(OperationCanceledException) { throw; }
+        catch(Exception) { ExtendError="extend_failed"; }
     }
 }

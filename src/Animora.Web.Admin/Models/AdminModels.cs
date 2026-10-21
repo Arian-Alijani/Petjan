@@ -86,6 +86,8 @@ public sealed class CreateTenantForm
     public string Code { get; set; }=""; public string Name { get; set; }=""; public string OwnerUserName { get; set; }="";
     public string OwnerName { get; set; }=""; public string PlanCode { get; set; }="standard";
     public int? Seats { get; set; } public bool StartTrial { get; set; }=true;
+    /// <summary>Optional extra subscription days added right after creation (reuses the subscription "extend" operation — no schema change).</summary>
+    public int? CustomDays { get; set; }
     public string IdempotencyKey { get; set; }=Guid.NewGuid().ToString("N");
 }
 public sealed class CreatePlanForm

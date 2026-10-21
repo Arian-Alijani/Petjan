@@ -132,3 +132,7 @@ dd{margin:0;font-weight:600}
 .log-view p{color:#8aa0b4;margin:.3rem}
 .log-view.pin{display:flex;flex-direction:column-reverse}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0 1.2rem}
+.form-grid>legend{grid-column:1/-1}
+.form-grid>.hint,.form-grid>p{grid-column:1/-1;margin-block:.1rem}
+.form-grid>label input:not([type=checkbox]),.form-grid>label select{inline-size:100%}

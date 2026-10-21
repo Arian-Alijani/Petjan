@@ -100,7 +100,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] T3 — New clinic page (`Pages/TenantNew.razor`, `Layout/NavMenu.razor`, create-tenant flow)
+### [x] T3 — New clinic page (`Pages/TenantNew.razor`, `Layout/NavMenu.razor`, create-tenant flow)
 **Goal:** remove "New clinic" from the sidebar (keep it only on the clinics page), and make the create form minimal/modern/clearer; add more subscription plan presets; allow full custom days + user count.
 
 **Do:**
