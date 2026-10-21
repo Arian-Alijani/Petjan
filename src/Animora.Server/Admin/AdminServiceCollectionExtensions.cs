@@ -52,6 +52,7 @@ internal static class AdminServiceCollectionExtensions
         services.AddScoped<IAdminLicenseCommands,AdminLicenseAdapter>();
         services.AddScoped<IAdminStaffQueries,AdminStaffAdapter>();services.AddScoped<IAdminStaffCommands,AdminStaffCommandsAdapter>();services.AddScoped<IAdminProductQueries,AdminProductAdapter>();
         services.AddScoped<AdminBackupAdapter>();services.AddScoped<IAdminBackup>(sp=>sp.GetRequiredService<AdminBackupAdapter>());
+        services.AddScoped<AdminTenantImportAdapter>();services.AddScoped<IAdminTenantImport>(sp=>sp.GetRequiredService<AdminTenantImportAdapter>());
         return services;
     }
 }

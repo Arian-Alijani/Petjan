@@ -36,6 +36,30 @@ public sealed class BackupRequestForm { public bool Confirmed { get; set; } }
 public sealed class TenantBackupRequestForm { public string TenantId { get; set; } = string.Empty; public bool Confirmed { get; set; } }
 /// <summary>BAK-02: one per-tenant export (<see cref="Rows"/> across <see cref="Tables"/> tables; both 0 in a plain list).</summary>
 public sealed record TenantBackupReceipt(string FileName,string TenantId,long SizeBytes,DateTimeOffset CreatedUtc,int Tables,long Rows);
+/// <summary>T8/T9: summary of a format-v2 clinic import bundle (<c>clinic-import.animora.json</c>) after validation or import.</summary>
+public sealed record TenantImportReceipt(
+    string TenantId,
+    int FormatVersion,
+    string SourceFingerprint,
+    int Owners,
+    int Pets,
+    int Visits,
+    int Vaccinations,
+    int Antiparasites,
+    int LabResults,
+    int Appointments,
+    int Invoices,
+    int StockReceipts,
+    int Products,
+    int Services,
+    int Categories,
+    int Insurers,
+    IReadOnlyList<string> Warnings);
+public sealed class TenantImportForm
+{
+    public string BundleJson { get; set; } = string.Empty;
+    public bool Confirmed { get; set; }
+}
 public sealed record BackupReceipt(string FileName,long SizeBytes,DateTimeOffset CreatedUtc);
 public sealed record MutationReceipt(string? TemporaryPassword=null,string? TenantId=null);
 public sealed class SubscriptionActionForm

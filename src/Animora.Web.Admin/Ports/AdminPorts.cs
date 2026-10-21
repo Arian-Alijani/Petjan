@@ -38,6 +38,12 @@ public interface IAdminProductQueries
 {
     Task<Result<ProductCatalog>> ListAsync(string tenantId,ProductListQuery query,CancellationToken ct=default);
 }
+/// <summary>Operator-only legacy <c>Clinic.bak</c> bundle (format v2) validator and tenant-isolated importer (T8/T9).</summary>
+public interface IAdminTenantImport
+{
+    Task<Result<TenantImportReceipt>> ValidateAsync(string tenantId, ReadOnlyMemory<byte> utf8Json, CancellationToken ct = default);
+    Task<Result<TenantImportReceipt>> ImportAsync(string tenantId, ReadOnlyMemory<byte> utf8Json, bool confirmed, CancellationToken ct = default);
+}
 public interface IAdminSubscriptionCommands
 {
     Task<Result<MutationReceipt>> MutateAsync(string id,string operation,SubscriptionActionForm form,CancellationToken ct=default);

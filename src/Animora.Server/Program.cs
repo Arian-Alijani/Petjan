@@ -227,6 +227,7 @@ if (app.Services.GetRequiredService<IOptions<ServerOptions>>().Value.AuthCache.T
 app.MapStaticAssets();
 app.MapAdminAccountEndpoints();
 app.MapAdminBackupEndpoints();
+app.MapAdminTenantImportEndpoints();
 // App and route pages live in the same RCL, already included by MapRazorComponents.
 app.MapRazorComponents<Animora.Web.Admin.App>().AddInteractiveServerRenderMode()
     .RequireAuthorization(OperatorCookie.Policy).RequireRateLimiting(RateLimitPolicies.Operator);

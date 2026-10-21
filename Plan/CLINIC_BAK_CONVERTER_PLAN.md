@@ -344,7 +344,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   sample `.bak` and confirm a valid bundle is produced with non-zero owners/pets. PUSH.
   **(If this task produced a large amount of code, this push is the heavy-code checkpoint.)**
 
-- [ ] **T8 — Server import contract + ingestion service.** Add a server-side import DTO + endpoint under
+- [x] **T8 — Server import contract + ingestion service.** Add a server-side import DTO + endpoint under
   `src/Animora.Server/Admin/` (operator-cookie protected, antiforgery, size-limited, matching the backup
   endpoints' hardening) that accepts bundle B for a given tenant id, validates `formatVersion==2` + schema,
   and hands to an ingestion service that, on a DEDICATED tenant-bound scope, materializes owners/pets/…

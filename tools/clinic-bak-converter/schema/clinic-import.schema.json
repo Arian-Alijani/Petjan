@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://animora.local/schema/clinic-import.v2.schema.json",
+  "title": "Animora Clinic Import Bundle v2",
+  "type": "object",
+  "required": [
+    "formatVersion",
+    "generatedUtc",
+    "converterVersion",
+    "sourceFingerprint",
+    "sourceRowCounts",
+    "dedupeRule",
+    "currency",
+    "owners"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "formatVersion": { "const": 2 },
+    "generatedUtc": { "type": "string", "minLength": 10 },
+    "converterVersion": { "type": "string", "minLength": 1 },
+    "sourceFingerprint": { "type": "string", "minLength": 64 },
+    "sourceRowCounts": { "type": "object" },
+    "dedupeRule": { "type": "string", "minLength": 1 },
+    "currency": { "const": "IRT" },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "insurers": { "type": "array", "items": { "$ref": "#/$defs/lookup" } },
+    "paymentTypes": { "type": "array", "items": { "$ref": "#/$defs/paymentType" } },
+    "categories": { "type": "array", "items": { "$ref": "#/$defs/lookup" } },
+    "species": { "type": "array", "items": { "$ref": "#/$defs/speciesItem" } },
+    "vaccineTypes": { "type": "array", "items": { "$ref": "#/$defs/lookup" } },
+    "staff": { "type": "array", "items": { "$ref": "#/$defs/staffItem" } },
+    "services": { "type": "array", "items": { "$ref": "#/$defs/serviceItem" } },
+    "products": { "type": "array", "items": { "$ref": "#/$defs/productItem" } },
+    "owners": { "type": "array", "items": { "$ref": "#/$defs/ownerItem" } },
+    "visits": { "type": "array", "items": { "$ref": "#/$defs/visitItem" } },
+    "vaccinations": { "type": "array", "items": { "$ref": "#/$defs/vaccinationItem" } },
+    "antiparasites": { "type": "array", "items": { "$ref": "#/$defs/antiparasiteItem" } },
+    "labResults": { "type": "array", "items": { "$ref": "#/$defs/labResultItem" } },
+    "appointments": { "type": "array", "items": { "$ref": "#/$defs/appointmentItem" } },
+    "invoices": { "type": "array", "items": { "$ref": "#/$defs/invoiceItem" } },
+    "stockReceipts": { "type": "array", "items": { "$ref": "#/$defs/stockReceiptItem" } },
+    "holidays": { "type": "array", "items": { "$ref": "#/$defs/holidayItem" } },
+    "archive": { "type": "object" },
+    "raw": { "type": "object" }
+  },
+  "$defs": {
+    "lookup": {
+      "type": "object",
+      "required": ["sourceId", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "paymentType": {
+      "type": "object",
+      "required": ["sourceId", "name", "method"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "method": { "enum": ["cash", "card", "transfer", "cheque", "other"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "speciesItem": {
+      "type": "object",
+      "required": ["sourceId", "name", "species"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "species": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "staffItem": {
+      "type": "object",
+      "required": ["sourceId", "fullName"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "fullName": { "type": "string", "minLength": 1 },
+        "designation": { "type": ["string", "null"] },
+        "specialty": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "serviceItem": {
+      "type": "object",
+      "required": ["sourceId", "name", "priceMinor"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "priceMinor": { "type": "integer", "minimum": 0 },
+        "staffSourceId": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "productItem": {
+      "type": "object",
+      "required": ["sourceId", "name", "salePriceMinor", "buyPriceMinor"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "salePriceMinor": { "type": "integer", "minimum": 0 },
+        "buyPriceMinor": { "type": "integer", "minimum": 0 },
+        "barcode": { "type": ["string", "null"] },
+        "reorderPoint": { "type": ["number", "null"] },
+        "categorySourceId": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "ownerItem": {
+      "type": "object",
+      "required": ["sourceId", "fullName", "gender", "pets"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "fullName": { "type": "string", "minLength": 1 },
+        "phonePrimary": { "type": ["string", "null"] },
+        "phoneSecondary": { "type": ["string", "null"] },
+        "phoneLandline": { "type": ["string", "null"] },
+        "nationalId": { "type": ["string", "null"] },
+        "email": { "type": ["string", "null"] },
+        "address": { "type": ["string", "null"] },
+        "city": { "type": ["string", "null"] },
+        "gender": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "registeredUtc": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "pets": { "type": "array", "items": { "$ref": "#/$defs/petItem" } },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "petItem": {
+      "type": "object",
+      "required": ["sourceId", "name", "species", "gender", "isNeutered", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "species": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "speciesName": { "type": ["string", "null"] },
+        "breed": { "type": ["string", "null"] },
+        "gender": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "birthDateUtc": { "type": ["string", "null"] },
+        "isNeutered": { "type": "boolean" },
+        "color": { "type": ["string", "null"] },
+        "microchipCode": { "type": ["string", "null"] },
+        "microchipImplantUtc": { "type": ["string", "null"] },
+        "bloodType": { "type": ["string", "null"] },
+        "insurance": { "type": ["string", "null"] },
+        "status": { "type": "integer", "minimum": 0, "maximum": 2 },
+        "registeredUtc": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "visitItem": {
+      "type": "object",
+      "required": ["sourceId", "petSourceId", "symptoms", "treatments", "complaints"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "petSourceId": { "type": "string", "minLength": 1 },
+        "doctorSourceId": { "type": ["string", "null"] },
+        "visitedUtc": { "type": ["string", "null"] },
+        "diagnosis": { "type": ["string", "null"] },
+        "prescription": { "type": ["string", "null"] },
+        "nextVisitUtc": { "type": ["string", "null"] },
+        "reason": { "type": ["string", "null"] },
+        "symptoms": { "type": "array", "items": { "type": "string" } },
+        "treatments": { "type": "array", "items": { "type": "string" } },
+        "complaints": { "type": "array", "items": { "type": "string" } },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "vaccinationItem": {
+      "type": "object",
+      "required": ["sourceId", "petSourceId"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "petSourceId": { "type": "string", "minLength": 1 },
+        "vaccineTypeSourceId": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "administeredUtc": { "type": ["string", "null"] },
+        "nextDueUtc": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "antiparasiteItem": {
+      "type": "object",
+      "required": ["sourceId", "petSourceId"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "petSourceId": { "type": "string", "minLength": 1 },
+        "administeredUtc": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "internalParasite": { "type": ["string", "null"] },
+        "externalParasite": { "type": ["string", "null"] },
+        "nextDueUtc": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "labResultItem": {
+      "type": "object",
+      "required": ["sourceTable", "sourceId", "petSourceId", "kind", "values"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceTable": { "type": "string", "minLength": 1 },
+        "sourceId": { "type": "string", "minLength": 1 },
+        "petSourceId": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["hematology", "biochemistry", "urine", "radiology", "other"] },
+        "title": { "type": ["string", "null"] },
+        "performedUtc": { "type": ["string", "null"] },
+        "nextVisitUtc": { "type": ["string", "null"] },
+        "values": { "type": "object" },
+        "notes": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "appointmentItem": {
+      "type": "object",
+      "required": ["sourceId", "isCheckedIn"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "petSourceId": { "type": ["string", "null"] },
+        "patientName": { "type": ["string", "null"] },
+        "doctorSourceId": { "type": ["string", "null"] },
+        "startUtc": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "mobile": { "type": ["string", "null"] },
+        "isCheckedIn": { "type": "boolean" },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "invoiceItem": {
+      "type": "object",
+      "required": [
+        "sourceId",
+        "totalMinor",
+        "discountMinor",
+        "insurancePayMinor",
+        "taxMinor",
+        "paidMinor",
+        "isDebtor",
+        "lines",
+        "payments"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "petSourceId": { "type": ["string", "null"] },
+        "customerName": { "type": ["string", "null"] },
+        "mobile": { "type": ["string", "null"] },
+        "issuedUtc": { "type": ["string", "null"] },
+        "number": { "type": ["string", "null"] },
+        "totalMinor": { "type": "integer", "minimum": 0 },
+        "discountMinor": { "type": "integer", "minimum": 0 },
+        "insurancePayMinor": { "type": "integer", "minimum": 0 },
+        "insurerSourceId": { "type": ["string", "null"] },
+        "insuranceNo": { "type": ["string", "null"] },
+        "taxMinor": { "type": "integer", "minimum": 0 },
+        "paidMinor": { "type": "integer", "minimum": 0 },
+        "paymentTypeSourceId": { "type": ["string", "null"] },
+        "isDebtor": { "type": "boolean" },
+        "notes": { "type": ["string", "null"] },
+        "lines": { "type": "array", "items": { "$ref": "#/$defs/invoiceLine" } },
+        "payments": { "type": "array", "items": { "$ref": "#/$defs/invoicePayment" } },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "invoiceLine": {
+      "type": "object",
+      "required": ["sourceId", "kind", "unitPriceMinor", "quantity", "totalMinor", "discountMinor"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["service", "product", "other"] },
+        "serviceSourceId": { "type": ["string", "null"] },
+        "productSourceId": { "type": ["string", "null"] },
+        "staffSourceId": { "type": ["string", "null"] },
+        "unitPriceMinor": { "type": "integer", "minimum": 0 },
+        "quantity": { "type": "number" },
+        "totalMinor": { "type": "integer", "minimum": 0 },
+        "discountMinor": { "type": "integer", "minimum": 0 },
+        "description": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "invoicePayment": {
+      "type": "object",
+      "required": ["sourceId", "amountMinor"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "paymentTypeSourceId": { "type": ["string", "null"] },
+        "paidUtc": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "stockReceiptItem": {
+      "type": "object",
+      "required": ["sourceId", "totalMinor", "lines"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "number": { "type": ["string", "null"] },
+        "receivedUtc": { "type": ["string", "null"] },
+        "seller": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "totalMinor": { "type": "integer", "minimum": 0 },
+        "lines": { "type": "array", "items": { "$ref": "#/$defs/stockReceiptLine" } },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "stockReceiptLine": {
+      "type": "object",
+      "required": ["sourceId", "productSourceId", "quantity", "buyPriceMinor"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "productSourceId": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "number" },
+        "buyPriceMinor": { "type": "integer", "minimum": 0 },
+        "expireUtc": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    },
+    "holidayItem": {
+      "type": "object",
+      "required": ["sourceId"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1 },
+        "title": { "type": ["string", "null"] },
+        "dateUtc": { "type": ["string", "null"] },
+        "legacy": { "type": ["object", "null"] }
+      }
+    }
+  }
+}
