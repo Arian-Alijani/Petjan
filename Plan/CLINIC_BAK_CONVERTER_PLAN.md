@@ -361,7 +361,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   a focused unit/integration test on the ingestion service + converter smoke only). Fix issues; if a heavy
   fix lands mid-task, PUSH that fix immediately with a clear message. Final PUSH.
 
-- [ ] **T11 — Docs + cleanup.** Update `tools/clinic-bak-converter/README.md` with the full Windows workflow
+- [x] **T11 — Docs + cleanup.** Update `tools/clinic-bak-converter/README.md` with the full Windows workflow
   (double-click `run-converter.cmd` → pick `.bak` → get bundle → upload in admin panel per clinic) and the
   A→B mapping table (condensed §4). Ensure no PII and no `.bak`-derived data is committed. PUSH.
 
