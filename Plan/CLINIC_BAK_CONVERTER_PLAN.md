@@ -334,7 +334,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   digit folding, phone normalization (mirror `Owner.NormalizePhone`), species/gender/status enum maps (§4),
   money passthrough (IRT scale 0). Deterministic source-key → stable id helper. Pure functions, unit-smoke. PUSH.
 
-- [ ] **T6 — Mapping engine (A→B).** In `converter/mapping.py`: implement §4 decisions — owner dedupe,
+- [x] **T6 — Mapping engine (A→B).** In `converter/mapping.py`: implement §4 decisions — owner dedupe,
   patient→owner+pet split, all clinical/financial/inventory children attached by source id, lossless `legacy`
   passthrough, warnings. Emit the in-memory bundle object matching the T2 schema. PUSH.
 

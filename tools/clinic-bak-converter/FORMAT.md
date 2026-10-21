@@ -39,3 +39,9 @@ plus entity arrays below (all optional except `owners`).
 | `holidays` | tblHolyDays | |
 
 Foreign keys are `*SourceId` strings that must resolve inside the same bundle; unresolved references are dropped into `warnings` by the converter and rejected by the server.
+
+## Additional rules
+* `owners[].sourceId` is `owner:<lowest tblPatient fId>` of the de-duplicated group; `pets[].sourceId` is the tblPatient `fId`.
+* `labResults[]` mixes four legacy tables, so each carries `sourceTable`; the unique source key is `(sourceTable, sourceId)`.
+* `archive` keeps tables with no Animora aggregate (tblWare, tblWareDetail, tblConsumerStuffHead, tblConsumerStuff, tblBloodTest, tblStaffDaysStatus, tblDays) so nothing is dropped.
+* A microchip code is emitted only together with an implant date; otherwise it stays in `pets[].legacy.microchipCode` (the domain requires the date).
