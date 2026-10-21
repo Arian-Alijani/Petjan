@@ -17,7 +17,7 @@ internal static class AdminTenantImportEndpoints
         app.MapPost("/admin/tenants/{id}/import/upload", Upload)
             .RequireAuthorization(OperatorCookie.Policy)
             .RequireRateLimiting(RateLimitPolicies.Operator)
-            .WithMetadata(new Microsoft.AspNetCore.Http.Metadata.RequestSizeLimitMetadata(ClinicBundleImportService.MaxBundleBytes + (64 * 1024)))
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(ClinicBundleImportService.MaxBundleBytes + (64 * 1024)))
             .WithOrder(-1);
     }
 
