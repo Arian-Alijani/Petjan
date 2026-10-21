@@ -167,7 +167,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] T6 — Final verification pass (lightweight, NO full build)
+### [x] T6 — Final verification pass (lightweight, NO full build)
 **Do:**
 1. Re-read each changed `.razor`/`.cs` for: correct `Loc.T` keys all added to `AdminStrings.cs` (both En+Fa), records still compile (defaulted new params so other callers are unaffected), DI registrations added, no dangling references to the removed nav link.
 2. Confirm `TenantSummary` field additions didn't break other consumers (grep usages of `new TenantSummary(` and `TenantSummary` — only `AdminTenantQueries` constructs it; defaults cover the rest).

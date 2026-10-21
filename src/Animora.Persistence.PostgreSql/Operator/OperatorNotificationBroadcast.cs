@@ -1,5 +1,6 @@
 using Animora.Domain.Results;
 using Animora.Domain.Identity;
+using Animora.Domain.Subscriptions;
 namespace Animora.Persistence.PostgreSql.Operator;
 
 /// <summary>Who a broadcast targets: every clinic, the clinics matching a status/search category, or an explicit clinic-id list.</summary>
