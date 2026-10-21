@@ -356,7 +356,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   the T8 endpoint, show result. Follow existing admin page conventions (localization strings, StatusBadge,
   FormError, ConfirmCheckbox, RenderModePolicy). PUSH.
 
-- [ ] **T10 — End-to-end verification (light).** Convert the sample `.bak`, load the bundle through the
+- [x] **T10 — End-to-end verification (light).** Convert the sample `.bak`, load the bundle through the
   ingestion service against a throwaway tenant in a targeted test (NO full solution build / NO long test run —
   a focused unit/integration test on the ingestion service + converter smoke only). Fix issues; if a heavy
   fix lands mid-task, PUSH that fix immediately with a clear message. Final PUSH.

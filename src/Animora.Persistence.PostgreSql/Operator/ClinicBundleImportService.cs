@@ -1867,7 +1867,8 @@ public sealed class ClinicImportInvoice
     public long InsurancePayMinor { get; set; }
     public string? InsurerSourceId { get; set; }
     public string? InsuranceNo { get; set; }
-    public long TaxMinor { get; set; }
+    [JsonPropertyName("taxMinor")]
+    public long TaxTotalMinor { get; set; }
     public long PaidMinor { get; set; }
     public string? PaymentTypeSourceId { get; set; }
     public bool IsDebtor { get; set; }
@@ -1928,5 +1929,8 @@ public sealed class ClinicImportHoliday
     public string SourceId { get; set; } = string.Empty;
     public string? Title { get; set; }
     public string? DateUtc { get; set; }
+    public Dictionary<string, JsonElement>? Legacy { get; set; }
+}
+tc { get; set; }
     public Dictionary<string, JsonElement>? Legacy { get; set; }
 }
