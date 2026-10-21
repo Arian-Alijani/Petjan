@@ -62,7 +62,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] T1 — Dashboard page (`Pages/Dashboard.razor`)
+### [x] T1 — Dashboard page (`Pages/Dashboard.razor`)
 **Goal:** clean, minimal, modern, performant summary for the owner. Show server/service status (concise) + user/clinic counts; remove clutter.
 
 **What exists now:** `Dashboard.razor` renders: version/uptime line, a Readiness probes table, a Workers table, a `.cards` row (ExpiringSoon, PastDue, dead-lettered, commands, outbox, PG pool), a `LiveStatusPanel`, and an Insight line. Data from `IAdminStatusReader.GetStatusAsync` → `AdminStatus(Readiness, Workers, Counters, Pg, Version, UptimeSeconds, ExpiringSoon, PastDue)` and `IAdminInsightStatus`.
@@ -81,7 +81,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] T2 — Clinics list page (`Pages/Tenants.razor` + `OperatorReadQueries.TenantsAsync` + `TenantSummary`)
+### [x] T2 — Clinics list page (`Pages/Tenants.razor` + `OperatorReadQueries.TenantsAsync` + `TenantSummary`)
 **Goal:** list all registered clinics, show ≥15 at once, add-new entry here, good search/filter, and **sort by remaining subscription days ascending (least first)**.
 
 **Do:**
