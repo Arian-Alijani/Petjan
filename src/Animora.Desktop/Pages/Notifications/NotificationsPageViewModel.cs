@@ -16,16 +16,15 @@ namespace Animora.Desktop.Pages.Notifications;
 
 /// <summary>
 /// «اعلان‌ها و پیام‌ها»: the signed-in user's message feed (newest first) with read/unread + kind filters, mark-read on
-/// open, «خواندن همه», and - for the clinic manager only - the compose / reward dialogs. Everything goes through
-/// <see cref="INotificationService"/>; the view never decides permissions (<see cref="CanManage"/> is a UX hint, the
-/// service re-checks). The feed refreshes at once on <see cref="DataDomain.Notifications"/> (no sync, no polling).
+/// open and «خواندن همه». It is a strictly read-only receiver: messages and rewards are authored by the vendor in the
+/// admin panel and arrive via sync, so there is no compose / grant / reply action here. Everything goes through
+/// <see cref="INotificationService"/>. The feed refreshes at once on <see cref="DataDomain.Notifications"/>.
 /// </summary>
 public sealed partial class NotificationsPageViewModel : PageViewModelBase
 {
     private readonly INotificationService _service;
     private readonly IStoreReadinessGate _readiness;
     private readonly IToastService _toast;
-    private readonly IDialogService _dialogs;
     private readonly IClinicTimeZoneProvider _zones;
     private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
     private List<NotificationItemViewModel> _all = [];
@@ -34,12 +33,11 @@ public sealed partial class NotificationsPageViewModel : PageViewModelBase
     private int _generation;
 
     public NotificationsPageViewModel(INotificationService service, IStoreReadinessGate readiness, IToastService toast,
-        IDialogService dialogs, IDataChangeNotifier changes, IClinicTimeZoneProvider zones)
+        IDataChangeNotifier changes, IClinicTimeZoneProvider zones)
     {
         _service = service;
         _readiness = readiness;
         _toast = toast;
-        _dialogs = dialogs;
         _zones = zones;
 
         Title = "اعلان‌ها و پیام‌ها";
@@ -74,9 +72,6 @@ public sealed partial class NotificationsPageViewModel : PageViewModelBase
     private bool _hasItems;
 
     [ObservableProperty]
-    private bool _canManage;
-
-    [ObservableProperty]
     private string _emptyTitle = "پیامی برای نمایش وجود ندارد";
 
     [ObservableProperty]
@@ -96,7 +91,6 @@ public sealed partial class NotificationsPageViewModel : PageViewModelBase
 
     public override void OnNavigatedTo()
     {
-        CanManage = _service.CanManage;
         if (!IsLoadInFlight) _ = ReloadAsync();
     }
 
@@ -121,7 +115,6 @@ public sealed partial class NotificationsPageViewModel : PageViewModelBase
         var zone = _zones.GetClinicTimeZone();
         _all = feed.Items.Select(d => new NotificationItemViewModel(d, now, zone, _expanded.Contains(d.Id))).ToList();
         UnreadCount = feed.UnreadCount;
-        CanManage = _service.CanManage;
         ApplyFilter();
     }
 
@@ -203,19 +196,5 @@ public sealed partial class NotificationsPageViewModel : PageViewModelBase
         {
             _toast.Show(NotificationsPresentation.Failure(ex, "ثبت وضعیت خوانده‌شدن ناموفق بود؛ دوباره تلاش کنید."), Tone.Danger);
         }
-    }
-
-    [RelayCommand]
-    private void OpenCompose()
-    {
-        if (!_service.CanManage) return;
-        _dialogs.ShowModal(new ComposeNotificationViewModel(_service, _toast, _dialogs, _zones), 620);
-    }
-
-    [RelayCommand]
-    private void OpenGrantReward()
-    {
-        if (!_service.CanManage) return;
-        _dialogs.ShowModal(new GrantRewardViewModel(_service, _toast, _dialogs), 560);
     }
 }

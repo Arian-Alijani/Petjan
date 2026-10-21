@@ -67,9 +67,3 @@ public sealed partial class NotificationChipViewModel(string key, string label) 
     [ObservableProperty]
     private bool _isActive;
 }
-
-/// <summary>One audience choice in the compose dialog (everyone / a role / one user).</summary>
-public sealed record NotificationAudienceOption(NotificationAudienceKind Kind, string? Value, string Label);
-
-/// <summary>One message-kind choice in the compose dialog.</summary>
-public sealed record NotificationKindOption(NotificationKind Kind, string Label);

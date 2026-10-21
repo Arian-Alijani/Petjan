@@ -3,7 +3,6 @@ using System.Globalization;
 using Animora.Contracts.Notifications;
 using Animora.Desktop.Localization;
 using Animora.Desktop.Pages.Patients;
-using Animora.Domain.Identity;
 
 namespace Animora.Desktop.Pages.Notifications;
 
@@ -32,16 +31,6 @@ internal static class NotificationsPresentation
         _ => ("IconInfo", "#1570cd", "#eff8ff"),
     };
 
-    public static string RoleLabel(StaffRole role) => role switch
-    {
-        StaffRole.Manager => "مدیر کلینیک",
-        StaffRole.Doctor => "پزشک حیوانات",
-        StaffRole.Receptionist => "پذیرش",
-        StaffRole.Cashier => "صندوق‌دار",
-        StaffRole.Accountant => "حسابدار",
-        _ => "کارمند کلینیک",
-    };
-
     /// <summary>«هم‌اکنون» / «N دقیقه پیش» / «N ساعت پیش» / Jalali date + clinic-local time.</summary>
     public static string FormatWhen(DateTimeOffset whenUtc, DateTimeOffset nowUtc, TimeZoneInfo zone)
     {
@@ -56,13 +45,12 @@ internal static class NotificationsPresentation
         return $"{JalaliDate.FromDateTime(local.DateTime).ToString("short")} - {time}";
     }
 
-    /// <summary>The user-facing text of a failed service call (access / validation / unknown user have fixed wording).</summary>
+    /// <summary>The user-facing text of a failed service call (validation has fixed wording).</summary>
     public static string Failure(InvalidOperationException ex, string fallback)
     {
         if (ex is Animora.Client.Services.ServiceException se)
         {
             if (se.Code == "VALIDATION_FAILED") return "اطلاعات واردشده معتبر نیست؛ فیلدها را بررسی کنید.";
-            if (se.Code == "NOT_FOUND") return "کاربر انتخاب‌شده پیدا نشد یا غیرفعال است.";
         }
 
         return PatientsPresentation.CommandFailureMessage(ex, fallback);

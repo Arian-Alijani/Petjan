@@ -184,7 +184,7 @@ This is where authoring MOVES TO. Pattern to copy (already in repo):
   `IsManager`/system notices may still use `StaffRole`; keep what compiles).
 - Keep `RewardOverlay.cs`, `RewardGrant` entity untouched.
 
-### [ ] T3 — Desktop notifications page → read-only + delete modals; build 0/0; PUSH
+### [x] T3 — Desktop notifications page → read-only + delete modals; build 0/0; PUSH
 - `NotificationsPageView.axaml`: remove the two authoring header buttons (grant reward + new message).
 - `NotificationsPageViewModel.cs`: remove `CanManage`, `OpenCompose`, `OpenGrantReward`, `_dialogs`
   field + ctor param (if now unused), and the `CanManage` assignments. Update class XML summary.

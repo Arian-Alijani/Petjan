@@ -106,8 +106,6 @@ public static class ViewFactory
 
         // Notifications & messages.
         Register<global::Animora.Desktop.Pages.Notifications.NotificationsPageViewModel, global::Animora.Desktop.Pages.Notifications.NotificationsPageView>(factories);
-        Register<global::Animora.Desktop.Pages.Notifications.ComposeNotificationViewModel, global::Animora.Desktop.Pages.Notifications.ComposeNotificationView>(factories);
-        Register<global::Animora.Desktop.Pages.Notifications.GrantRewardViewModel, global::Animora.Desktop.Pages.Notifications.GrantRewardView>(factories);
 
         // Reception.
         Register<global::Animora.Desktop.Pages.Reception.ReceptionPageViewModel, global::Animora.Desktop.Pages.Reception.ReceptionPageView>(factories);

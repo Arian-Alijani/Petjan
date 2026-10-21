@@ -86,20 +86,6 @@
                         <TextBlock Text="خواندن همه" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <Button Classes="outline" Command="{Binding OpenGrantRewardCommand}" IsVisible="{Binding CanManage}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Path Classes="icon" Width="15" Height="15" Stroke="{Binding $parent[Button].Foreground}"
-                              Data="{StaticResource IconSpark}" VerticalAlignment="Center" />
-                        <TextBlock Text="اعطای جایزه" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
-                <Button Classes="primary" Command="{Binding OpenComposeCommand}" IsVisible="{Binding CanManage}">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Path Classes="icon" Width="14" Height="14" Stroke="White"
-                              Data="{StaticResource IconPlus}" VerticalAlignment="Center" />
-                        <TextBlock Text="پیام جدید" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
             </StackPanel>
         </Grid>
 
