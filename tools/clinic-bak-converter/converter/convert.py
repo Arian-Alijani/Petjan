@@ -118,7 +118,7 @@ def to_utc(date_value: Any, time_value: Any = None, tz_offset_minutes: int = 210
             d = _dt.date(int(iso.group(1)), int(iso.group(2)), int(iso.group(3)))
         except ValueError:
             return None
-        if d.year < 1900:
+        if d.year <= 1900:  # SQL datetime 'zero' (1900-01-01) means empty
             return None
         if iso.group(4):
             hms = (int(iso.group(4)), int(iso.group(5)), int(iso.group(6) or 0))

@@ -338,7 +338,7 @@ A single UTF-8 JSON file `clinic-import.animora.json`:
   patient→owner+pet split, all clinical/financial/inventory children attached by source id, lossless `legacy`
   passthrough, warnings. Emit the in-memory bundle object matching the T2 schema. PUSH.
 
-- [ ] **T7 — Writer + validation + CLI wiring.** `converter/bundle.py` serializes to
+- [x] **T7 — Writer + validation + CLI wiring.** `converter/bundle.py` serializes to
   `clinic-import.animora.json`; validate against the T2 JSON Schema before writing; print a summary
   (counts per entity, warnings). Wire `__main__.py` and `run-converter.cmd` end-to-end. Run it against the
   sample `.bak` and confirm a valid bundle is produced with non-zero owners/pets. PUSH.

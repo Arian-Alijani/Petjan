@@ -134,6 +134,8 @@ class MdfReader:
             if not self._is_live_page(page):
                 continue
             slots = _u16(page, 22)
+            if slots == 0:
+                continue
             if not 0 < slots < 1000:
                 raise MdfError(f"invalid page slot count at offset {off}")
             self.data_pages += 1
