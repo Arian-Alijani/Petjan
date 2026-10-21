@@ -95,6 +95,7 @@ public sealed class CreatePlanForm
     public string Code { get; set; }=""; public string Name { get; set; }=""; public int Seats { get; set; }=1;
     public long AmountMinor { get; set; } public int TrialDays { get; set; }
 }
+public sealed class SeedPlansForm { public bool Confirmed { get; set; } }
 public sealed class LicenseActionForm
 {
     public string LicenseId { get; set; }=""; public string Stamp { get; set; }=""; public string Reason { get; set; }="";

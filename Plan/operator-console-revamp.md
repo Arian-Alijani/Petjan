@@ -120,7 +120,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done.
 
 ---
 
-### [ ] T4 — Plans page (`Pages/Plans.razor`)
+### [x] T4 — Plans page (`Pages/Plans.razor`)
 **Goal:** keep behavior the same; just make it more minimal/modern. Optionally host the "seed default presets" action from T3.
 
 **Do:**
