@@ -77,6 +77,8 @@
                             Background="{StaticResource DangerBrush}" IsVisible="{Binding HasUnread}" />
                     <TextBlock Text="{Binding UnreadText}" FontSize="12.5" Foreground="{StaticResource MutedBrush}" />
                 </StackPanel>
+                <TextBlock Text="پیام‌ها و جوایز از سوی تیم انیمورا ارسال می‌شوند و فقط قابل مشاهده‌اند."
+                           FontSize="11.5" Foreground="{StaticResource Muted2Brush}" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
                 <Button Classes="outline" Command="{Binding MarkAllReadCommand}" IsEnabled="{Binding HasUnread}">

@@ -232,7 +232,7 @@ This is where authoring MOVES TO. Pattern to copy (already in repo):
 - Build admin + server + PG projects → **0/0** (`dotnet build` the three, or `build.sh full`).
 - **Push:** `scripts/git/push.sh "feat(admin): vendor composes tagged messages to a clinic's users (server-authored, read-only on desktop)"`
 
-### [ ] T6 — Final styling & consistency pass on the desktop receiver
+### [x] T6 — Final styling & consistency pass on the desktop receiver
 - Verify the desktop notifications page still looks right with the authoring buttons gone (header no longer
   has primary/outline action buttons except "خواندن همه"). If the header looks sparse/unbalanced, tidy the
   layout (keep the unread summary + mark-all-read). Ensure Reward-kind messages (received from vendor
