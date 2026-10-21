@@ -10,8 +10,10 @@ internal sealed class AdminTenantQueries(OperatorReadQueries queries,AdminSessio
     {
         _=session.OperatorId;
         if(query.Search?.Length>200||query.Status?.Length>40)return Result<AdminPage<TenantSummary>>.Fail(ErrorCodes.ValidationFailed);
-        var page=await queries.TenantsAsync(query.Status,query.Search,query.Page,query.PageSize,ct).ConfigureAwait(false);
-        return Result<AdminPage<TenantSummary>>.Ok(new(page.Items.Select(t=>new TenantSummary(t.Id,t.Code??"",t.DisplayName,t.Status.ToString())).ToArray(),page.Page,page.Size,page.Total));
+        var page=await queries.TenantsAsync(query.Status,query.Search,query.Page,query.PageSize,ct,query.Sort).ConfigureAwait(false);
+        return Result<AdminPage<TenantSummary>>.Ok(new(page.Items.Select(r=>new TenantSummary(
+            r.Tenant.Id,r.Tenant.Code??"",r.Tenant.DisplayName,r.Tenant.Status.ToString(),
+            r.PeriodEndUtc,r.SubStatus?.ToString(),r.SeatsLimit)).ToArray(),page.Page,page.Size,page.Total));
     }
     public async Task<Result<TenantDetail>> GetAsync(string id,CancellationToken ct=default)
     {

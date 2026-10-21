@@ -15,8 +15,10 @@ public sealed record AdminCounters(long CommandsInProgress,long OutboxPending,lo
 public sealed record AdminPg(int PoolInUse,int PoolMax);
 public sealed record AdminStatus(IReadOnlyList<NamedStatus> Readiness,IReadOnlyList<WorkerStatus> Workers,AdminCounters Counters,
     AdminPg Pg,string Version,double UptimeSeconds,long ExpiringSoon,long PastDue);
-public sealed record TenantListQuery(string? Status=null,string? Search=null,int Page=1,int PageSize=50);
-public sealed record TenantSummary(string Id,string Code,string Name,string Status);
+public sealed record TenantListQuery(string? Status=null,string? Search=null,int Page=1,int PageSize=50,string? Sort=null);
+/// <summary>One clinic row for the operator directory. Subscription fields are optional (a clinic may have no subscription row yet).</summary>
+public sealed record TenantSummary(string Id,string Code,string Name,string Status,
+    DateTimeOffset? PeriodEndUtc=null,string? SubStatus=null,int SeatsLimit=0);
 public sealed record SubscriptionSummary(string Id,string Status,string PlanId,int Seats,DateTimeOffset PeriodEnd,string ConcurrencyStamp);
 public sealed record TenantEvent(string Type,DateTimeOffset OccurredUtc);
 public sealed record TenantDetail(TenantSummary Core,SubscriptionSummary? Subscription,int SeatsUsed,IReadOnlyList<TenantEvent> Events,int DevicesCount,int LicensesCount,long GrantSequence);

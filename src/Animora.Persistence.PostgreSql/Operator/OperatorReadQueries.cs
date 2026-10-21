@@ -18,7 +18,11 @@ public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock
 {
     public Task<bool> SessionValidAsync(string id, string stamp, CancellationToken ct = default) => db.Accounts.AsNoTracking()
         .AnyAsync(x => x.Id == id && x.SecurityStamp == stamp && x.Status == OperatorAccountStatus.Active && !x.MustChangePassword, ct);
-    public async Task<OperatorPage<Tenant>> TenantsAsync(string? status,string? search,int page,int size,CancellationToken ct)
+    /// <summary>Sort keys accepted by <see cref="TenantsAsync"/>: <c>expiry</c> (least days remaining first — the operator default), <c>expiry-desc</c>, <c>name</c>.</summary>
+    public static readonly string[] TenantSorts=["expiry","expiry-desc","name"];
+    /// <summary>One clinic directory row with its (optional) subscription period end, status and seat limit, in a single query (no N+1).</summary>
+    public sealed record OperatorTenantRow(Tenant Tenant,DateTimeOffset? PeriodEndUtc,SubscriptionStatus? SubStatus,int SeatsLimit);
+    public async Task<OperatorPage<OperatorTenantRow>> TenantsAsync(string? status,string? search,int page,int size,CancellationToken ct,string? sort=null)
     {
         page=Math.Clamp(page,1,int.MaxValue/200);size=Math.Clamp(size,1,200); var now=DateTimeOffset.UtcNow;
         var query=db.Tenants.AsNoTracking().Where(t=>!t.Deleted);
@@ -29,8 +33,20 @@ public sealed class OperatorReadQueries(AnimoraOperatorDbContext db,IClock clock
         else if(status=="dead-lettered") query=query.Where(t=>db.Messages.Any(m=>m.TenantId==t.Id&&m.Status==Animora.Persistence.PostgreSql.Outbox.OutboxStatus.DeadLettered));
         else if(Enum.TryParse<TenantStatus>(status,true,out var state)) query=query.Where(t=>t.Status==state);
         long total=await query.LongCountAsync(ct).ConfigureAwait(false);
-        // Order by the clinic name first (what the operator reads), then code, then id for a stable paging key.
-        var rows=await query.OrderBy(t=>t.DisplayName).ThenBy(t=>t.Code).ThenBy(t=>t.Id).Skip((page-1)*size).Take(size).ToListAsync(ct).ConfigureAwait(false);
+        // Project the clinic together with a correlated single-subscription subquery, so period end / seats come back without an N+1.
+        var projected=query.Select(t=>new { Tenant=t,
+            Sub=db.Subscriptions.Where(s=>s.TenantId==t.Id).OrderByDescending(s=>s.CurrentPeriodEndUtc).FirstOrDefault() });
+        // Default = least remaining subscription days first; clinics without a subscription (null end) sort last.
+        var ordered=sort switch
+        {
+            "name"=>projected.OrderBy(x=>x.Tenant.DisplayName).ThenBy(x=>x.Tenant.Code).ThenBy(x=>x.Tenant.Id),
+            "expiry-desc"=>projected.OrderByDescending(x=>x.Sub!=null?x.Sub.CurrentPeriodEndUtc:(DateTimeOffset?)null).ThenBy(x=>x.Tenant.DisplayName).ThenBy(x=>x.Tenant.Id),
+            // Nulls-last: a clinic with no subscription sorts after all dated ones; among dated ones, earliest end (least remaining) first.
+            _=>projected.OrderBy(x=>x.Sub==null).ThenBy(x=>x.Sub!=null?x.Sub.CurrentPeriodEndUtc:DateTimeOffset.MaxValue).ThenBy(x=>x.Tenant.DisplayName).ThenBy(x=>x.Tenant.Id),
+        };
+        var rows=await ordered.Skip((page-1)*size).Take(size)
+            .Select(x=>new OperatorTenantRow(x.Tenant,x.Sub!=null?x.Sub.CurrentPeriodEndUtc:(DateTimeOffset?)null,
+                x.Sub!=null?x.Sub.Status:(SubscriptionStatus?)null,x.Sub!=null?x.Sub.SeatLimit:0)).ToListAsync(ct).ConfigureAwait(false);
         return new(rows,page,size,total);
     }
     public async Task<OperatorTenantDetail?> TenantAsync(string id,CancellationToken ct)

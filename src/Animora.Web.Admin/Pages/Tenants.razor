@@ -2,16 +2,25 @@
 @attribute [Authorize(Policy="AdminOnly")]
 @inherits AdminPageComponent
 @inject IAdminTenantQueries Queries
-<h1>@Loc.T("tenants.title")</h1><FormError Code="@Error" /><p><a href="/admin/tenants/new">@Loc.T("tenants.create")</a></p>
+<div class="dash-head"><h1>@Loc.T("tenants.title")</h1><a class="btn-primary" href="/admin/tenants/new">+ @Loc.T("tenants.create")</a></div>
+<FormError Code="@Error" />
 <form method="get" class="filters"><label>@Loc.T("tenants.search") <input name="search" value="@Search" maxlength="200" /></label>
 <label>@Loc.T("common.status") <select name="status"><option value="">@Loc.T("common.all")</option>
 @foreach (var s in StatusFilters) { <option value="@s" selected="@(string.Equals(Status, s, StringComparison.OrdinalIgnoreCase))">@Loc.T("tfilter." + s)</option> }
-</select></label><button type="submit">@Loc.T("common.filter")</button></form>
+</select></label>
+<label>@Loc.T("tenants.sort") <select name="sort">@foreach (var s in Sorts) { <option value="@s" selected="@(string.Equals(Sort, s, StringComparison.OrdinalIgnoreCase))">@Loc.T("tenants.sort." + s)</option> }</select></label>
+<button type="submit">@Loc.T("common.filter")</button></form>
 @if (Rows is not null) {
 @if (Rows.Items.Count == 0) { <p class="empty">@Loc.T("common.none")</p> } else {
-<div class="table-wrap"><table><caption>@Loc.T("tenants.directory") (@Rows.Total)</caption><thead><tr><th scope="col">@Loc.T("common.name")</th><th scope="col">@Loc.T("common.code")</th><th scope="col">@Loc.T("common.status")</th><th scope="col">@Loc.T("common.action")</th></tr></thead><tbody>
-@foreach (var row in Rows.Items) { <tr><td><a href="@($"/admin/tenants/{row.Id}")">@(string.IsNullOrWhiteSpace(row.Name) ? row.Code : row.Name)</a></td><td dir="ltr">@row.Code</td><td><StatusBadge Status="@row.Status" /></td>
-<td><a href="@($"/admin/tenants/{row.Id}/staff")">@Loc.T("tenant.staffLink")</a> · <a href="@($"/admin/tenants/{row.Id}/products")">@Loc.T("tenant.productsLink")</a></td></tr> }
+<div class="table-wrap"><table><caption>@Loc.T("tenants.directory") (@Rows.Total)</caption><thead><tr>
+<th scope="col">@Loc.T("common.name")</th><th scope="col">@Loc.T("common.code")</th><th scope="col">@Loc.T("common.status")</th>
+<th scope="col">@Loc.T("tenants.remaining")</th><th scope="col">@Loc.T("tenants.seats")</th><th scope="col">@Loc.T("common.action")</th></tr></thead><tbody>
+@foreach (var row in Rows.Items) {
+<tr><td><a href="@($"/admin/tenants/{row.Id}")">@(string.IsNullOrWhiteSpace(row.Name) ? row.Code : row.Name)</a></td>
+<td dir="ltr">@row.Code</td><td><StatusBadge Status="@row.Status" /></td>
+<td>@if (row.PeriodEndUtc is { } end) { <span class="badge @RemainTone(end)" dir="ltr">@RemainText(end)</span> } else { <span class="hint">—</span> }</td>
+<td>@(row.SeatsLimit > 0 ? row.SeatsLimit.ToString() : "—")</td>
+<td><a href="@($"/admin/tenants/{row.Id}/staff")">@Loc.T("tenant.staffLink")</a> · <a href="@($"/admin/tenants/{row.Id}/notify")">@Loc.T("tenant.notifyLink")</a></td></tr> }
 </tbody></table></div>
 }
 <Pager Page="Rows.Page" PageSize="Rows.PageSize" Total="Rows.Total" BaseUrl="@FilterUrl" />
@@ -19,10 +28,27 @@
 @code {
     [SupplyParameterFromQuery] public string? Search { get; set; }
     [SupplyParameterFromQuery] public string? Status { get; set; }
+    [SupplyParameterFromQuery] public string? Sort { get; set; }
     [SupplyParameterFromQuery] public int Page { get; set; }=1;
     [SupplyParameterFromQuery] public int PageSize { get; set; }=50;
     private static readonly string[] StatusFilters=["Active","Suspended","Closed","expiring","past-due","dead-lettered"];
+    private static readonly string[] Sorts=["expiry","expiry-desc","name"];
     private AdminPage<TenantSummary>? Rows;
-    private string FilterUrl=>$"/admin/tenants?search={Uri.EscapeDataString(Search??"")}&status={Uri.EscapeDataString(Status??"")}";
-    protected override async Task OnParametersSetAsync()=>Rows=Capture(await Queries.ListAsync(new(Status,Search,Page,PageSize),Cancellation));
+    private string FilterUrl=>$"/admin/tenants?search={Uri.EscapeDataString(Search??"")}&status={Uri.EscapeDataString(Status??"")}&sort={Uri.EscapeDataString(Sort??"")}";
+    protected override async Task OnParametersSetAsync()
+    {
+        // Guard against a stray/old link collapsing the directory to a single row: always show a dense page.
+        if (PageSize < 15) PageSize = 50;
+        Rows=Capture(await Queries.ListAsync(new(Status,Search,Page,PageSize,Sort),Cancellation));
+    }
+    private string RemainText(DateTimeOffset end)
+    {
+        var days=(int)Math.Ceiling((end-DateTimeOffset.UtcNow).TotalDays);
+        return days>=0?$"{days} {Loc.T("tenants.daysLeft")}":$"{-days} {Loc.T("tenants.daysOver")}";
+    }
+    private static string RemainTone(DateTimeOffset end)
+    {
+        var days=(end-DateTimeOffset.UtcNow).TotalDays;
+        return days<0?"bad":days<=14?"warn":"ok";
+    }
 }
