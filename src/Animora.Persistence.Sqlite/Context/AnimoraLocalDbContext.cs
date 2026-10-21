@@ -72,6 +72,9 @@ public sealed class AnimoraLocalDbContext(
         modelBuilder.Entity<BoardingBillingHandoff>().Property(e => e.LinesJson)
             .HasMaxLength(BoardingBillingHandoff.LinesJsonMaxLength);
         modelBuilder.Entity<SmsTemplateRow>().Property(e => e.Body).HasMaxLength(2048);
+        // Notification message text is prose, far beyond the generic short-text bound the conventions assign.
+        modelBuilder.Entity<NotificationRow>().Property(e => e.Body).HasMaxLength(NotificationRow.BodyMaxLength);
+        modelBuilder.Entity<RewardGrant>().Property(e => e.Reason).HasMaxLength(RewardGrant.ReasonMaxLength);
         // G04: replica payload/key bounds must win over the generic short-text convention.
         Animora.Persistence.Sqlite.Replica.ReplicaModel.ApplyBounds(modelBuilder);
         // G06: online session / sealed entitlement bounds likewise.

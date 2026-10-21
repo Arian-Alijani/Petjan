@@ -28,6 +28,7 @@ public sealed partial class SidebarViewModel : ObservableObject
     private readonly INavigationService _navigation;
     private readonly ICapabilityGate _gate;
     private readonly IToastService _toast;
+    private readonly NotificationBadgeState _badge;
 
     /// <summary>
     /// The nav keys that were visible after the previous rebuild. Diffing against it lets a live grant surface a
@@ -49,12 +50,14 @@ public sealed partial class SidebarViewModel : ObservableObject
         INavigationService navigation,
         ICurrentUserContext currentUser,
         ICapabilityGate gate,
-        IToastService toast)
+        IToastService toast,
+        NotificationBadgeState badge)
     {
         _navigation = navigation;
         CurrentUser = currentUser;
         _gate = gate;
         _toast = toast;
+        _badge = badge;
 
         _groups = BuildGroups();
         // The first layout is the baseline, not an "opened" event — record it without announcing anything.
@@ -63,6 +66,9 @@ public sealed partial class SidebarViewModel : ObservableObject
             $"(keys: {string.Join(",", _permittedKeys)}).", "sidebar");
 
         _gate.CapabilitiesChanged += OnCapabilitiesChanged;
+        // The unread badge of the notifications entry follows the shared state (UI-thread event, no polling).
+        _badge.Changed += (_, _) => ApplyBadge();
+        _ = _badge.RefreshAsync();
         // The highlight is derived from the navigation state - the one place every entry point passes through.
         // The sidebar is an app-lifetime singleton, so this single subscription is never removed.
         _navigation.CurrentViewModelChanged += OnNavigationChanged;
@@ -164,8 +170,34 @@ public sealed partial class SidebarViewModel : ObservableObject
             .GroupBy(item => item.GroupName)
             .Select(group => new NavGroupViewModel(
                 group.Key,
-                group.Select(item => new NavEntryViewModel(item)).ToArray()))
+                group.Select(CreateEntry).ToArray()))
             .ToArray();
+
+    private NavEntryViewModel CreateEntry(NavItem item)
+    {
+        var entry = new NavEntryViewModel(item);
+        if (item.Key == NotificationsKey) ApplyBadge(entry);
+        return entry;
+    }
+
+    private const string NotificationsKey = "notifications";
+
+    private void ApplyBadge()
+    {
+        foreach (var group in Groups)
+        {
+            foreach (var entry in group.Entries)
+            {
+                if (entry.Key == NotificationsKey) ApplyBadge(entry);
+            }
+        }
+    }
+
+    private void ApplyBadge(NavEntryViewModel entry)
+    {
+        entry.BadgeCount = _badge.Count;
+        entry.BadgeText = _badge.Count > 0 ? _badge.Text : string.Empty;
+    }
 
     /// <summary>The keys of every nav item currently permitted, in sidebar order.</summary>
     private HashSet<string> CurrentPermittedKeys() =>

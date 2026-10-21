@@ -251,7 +251,7 @@
                           Data="{StaticResource IconMoon}" />
                 </Button>
 
-                <!-- Notification bell (inert stub, red dot) -->
+                <!-- Notification bell: opens the messages page, numeric unread badge -->
                 <Button Classes="ghost"
                         Command="{Binding OpenNotificationsCommand}"
                         Width="36"
@@ -264,14 +264,25 @@
                               Height="18"
                               Stroke="{StaticResource Ink2Brush}"
                               Data="{StaticResource IconBell}" />
-                        <Ellipse Width="7"
-                                 Height="7"
-                                 HorizontalAlignment="Right"
-                                 VerticalAlignment="Top"
-                                 Margin="0,0,0,0"
-                                 Stroke="{StaticResource PanelBrush}"
-                                 StrokeThickness="1"
-                                 Fill="{StaticResource DangerBrush}" />
+                        <Border IsVisible="{Binding HasUnread}"
+                                MinWidth="17"
+                                Height="17"
+                                Padding="4,0"
+                                CornerRadius="9"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Margin="0,-6,-7,0"
+                                Background="{StaticResource DangerBrush}"
+                                BorderBrush="{StaticResource PanelBrush}"
+                                BorderThickness="1.5"
+                                IsHitTestVisible="False">
+                            <TextBlock Text="{Binding UnreadBadgeText}"
+                                       FontSize="10"
+                                       FontWeight="ExtraBold"
+                                       Foreground="White"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                        </Border>
                     </Panel>
                 </Button>
 

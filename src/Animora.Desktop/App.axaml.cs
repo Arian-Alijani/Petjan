@@ -285,9 +285,11 @@ public partial class App : global::Avalonia.Application
             Diagnostics.AppTrace.Milestone($"local store ready={ready}", Program.StartupTimer.Elapsed);
             if (ready) await HydrateClinicTimeZoneAsync(); // INF-05: pre-hydrate so the sync zone getter never queries on the UI thread
             Services.GetRequiredService<MaintenanceScheduler>().Start();
+            Services.GetRequiredService<Animora.Client.Services.Notifications.NotificationService>().Start(); // publishes due scheduled messages
             Services.GetRequiredService<SyncSchedulerHostedService>().Start(); // dormant unless a server is configured
             Services.GetService<LiveAccessRefreshService>()?.Start(); // active-session access changes, independent of state-sync/backoff
             Services.GetRequiredService<SyncChangeBridge>().Start(); // D14: a completed pass refreshes the open page
+            Services.GetRequiredService<NotificationBridge>().Start(); // messages arrive without sync: refresh badges + toast
             await Dispatcher.UIThread.InvokeAsync(() => viewModel.InitializeAsync(ready));
             // Hidden --startup boot that did NOT auto-sign-in: the user must authenticate, so show the form now.
             await Dispatcher.UIThread.InvokeAsync(() => RevealPendingStartupLogin(login));
@@ -547,6 +549,15 @@ public partial class App : global::Avalonia.Application
         // (scope-per-call, stateless — edits persist through the use cases; the singleton holds no data).
         services.AddSingleton<IUserProfileService, Animora.Client.Services.Profile.UserProfileService>();
         services.AddSingleton<ProfilePageViewModel>();
+
+        // Notifications & messages: local, offline-first feed (no sync needed). One singleton is both the concrete
+        // type (the composition root starts its minute due-sweep, DI disposes it) and the Contracts interface.
+        services.AddSingleton<Animora.Client.Services.Notifications.NotificationService>();
+        services.AddSingleton<Animora.Contracts.Notifications.INotificationService>(sp =>
+            sp.GetRequiredService<Animora.Client.Services.Notifications.NotificationService>());
+        services.AddSingleton<Animora.Desktop.Pages.Notifications.NotificationsPageViewModel>();
+        services.AddSingleton<NotificationBadgeState>(); // shared unread count (bell + sidebar)
+        services.AddSingleton<NotificationBridge>(); // feed change -> DataDomain.Notifications + toast for a new message
 
         // Local offline sync status. E04 swaps engine internals behind the same contract.
         services.AddAnimoraSyncEngine();

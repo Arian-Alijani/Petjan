@@ -35,6 +35,8 @@ public static class NavPermissions
         ["statistics"] = PermissionCodes.ReportsRead,
         ["history"] = PermissionCodes.AuditRead,
         ["profile"] = PermissionCodes.SettingsRead,
+        // Every default role (incl. Accountant, which lacks patients.read) holds settings.read; composing/rewards are gated in the service.
+        ["notifications"] = PermissionCodes.SettingsRead,
         ["reception"] = PermissionCodes.ReceptionManage,
         ["cashier"] = PermissionCodes.SalesRead,
     }.ToFrozenDictionary(StringComparer.Ordinal);
@@ -56,6 +58,7 @@ public static class NavPermissions
         [typeof(Pages.Statistics.StatisticsPageViewModel)] = "statistics",
         [typeof(Pages.History.HistoryPageViewModel)] = "history",
         [typeof(Pages.Profile.ProfilePageViewModel)] = "profile",
+        [typeof(Pages.Notifications.NotificationsPageViewModel)] = "notifications",
         [typeof(Pages.Reception.ReceptionPageViewModel)] = "reception",
         [typeof(Pages.Cashier.CashierPageViewModel)] = "cashier",
     }.ToFrozenDictionary();

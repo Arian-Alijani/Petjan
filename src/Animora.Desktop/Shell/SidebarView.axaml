@@ -365,6 +365,27 @@
                                                               Height="18"
                                                               VerticalAlignment="Center"
                                                               Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                        <!-- unread badge (notifications entry only): hangs off the icon's top-right so it
+                                                             stays visible in the compact rail too -->
+                                                        <Border IsVisible="{Binding HasBadge}"
+                                                                MinWidth="16"
+                                                                Height="16"
+                                                                Padding="4,0"
+                                                                CornerRadius="8"
+                                                                HorizontalAlignment="Right"
+                                                                VerticalAlignment="Top"
+                                                                Margin="0,-9,-10,0"
+                                                                Background="{StaticResource DangerBrush}"
+                                                                BorderBrush="{StaticResource PanelBrush}"
+                                                                BorderThickness="1.5"
+                                                                IsHitTestVisible="False">
+                                                            <TextBlock Text="{Binding BadgeText}"
+                                                                       FontSize="9.5"
+                                                                       FontWeight="ExtraBold"
+                                                                       Foreground="White"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center" />
+                                                        </Border>
                                                     </Panel>
                                                 </Grid>
                                             </Button>
