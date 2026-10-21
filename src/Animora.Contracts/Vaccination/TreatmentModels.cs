@@ -109,6 +109,22 @@ public sealed record TreatmentPlanSummary(
     DateOnly LastDay,
     DateOnly? NextPendingDay);
 
+/// <summary>
+/// Where a calendar entry comes from. Both sources are shown by the same calendar and the same
+/// appointment projection, so the clinic never sees a due dose in one screen and not in the other.
+/// </summary>
+public enum CalendarOccurrenceSource
+{
+    /// <summary>A scheduled day of a «دارو و واکسن» treatment plan (has a plan and an occurrence row).</summary>
+    PlanDay,
+
+    /// <summary>
+    /// The next-dose reminder of an administered vaccination record. Read-only: it has no plan and no
+    /// occurrence, so it can never be marked done or rescheduled from the calendar.
+    /// </summary>
+    VaccineBooster,
+}
+
 /// <summary>One scheduled day on the calendar. Carries the <see cref="Kind"/> only — colour is a presentation concern.</summary>
 public sealed record CalendarOccurrence(
     string OccurrenceId,
@@ -123,7 +139,18 @@ public sealed record CalendarOccurrence(
     TreatmentItemType ItemType,
     TreatmentKind Kind,
     TreatmentOccurrenceState State,
-    bool NotifyOwner);
+    bool NotifyOwner,
+    CalendarOccurrenceSource Source = CalendarOccurrenceSource.PlanDay,
+    string? VaccinationRecordId = null,
+    string? VaccineName = null,
+    int? DoseNumber = null)
+{
+    /// <summary>
+    /// True for a next-dose reminder projected from a vaccination record. Such an entry is derived, never
+    /// stored, and its «جزئیات» is the vaccination record itself.
+    /// </summary>
+    public bool IsVaccineBooster => Source == CalendarOccurrenceSource.VaccineBooster;
+}
 
 /// <summary>Optional narrowing of the calendar window. Empty/null members mean "no restriction".</summary>
 public sealed record CalendarFilter(

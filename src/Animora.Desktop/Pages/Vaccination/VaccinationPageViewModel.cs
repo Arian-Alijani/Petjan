@@ -5,6 +5,7 @@ using Animora.Contracts.Diagnostics;
 using Animora.Contracts.Inventory;
 using Animora.Desktop.Controls;
 using Animora.Desktop.Localization;
+using Animora.Desktop.Pages.Patients;
 using Animora.Desktop.Pages.Vaccination;
 using Animora.Desktop.Services;
 using Animora.Desktop.Shell;
@@ -245,9 +246,43 @@ public sealed partial class VaccinationPageViewModel : PageViewModelBase
                 _service, _dialogs, _toast, item.Occurrence.PetId, item.PetName, OnPlansEdited),
             maxWidth: 600);
 
-    private void OpenOccurrenceDetail(CalendarEventViewModel item) =>
+    /// <summary>
+    /// The «جزئیات» of one calendar entry. A treatment-plan day opens its occurrence popup; a next-dose reminder is a
+    /// projection of a vaccination record, so it opens that record — the same popup the appointment calendar shows for
+    /// the same entry.
+    /// </summary>
+    private void OpenOccurrenceDetail(CalendarEventViewModel item)
+    {
+        if (item.Occurrence.VaccinationRecordId is { } recordId)
+        {
+            _ = ShowVaccinationRecordAsync(recordId);
+            return;
+        }
+
         _dialogs.ShowModal(new TreatmentOccurrenceDetailViewModel(
             _service, _dialogs, _toast, item.Occurrence, OnPlansEdited));
+    }
+
+    /// <summary>Re-reads the record so the popup always reflects the stored state, never the projection.</summary>
+    private async Task ShowVaccinationRecordAsync(string recordId)
+    {
+        try
+        {
+            var record = (await _service.GetRecordsAsync()).FirstOrDefault(r => r.Id == recordId);
+            if (record is null)
+            {
+                _toast.Show("رکورد واکسن موردنظر پیدا نشد.", Tone.Danger);
+                return;
+            }
+
+            var vaccine = (await _service.GetCatalogAsync()).FirstOrDefault(v => v.Id == record.VaccineId);
+            _dialogs.ShowModal(new VaccinationRecordDetailViewModel(record, vaccine, _dialogs));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _toast.Show(PatientsPresentation.CommandFailureMessage(ex, "بازکردن جزئیات واکسن ناموفق بود."), Tone.Danger);
+        }
+    }
 
     private void OnPlansEdited() => NotifyVaccinationChanged();
 

@@ -190,7 +190,8 @@ public sealed partial class TreatmentCalendarViewModel : ObservableObject
     [RelayCommand]
     private async Task MarkDoneAsync(CalendarEventViewModel? item)
     {
-        if (item is null || item.IsDone)
+        // A next-dose reminder has no occurrence row to complete; it is closed by recording the dose itself.
+        if (item is null || item.IsDone || item.IsVaccineBooster)
         {
             return;
         }

@@ -43,7 +43,11 @@ public sealed partial class CalendarItemTypeFilterViewModel : ObservableObject
     public string Label { get; }
 }
 
-/// <summary>A compact event pill inside a month cell, and the row of the selected-day list.</summary>
+/// <summary>
+/// A compact event pill inside a month cell, and the row of the selected-day list. Covers both kinds of due item:
+/// a scheduled day of a treatment plan, and a next-dose reminder derived from an administered vaccination record
+/// (which gets its own accent, label and icon and can never be marked done here).
+/// </summary>
 public sealed partial class CalendarEventViewModel : ObservableObject
 {
     [ObservableProperty]
@@ -52,24 +56,36 @@ public sealed partial class CalendarEventViewModel : ObservableObject
     public CalendarEventViewModel(CalendarOccurrence occurrence)
     {
         Occurrence = occurrence;
+        IsVaccineBooster = occurrence.IsVaccineBooster;
         IsDone = occurrence.State == TreatmentOccurrenceState.Done;
         Title = occurrence.Title;
         PetName = occurrence.PetName;
         OwnerName = occurrence.OwnerName;
         PillText = $"{occurrence.PetName} · {occurrence.Title}";
-        KindLabel = VaccinationPresentation.KindLabel(occurrence.Kind);
+        KindLabel = IsVaccineBooster
+            ? VaccinationPresentation.BoosterLabel
+            : VaccinationPresentation.KindLabel(occurrence.Kind);
         ItemTypeLabel = VaccinationPresentation.ItemTypeLabel(occurrence.ItemType);
         ItemTypeIconKey = VaccinationPresentation.ItemTypeIconKey(occurrence.ItemType);
-        KindIconKey = VaccinationPresentation.KindIconKey(occurrence.Kind);
-        Brush = VaccinationPresentation.KindBrush(occurrence.Kind);
-        Wash = VaccinationPresentation.KindWash(occurrence.Kind);
-        DosageText = occurrence.Dosage ?? string.Empty;
-        HasDosage = !string.IsNullOrWhiteSpace(occurrence.Dosage);
-        ShowsOwnerReminder = occurrence.NotifyOwner && occurrence.Kind == TreatmentKind.HomeByOwner;
+        KindIconKey = IsVaccineBooster
+            ? VaccinationPresentation.BoosterIconKey
+            : VaccinationPresentation.KindIconKey(occurrence.Kind);
+        Brush = IsVaccineBooster
+            ? VaccinationPresentation.BoosterBrush()
+            : VaccinationPresentation.KindBrush(occurrence.Kind);
+        Wash = IsVaccineBooster
+            ? VaccinationPresentation.BoosterWash()
+            : VaccinationPresentation.KindWash(occurrence.Kind);
+        DosageText = IsVaccineBooster
+            ? occurrence.DoseNumber is { } dose ? $"دوز {VaccinationPresentation.Fa(dose)}" : string.Empty
+            : occurrence.Dosage ?? string.Empty;
+        HasDosage = !string.IsNullOrWhiteSpace(DosageText);
+        ShowsOwnerReminder = !IsVaccineBooster && occurrence.NotifyOwner && occurrence.Kind == TreatmentKind.HomeByOwner;
         SpeciesText = VaccinationPresentation.SpeciesLabel(occurrence.Species.ToLowerInvariant());
     }
 
     public CalendarOccurrence Occurrence { get; }
+    public bool IsVaccineBooster { get; }
     public string Title { get; }
     public string PetName { get; }
     public string OwnerName { get; }
@@ -85,8 +101,11 @@ public sealed partial class CalendarEventViewModel : ObservableObject
     public IBrush Brush { get; }
     public IBrush Wash { get; }
 
-    /// <summary>The «انجام شد» action is offered only while the day is still pending.</summary>
-    public bool CanMarkDone => !IsDone;
+    /// <summary>
+    /// «انجام شد» is offered only while the day is still pending, and never for a next-dose reminder: that entry is
+    /// derived from a vaccination record, so completing it means recording the dose on the record itself.
+    /// </summary>
+    public bool CanMarkDone => !IsDone && !IsVaccineBooster;
 
     partial void OnIsDoneChanged(bool value) => OnPropertyChanged(nameof(CanMarkDone));
 }

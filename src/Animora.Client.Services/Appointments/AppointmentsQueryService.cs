@@ -60,39 +60,22 @@ public sealed class AppointmentsQueryService(IServiceScopeFactory scopes, IAppoi
     {
         var tz = await GetTimeZoneAsync();
         var events = (await QueryAsync(new AppointmentRangeQuery(start, end))).Select(r => r.ToContract(tz)).ToList();
-        events.AddRange(await GetBoosterEventsAsync(start, end, tz));
-        events.AddRange(await GetTreatmentEventsAsync(start, end));
+        events.AddRange(await GetDueEventsAsync(start, end));
         return events;
     }
 
     /// <summary>
-    /// The «دارو و واکسن» treatment-plan days in range as read-only calendar entries. A separate source from the
-    /// boosters (plans vs. administered vaccination records), so nothing is counted twice. Strictly additive like the
-    /// boosters: a missing vaccination permission or an over-wide range yields no entries, never a broken calendar.
+    /// The due items of the «دارو و واکسن» calendar in range — treatment-plan days and the next-dose reminders of
+    /// administered vaccinations — as read-only calendar entries. One query feeds both this calendar and the
+    /// vaccination screen, so the two can never disagree. Strictly additive: a missing vaccination permission or
+    /// an over-wide range yields no entries, never a broken calendar.
     /// </summary>
-    private async Task<IReadOnlyList<AppointmentEvent>> GetTreatmentEventsAsync(DateOnly start, DateOnly end)
+    private async Task<IReadOnlyList<AppointmentEvent>> GetDueEventsAsync(DateOnly start, DateOnly end)
     {
         try
         {
             var rows = await QueryAsync(new TreatmentCalendarQuery(start, end));
-            return rows.Select(r => r.ToTreatmentEvent()).ToArray();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            return [];
-        }
-    }
-
-    /// <summary>
-    /// Pending recurring-vaccine boosters in range as read-only calendar entries. Strictly additive: a
-    /// failure here (no vaccination permission, range too wide) must never break the appointment calendar.
-    /// </summary>
-    private async Task<IReadOnlyList<AppointmentEvent>> GetBoosterEventsAsync(DateOnly start, DateOnly end, TimeZoneInfo tz)
-    {
-        try
-        {
-            var rows = await QueryAsync(new VaccinationBoostersRangeQuery(start, end));
-            return rows.Select(r => r.ToBoosterEvent(tz)).ToArray();
+            return rows.Select(r => r.ToDueEvent()).ToArray();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

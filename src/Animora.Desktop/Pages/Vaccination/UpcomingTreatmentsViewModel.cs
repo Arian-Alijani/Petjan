@@ -204,12 +204,25 @@ public sealed partial class UpcomingTreatmentsViewModel : ObservableObject
         DateText = AppointmentsCalendarMath.DayNames[AppointmentsCalendarMath.WeekIndex(_selectedDay)] +
                    "، " + AppointmentsCalendarMath.Full(_selectedDay);
 
-        var visible = day.Where(o => _showDone || o.State == TreatmentOccurrenceState.Pending);
+        var visible = day.Where(o => _showDone || o.State == TreatmentOccurrenceState.Pending).ToList();
         var columns = new List<UpcomingKindColumnViewModel>();
+
+        // Next-dose reminders get their own column: they come from vaccination records, not from a plan kind, and are
+        // read-only — mixing them into «کلینیک» would hide that difference from the operator.
+        var boosters = visible
+            .Where(o => o.IsVaccineBooster)
+            .OrderBy(o => o.PetName, StringComparer.CurrentCulture)
+            .Select((o, i) => new UpcomingCardViewModel(new CalendarEventViewModel(o), i + 1))
+            .ToList();
+        if (boosters.Count > 0)
+        {
+            columns.Add(UpcomingKindColumnViewModel.Boosters(boosters));
+        }
+
         foreach (var kind in new[] { TreatmentKind.ClinicVisit, TreatmentKind.HomeByOwner, TreatmentKind.BoardingAdminister })
         {
             var cards = visible
-                .Where(o => o.Kind == kind)
+                .Where(o => !o.IsVaccineBooster && o.Kind == kind)
                 .OrderBy(o => o.State == TreatmentOccurrenceState.Done)
                 .ThenBy(o => o.PetName, StringComparer.CurrentCulture)
                 .Select((o, i) => new UpcomingCardViewModel(new CalendarEventViewModel(o), i + 1))

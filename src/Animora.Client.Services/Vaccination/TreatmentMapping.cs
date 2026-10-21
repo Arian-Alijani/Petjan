@@ -39,13 +39,21 @@ internal static class TreatmentMapping
         (ClinicalDomain.TreatmentScheduleType)(int)input.Type,
         input.Start, input.End, input.IntervalDays, input.Count, input.Days, input.WeekdayMask);
 
-    public static CalendarOccurrence ToContract(this TreatmentCalendarRow row) => new(
-        row.OccurrenceId, row.PlanId, row.DueDay, row.PetId, row.PetName, row.Species, row.OwnerName, row.Title,
-        row.Dosage, row.ItemType.ToContract(), row.Kind.ToContract(),
-        row.State == ClinicalDomain.TreatmentOccurrenceState.Done
-            ? TreatmentOccurrenceState.Done
-            : TreatmentOccurrenceState.Pending,
-        row.NotifyOwner);
+    public static CalendarOccurrence ToContract(this TreatmentCalendarRow row)
+    {
+        var booster = row.Source == TreatmentCalendarRowSource.VaccineBooster;
+        return new(
+            row.OccurrenceId, row.PlanId, row.DueDay, row.PetId, row.PetName, row.Species, row.OwnerName, row.Title,
+            row.Dosage, row.ItemType.ToContract(), row.Kind.ToContract(),
+            row.State == ClinicalDomain.TreatmentOccurrenceState.Done
+                ? TreatmentOccurrenceState.Done
+                : TreatmentOccurrenceState.Pending,
+            row.NotifyOwner,
+            booster ? CalendarOccurrenceSource.VaccineBooster : CalendarOccurrenceSource.PlanDay,
+            booster ? row.OccurrenceId : null,
+            row.VaccineName,
+            row.DoseNumber);
+    }
 
     public static TreatmentPlanSummary ToContract(this TreatmentPlanRow row) => new(
         row.PlanId, row.PetId, row.PetName, row.ItemType.ToContract(), row.Kind.ToContract(), row.Title,

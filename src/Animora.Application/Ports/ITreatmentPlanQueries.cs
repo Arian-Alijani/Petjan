@@ -2,10 +2,22 @@ using Animora.Domain.Clinical;
 
 namespace Animora.Application.Ports;
 
+/// <summary>Which aggregate a calendar row came from — a planned day or an administered dose's next-dose reminder.</summary>
+public enum TreatmentCalendarRowSource
+{
+    /// <summary>A «دارو و واکسن» treatment-plan occurrence.</summary>
+    PlanDay,
+
+    /// <summary>A next-dose reminder derived from a <c>VaccinationRecord</c> (no plan, read-only).</summary>
+    VaccineBooster,
+}
+
 /// <summary>One scheduled day on the «دارو و واکسن» calendar, joined with its patient.</summary>
 public sealed record TreatmentCalendarRow(string OccurrenceId, string PlanId, DateOnly DueDay, string PetId,
     string PetName, string Species, string OwnerName, string Title, string? Dosage, TreatmentItemType ItemType,
-    TreatmentKind Kind, TreatmentOccurrenceState State, DateTimeOffset? DoneUtc, bool NotifyOwner);
+    TreatmentKind Kind, TreatmentOccurrenceState State, DateTimeOffset? DoneUtc, bool NotifyOwner,
+    TreatmentCalendarRowSource Source = TreatmentCalendarRowSource.PlanDay, string? VaccineName = null,
+    int? DoseNumber = null);
 
 /// <summary>A plan with its progress counters (for the patient's plan list).</summary>
 public sealed record TreatmentPlanRow(string PlanId, string PetId, string PetName, TreatmentItemType ItemType,

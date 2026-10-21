@@ -57,19 +57,36 @@ public sealed class UpcomingCardViewModel
     public Tone StatusTone { get; }
 }
 
-/// <summary>One column of the upcoming tab — the day's items of a single plan kind (clinic / home / boarding).</summary>
+/// <summary>
+/// One column of the upcoming tab — the day's items of a single plan kind (clinic / home / boarding), or the
+/// separate «یادآور واکسن» column that holds the next-dose reminders derived from vaccination records.
+/// </summary>
 public sealed class UpcomingKindColumnViewModel
 {
-    public UpcomingKindColumnViewModel(TreatmentKind kind, IReadOnlyList<UpcomingCardViewModel> cards)
+    private UpcomingKindColumnViewModel(string label, string iconKey, IBrush brush, IBrush wash, string emptyText,
+        IReadOnlyList<UpcomingCardViewModel> cards)
     {
         Cards = cards;
-        Label = VaccinationPresentation.KindLabel(kind);
-        IconKey = VaccinationPresentation.KindIconKey(kind);
-        Brush = VaccinationPresentation.KindBrush(kind);
-        Wash = VaccinationPresentation.KindWash(kind);
+        Label = label;
+        IconKey = iconKey;
+        Brush = brush;
+        Wash = wash;
         CountText = VaccinationPresentation.Fa(cards.Count);
-        EmptyText = $"برای «{VaccinationPresentation.KindShortLabel(kind)}» در این روز موردی برنامه‌ریزی نشده است.";
+        EmptyText = emptyText;
     }
+
+    public UpcomingKindColumnViewModel(TreatmentKind kind, IReadOnlyList<UpcomingCardViewModel> cards)
+        : this(VaccinationPresentation.KindLabel(kind), VaccinationPresentation.KindIconKey(kind),
+            VaccinationPresentation.KindBrush(kind), VaccinationPresentation.KindWash(kind),
+            $"برای «{VaccinationPresentation.KindShortLabel(kind)}» در این روز موردی برنامه‌ریزی نشده است.", cards)
+    {
+    }
+
+    /// <summary>The day's next-dose reminders — a derived, read-only source, so it gets its own column.</summary>
+    public static UpcomingKindColumnViewModel Boosters(IReadOnlyList<UpcomingCardViewModel> cards) =>
+        new(VaccinationPresentation.BoosterLabel, VaccinationPresentation.BoosterIconKey,
+            VaccinationPresentation.BoosterBrush(), VaccinationPresentation.BoosterWash(),
+            "برای این روز یادآور واکسنی ثبت نشده است.", cards);
 
     public IReadOnlyList<UpcomingCardViewModel> Cards { get; }
     public string Label { get; }

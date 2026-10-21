@@ -52,50 +52,59 @@ internal static class AppointmentsMapping
             row.InvoiceTotalMinor, row.InvoicePaidMinor);
     }
 
-    /// <summary>Default minute a booster entry is shown at when its due instant carries no time of day.</summary>
+    /// <summary>Default minute a due item is shown at when its due date carries no time of day.</summary>
     private const int BoosterDefaultStartMinute = 9 * 60;
-
-    /// <summary>
-    /// Projects a pending recurring-vaccine booster into a read-only calendar entry. The id is prefixed
-    /// (<c>vb:</c>) so it can never collide with a stored appointment; nothing is persisted.
-    /// </summary>
-    internal static AppointmentEvent ToBoosterEvent(this VaccinationBoosterRow row, TimeZoneInfo tz)
-    {
-        var ticks = row.NextDueUtc.UtcTicks;
-        var date = ClinicCalendar.LocalDay(ticks, tz);
-        var minute = ClinicCalendar.MinutesFromDayStart(ticks, date, tz);
-        if (minute <= 0) minute = BoosterDefaultStartMinute;
-        return new AppointmentEvent(BoosterIdPrefix + row.Id, date, minute, 30, AppointmentTypeIds.VaccineBooster,
-            "", row.PetName, row.Species, row.OwnerName, row.OwnerPhone,
-            "blue", row.Species.ToLowerInvariant(), AppointmentStatus.Pending,
-            $"{row.VaccineName} - دوز {row.DoseNumber}", row.Id,
-            0, AppointmentInvoiceState.None, AppointmentPaymentMethod.None, AppointmentVisitOutcome.None,
-            PetId: row.PetId, IsVaccineBooster: true, VaccineName: row.VaccineName);
-    }
 
     internal const string BoosterIdPrefix = "vb:";
 
     internal const string TreatmentIdPrefix = "tp:";
 
     /// <summary>
-    /// Projects one scheduled day of a «دارو و واکسن» treatment plan into a read-only calendar entry. Plan days carry
-    /// no clock time, so they sit at the same default minute as boosters; the id is prefixed (<c>tp:</c>) so it never
-    /// collides with a stored appointment or a booster, and nothing is persisted.
+    /// Projects one due item of the «دارو و واکسن» calendar into a read-only calendar entry: either a scheduled
+    /// day of a treatment plan or the next-dose reminder of an administered vaccination record. Both come from
+    /// the same query, so the appointment calendar and the vaccination screen can never disagree about what is
+    /// due. Ids are prefixed (<c>tp:</c> / <c>vb:</c>) so they never collide with a stored appointment, and
+    /// nothing is persisted.
     /// </summary>
-    internal static AppointmentEvent ToTreatmentEvent(this TreatmentCalendarRow row)
+    internal static AppointmentEvent ToDueEvent(this TreatmentCalendarRow row)
     {
+        var booster = row.Source == TreatmentCalendarRowSource.VaccineBooster;
         var done = row.State == Clinical.TreatmentOccurrenceState.Done;
-        var note = string.IsNullOrWhiteSpace(row.Dosage) ? row.Title : $"{row.Title} - {row.Dosage}";
-        return new AppointmentEvent(TreatmentIdPrefix + row.OccurrenceId, row.DueDay, BoosterDefaultStartMinute, 30,
-            TreatmentTypeId(row.Kind), "", row.PetName, row.Species, row.OwnerName, "",
-            "blue", row.Species.ToLowerInvariant(), done ? AppointmentStatus.Done : AppointmentStatus.Pending,
-            note, row.OccurrenceId, 0, AppointmentInvoiceState.None, AppointmentPaymentMethod.None,
+        var note = booster
+            ? BoosterNote(row.VaccineName, row.DoseNumber)
+            : string.IsNullOrWhiteSpace(row.Dosage) ? row.Title : $"{row.Title} - {row.Dosage}";
+
+        return new AppointmentEvent(
+            (booster ? BoosterIdPrefix : TreatmentIdPrefix) + row.OccurrenceId,
+            row.DueDay,
+            BoosterDefaultStartMinute,
+            30,
+            booster ? AppointmentTypeIds.VaccineBooster : TreatmentTypeId(row.Kind),
+            "",
+            row.PetName,
+            row.Species,
+            row.OwnerName,
+            "",
+            "blue",
+            row.Species.ToLowerInvariant(),
+            done ? AppointmentStatus.Done : AppointmentStatus.Pending,
+            note,
+            row.OccurrenceId,
+            0,
+            AppointmentInvoiceState.None,
+            AppointmentPaymentMethod.None,
             done ? AppointmentVisitOutcome.Complete : AppointmentVisitOutcome.None,
             done ? AppointmentLifecycle.Completed : AppointmentLifecycle.Scheduled,
             PetId: row.PetId,
-            VaccineName: row.ItemType == Clinical.TreatmentItemType.Vaccine ? row.Title : null,
-            TreatmentOccurrenceId: row.OccurrenceId, TreatmentPlanId: row.PlanId);
+            IsVaccineBooster: booster,
+            VaccineName: booster ? row.VaccineName : row.ItemType == Clinical.TreatmentItemType.Vaccine ? row.Title : null,
+            TreatmentOccurrenceId: booster ? null : row.OccurrenceId,
+            TreatmentPlanId: booster ? null : row.PlanId);
     }
+
+    private static string BoosterNote(string? vaccineName, int? doseNumber) => doseNumber is { } dose
+        ? $"{vaccineName} - دوز {dose}"
+        : vaccineName ?? string.Empty;
 
     private static string TreatmentTypeId(Clinical.TreatmentKind kind) => kind switch
     {

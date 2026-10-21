@@ -214,6 +214,23 @@ public static class VaccinationPresentation
     /// <summary>Soft background wash of a plan kind.</summary>
     public static IBrush KindWash(TreatmentKind kind) => FillAlpha(KindHex(kind), 0x1F);
 
+    // ── Next-dose reminders (derived from a vaccination record — read-only) ─────────────────────────────────
+
+    /// <summary>Accent of a next-dose reminder — the same green the appointment calendar tags «یادآور واکسن» with.</summary>
+    public const string BoosterHex = "#0E9F6E";
+
+    /// <summary>Label of a next-dose reminder, shown where a plan day shows its kind.</summary>
+    public const string BoosterLabel = "یادآور واکسن";
+
+    /// <summary>Icon key of a next-dose reminder.</summary>
+    public const string BoosterIconKey = "IconSyringe";
+
+    /// <summary>Solid accent brush of a next-dose reminder.</summary>
+    public static IBrush BoosterBrush() => Fill(BoosterHex);
+
+    /// <summary>Soft background wash of a next-dose reminder.</summary>
+    public static IBrush BoosterWash() => FillAlpha(BoosterHex, 0x1F);
+
     /// <summary>«واکسن» / «دارو».</summary>
     public static string ItemTypeLabel(TreatmentItemType type) =>
         type == TreatmentItemType.Vaccine ? "واکسن" : "دارو";
