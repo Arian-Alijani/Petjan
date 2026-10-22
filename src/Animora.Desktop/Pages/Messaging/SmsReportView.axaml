@@ -1,0 +1,146 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sms="using:Animora.Desktop.Pages.Messaging"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Messaging.SmsReportView"
+             x:DataType="sms:SmsReportViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.th">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Margin" Value="14,12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.td">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="Margin" Value="14,12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="Border.trow">
+            <Setter Property="BorderBrush" Value="{StaticResource Line2Brush}" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.trow:pointerover">
+            <Setter Property="Background" Value="{StaticResource RowHoverBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Spacing="18">
+        <sms:SmsSectionStateView DataContext="{Binding}" />
+
+        <Border Classes="card" IsVisible="{Binding HasData}">
+            <StackPanel>
+                <!-- header: title + summary (start), event-type filter + page size (end) -->
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="18,12,18,10">
+                    <StackPanel VerticalAlignment="Center" Spacing="2">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
+                                  VerticalAlignment="Center" Data="{StaticResource IconSms}" />
+                            <TextBlock Classes="card-title" Text="پیامک‌های ارسالی" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Summary}" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                    <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ComboBox Classes="hy-select" MinWidth="170" Margin="0,4,8,4"
+                                  ItemsSource="{Binding EventFilters}"
+                                  SelectedItem="{Binding SelectedEventFilter}" ToolTip.Tip="فیلتر بخش">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="sms:SmsEventFilterOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ComboBox Classes="hy-select" MinWidth="110" Margin="0,4,8,4"
+                                  SelectedIndex="{Binding PageSizeIndex}" ToolTip.Tip="تعداد رکورد در صفحه">
+                            <ComboBoxItem Content="۲۵ رکورد" />
+                            <ComboBoxItem Content="۵۰ رکورد" />
+                            <ComboBoxItem Content="۱۰۰ رکورد" />
+                        </ComboBox>
+                        <Button Classes="hy-pager" Margin="0,4,0,4" Command="{Binding ResetFilterCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14"
+                                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconRefresh}" />
+                                <TextBlock Text="حذف فیلتر" />
+                            </StackPanel>
+                        </Button>
+                    </WrapPanel>
+                </Grid>
+                <ProgressBar IsIndeterminate="True" Height="2" MinHeight="2" IsVisible="{Binding IsPaging}" />
+                <Border Classes="card-header-rule" />
+
+                <!-- table head -->
+                <Grid ColumnDefinitions="1.4*,1.4*,1.4*,1.2*,3*,0.7*,1.1*" Background="{StaticResource TableHeadBrush}">
+                    <TextBlock Grid.Column="0" Classes="th" Text="زمان" />
+                    <TextBlock Grid.Column="1" Classes="th" Text="بخش" />
+                    <TextBlock Grid.Column="2" Classes="th" Text="گیرنده" />
+                    <TextBlock Grid.Column="3" Classes="th" Text="شماره" />
+                    <TextBlock Grid.Column="4" Classes="th" Text="متن پیامک" />
+                    <TextBlock Grid.Column="5" Classes="th" Text="بخش‌ها" />
+                    <TextBlock Grid.Column="6" Classes="th" Text="وضعیت" />
+                </Grid>
+
+                <controls:EmptyState IsVisible="{Binding !HasRows}" Icon="{StaticResource IconSms}"
+                                     Title="پیامکی برای نمایش وجود ندارد"
+                                     Subtitle="پس از اتصال درگاه و ارسال پیامک، فهرست پیامک‌های ارسالی این بازه اینجا نمایش داده می‌شود." />
+
+                <ItemsControl ItemsSource="{Binding Rows}" IsVisible="{Binding HasRows}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sms:SentSmsDisplayRow">
+                            <Border Classes="trow">
+                                <Grid ColumnDefinitions="1.4*,1.4*,1.4*,1.2*,3*,0.7*,1.1*">
+                                    <TextBlock Grid.Column="0" Classes="td" Text="{Binding When}" />
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0"
+                                                VerticalAlignment="Center">
+                                        <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource Brand700Brush}"
+                                              Data="{Binding EventIcon, Converter={StaticResource IconKeyConverter}}" />
+                                        <TextBlock Text="{Binding EventName}" FontSize="12.5" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Classes="td" Text="{Binding Recipient}" FontWeight="SemiBold" />
+                                    <TextBlock Grid.Column="3" Classes="td" Text="{Binding Phone}" />
+                                    <TextBlock Grid.Column="4" Classes="td" Text="{Binding Body}" ToolTip.Tip="{Binding Body}" />
+                                    <TextBlock Grid.Column="5" Classes="td" Text="{Binding Segments}" />
+                                    <controls:Badge Grid.Column="6" Margin="14,0" VerticalAlignment="Center"
+                                                    HorizontalAlignment="Left"
+                                                    Text="{Binding StateLabel}" Tone="{Binding StateTone}" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- pager -->
+                <Border Classes="hy-pager-bar" IsVisible="{Binding HasRows}">
+                    <Grid ColumnDefinitions="*,Auto,Auto,*" ColumnSpacing="10">
+                        <Button Grid.Column="1" Classes="hy-pager" Command="{Binding PrevPageCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14"
+                                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconChevronRight}" />
+                                <TextBlock Text="قبلی" />
+                            </StackPanel>
+                        </Button>
+                        <Border Grid.Column="2" MinWidth="88" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PageText}" FontSize="12.5" FontWeight="Bold"
+                                       Foreground="{StaticResource Ink2Brush}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <Button Grid.Column="3" Classes="hy-pager" HorizontalAlignment="Left"
+                                Command="{Binding NextPageCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="بعدی" />
+                                <Path Classes="icon" Width="14" Height="14"
+                                      Stroke="{Binding $parent[Button].Foreground}" Data="{StaticResource IconChevronLeft}" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

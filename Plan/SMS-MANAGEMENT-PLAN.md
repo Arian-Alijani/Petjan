@@ -263,7 +263,7 @@ public interface ISmsService
   حالتِ خالی/در انتظار اتصال تمیز نمایش داده شود.
   → push: `feat(ui): add SMS overview with credit card and usage charts`.
 
-- [ ] **T5 — بخش گزارش (تسک ۲).** `SmsReportView/VM`: جدولِ پیامک‌های ارسالی (DataTable موجود در Controls)
+- [x] **T5 — بخش گزارش (تسک ۲).** `SmsReportView/VM`: جدولِ پیامک‌های ارسالی (DataTable موجود در Controls)
   + فیلتر بازه/نوع رویداد + ستون وضعیت (pill با SmsDeliveryState). stub → خالی با پیام مناسب.
   → push: `feat(ui): add SMS sent-report table with filters`.
 
