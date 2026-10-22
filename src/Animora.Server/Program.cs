@@ -251,6 +251,8 @@ app.MapCommandEndpoints();
 app.MapSyncEndpoints();
 // D04 authoritative financial read path (invoices/payments since a cursor); separate from command intake + state feed.
 app.MapFinanceEndpoints();
+// Vendor-message delivery (admin-panel messages -> desktop local store) + real delivery receipts.
+app.MapNotificationFeedEndpoints();
 app.MapHub<SyncHintHub>(ServerRoutes.Sync + "/hub").RequireAuthorization(CoarsePolicies.TenantMember, CoarsePolicies.DeviceActive)
     .RequireRateLimiting(RateLimitPolicies.Sync);
 

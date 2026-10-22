@@ -172,7 +172,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
   + بررسی/افزایش `ServerSchemaVersion.cs` اگر لازم بود.
 - **پوش:** `feat(persistence): add TenantNotificationDelivery table + migration`
 
-### Task 3 — Endpointهای سرور (pull + receipt)  — وضعیت: [ ] در انتظار
+### Task 3 — Endpointهای سرور (pull + receipt)  — وضعیت: [x] انجام شد
 - فایل جدید: `src/Animora.Server/Sync/NotificationFeedEndpoints.cs` (الگوی `FinanceEndpoints.cs`).
   - `GET /notifications?since=&take=` → خواندن `TenantNotifications` با `TenantId=@tenant`،
     فیلتر: `ScheduledForUtc == null || ScheduledForUtc <= now` (منتشرشده)، و

@@ -13,6 +13,9 @@ internal static class ServerRoutes
 
     /// <summary>D04 authoritative financial read path (invoices/payments since a cursor); separate from command intake and the state feed.</summary>
     public const string Finance = "/finance";
+
+    /// <summary>Vendor-message delivery: pull of admin-authored messages + real per-device delivery receipts; separate from command intake and the state feed.</summary>
+    public const string Notifications = "/notifications";
     public const string Auth = "/auth";
     public const string Operator = "/operator";
     public const string Provisioning = "/provisioning";
