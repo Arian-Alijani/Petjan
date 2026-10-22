@@ -124,6 +124,12 @@ public static class ViewFactory
         Register<global::Animora.Desktop.Pages.Sales.SalePageViewModel, global::Animora.Desktop.Pages.Sales.SalePageView>(factories);
         Register<global::Animora.Desktop.Pages.Sales.Shared.ConfirmDialogViewModel, global::Animora.Desktop.Pages.Sales.Shared.ConfirmDialogView>(factories);
 
+        // SMS management («مدیریت پیامک») page + its three sections.
+        Register<global::Animora.Desktop.Pages.Messaging.SmsPageViewModel, global::Animora.Desktop.Pages.Messaging.SmsPageView>(factories);
+        Register<global::Animora.Desktop.Pages.Messaging.SmsOverviewViewModel, global::Animora.Desktop.Pages.Messaging.SmsOverviewView>(factories);
+        Register<global::Animora.Desktop.Pages.Messaging.SmsReportViewModel, global::Animora.Desktop.Pages.Messaging.SmsReportView>(factories);
+        Register<global::Animora.Desktop.Pages.Messaging.SmsSettingsViewModel, global::Animora.Desktop.Pages.Messaging.SmsSettingsView>(factories);
+
         // Statistics («آمار») page + its four sections.
         Register<global::Animora.Desktop.Pages.Statistics.StatisticsPageViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsPageView>(factories);
         Register<global::Animora.Desktop.Pages.Statistics.StatisticsOverviewViewModel, global::Animora.Desktop.Pages.Statistics.StatisticsOverviewView>(factories);

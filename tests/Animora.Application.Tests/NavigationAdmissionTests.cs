@@ -74,6 +74,15 @@ namespace Animora.Application.Tests
             Assert.Equal(permission, NavPermissions.For(key));
 
         [Fact]
+        public void SmsManagement_IsASystemSidebarEntry_GatedOnSettingsRead()
+        {
+            var item = Assert.Single(NavigationMenu.Items, i => i.Key == "sms");
+            Assert.Equal(typeof(Animora.Desktop.Pages.Messaging.SmsPageViewModel), item.ViewModelType);
+            Assert.Equal("سیستم", item.GroupName);
+            Assert.Equal(PermissionCodes.SettingsRead, NavPermissions.For(item.ViewModelType));
+        }
+
+        [Fact]
         public void SameSingletonDestination_ActivatesOnce_WithoutLeaveOrChangeEvent()
         {
             var gate = new Gate { Allowed = { PermissionCodes.InventoryRead, PermissionCodes.PatientsRead } };
@@ -215,6 +224,8 @@ namespace Animora.Desktop.Pages.Cashier { public sealed class CashierPageViewMod
 namespace Animora.Desktop.Pages.Statistics { public sealed class StatisticsPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Cheques { public sealed class ChequesPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 namespace Animora.Desktop.Pages.Notifications { public sealed class NotificationsPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
+namespace Animora.Desktop.Pages.CustomerClub { public sealed class CustomerClubPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
+namespace Animora.Desktop.Pages.Messaging { public sealed class SmsPageViewModel : Animora.Application.Tests.NavigationTestPage { } }
 
 // NavigationService marshals to the Avalonia UI thread; the test project deliberately has no Avalonia reference, so an
 // inert single-threaded stand-in runs the callback inline.

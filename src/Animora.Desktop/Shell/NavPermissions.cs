@@ -39,6 +39,8 @@ public static class NavPermissions
         ["profile"] = PermissionCodes.SettingsRead,
         // Every default role (incl. Accountant, which lacks patients.read) holds settings.read; composing/rewards are gated in the service.
         ["notifications"] = PermissionCodes.SettingsRead,
+        // «مدیریت پیامک» edits clinic-wide messaging settings (credit, report, per-event automation): settings.read.
+        ["sms"] = PermissionCodes.SettingsRead,
         ["reception"] = PermissionCodes.ReceptionManage,
         ["cashier"] = PermissionCodes.SalesRead,
     }.ToFrozenDictionary(StringComparer.Ordinal);
@@ -62,6 +64,7 @@ public static class NavPermissions
         [typeof(Pages.History.HistoryPageViewModel)] = "history",
         [typeof(Pages.Profile.ProfilePageViewModel)] = "profile",
         [typeof(Pages.Notifications.NotificationsPageViewModel)] = "notifications",
+        [typeof(Pages.Messaging.SmsPageViewModel)] = "sms",
         [typeof(Pages.Reception.ReceptionPageViewModel)] = "reception",
         [typeof(Pages.Cashier.CashierPageViewModel)] = "cashier",
     }.ToFrozenDictionary();

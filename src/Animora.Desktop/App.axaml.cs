@@ -543,6 +543,13 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<Animora.Contracts.CustomerClub.ICustomerClubQueryService, Animora.Client.Services.CustomerClub.CustomerClubQueryService>();
         services.AddSingleton<Animora.Desktop.Pages.CustomerClub.CustomerClubPageViewModel>();
 
+        // «مدیریت پیامک»: design-only stub seam (no gateway yet) + the singleton page and its three section view-models.
+        services.AddSingleton<Animora.Contracts.Messaging.ISmsService, Animora.Client.Services.Messaging.SmsService>();
+        services.AddSingleton<Animora.Desktop.Pages.Messaging.SmsOverviewViewModel>();
+        services.AddSingleton<Animora.Desktop.Pages.Messaging.SmsReportViewModel>();
+        services.AddSingleton<Animora.Desktop.Pages.Messaging.SmsSettingsViewModel>();
+        services.AddSingleton<Animora.Desktop.Pages.Messaging.SmsPageViewModel>();
+
         // Phase 28: Profile & Settings screen. Real UserProfileService over the local backend
         // (scope-per-call, stateless — edits persist through the use cases; the singleton holds no data).
         services.AddSingleton<IUserProfileService, Animora.Client.Services.Profile.UserProfileService>();

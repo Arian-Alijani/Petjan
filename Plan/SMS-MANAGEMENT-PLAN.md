@@ -274,7 +274,7 @@ public interface ISmsService
   دکمهٔ ذخیره → `SaveSettingsAsync` (stub). همه پیش‌فرض خاموش؛ هیچ ادعای ارسالِ واقعی.
   → push: `feat(ui): add per-event SMS settings incl. 3-mode vaccine reminders`.
 
-- [ ] **T7 — ثبت DI + ناوبری + یکپارچگی (تسک‌های ۴ و ۵).**
+- [x] **T7 — ثبت DI + ناوبری + یکپارچگی (تسک‌های ۴ و ۵).**
   - DI در `App.axaml.cs`: ثبت `ISmsService→SmsService` (singleton) + `SmsPageViewModel` (singleton).
   - Nav در `Shell/NavigationMenu.cs`: `NavItem("sms","مدیریت پیامک","<آیکون معتبر>", typeof(SmsPageViewModel),"سیستم")` + import namespace.
   - اطمینان از اینکه آیکون‌کلید در `Resources/Theme/Icons.axaml` واقعاً وجود دارد.
