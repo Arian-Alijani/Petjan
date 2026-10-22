@@ -241,15 +241,15 @@ public interface ISmsService
 > نماد وضعیت: `[ ]` انجام‌نشده · `[~]` در حال انجام · `[x]` انجام‌شده.
 > **قانون قفل‌شده:** بعد از هر `[x]` شدن یک تسک، بلافاصله push اجرا شود (وگرنه شکست).
 
-- [ ] **T0 — آماده‌سازی شاخه.** سوییچ/ساخت شاخهٔ `genspark_ai_developer`
+- [x] **T0 — آماده‌سازی شاخه.** سوییچ/ساخت شاخهٔ `genspark_ai_developer`
   (اولین push با `scripts/git/push.sh -b genspark_ai_developer "chore(plan): add SMS management plan"`).
   همین فایل پلن را در همین push ببر.
 
-- [ ] **T1 — قراردادها (Contracts/Messaging).** بساز `src/Animora.Contracts/Messaging/SmsModels.cs`
+- [x] **T1 — قراردادها (Contracts/Messaging).** بساز `src/Animora.Contracts/Messaging/SmsModels.cs`
   (تمام enum/record بخش ۳) و `ISmsService.cs`. XML-doc فارسی/انگلیسیِ کوتاه و دقیق. بدون منطق.
   → push: `feat(contracts): add SMS messaging models and ISmsService seam`.
 
-- [ ] **T2 — پیاده‌سازی stub (Client.Services/Messaging).** `SmsService.cs` با مقادیر پیش‌فرض/لیست خالی،
+- [x] **T2 — پیاده‌سازی stub (Client.Services/Messaging).** `SmsService.cs` با مقادیر پیش‌فرض/لیست خالی،
   بدون ارسال/محاسبهٔ واقعی؛ کامنت واضح «آمادهٔ اتصال به Application/سرور». رعایت no-LINQ در hot-path لازم نیست چون stub است اما تمیز بنویس.
   → push: `feat(client-services): add stub SmsService for design wiring`.
 
