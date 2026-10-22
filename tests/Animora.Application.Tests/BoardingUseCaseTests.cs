@@ -4,6 +4,7 @@ using Animora.Application.UseCases.Boarding;
 using Animora.Application.UseCases.Boarding.ReadModels;
 using Animora.Domain.Boarding;
 using Animora.Domain.Results;
+using Animora.Domain.Sales;
 using Animora.Domain.Time;
 using Animora.Domain.ValueObjects;
 using Xunit;
@@ -50,7 +51,8 @@ public sealed class BoardingUseCaseTests
         stay.AddItem(new StayItem("second", StayItemKind.Custom, "b", "B", new Quantity(1, "PCS"),
             Money.Irt(20), Now, "user"));
 
-        var result = await new RemoveStayItemCommandHandler(new BoardingRepositoryFake(stay))
+        var result = await new RemoveStayItemCommandHandler(new BoardingRepositoryFake(stay),
+                new NoCatalogDraftData(), new StockMovementRepositoryFake(), Clock)
             .HandleAsync(new RemoveStayItemCommand(stay.Id, 0, "second"), Context, default);
 
         Assert.Equal(ErrorCodes.StayItemIndexStale, result.Error);
@@ -80,6 +82,14 @@ public sealed class BoardingUseCaseTests
         Assert.Equal(ErrorCodes.StayAlreadyCheckedOut, second.Error);
         Assert.Single(handoffs.StayIds);
     }
+}
+
+/// <summary>Catalog-less sales draft port: the stale-index test never reaches the catalog lookup.</summary>
+internal sealed class NoCatalogDraftData : ISalesDraftData
+{
+    public Task<SalesHandoff?> FindHandoffAsync(string source, string id, CancellationToken ct) => Task.FromResult<SalesHandoff?>(null);
+    public Task<Insurer?> FindInsurerAsync(string id, CancellationToken ct) => Task.FromResult<Insurer?>(null);
+    public Task<SalesCatalogEntry?> FindCatalogEntryAsync(string id, CancellationToken ct) => Task.FromResult<SalesCatalogEntry?>(null);
 }
 
 internal sealed class BoardingClock(DateTimeOffset now) : IClock

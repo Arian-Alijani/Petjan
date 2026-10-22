@@ -2,6 +2,7 @@ using Animora.Application.Ports;
 using Animora.Application.UseCases.Visits;
 using Animora.Application.UseCases.Visits.ReadModels;
 using Animora.Domain.Clinical;
+using Animora.Domain.Patients;
 using Animora.Domain.Results;
 using Xunit;
 using static Animora.Application.Tests.ReceptionTestDoubles;
@@ -25,7 +26,7 @@ public sealed class VisitEncounterUseCaseTests
     }
 
     private CompleteVisitCommandHandler CompleteHandler() =>
-        new(_visits, _history, _handoff, _queue, _pets, new EmptyTriage(), new FakeAppointmentRepository(), Clock);
+        new(_visits, _history, _handoff, _queue, _pets, new NoopWeights(), new EmptyTriage(), new FakeAppointmentRepository(), Clock);
 
     [Fact]
     public async Task EditingNoteOnCompletedVisit_IsRejected()
@@ -83,7 +84,7 @@ public sealed class VisitEncounterUseCaseTests
             visits.Add(visit);
             var handoff = new RecordingHandoff();
             var handler = new CompleteVisitCommandHandler(visits, new RecordingHistory(), handoff, new FakeQueueRepository(),
-                new FakePets(), new EmptyTriage(), new FakeAppointmentRepository(), Clock);
+                new FakePets(), new NoopWeights(), new EmptyTriage(), new FakeAppointmentRepository(), Clock);
             Assert.True((await handler.HandleAsync(new CompleteVisitCommand(visit.Id), context, default)).IsSuccess);
             ids.Add(Assert.Single(handoff.Ids));
         }
@@ -108,6 +109,11 @@ public sealed class VisitEncounterUseCaseTests
             Ids.Add(id);
             VisitIds.Add(visitId);
         }
+    }
+
+    private sealed class NoopWeights : IWeightEntryRepository
+    {
+        public void Add(WeightEntry entry) { }
     }
 
     private sealed class EmptyTriage : ITriageQueries
