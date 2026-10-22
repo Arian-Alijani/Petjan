@@ -287,7 +287,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
   - فرمت اعداد/پول: از `PersianNumberFormatter` و الگوی `StatisticsFormat` (import یا helper کوچک محلی `CustomerClubFormat`). برای species→(نام فارسی+آیکن) از `SpeciesPresentation.For(...)` که در `Pages/Dashboard` استفاده شده (در `StatisticsClientsViewModel` با `using Animora.Desktop.Pages.Dashboard;`). همان را بازاستفاده کن.
 - پوش: `scripts/git/push.sh "feat(desktop): customer-club view-model"`
 
-### [ ] T8 — View (XAML) با تمرکز شدید روی UX/UI
+### [x] T8 — View (XAML) با تمرکز شدید روی UX/UI
 - `src/Animora.Desktop/Pages/CustomerClub/CustomerClubPageView.axaml` (+ `.axaml.cs` باریک).
 - چیدمان (RTL، از بالا به پایین)، همه با `Border.card` و header استاندارد:
   1. **نوار KPI** (`AdaptiveGrid MinItemWidth=220 MaxColumns=4`): «تولدهای امروز» (IconCake)، «پرخرج‌ترین مشتری» (IconWallet/IconCoins)، «پرمراجعه‌ترین» (IconTrendUp)، «کل اعضا/مشتریان فعال» (IconUsers). هر کارت: عدد بزرگ + برچسب + آیکن رنگی.

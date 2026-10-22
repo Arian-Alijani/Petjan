@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:cc="using:Animora.Desktop.Pages.CustomerClub"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.CustomerClub.CustomerClubPageView"
+             x:Name="Root"
+             x:DataType="cc:CustomerClubPageViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <UserControl.Resources>
+        <!-- One ranked client: rank, name + phone, secondary metric + last visit, primary metric over a rank bar. -->
+        <DataTemplate x:Key="LeaderRowTemplate" x:DataType="cc:TopClientRow">
+            <Panel Margin="0,3">
+                <controls:MetricBar Height="48" Fraction="{Binding Fraction}"
+                                    Fill="{StaticResource Brand600Brush}" TrackBrush="Transparent"
+                                    Radius="10" Opacity="0.10" IsHitTestVisible="False" />
+                <Grid ColumnDefinitions="30,*,Auto,Auto" ColumnSpacing="12" Margin="12,0" Height="48">
+                    <TextBlock Text="{Binding Rank}" FontWeight="ExtraBold" VerticalAlignment="Center"
+                               Foreground="{StaticResource Brand700Brush}" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{Binding Name}" FontWeight="Bold" TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="{Binding Phone}" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+                        <TextBlock Text="{Binding Secondary}" FontSize="12" Foreground="{StaticResource Ink2Brush}" />
+                        <TextBlock Text="{Binding LastVisit}" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="3" Text="{Binding Primary}" FontWeight="ExtraBold"
+                               VerticalAlignment="Center" Foreground="{StaticResource InkBrush}" />
+                </Grid>
+            </Panel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <StackPanel Margin="26,22,26,40" Spacing="18">
+        <!-- ── page header ── -->
+        <StackPanel Spacing="4">
+            <TextBlock Text="باشگاه مشتریان" FontSize="26" FontWeight="ExtraBold"
+                       Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
+            <TextBlock Text="تولد حیوانات خانگی، پرخرج‌ترین و پرمراجعه‌ترین مشتریان کلینیک"
+                       FontSize="13" Foreground="{StaticResource MutedBrush}" />
+        </StackPanel>
+
+        <StackPanel Spacing="18" IsVisible="{Binding HasLoaded}">
+            <!-- ── KPI strip ── -->
+            <controls:AdaptiveGrid MinItemWidth="220" MaxColumns="4" ColumnSpacing="12" RowSpacing="12">
+                <controls:StatCard Icon="{StaticResource IconCake}" IconTone="Peach"
+                                   Value="{Binding BirthdaysTodayCount}" Label="تولدهای امروز"
+                                   Foot="{Binding BirthdaysFoot}" />
+                <controls:StatCard Icon="{StaticResource IconWallet}" IconTone="Brand"
+                                   Value="{Binding TopSpenderName}" Label="پرخرج‌ترین مشتری"
+                                   Foot="{Binding TopSpenderFoot}" IsVisible="{Binding CanSeeFinancials}" />
+                <controls:StatCard Icon="{StaticResource IconTrendUp}" IconTone="Ok"
+                                   Value="{Binding TopVisitorName}" Label="پرمراجعه‌ترین مشتری"
+                                   Foot="{Binding TopVisitorFoot}" IsVisible="{Binding CanSeeFinancials}" />
+                <controls:StatCard Icon="{StaticResource IconCoins}" IconTone="Lilac"
+                                   Value="{Binding TopSpendTotal}" Label="خرید مشتریان برتر"
+                                   Foot="{Binding TopSpendTotalFoot}" IsVisible="{Binding CanSeeFinancials}" />
+            </controls:AdaptiveGrid>
+
+            <!-- ── Today's birthdays ── -->
+            <Border Classes="card">
+                <StackPanel>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Margin="18,14,18,12">
+                        <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                              VerticalAlignment="Center" Data="{StaticResource IconCake}" />
+                        <TextBlock Grid.Column="1" Classes="card-title" Text="تولدهای امروز" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="ارسال خودکار پیامک تولد" FontSize="12.5" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Foreground="{StaticResource Ink2Brush}" />
+                            <ToggleSwitch IsChecked="{Binding AutoBirthdaySms}" VerticalAlignment="Center"
+                                          OnContent="{x:Null}" OffContent="{x:Null}" />
+                        </StackPanel>
+                    </Grid>
+                    <Border Classes="card-header-rule" />
+                    <controls:EmptyState IsVisible="{Binding !HasBirthdays}" Icon="{StaticResource IconCake}"
+                                         Title="امروز تولدی ثبت نشده است."
+                                         Subtitle="با ثبت تاریخ تولد حیوانات در پرونده، تولدهای هر روز اینجا نمایش داده می‌شود." />
+                    <ItemsControl Margin="14,8,14,14" ItemsSource="{Binding Birthdays}" IsVisible="{Binding HasBirthdays}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="cc:BirthdayRow">
+                                <Border Margin="0,3" Padding="12,10" CornerRadius="12"
+                                        Background="{StaticResource Bg2Brush}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="14">
+                                        <Border Width="40" Height="40" CornerRadius="12" VerticalAlignment="Center"
+                                                Background="{StaticResource Brand50Brush}">
+                                            <Path Classes="icon" Width="20" Height="20" Stroke="{StaticResource Brand700Brush}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding PetName}" FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Text="{Binding Species}" FontSize="12"
+                                                           VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding OwnerName}" FontSize="12.5" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Text="{Binding Phone}" FontSize="12"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Border Grid.Column="2" Padding="10,4" CornerRadius="999" VerticalAlignment="Center"
+                                                Background="{StaticResource Brand100Brush}">
+                                            <TextBlock Text="{Binding Age}" FontSize="12" FontWeight="Bold"
+                                                       Foreground="{StaticResource Brand700Brush}" />
+                                        </Border>
+                                        <Button Grid.Column="3" Classes="primary" VerticalAlignment="Center"
+                                                Padding="12,7" FontSize="12.5" FontWeight="Bold" Cursor="Hand"
+                                                Command="{Binding #Root.((cc:CustomerClubPageViewModel)DataContext).SendBirthdaySmsCommand}"
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Path Classes="icon" Width="14" Height="14"
+                                                      Stroke="{Binding $parent[Button].Foreground}"
+                                                      Data="{StaticResource IconSms}" />
+                                                <TextBlock Text="ارسال پیامک تبریک" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- ── Leaderboards (reports.read only) ── -->
+            <controls:AdaptiveGrid MinItemWidth="380" MaxColumns="2" ColumnSpacing="16" RowSpacing="16"
+                                   IsVisible="{Binding CanSeeFinancials}">
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header" Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
+                                  VerticalAlignment="Center" Data="{StaticResource IconWallet}" />
+                            <TextBlock Classes="card-title" Text="پرخرج‌ترین مشتریان" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <TextBlock Text="هنوز خریدی ثبت نشده است." Margin="18" Foreground="{StaticResource MutedBrush}"
+                                   IsVisible="{Binding !HasTopSpenders}" />
+                        <ItemsControl Margin="14,8,14,14" ItemsSource="{Binding TopSpenders}"
+                                      ItemTemplate="{StaticResource LeaderRowTemplate}"
+                                      IsVisible="{Binding HasTopSpenders}" />
+                    </StackPanel>
+                </Border>
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header" Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
+                                  VerticalAlignment="Center" Data="{StaticResource IconTrendUp}" />
+                            <TextBlock Classes="card-title" Text="پرمراجعه‌ترین مشتریان" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <TextBlock Text="هنوز مراجعه‌ای ثبت نشده است." Margin="18" Foreground="{StaticResource MutedBrush}"
+                                   IsVisible="{Binding !HasTopVisitors}" />
+                        <ItemsControl Margin="14,8,14,14" ItemsSource="{Binding TopVisitors}"
+                                      ItemTemplate="{StaticResource LeaderRowTemplate}"
+                                      IsVisible="{Binding HasTopVisitors}" />
+                    </StackPanel>
+                </Border>
+            </controls:AdaptiveGrid>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
