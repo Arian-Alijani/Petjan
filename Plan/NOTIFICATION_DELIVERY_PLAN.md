@@ -158,7 +158,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
 
 > بعد از **هر** تسک: `scripts/git/push.sh "..."` (قفل‌شده).
 
-### Task 1 — قرارداد Wire DTOها  — وضعیت: [ ] در انتظار
+### Task 1 — قرارداد Wire DTOها  — وضعیت: [x] انجام شد
 - فایل: `src/Animora.Contracts.Wire/Sync/NotificationFeedContracts.cs` (جدید).
 - محتوا: سه رکورد بخش ۲ را اضافه کن. از namespace موجود `Animora.Contracts.Wire.Sync`.
 - چک: نام‌گذاری با بقیهٔ فایل‌های `Sync/` هماهنگ باشد.
