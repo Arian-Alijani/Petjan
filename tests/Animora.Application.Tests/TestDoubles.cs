@@ -116,8 +116,6 @@ internal sealed class FakeSessionService : ISessionService
         return Task.FromResult(Result<SessionSnapshot>.Ok(_current));
     }
 
-    public Task<Result> TouchAsync(CancellationToken ct = default) => Task.FromResult(Result.Ok());
-
     public Task<Result> LockAsync(CancellationToken ct = default) => Task.FromResult(Result.Ok());
 
     public Task<Result<SessionSnapshot>> UnlockAsync(string password, CancellationToken ct = default) =>

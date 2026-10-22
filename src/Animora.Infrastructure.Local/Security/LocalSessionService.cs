@@ -41,7 +41,6 @@ public sealed class LocalSessionService(
 
     private readonly LocalSessionOptions _options = options.Value;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private DateTimeOffset? _lastTouchWriteUtc;
 
     public async Task<Result<SessionSnapshot>> RestoreAsync(CancellationToken ct = default)
     {
@@ -76,14 +75,11 @@ public sealed class LocalSessionService(
                 return Result<SessionSnapshot>.Fail(ErrorCodes.UserDisabled);
             }
 
-            // Idle past the timeout while the app was closed → resume locked, never signed in silently.
-            if (!session.IsLocked && now - session.LastActivityUtc >= _options.IdleTimeout)
-            {
-                session.Lock();
-                await db.SaveChangesAsync(ct).ConfigureAwait(false);
-            }
-
-            _lastTouchWriteUtc = session.LastActivityUtc;
+            // NOTE (A-RULE 029, revised): inactivity NEVER locks the session. Leaving the app open and idle, or
+            // not interacting for a long stretch, must never drop the shell to the read-only/locked state — only an
+            // explicit lock (LockAsync) or a hard-lifetime / online-entitlement failure may end usable access. The
+            // subscription check the operator must stay reachable for is enforced by the absolute lifetime above and
+            // by the online live-access/entitlement loop, not by a local idle timer.
             var snapshot = await SnapshotAsync(db, session, user, ct).ConfigureAwait(false);
             // The gate's warm-up calls RestoreAsync directly; publishing the resolved lock/sign-out state here keeps
             // the shared cache (read by the live-access loop) from ever disagreeing with the gate — the split-brain
@@ -120,37 +116,9 @@ public sealed class LocalSessionService(
             var session = LocalSession.Start(userId, deviceId, now, _options.AbsoluteLifetime);
             db.Add(session);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
-            _lastTouchWriteUtc = now;
             var snapshot = await SnapshotAsync(db, session, user, ct).ConfigureAwait(false);
             PublishToCache(snapshot);
             return Result<SessionSnapshot>.Ok(snapshot);
-        }
-        finally
-        {
-            _gate.Release();
-        }
-    }
-
-    public async Task<Result> TouchAsync(CancellationToken ct = default)
-    {
-        var now = clock.UtcNow;
-        if (_lastTouchWriteUtc is { } last && now - last < _options.TouchThrottle) return Result.Ok();
-
-        await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            if (_lastTouchWriteUtc is { } again && now - again < _options.TouchThrottle) return Result.Ok();
-            await using var scope = scopes.CreateAsyncScope();
-            var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
-            var session = await FindActiveAsync(db, ct).ConfigureAwait(false);
-            if (session is null) return Result.Fail(ErrorCodes.NotFound, "No active session.");
-            if (now >= session.ExpiresAtUtc) return Result.Fail(ErrorCodes.SessionExpired);
-            if (session.IsLocked) return Result.Fail(ErrorCodes.PermissionDenied, "Session is locked.");
-
-            session.Touch(now);
-            await db.SaveChangesAsync(ct).ConfigureAwait(false);
-            _lastTouchWriteUtc = now;
-            return Result.Ok();
         }
         finally
         {
@@ -229,7 +197,6 @@ public sealed class LocalSessionService(
             user.ClearFailures();
             session.Unlock(now);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
-            _lastTouchWriteUtc = now;
             var snapshot = await SnapshotAsync(db, session, user, ct).ConfigureAwait(false);
             PublishToCache(snapshot);
             return Result<SessionSnapshot>.Ok(snapshot);
@@ -256,7 +223,6 @@ public sealed class LocalSessionService(
 
             session.End(string.IsNullOrWhiteSpace(reason) ? ReasonSignOut : reason, clock.UtcNow);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
-            _lastTouchWriteUtc = null;
             PublishToCache(SessionSnapshot.SignedOut(isFirstRun: false));
             return Result.Ok();
         }

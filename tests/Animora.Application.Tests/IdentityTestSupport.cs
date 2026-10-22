@@ -201,8 +201,6 @@ internal sealed class RecordingSessionService(IClock clock) : ISessionService
             new SessionSnapshot(userId, userId, StaffRole.Manager, false, false, clock.UtcNow.AddHours(12))));
     }
 
-    public Task<Result> TouchAsync(CancellationToken ct = default) => Task.FromResult(Result.Ok());
-
     public Task<Result> LockAsync(CancellationToken ct = default) => Task.FromResult(Result.Ok());
 
     public Task<Result<SessionSnapshot>> UnlockAsync(string password, CancellationToken ct = default) =>
