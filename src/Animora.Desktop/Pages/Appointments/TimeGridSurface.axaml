@@ -156,7 +156,13 @@
                                     Classes.first="{Binding IsFirst}"
                                     Classes.off="{Binding IsClosed}"
                                     MinWidth="132">
-                                <Panel Height="{Binding GridHeight}">
+                                <!-- Named drag surface: the drag controller (TimeGridDragController) attaches its
+                                     pointer gestures here and reads the column VM from this panel's DataContext. -->
+                                <Panel Height="{Binding GridHeight}"
+                                       Name="ColumnSurface"
+                                       Tag="drag-surface"
+                                       Background="Transparent"
+                                       Cursor="Cross">
                                     <!-- hour separators, one per visible hour row (first row suppresses its top border) -->
                                     <ItemsControl ItemsSource="{Binding HourRows}">
                                         <ItemsControl.ItemsPanel>
@@ -172,14 +178,21 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <!-- click-to-create layer (beneath the cards) -->
-                                    <Button Background="Transparent"
-                                            BorderThickness="0"
-                                            Padding="0"
+                                    <!-- live drag/selection box: the controller shows + positions this while the
+                                         user drags out a new range (create) or drags a card (move preview). -->
+                                    <Border Name="DragBox"
+                                            Classes="tg-dragbox"
+                                            IsHitTestVisible="False"
+                                            VerticalAlignment="Top"
                                             HorizontalAlignment="Stretch"
-                                            VerticalAlignment="Stretch"
-                                            Cursor="Cross"
-                                            Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}" />
+                                            Height="0"
+                                            Margin="0">
+                                        <TextBlock Name="DragBoxLabel"
+                                                   Classes="tg-dragbox-label"
+                                                   Text=""
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
 
                                     <!-- packed event cards (lane geometry via the custom panel) -->
                                     <ItemsControl ItemsSource="{Binding Events}">
@@ -191,12 +204,14 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="ap:AppointmentEventViewModel">
                                                 <Button Classes="ev-card"
+                                                        Tag="event-card"
                                                         Classes.tier-xs="{Binding IsExtraSmall}"
                                                         Classes.tier-sm="{Binding IsSmall}"
                                                         Classes.tier-md="{Binding IsMedium}"
                                                         Classes.cancelled="{Binding IsCancelled}"
                                                         Classes.booster="{Binding IsBooster}"
                                                         MinHeight="{Binding Height}"
+                                                        RenderTransform="{x:Null}"
                                                         Background="{Binding BackgroundBrush}"
                                                         BorderBrush="{Binding AccentBrush}"
                                                         BorderThickness="0,0,0,0"

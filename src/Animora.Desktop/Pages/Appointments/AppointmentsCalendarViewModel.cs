@@ -959,6 +959,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     nowTop: _cursor == today ? NowTop(nowMinutes) : null,
                     _window,
                     hourRows,
+                    date: _cursor,
+                    doctorId: c.Id,
                     isFirst: built.Count == 0));
             }
         }
@@ -981,6 +983,8 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
                     nowTop: d == today ? NowTop(nowMinutes) : null,
                     _window,
                     hourRows,
+                    date: d,
+                    doctorId: null,
                     isFirst: built.Count == 0));
             }
         }
@@ -2027,6 +2031,109 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
         panel.Saved += RefreshAfterWrite;
         await panel.LoadForNewAsync(date, null, null, null);
         _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
+    }
+
+    // ── direct-manipulation on the time grid (drag-to-create / drag-to-move) ──────
+    //
+    // The grid view owns the pointer gestures and the ghost visuals; the ViewModel
+    // owns everything that touches data. These two seams keep the View free of any
+    // booking/update logic (and free of Jalali/geometry math duplication).
+
+    /// <summary>The visible window's first minute (grid top) — the View's single minute↔pixel origin for drag math.</summary>
+    public int GridWindowStartMinutes => _window.StartMinutes;
+
+    /// <summary>The visible window's last minute (grid bottom).</summary>
+    public int GridWindowEndMinutes => _window.EndMinutes;
+
+    /// <summary>Pixels per hour on the time grid — shared with the View so a dragged box maps pixels to minutes exactly.</summary>
+    public double GridPixelsPerHour => AppointmentsLayout.PixelsPerHour;
+
+    /// <summary>The snap granularity (minutes) a dragged start/box rounds to. 15 min mirrors the booking sheet's grid.</summary>
+    public int GridSnapMinutes => 15;
+
+    /// <summary>The default duration (minutes) a freshly dragged box starts at before the user grows it.</summary>
+    public int GridDefaultDurationMinutes => _types.Count > 0 ? _types[0].DurationMinutes : 30;
+
+    /// <summary>Time-based drag gestures only make sense in the day/week time grid, never the month/day-only views.</summary>
+    public bool SupportsTimeGridDrag => !IsMonthView && !CalendarModeIsDayOnly;
+
+    /// <summary>
+    /// Opens the booking sheet for a range the user dragged out on the grid: the day + doctor come from the
+    /// column, the start + duration from the box geometry (already snapped by the View). Mirrors a grid-cell
+    /// click but with the dragged time pre-filled.
+    /// </summary>
+    public async Task CreateBookingFromDragAsync(DateOnly date, string? doctorId, int startMinutes, int durationMinutes)
+    {
+        if (!SupportsTimeGridDrag)
+        {
+            return;
+        }
+
+        var start = Math.Clamp(startMinutes, _window.StartMinutes, Math.Max(_window.StartMinutes, _window.EndMinutes - GridSnapMinutes));
+        var duration = Math.Clamp(durationMinutes, GridSnapMinutes, _window.EndMinutes - start);
+
+        var panel = new BookingPanelViewModel(_booking, _readiness, _service, _toast, _dialogs, _settings, _patients, _clock);
+        panel.Saved += RefreshAfterWrite;
+        await panel.LoadForNewAsync(date, start, duration, string.IsNullOrEmpty(doctorId) ? null : doctorId);
+        _dialogs.ShowSheet(new BookingPanelView { DataContext = panel }, width: 1080, height: 864);
+    }
+
+    /// <summary>
+    /// Persists an appointment the user dragged to a new slot: same patient/type/note, new day + start (+ doctor in
+    /// day view). Read-only projections and locked (in-visit/terminal) rows cannot move; a no-op move is skipped so
+    /// an accidental tiny drag never issues a needless write. Any backend rejection surfaces as a toast and the page
+    /// reloads to its last good state.
+    /// </summary>
+    public async Task MoveAppointmentFromDragAsync(
+        AppointmentEventViewModel card, DateOnly newDate, string? newDoctorId, int newStartMinutes)
+    {
+        if (card is null)
+        {
+            return;
+        }
+
+        var ev = card.Model;
+        if (ev.IsReadOnlyProjection || !ev.CanMove)
+        {
+            _toast.Show("این نوبت قابل جابه‌جایی نیست.", Tone.Info);
+            return;
+        }
+
+        var start = Math.Clamp(newStartMinutes, _window.StartMinutes, Math.Max(_window.StartMinutes, _window.EndMinutes - ev.DurationMinutes));
+        // Week view keeps the event's own doctor (columns are days there); day view may reassign the doctor.
+        var doctorId = string.IsNullOrEmpty(newDoctorId) ? ev.DoctorId : newDoctorId;
+
+        if (newDate == ev.Date && doctorId == ev.DoctorId && start == ev.StartMinutes)
+        {
+            return; // nothing actually changed
+        }
+
+        try
+        {
+            // Re-read the detail so the move carries the concurrency token the backend expects (A29).
+            var detail = await _booking.GetDetailAsync(ev.Id);
+            var version = detail?.Version;
+
+            await _booking.UpdateAsync(ev.Id, new UpdateAppointmentRequest(
+                newDate, start, ev.DurationMinutes, ev.TypeId, doctorId,
+                ev.PetName, ev.PetKind, ev.OwnerName, ev.OwnerPhone, ev.AvatarTone, ev.SpeciesIconKey,
+                ev.Note, SendSms: false, SendReminder: false, version));
+
+            _toast.Show("زمان جدید نوبت ذخیره شد.", Tone.Ok);
+            RefreshAfterWrite();
+        }
+        catch (Exception ex) when (!AppointmentErrorText.IsCancellation(ex))
+        {
+            if (ex is AppointmentOperationException { WriteCommitted: true })
+            {
+                _toast.Show(AppointmentErrorText.For(ex), Tone.Info);
+                RefreshAfterWrite();
+                return;
+            }
+
+            _toast.Show(AppointmentErrorText.For(ex), Tone.Danger);
+            RequestRefresh(); // snap the card back to its stored slot
+        }
     }
 
     /// <summary>
