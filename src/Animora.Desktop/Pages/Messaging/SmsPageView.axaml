@@ -1,0 +1,166 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sms="using:Animora.Desktop.Pages.Messaging"
+             x:Class="Animora.Desktop.Pages.Messaging.SmsPageView"
+             x:Name="Root"
+             x:DataType="sms:SmsPageViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <!-- Toolbar styles mirror the «آمار» page exactly (segmented switch + pill range chips). -->
+        <Style Selector="Border.seg">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="3" />
+        </Style>
+        <Style Selector="Border.segitem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="9" />
+        </Style>
+        <Style Selector="Border.segitem.on">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowSegment}" />
+        </Style>
+        <Style Selector="Button.segtap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="20,9" />
+        </Style>
+        <Style Selector="Button.segtap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.segitem Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on Path">
+            <Setter Property="Stroke" Value="{StaticResource Brand700Brush}" />
+        </Style>
+        <Style Selector="Border.segitem.on TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Brand700Brush}" />
+        </Style>
+
+        <Style Selector="Border.chip">
+            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="999" />
+        </Style>
+        <Style Selector="Border.chip:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource Brand400Brush}" />
+        </Style>
+        <Style Selector="Border.chip.on">
+            <Setter Property="Background" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+            <Setter Property="BoxShadow" Value="{StaticResource ShadowChip}" />
+        </Style>
+        <Style Selector="Button.chiptap">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="13,6" />
+        </Style>
+        <Style Selector="Button.chiptap:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.chip Path">
+            <Setter Property="Stroke" Value="{StaticResource Muted2Brush}" />
+        </Style>
+        <Style Selector="Border.chip.on Path">
+            <Setter Property="Stroke" Value="White" />
+        </Style>
+        <Style Selector="Border.chip.on TextBlock">
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </UserControl.Styles>
+
+    <StackPanel Margin="26,22,26,40" Spacing="18">
+        <!-- ── page header ── -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel VerticalAlignment="Bottom" Spacing="4">
+                <TextBlock Text="مدیریت پیامک" FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource InkBrush}" LetterSpacing="-0.4" />
+                <TextBlock Text="اعتبار باقی‌مانده، مصرف هر بخش، گزارش پیامک‌های ارسالی و تنظیمات ارسال خودکار"
+                           FontSize="13" Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+            <!-- Design-only notice: the SMS gateway is not connected yet, so nothing on this page is a real send. -->
+            <Border Grid.Column="1" VerticalAlignment="Bottom" Padding="12,6" CornerRadius="999"
+                    Background="{StaticResource WarnBgBrush}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Path Classes="icon" Width="14" Height="14" Stroke="{StaticResource WarnBrush}"
+                          Data="{StaticResource IconInfo}" VerticalAlignment="Center" />
+                    <TextBlock Text="درگاه پیامک هنوز متصل نشده است" FontSize="12" FontWeight="Bold"
+                               Foreground="{StaticResource WarnBrush}" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ── toolbar: tier 1 · section tabs, tier 2 · range chips (overview/report only) ── -->
+        <Border Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource Line2Brush}" BorderThickness="1"
+                CornerRadius="{StaticResource Radius}"
+                BoxShadow="{StaticResource ShadowCard}"
+                Padding="14,12">
+            <StackPanel Spacing="12">
+                <Border Classes="seg" HorizontalAlignment="Stretch">
+                    <ItemsControl ItemsSource="{Binding Tabs}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sms:SmsTabViewModel">
+                                <Border Classes="segitem" Classes.on="{Binding IsActive}" Margin="1,0">
+                                    <Button Classes="segtap" HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Center"
+                                            Command="{Binding #Root.((sms:SmsPageViewModel)DataContext).ShowSectionCommand}"
+                                            CommandParameter="{Binding Section}">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                            <Path Classes="icon" Width="16" Height="16"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <TextBlock Text="{Binding Label}" FontSize="13.5" FontWeight="Bold" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+
+                <Border BorderBrush="{StaticResource Line2Brush}" BorderThickness="0,1,0,0" Padding="0,12,0,0"
+                        IsVisible="{Binding ShowsRange}">
+                    <ItemsControl ItemsSource="{Binding RangeChips}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sms:SmsRangeChipViewModel">
+                                <Border Classes="chip" Classes.on="{Binding IsActive}" Margin="0,0,7,0">
+                                    <Button Classes="chiptap"
+                                            Command="{Binding #Root.((sms:SmsPageViewModel)DataContext).SelectRangeCommand}"
+                                            CommandParameter="{Binding Id}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Path Classes="icon" Width="14" Height="14" Data="{StaticResource IconCalendar}" />
+                                            <TextBlock Text="{Binding Label}" />
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Current section (resolved to its view by the shell's ViewLocator) ═══ -->
+        <ContentControl Content="{Binding CurrentSection}" />
+    </StackPanel>
+</UserControl>

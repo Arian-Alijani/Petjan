@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sms="using:Animora.Desktop.Pages.Messaging"
+             x:Class="Animora.Desktop.Pages.Messaging.SmsSectionStateView"
+             x:DataType="sms:SmsSectionViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <!-- Shared loading / error block of every «مدیریت پیامک» section (the retry lives in the shell's load-status bar). -->
+    <StackPanel Spacing="12">
+        <Border Classes="card" Padding="14,12" IsVisible="{Binding IsLoading}">
+            <StackPanel Spacing="6">
+                <ProgressBar IsIndeterminate="True" AutomationProperties.Name="در حال دریافت اطلاعات پیامک" />
+                <TextBlock Text="در حال بارگذاری…" Foreground="{StaticResource MutedBrush}"
+                           AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="14,12" IsVisible="{Binding HasError}"
+                Background="{StaticResource DangerBgBrush}">
+            <TextBlock Text="{Binding ErrorMessage}" TextWrapping="Wrap" Foreground="{StaticResource DangerBrush}"
+                       FontWeight="SemiBold" AutomationProperties.LiveSetting="Assertive" />
+        </Border>
+    </StackPanel>
+</UserControl>

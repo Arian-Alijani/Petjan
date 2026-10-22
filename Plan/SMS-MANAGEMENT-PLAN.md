@@ -253,7 +253,7 @@ public interface ISmsService
   بدون ارسال/محاسبهٔ واقعی؛ کامنت واضح «آمادهٔ اتصال به Application/سرور». رعایت no-LINQ در hot-path لازم نیست چون stub است اما تمیز بنویس.
   → push: `feat(client-services): add stub SmsService for design wiring`.
 
-- [ ] **T3 — صفحه + تب‌ها (Pages/Messaging).** `SmsPageView(.axaml/.cs)` + `SmsPageViewModel`
+- [x] **T3 — صفحه + تب‌ها (Pages/Messaging).** `SmsPageView(.axaml/.cs)` + `SmsPageViewModel`
   (ارث PageViewModelBase، تب‌های segmented مثل Statistics: «نمای کلی»/«گزارش»/«تنظیمات»).
   Title=«مدیریت پیامک»، Eyebrow مناسب، Breadcrumbs=[«سیستم»،«مدیریت پیامک»].
   → push: `feat(ui): add SMS management page shell with tabs`.
