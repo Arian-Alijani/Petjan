@@ -183,6 +183,44 @@ public sealed class SyncFeedClient
             : Result<FinanceReadPage>.Ok(page);
     }
 
+    /// <summary>
+    /// GET /notifications?since={ticks}&amp;take={n}: the vendor-authored messages addressed to this device's signed-in
+    /// user, created after a UTC-tick cursor. A separate read-only channel from the state feed and the command intake.
+    /// </summary>
+    public async Task<Result<NotificationFeedPage>> GetNotificationFeedAsync(long sinceTicks, int take, CancellationToken ct = default)
+    {
+        var path = $"notifications?since={Math.Max(0, sinceTicks).ToString(CultureInfo.InvariantCulture)}&take={Math.Max(1, take).ToString(CultureInfo.InvariantCulture)}";
+        using var request = NewRequest(HttpMethod.Get, path);
+        var exchange = await SendAsync(request, ct).ConfigureAwait(false);
+        if (exchange.Failure is { } fail) return Result<NotificationFeedPage>.Fail(fail.Error, fail.Detail);
+        using var response = exchange.Response!;
+        var mapped = MapStatus(response);
+        if (mapped is { } err) return Result<NotificationFeedPage>.Fail(err.Error, err.Detail);
+        var body = await ReadJsonAsync<NotificationFeedPage>(response, ct).ConfigureAwait(false);
+        if (body.IsFailure) return Result<NotificationFeedPage>.Fail(body.Error, body.Detail);
+        var page = body.Value!;
+        return page.Items is null
+            ? Result<NotificationFeedPage>.Fail(ErrorCodes.SyncProtocolViolation, "Notification feed page is missing its items.")
+            : Result<NotificationFeedPage>.Ok(page);
+    }
+
+    /// <summary>
+    /// POST /notifications/receipts: tells the server which messages this device has actually stored locally, so the
+    /// admin panel reports REAL delivery. Idempotent server-side; an empty list is a no-op that sends nothing.
+    /// </summary>
+    public async Task<Result> ReportNotificationReceiptsAsync(IReadOnlyList<string> notificationIds, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(notificationIds);
+        if (notificationIds.Count == 0) return Result.Ok();
+        using var request = NewRequest(HttpMethod.Post, "notifications/receipts");
+        request.Content = JsonContent.Create(new NotificationReceiptReport(notificationIds), options: JsonOptions);
+        var exchange = await SendAsync(request, ct).ConfigureAwait(false);
+        if (exchange.Failure is { } fail) return Result.Fail(fail.Error, fail.Detail);
+        using var response = exchange.Response!;
+        var mapped = MapStatus(response);
+        return mapped is { } err ? Result.Fail(err.Error, err.Detail) : Result.Ok();
+    }
+
     private HttpRequestMessage NewRequest(HttpMethod method, string relativePath)
     {
         var request = new HttpRequestMessage(method, relativePath);

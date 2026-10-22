@@ -195,7 +195,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
   TenantId را می‌توانی از `ITenantContext`/DbContext `CurrentTenantId` هم بگیری.
 - **پوش:** `feat(server): add notification pull + delivery-receipt endpoints`
 
-### Task 4 — متد HTTP کلاینت در SyncFeedClient  — وضعیت: [ ] در انتظار
+### Task 4 — متد HTTP کلاینت در SyncFeedClient  — وضعیت: [x] انجام شد
 - فایل: `src/Animora.Sync.Custom/SyncFeedClient.cs` (کنار `GetFinanceLedgerAsync` خط ~169).
 - دو متد:
   - `GetNotificationFeedAsync(long sinceTicks, int take, ct)` → `Result<NotificationFeedPage>`.
