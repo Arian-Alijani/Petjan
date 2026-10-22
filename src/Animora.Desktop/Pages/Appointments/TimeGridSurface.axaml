@@ -182,7 +182,6 @@
                                          user drags out a new range (create) or drags a card (move preview). -->
                                     <Border Name="DragBox"
                                             Classes="tg-dragbox"
-                                            IsVisible="False"
                                             IsHitTestVisible="False"
                                             VerticalAlignment="Top"
                                             HorizontalAlignment="Stretch"

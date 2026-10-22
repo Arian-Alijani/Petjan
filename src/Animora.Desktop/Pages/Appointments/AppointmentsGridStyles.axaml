@@ -83,6 +83,61 @@
         <Setter Property="Opacity" Value="0.62" />
     </Style>
 
+    <!-- ═══ drag/selection box (drag-to-create a new range / drag-to-move a card) ═══
+         The controller (TimeGridDragController) shows this Border and drives its
+         Height + Margin to follow the pointer in real time, so those two properties
+         are deliberately left WITHOUT transitions (a transition there would make the
+         box lag behind the cursor). Only the fade/scale entrance (Opacity +
+         RenderTransform) is animated, which reads as a smooth, standard pop-in. -->
+    <Style Selector="Border.tg-dragbox">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="BorderThickness" Value="1.5" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="RenderTransformOrigin" Value="50%,0%" />
+        <Setter Property="RenderTransform" Value="scaleY(0.94)" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.14" Easing="CubicEaseOut" />
+                <TransformOperationsTransition Property="RenderTransform"
+                                               Duration="0:0:0.16"
+                                               Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <!-- visible state: the controller adds the "visible" class, which triggers the pop-in.
+         Opacity is driven purely by this class (idle = 0, visible = 1) so adding/removing it
+         always fades cleanly, independent of the creating/moving look. -->
+    <Style Selector="Border.tg-dragbox.visible">
+        <Setter Property="Opacity" Value="1" />
+        <Setter Property="RenderTransform" Value="scaleY(1)" />
+    </Style>
+
+    <!-- creating a new range: soft brand-tinted fill with a solid brand edge -->
+    <Style Selector="Border.tg-dragbox.creating">
+        <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand500Brush}" />
+    </Style>
+    <!-- moving an existing card: a lighter brand ghost so it reads as a reschedule preview -->
+    <Style Selector="Border.tg-dragbox.moving">
+        <Setter Property="Background" Value="{StaticResource Brand100Brush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brand600Brush}" />
+    </Style>
+    <!-- the move ghost settles a touch under full opacity so the grid shows through it -->
+    <Style Selector="Border.tg-dragbox.moving.visible">
+        <Setter Property="Opacity" Value="0.85" />
+    </Style>
+
+    <!-- the live "HH:MM – HH:MM" label centred in the box -->
+    <Style Selector="TextBlock.tg-dragbox-label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource Brand600Brush}" />
+        <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+        <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+
     <!-- month chips -->
     <Style Selector="Button.mv-chip">
         <Setter Property="Cursor" Value="Hand" />

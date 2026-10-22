@@ -93,9 +93,11 @@ internal sealed class TimeGridDragController
             session.Label = FindDragBoxLabel(session.Surface);
             if (session.Box is { } box)
             {
-                box.IsVisible = true;
+                // Toggle a "visible" class (box stays in layout) rather than IsVisible, so the
+                // fade/scale entrance transition actually tweens — mirrors the toast/drawer pattern.
                 box.Classes.Set("moving", session.Mode == DragMode.Move);
                 box.Classes.Set("creating", session.Mode == DragMode.Create);
+                box.Classes.Set("visible", true);
             }
         }
 
@@ -170,9 +172,10 @@ internal sealed class TimeGridDragController
     {
         if (session.Box is { } box)
         {
-            box.IsVisible = false;
+            box.Classes.Remove("visible");
             box.Classes.Remove("moving");
             box.Classes.Remove("creating");
+            box.Height = 0;
         }
     }
 
