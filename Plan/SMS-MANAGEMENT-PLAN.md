@@ -267,7 +267,7 @@ public interface ISmsService
   + فیلتر بازه/نوع رویداد + ستون وضعیت (pill با SmsDeliveryState). stub → خالی با پیام مناسب.
   → push: `feat(ui): add SMS sent-report table with filters`.
 
-- [ ] **T6 — بخش تنظیمات (تسک‌های ۳ و ۶).** `SmsSettingsView/VM`: برای هر `SmsEventType` یک کارت
+- [x] **T6 — بخش تنظیمات (تسک‌های ۳ و ۶).** `SmsSettingsView/VM`: برای هر `SmsEventType` یک کارت
   (فعال/غیرفعال + متن قالب + پیش‌نمایش با شمارندهٔ کاراکتر/سگمنت ۷۰تایی).
   - یادآوری نوبت: چند مرحلهٔ lead (۲۴/۲ ساعت) + ساعت‌های ارسال.
   - **یادآوری واکسن/دارو (مهم):** سه بلوک per `TreatmentKind` با چند مرحلهٔ lead-days + ساعت ارسال + متن.

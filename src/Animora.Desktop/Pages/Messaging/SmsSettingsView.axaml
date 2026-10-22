@@ -1,0 +1,270 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sms="using:Animora.Desktop.Pages.Messaging"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Messaging.SmsSettingsView"
+             x:DataType="sms:SmsSettingsViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://Animora.Desktop/Pages/Statistics/StatisticsModalStyles.axaml" />
+        <Style Selector="TextBlock.sec-lbl">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource Ink2Brush}" />
+        </Style>
+        <Style Selector="TextBlock.sec-hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Border.ic-tile">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Background" Value="{StaticResource Brand50Brush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.sub-block">
+            <Setter Property="Background" Value="{StaticResource Bg2Brush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,12" />
+        </Style>
+        <Style Selector="Border.step-chip">
+            <Setter Property="Background" Value="{StaticResource Brand100Brush}" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Padding" Value="10,3,4,3" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+        </Style>
+        <Style Selector="Button.chip-x">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.DataTemplates>
+        <!-- Multi-stage lead editor: chips + «افزودن مرحله». -->
+        <DataTemplate DataType="sms:SmsLeadStepsViewModel">
+            <StackPanel Spacing="8">
+                <TextBlock Classes="sec-lbl" Text="مراحل یادآوری" />
+                <ItemsControl ItemsSource="{Binding Steps}" IsVisible="{Binding HasSteps}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sms:SmsLeadStep">
+                            <Border Classes="step-chip">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="{Binding Label}" FontSize="12" FontWeight="Bold"
+                                               VerticalAlignment="Center" Foreground="{StaticResource Brand700Brush}" />
+                                    <Button Classes="chip-x" ToolTip.Tip="حذف مرحله"
+                                            Command="{Binding $parent[ItemsControl].((sms:SmsLeadStepsViewModel)DataContext).RemoveCommand}"
+                                            CommandParameter="{Binding}">
+                                        <Path Classes="icon" Width="11" Height="11" Stroke="{StaticResource Brand700Brush}"
+                                              Data="{StaticResource IconX}" />
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="sec-hint" Text="هنوز مرحله‌ای تعیین نشده است." IsVisible="{Binding !HasSteps}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox Classes="sm-inp" Width="110" controls:InputGuard.Kind="Digits" MaxLength="3"
+                             Text="{Binding NewValueText}" PlaceholderText="{Binding Placeholder}" />
+                    <TextBlock Text="{Binding Unit}" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{StaticResource MutedBrush}" />
+                    <Button Classes="outline" Padding="12,7" FontSize="12.5" FontWeight="Bold" Cursor="Hand"
+                            Command="{Binding AddCommand}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Path Classes="icon" Width="13" Height="13" Stroke="{Binding $parent[Button].Foreground}"
+                                  Data="{StaticResource IconPlus}" />
+                            <TextBlock Text="افزودن مرحله" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <TextBlock Text="{Binding Hint}" FontSize="12" Foreground="{StaticResource DangerBrush}"
+                           IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Allowed send window (from / to hour). -->
+        <DataTemplate DataType="sms:SmsSendWindowViewModel">
+            <StackPanel Spacing="8">
+                <TextBlock Classes="sec-lbl" Text="ساعت مجاز ارسال" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="از" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                    <ComboBox Classes="hy-select" MinWidth="96" ItemsSource="{x:Static sms:SmsSendWindowViewModel.HourOptions}"
+                              SelectedIndex="{Binding FromIndex}" />
+                    <TextBlock Text="تا" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource MutedBrush}" />
+                    <ComboBox Classes="hy-select" MinWidth="96" ItemsSource="{x:Static sms:SmsSendWindowViewModel.HourOptions}"
+                              SelectedIndex="{Binding ToIndex}" />
+                </StackPanel>
+                <TextBlock Classes="sec-hint" Text="پیامک‌هایی که خارج از این بازه موعدشان می‌رسد، به ابتدای بازهٔ بعدی موکول می‌شوند."
+                           IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                <TextBlock Text="{Binding Hint}" FontSize="12" Foreground="{StaticResource DangerBrush}"
+                           IsVisible="{Binding Hint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Template editor + counter + preview. -->
+        <DataTemplate DataType="sms:SmsTemplateEditorViewModel">
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Classes="sec-lbl" Text="متن پیامک" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Padding="8,2" CornerRadius="999"
+                            Background="{StaticResource Bg2Brush}">
+                        <TextBlock Text="{Binding Counter}" FontSize="11.5" FontWeight="Bold"
+                                   Foreground="{StaticResource Ink2Brush}" />
+                    </Border>
+                </Grid>
+                <TextBox Classes="sm-inp" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70" MaxLength="500"
+                         Text="{Binding Body}" PlaceholderText="متن پیامک را بنویسید…" />
+                <TextBlock Classes="sec-hint" IsVisible="{Binding IsMultiSegment}"
+                           Foreground="{StaticResource WarnBrush}"
+                           Text="متن بیش از ۷۰ نویسه است و به‌صورت چند پیامک محاسبه می‌شود." />
+                <Border Classes="sub-block" Padding="12,10">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="پیش‌نمایش" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" />
+                        <TextBlock Text="{Binding Preview}" FontSize="12.5" TextWrapping="Wrap"
+                                   Foreground="{StaticResource InkBrush}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <StackPanel Spacing="18">
+        <sms:SmsSectionStateView DataContext="{Binding}" />
+
+        <StackPanel Spacing="16" IsVisible="{Binding HasData}">
+            <!-- ── save bar ── -->
+            <Border Classes="card" Padding="16,12">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                          VerticalAlignment="Center" Data="{StaticResource IconInfo}" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                        <TextBlock Text="برای هر بخش، ارسال خودکار پیامک را فعال کنید و متن آن را تنظیم کنید."
+                                   FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" />
+                        <TextBlock Classes="sec-hint" Text="{Binding TokenHint}" />
+                        <TextBlock Text="{Binding ValidationMessage}" FontSize="12" Foreground="{StaticResource DangerBrush}"
+                                   IsVisible="{Binding ValidationMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Classes="ghost" Padding="14,8" FontSize="12.5" FontWeight="Bold" Cursor="Hand"
+                                Command="{Binding DiscardCommand}" Content="بازگردانی" />
+                        <Button Classes="primary" Padding="16,8" FontSize="12.5" FontWeight="Bold" Cursor="Hand"
+                                Command="{Binding SaveCommand}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Path Classes="icon" Width="14" Height="14" Stroke="{Binding $parent[Button].Foreground}"
+                                      Data="{StaticResource IconCheck}" />
+                                <TextBlock Text="ذخیرهٔ تنظیمات" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ── per-event cards ── -->
+            <ItemsControl ItemsSource="{Binding Events}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <controls:AdaptiveGrid MinItemWidth="420" MaxColumns="2" ColumnSpacing="16" RowSpacing="16" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="sms:SmsEventSettingViewModel">
+                        <Border Classes="card">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="16,14,16,12">
+                                    <Border Classes="ic-tile">
+                                        <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                        <TextBlock Classes="card-title" Text="{Binding Name}" />
+                                        <TextBlock Classes="sec-hint" Text="{Binding Hint}" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="2" IsChecked="{Binding Enabled}" VerticalAlignment="Center"
+                                                  OnContent="{x:Null}" OffContent="{x:Null}"
+                                                  ToolTip.Tip="فعال‌سازی ارسال خودکار" />
+                                </Grid>
+                                <Border Classes="card-header-rule" />
+                                <StackPanel Margin="16,12,16,16" Spacing="14" IsEnabled="{Binding Enabled}"
+                                            IsVisible="{Binding HasOwnTemplate}">
+                                    <ContentControl Content="{Binding Template}" />
+                                    <!-- appointment reminder: schedule (multi-stage lead hours + send window) -->
+                                    <Border Classes="sub-block" IsVisible="{Binding IsAppointmentReminder}">
+                                        <StackPanel Spacing="14">
+                                            <ContentControl Content="{Binding $parent[ItemsControl].((sms:SmsSettingsViewModel)DataContext).AppointmentLeads}" />
+                                            <ContentControl Content="{Binding $parent[ItemsControl].((sms:SmsSettingsViewModel)DataContext).AppointmentWindow}" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Margin="16,12,16,16" Classes="sec-hint" IsVisible="{Binding !HasOwnTemplate}"
+                                           Text="زمان‌بندی و متن این یادآوری برای هر سه حالت دارو و واکسن در بخش پایین تنظیم می‌شود." />
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- ── vaccine / medication reminders: three independent modes ── -->
+            <Border Classes="card">
+                <StackPanel>
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="16,14,16,12">
+                        <Border Classes="ic-tile">
+                            <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" Data="{StaticResource IconSyringe}" />
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Classes="card-title" Text="یادآوری دارو و واکسن — سه حالت" />
+                            <TextBlock Classes="sec-hint"
+                                       Text="هر حالت مراحل یادآوری، ساعت ارسال و متن جداگانه دارد. این بخش زمانی اعمال می‌شود که «یادآوری دارو و واکسن» در بالا فعال باشد." />
+                        </StackPanel>
+                    </Grid>
+                    <Border Classes="card-header-rule" />
+                    <ItemsControl Margin="16,12,16,16" ItemsSource="{Binding VaccineReminders}"
+                                  IsEnabled="{Binding VaccineEvent.Enabled, FallbackValue=False}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <controls:AdaptiveGrid MinItemWidth="320" MaxColumns="3" ColumnSpacing="12" RowSpacing="12" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sms:SmsVaccineReminderViewModel">
+                                <Border Classes="sub-block">
+                                    <StackPanel Spacing="14">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                            <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource Brand700Brush}"
+                                                  VerticalAlignment="Center"
+                                                  Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="ExtraBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Classes="sec-hint" Text="{Binding Hint}" />
+                                            </StackPanel>
+                                            <ToggleSwitch Grid.Column="2" IsChecked="{Binding Enabled}" VerticalAlignment="Center"
+                                                          OnContent="{x:Null}" OffContent="{x:Null}" />
+                                        </Grid>
+                                        <StackPanel Spacing="14" IsEnabled="{Binding Enabled}">
+                                            <ContentControl Content="{Binding Leads}" />
+                                            <ContentControl Content="{Binding Window}" />
+                                            <ContentControl Content="{Binding Template}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
