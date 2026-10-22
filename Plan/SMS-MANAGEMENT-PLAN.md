@@ -258,7 +258,7 @@ public interface ISmsService
   Title=«مدیریت پیامک»، Eyebrow مناسب، Breadcrumbs=[«سیستم»،«مدیریت پیامک»].
   → push: `feat(ui): add SMS management page shell with tabs`.
 
-- [ ] **T4 — بخش نمای کلی + اعتبار + نمودار (تسک‌های ۱ و نمودار).** `SmsOverviewView/VM`:
+- [x] **T4 — بخش نمای کلی + اعتبار + نمودار (تسک‌های ۱ و نمودار).** `SmsOverviewView/VM`:
   کارتِ «اعتبار باقی‌مانده»، `BarChart` روند مصرف (`IsMoney=False`)، `DonutRing`/`MetricBar` سهم هر بخش.
   حالتِ خالی/در انتظار اتصال تمیز نمایش داده شود.
   → push: `feat(ui): add SMS overview with credit card and usage charts`.

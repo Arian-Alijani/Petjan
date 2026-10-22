@@ -1,0 +1,114 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sms="using:Animora.Desktop.Pages.Messaging"
+             xmlns:controls="using:Animora.Desktop.Controls"
+             x:Class="Animora.Desktop.Pages.Messaging.SmsOverviewView"
+             x:DataType="sms:SmsOverviewViewModel"
+             x:CompileBindings="True"
+             FlowDirection="RightToLeft">
+    <StackPanel Spacing="18">
+        <sms:SmsSectionStateView DataContext="{Binding}" />
+
+        <StackPanel Spacing="18" IsVisible="{Binding HasData}">
+            <!-- ── KPI strip: credit (task 1) + usage summary ── -->
+            <controls:AdaptiveGrid MinItemWidth="220" MaxColumns="4" ColumnSpacing="12" RowSpacing="12">
+                <controls:StatCard Icon="{StaticResource IconWallet}" IconTone="Brand"
+                                   Value="{Binding CreditValue}" Label="اعتبار باقی‌مانده"
+                                   Foot="{Binding CreditFoot}" />
+                <controls:StatCard Icon="{StaticResource IconSms}" IconTone="Info"
+                                   Value="{Binding TotalSent}" Label="پیامک‌های این بازه"
+                                   Foot="{Binding TotalFoot}" />
+                <controls:StatCard Icon="{StaticResource IconTrend}" IconTone="Ok"
+                                   Value="{Binding DailyAverage}" Label="میانگین روزانه"
+                                   Foot="پیامک در هر روز" />
+                <controls:StatCard Icon="{StaticResource IconPieChart}" IconTone="Lilac"
+                                   Value="{Binding TopSection}" Label="پرمصرف‌ترین بخش"
+                                   Foot="{Binding TopSectionFoot}" />
+            </controls:AdaptiveGrid>
+
+            <!-- Credit pending notice: shown until the provider reports a real balance. -->
+            <Border Classes="card" Padding="16,12" IsVisible="{Binding !IsCreditKnown}"
+                    Background="{StaticResource InfoBgBrush}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <Path Classes="icon" Width="18" Height="18" Stroke="{StaticResource InfoBrush}"
+                          VerticalAlignment="Center" Data="{StaticResource IconInfo}" />
+                    <TextBlock Grid.Column="1" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Foreground="{StaticResource InfoBrush}" FontWeight="SemiBold"
+                               Text="اعتبار و مصرف پیامک پس از اتصال درگاه پیامک نمایش داده می‌شود؛ اکنون هیچ پیامکی ارسال نمی‌شود." />
+                </Grid>
+            </Border>
+
+            <controls:AdaptiveGrid MinItemWidth="340" MaxColumns="2" Weights="1.7,1" ColumnSpacing="16" RowSpacing="16">
+                <!-- Usage trend over the selected range (count bars). -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header" Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
+                                  VerticalAlignment="Center" Data="{StaticResource IconChart}" />
+                            <TextBlock Classes="card-title" Text="روند مصرف پیامک" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <Panel Margin="12,12,12,14" MinHeight="240">
+                            <controls:BarChart Height="240" Points="{Binding Trend}" IsMoney="False"
+                                               BarBrush="{StaticResource Brand600Brush}"
+                                               IsVisible="{Binding HasTrend}" />
+                            <controls:EmptyState IsVisible="{Binding !HasTrend}" Icon="{StaticResource IconChart}"
+                                                 Title="هنوز مصرفی ثبت نشده است"
+                                                 Subtitle="پس از ارسال پیامک، روند مصرف روزانه اینجا نمایش داده می‌شود." />
+                        </Panel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Per-section split: donut + legend with proportional bars. -->
+                <Border Classes="card">
+                    <StackPanel>
+                        <StackPanel Classes="card-header" Orientation="Horizontal" Spacing="8">
+                            <Path Classes="icon" Width="16" Height="16" Stroke="{StaticResource Brand700Brush}"
+                                  VerticalAlignment="Center" Data="{StaticResource IconPieChart}" />
+                            <TextBlock Classes="card-title" Text="مصرف به تفکیک بخش" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Border Classes="card-header-rule" />
+                        <StackPanel Margin="18,14,18,18" Spacing="14">
+                            <Grid Width="170" Height="170" HorizontalAlignment="Center" IsVisible="{Binding HasSections}">
+                                <controls:DonutRing Slices="{Binding SectionSlices}"
+                                                    TrackBrush="{StaticResource ChartTrackBrush}" />
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2"
+                                            IsHitTestVisible="False">
+                                    <TextBlock Text="{Binding TotalSent}" FontSize="16" FontWeight="ExtraBold"
+                                               HorizontalAlignment="Center" Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="پیامک" FontSize="11" HorizontalAlignment="Center"
+                                               Foreground="{StaticResource MutedBrush}" />
+                                </StackPanel>
+                            </Grid>
+                            <controls:EmptyState IsVisible="{Binding !HasSections}" Icon="{StaticResource IconPieChart}"
+                                                 Title="سهم بخش‌ها هنوز مشخص نیست"
+                                                 Subtitle="مصرف نوبت، خرید، پرونده و یادآوری‌ها به تفکیک اینجا نمایش داده می‌شود." />
+                            <ItemsControl ItemsSource="{Binding Sections}" IsVisible="{Binding HasSections}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="sms:SmsSectionUsageRow">
+                                        <StackPanel Spacing="5" Margin="0,5">
+                                            <Grid ColumnDefinitions="Auto,*,Auto,44" ColumnSpacing="9">
+                                                <Path Classes="icon" Width="14" Height="14" Stroke="{Binding Color}"
+                                                      VerticalAlignment="Center"
+                                                      Data="{Binding IconKey, Converter={StaticResource IconKeyConverter}}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource InkBrush}" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Count}" FontSize="12"
+                                                           Foreground="{StaticResource Ink2Brush}" />
+                                                <TextBlock Grid.Column="3" Text="{Binding Share}" FontSize="12"
+                                                           FontWeight="Bold" TextAlignment="End"
+                                                           Foreground="{StaticResource MutedBrush}" />
+                                            </Grid>
+                                            <controls:MetricBar Height="7" Fraction="{Binding Fraction}" Fill="{Binding Color}"
+                                                                TrackBrush="{StaticResource ChartTrackBrush}" Radius="4" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </controls:AdaptiveGrid>
+        </StackPanel>
+    </StackPanel>
+</UserControl>
