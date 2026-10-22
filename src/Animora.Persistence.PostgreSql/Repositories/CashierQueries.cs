@@ -41,7 +41,8 @@ public sealed class CashierQueries(AnimoraServerDbContext db, ServerCommandExecu
         invoices = tab switch
         {
             CashierInvoiceTab.Open => invoices.OpenInvoices(),
-            CashierInvoiceTab.Settled => invoices.Where(i => i.State == InvoiceState.Paid),
+            // «فاکتورهای اخیر» — every invoice regardless of state; recency ordering below surfaces the recent ones.
+            CashierInvoiceTab.Settled => invoices,
             CashierInvoiceTab.Void => invoices.Where(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded),
             _ => invoices,
         };
@@ -61,19 +62,23 @@ public sealed class CashierQueries(AnimoraServerDbContext db, ServerCommandExecu
         }
 
         // Open states first (draft/posted, partial, paid, void, refunded), then newest first — the order the
-        // screen used to apply client-side after pulling every invoice.
-        var projected = from i in invoices
+        // screen used to apply client-side after pulling every invoice. The «فاکتورهای اخیر» tab instead orders
+        // purely by recency so the most recently issued invoices surface regardless of state.
+        var joined = from i in invoices
             join o in db.Set<Owner>().AsNoTracking() on i.OwnerId equals o.Id into owners
             from o in owners.DefaultIfEmpty()
             join p in db.Set<Pet>().AsNoTracking() on i.PetId equals p.Id into pets
             from p in pets.DefaultIfEmpty()
-            orderby (i.State == InvoiceState.Draft || i.State == InvoiceState.Posted ? 0
-                : i.State == InvoiceState.PartiallyPaid ? 1
-                : i.State == InvoiceState.Paid ? 2
-                : i.State == InvoiceState.Void ? 3 : 4), i.IssuedUtc descending, i.Id descending
             select new InvoiceSummaryReadModel(i.Id, i.InvoiceNumber, i.Kind, i.State, i.OwnerId,
                 o == null ? i.GuestName ?? "" : o.FullName, p == null ? "" : p.Name,
                 o == null ? "" : o.PhonePrimary, i.IssuedUtc, i.GrandTotal.Minor, i.DueTotal.Minor, i.Settlement);
+        var projected = tab == CashierInvoiceTab.Settled
+            ? joined.OrderByDescending(r => r.IssuedUtc).ThenByDescending(r => r.Id)
+            : joined.OrderBy(r => r.State == InvoiceState.Draft || r.State == InvoiceState.Posted ? 0
+                    : r.State == InvoiceState.PartiallyPaid ? 1
+                    : r.State == InvoiceState.Paid ? 2
+                    : r.State == InvoiceState.Void ? 3 : 4)
+                .ThenByDescending(r => r.IssuedUtc).ThenByDescending(r => r.Id);
         return projected.ToPagedAsync(page, pageSize, ct);
     }
 

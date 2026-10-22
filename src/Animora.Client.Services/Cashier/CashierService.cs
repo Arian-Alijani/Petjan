@@ -18,6 +18,9 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
 {
     private const int PageSize = 200;
 
+    // «فاکتورهای اخیر» is a fixed window of the five most-recently-issued invoices — never paged.
+    private const int RecentInvoiceCount = 5;
+
     public async Task<CashierInvoicePage> GetInvoicesAsync(CashierTab tab, string? search, int page, int pageSize)
     {
         var applicationTab = tab switch
@@ -27,6 +30,21 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
             CashierTab.Void => Animora.Application.Ports.CashierInvoiceTab.Void,
             _ => Animora.Application.Ports.CashierInvoiceTab.All,
         };
+
+        // The «فاکتورهای اخیر» tab always shows exactly the first five rows (newest first) and never pages.
+        if (tab == CashierTab.Settled)
+        {
+            var recent = await QueryAsync(new CashierInvoiceListQuery(applicationTab, 1, RecentInvoiceCount,
+                string.IsNullOrWhiteSpace(search) ? null : search.Trim()));
+            if (recent.IsFailure || recent.Value is null) return new CashierInvoicePage([], 0, 1, RecentInvoiceCount);
+            var recentRows = recent.Value.Items;
+            var recentItems = new List<CashierInvoice>(recentRows.Count);
+            for (var i = 0; i < recentRows.Count; i++)
+                recentItems.Add(recentRows[i].ToContract(Math.Max(0, recentRows[i].TotalMinor - recentRows[i].DueMinor)));
+            // Report TotalCount == the rows shown so the «نمایش بیشتر» affordance stays hidden.
+            return new CashierInvoicePage(recentItems, recentItems.Count, 1, RecentInvoiceCount);
+        }
+
         var size = Math.Clamp(pageSize, 1, PageSize);
         var result = await QueryAsync(new CashierInvoiceListQuery(applicationTab, Math.Max(1, page), size,
             string.IsNullOrWhiteSpace(search) ? null : search.Trim()));
@@ -64,7 +82,8 @@ public sealed class CashierService(IServiceScopeFactory scopes) : ICashierServic
         var result = await QueryAsync(new CashierTabCountsQuery());
         if (result.IsFailure || result.Value is null) return [];
         var c = result.Value;
-        return [new(CashierTab.Open, "باز", c.Open), new(CashierTab.Settled, "تسویه‌شده", c.Settled),
+        // The «فاکتورهای اخیر» tab is a fixed window of the five newest invoices, so its badge counts the rows it shows.
+        return [new(CashierTab.Open, "باز", c.Open), new(CashierTab.Settled, "فاکتورهای اخیر", Math.Min(c.All, RecentInvoiceCount)),
             new(CashierTab.Void, "ابطال‌شده", c.Void), new(CashierTab.All, "همه", c.All)];
     }
 

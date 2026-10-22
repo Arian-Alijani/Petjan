@@ -42,7 +42,8 @@ public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStore
         invoices = tab switch
         {
             CashierInvoiceTab.Open => invoices.Where(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted || i.State == InvoiceState.PartiallyPaid),
-            CashierInvoiceTab.Settled => invoices.Where(i => i.State == InvoiceState.Paid),
+            // «فاکتورهای اخیر» — every invoice regardless of state; the newest-first ordering below surfaces the recent ones.
+            CashierInvoiceTab.Settled => invoices,
             CashierInvoiceTab.Void => invoices.Where(i => i.State == InvoiceState.Void || i.State == InvoiceState.Refunded),
             _ => invoices,
         };
@@ -55,9 +56,12 @@ public sealed class CashierQueries(AnimoraLocalDbContext db, IOptions<LocalStore
                 || (i.OwnerId != null && ownerIds.Contains(i.OwnerId))
                 || EF.Functions.Like(i.PetName, like) || EF.Functions.Like(i.OwnerName, like));
         }
-        var ordered = invoices.OrderBy(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted ? 0
-                : i.State == InvoiceState.PartiallyPaid ? 1 : i.State == InvoiceState.Paid ? 2 : i.State == InvoiceState.Void ? 3 : 4)
-            .ThenByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id);
+        // «فاکتورهای اخیر» orders purely by recency; every other tab keeps the state-grouped ordering.
+        var ordered = tab == CashierInvoiceTab.Settled
+            ? invoices.OrderByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id)
+            : invoices.OrderBy(i => i.State == InvoiceState.Draft || i.State == InvoiceState.Posted ? 0
+                    : i.State == InvoiceState.PartiallyPaid ? 1 : i.State == InvoiceState.Paid ? 2 : i.State == InvoiceState.Void ? 3 : 4)
+                .ThenByDescending(i => i.IssuedUtc).ThenByDescending(i => i.Id);
         return FinanceInvoiceProjection.Summaries(ordered).ToPagedAsync(page, pageSize, options.Value, ct);
     }
 
