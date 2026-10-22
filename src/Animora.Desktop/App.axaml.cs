@@ -540,6 +540,8 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsSalesViewModel>();
         services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsExpensesViewModel>();
         services.AddSingleton<Animora.Desktop.Pages.Statistics.StatisticsPageViewModel>();
+        services.AddSingleton<Animora.Contracts.CustomerClub.ICustomerClubQueryService, Animora.Client.Services.CustomerClub.CustomerClubQueryService>();
+        services.AddSingleton<Animora.Desktop.Pages.CustomerClub.CustomerClubPageViewModel>();
 
         // Phase 28: Profile & Settings screen. Real UserProfileService over the local backend
         // (scope-per-call, stateless — edits persist through the use cases; the singleton holds no data).

@@ -254,7 +254,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
 - build سریع → 0/0.
 - پوش: `scripts/git/push.sh "feat(client-services): customer-club query service"`
 
-### [ ] T6 — DI registration + Navigation
+### [x] T6 — DI registration + Navigation
 - `src/Animora.Desktop/App.axaml.cs` (نزدیک خط ۵۳۷، بخش Statistics):
   ```csharp
   services.AddSingleton<Animora.Contracts.CustomerClub.ICustomerClubQueryService, Animora.Client.Services.CustomerClub.CustomerClubQueryService>();

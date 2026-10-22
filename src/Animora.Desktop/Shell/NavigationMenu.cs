@@ -3,6 +3,7 @@ using Animora.Contracts.Navigation;
 using Animora.Desktop.Pages.Appointments;
 using Animora.Desktop.Pages.Boarding;
 using Animora.Desktop.Pages.Cheques;
+using Animora.Desktop.Pages.CustomerClub;
 using Animora.Desktop.Pages.Dashboard;
 using Animora.Desktop.Pages.History;
 using Animora.Desktop.Pages.Inventory;
@@ -40,6 +41,7 @@ public static class NavigationMenu
         new("visits", "ویزیت و پرونده", "IconClipboard", typeof(VisitsTriagePageViewModel), "مدیریت کلینیک"),
         new("vaccine", "دارو و واکسن", "IconSyringe", typeof(VaccinationPageViewModel), "مدیریت کلینیک"),
         new("boarding", "پانسیون", "IconHome", typeof(BoardingPageViewModel), "مدیریت کلینیک"),
+        new("customer-club", "باشگاه مشتریان", "IconSpark", typeof(CustomerClubPageViewModel), "مدیریت کلینیک"),
 
         new("inventory", "انبار و کالا", "IconBox", typeof(InventoryPageViewModel), "کسب و کار"),
         new("cheques", "چک‌ها", "IconCheque", typeof(ChequesPageViewModel), "کسب و کار"),

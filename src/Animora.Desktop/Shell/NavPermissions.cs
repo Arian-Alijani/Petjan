@@ -29,6 +29,8 @@ public static class NavPermissions
         ["visits"] = PermissionCodes.VisitsRead,
         ["vaccine"] = PermissionCodes.VaccinationRead,
         ["boarding"] = PermissionCodes.BoardingRead,
+        // Page admission = patient data (birthdays); the financial leaderboards are additionally gated on reports.read in the page.
+        ["customer-club"] = PermissionCodes.PatientsRead,
         ["sale"] = PermissionCodes.SalesRead,
         ["inventory"] = PermissionCodes.InventoryRead,
         ["cheques"] = PermissionCodes.ChequesRead,
@@ -52,6 +54,7 @@ public static class NavPermissions
         [typeof(Pages.Visits.VisitEncounterViewModel)] = "visits",
         [typeof(Pages.Vaccination.VaccinationPageViewModel)] = "vaccine",
         [typeof(Pages.Boarding.BoardingPageViewModel)] = "boarding",
+        [typeof(Pages.CustomerClub.CustomerClubPageViewModel)] = "customer-club",
         [typeof(Pages.Sales.SalePageViewModel)] = "sale",
         [typeof(Pages.Inventory.InventoryPageViewModel)] = "inventory",
         [typeof(Pages.Cheques.ChequesPageViewModel)] = "cheques",
