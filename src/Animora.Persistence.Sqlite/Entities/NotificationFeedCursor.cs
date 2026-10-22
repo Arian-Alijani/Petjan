@@ -1,3 +1,5 @@
+using Animora.Domain.Primitives;
+
 namespace Animora.Persistence.Sqlite.Entities;
 
 /// <summary>
