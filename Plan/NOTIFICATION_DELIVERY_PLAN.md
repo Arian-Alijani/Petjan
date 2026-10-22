@@ -278,7 +278,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
 - **بدون** تغییر منطق build. فقط رشته‌های راهنما/trace.
 - **پوش:** `docs(publish): surface notification (sync.notify) trace in launcher logs`
 
-### Task 9 — بیلد هدفمند پروژه‌های تغییرکرده (بدون full/long test)  — وضعیت: [ ] در انتظار
+### Task 9 — بیلد هدفمند پروژه‌های تغییرکرده (بدون full/long test)  — وضعیت: [x] انجام شد (بیلد GitHub Actions سبز: Linux + Windows)
 - فقط پروژه‌های دست‌خورده را build کن تا کامپایل سالم باشد (نه کل solution، نه تست کامل):
   `dotnet build src/Animora.Contracts.Wire/Animora.Contracts.Wire.csproj`،
   `dotnet build src/Animora.Persistence.PostgreSql/...`،
