@@ -55,13 +55,24 @@ public sealed class OperatorNotificationAdministration(AnimoraOperatorDbContext 
 
         var row = TenantNotification.Create(now, tenantId, (short)draft.AudienceKind, audienceValue, (short)draft.Kind, tag,
             title, body, actor.ActorId ?? string.Empty, draft.ScheduledForUtc, draft.ExpiresAtUtc);
-        await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
-        db.TenantNotifications.Add(row);
-        // Audit detail is allow-listed metadata only: never the message text.
-        db.Audit.Add(OperatorAudit.Create(now, actor, "notification.sent", tenantId, correlationId,
-            detail: new { notificationId = row.Id, audience = draft.AudienceKind, kind = draft.Kind }));
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
-        await tx.CommitAsync(ct).ConfigureAwait(false);
-        return Result<string>.Ok(row.Id);
+        // The operator DbContext is scoped and, inside a Blazor Server circuit, reused across admin POSTs. Without a
+        // post-commit reset the Notification + Audit entities added here stay Tracked; the NEXT send re-enters with
+        // stale tracked state and SaveChangesAsync throws an unhandled 500 ("Request failed / Correlation"). Clearing
+        // the tracker in finally (success OR failure) makes every send a clean unit of work — mirrors ServerTransactionRunner.
+        try
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct).ConfigureAwait(false);
+            db.TenantNotifications.Add(row);
+            // Audit detail is allow-listed metadata only: never the message text.
+            db.Audit.Add(OperatorAudit.Create(now, actor, "notification.sent", tenantId, correlationId,
+                detail: new { notificationId = row.Id, audience = draft.AudienceKind, kind = draft.Kind }));
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            await tx.CommitAsync(ct).ConfigureAwait(false);
+            return Result<string>.Ok(row.Id);
+        }
+        finally
+        {
+            db.ChangeTracker.Clear();
+        }
     }
 }
