@@ -224,7 +224,9 @@ rem  (owners) and "بیماران" (patients) pages: the page ViewModel load, th
 rem  service, the dispatcher, the LOCAL SQL projection, and the sync pull/apply
 rem  (including whether a synced Owner/Pet row was actually materialised into the
 rem  local tables). Categories to grep: patients, svc.patients, sql.patients,
-rem  dispatch, sync, sync.apply, sync.push.
+rem  dispatch, sync, sync.apply, sync.push, notify, sync.notify.
+rem  Message delivery status (admin-panel messages reaching this PC): look for the
+rem  sync.notify lines - fetch / applied / receipt / skip.
 rem
 rem  To point this copy at a different server, edit the SET line below.
 rem  To run WITHOUT the server trace, set ANIMORA_NET_LOG=0.
@@ -243,6 +245,7 @@ echo  Server : %ANIMORA_SERVER_URL%
 echo  This window shows every request/response to/from the server, plus the
 echo  app's own activity (startup, clicks, navigation, errors) AND the full
 echo  patients/owners load trace (patients, sql.patients, sync.apply, ...).
+echo  Message delivery status: look for sync.notify lines - fetch / applied / receipt / skip.
 echo  App log file: %LOCALAPPDATA%\Animora\logs\animora-<date>.log
 echo  Leave this window open while you use the app.
 echo =====================================================================
@@ -277,7 +280,9 @@ $Ps1Content = @"
 # dispatcher, the LOCAL SQL projection, and the sync pull/apply (including
 # whether a synced Owner/Pet row was actually materialised into the local
 # tables). Categories to grep: patients, svc.patients, sql.patients, dispatch,
-# sync, sync.apply, sync.push.
+# sync, sync.apply, sync.push, notify, sync.notify.
+# Message delivery status (admin-panel messages reaching this PC): look for the
+# sync.notify lines - fetch / applied / receipt / skip.
 `$ErrorActionPreference = 'Stop'
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 `$here = Split-Path -Parent `$MyInvocation.MyCommand.Path
@@ -292,6 +297,7 @@ Write-Host "  Server : `$(`$env:ANIMORA_SERVER_URL)"
 Write-Host '  This window shows every request/response to/from the server, plus the'
 Write-Host '  app activity log (startup, clicks, navigation, errors) AND the full'
 Write-Host '  patients/owners load trace (patients, sql.patients, sync.apply, ...).'
+Write-Host '  Message delivery status: look for sync.notify lines - fetch / applied / receipt / skip.'
 Write-Host "  App log file: `$env:LOCALAPPDATA\Animora\logs\animora-<date>.log"
 Write-Host '  Leave it open while you use the app.'
 Write-Host '====================================================================='
@@ -334,8 +340,11 @@ Animora — نسخهٔ متصل به سرور (بدون نیاز به نصب)
   مرحلهٔ pull/apply همگام‌سازی — از جمله اینکه آیا ردیف سرپرست/بیمارِ گرفته‌شده از
   سرور واقعاً در جدول‌های محلی ساخته شده است یا خیر. برای پیدا کردن این خطوط از
   این دسته‌ها استفاده کنید: patients، svc.patients، sql.patients، dispatch،
-  sync، sync.apply، sync.push. همهٔ این‌ها در پنجرهٔ ترمینال و همچنین در فایل
-  لاگ برنامه ثبت می‌شوند:
+  sync، sync.apply، sync.push، notify، sync.notify. همهٔ این‌ها در پنجرهٔ ترمینال و همچنین در فایل
+  لاگ برنامه ثبت می‌شوند.
+  برای دیدن «وضعیت دریافت پیام‌ها» (پیام‌های پنل ادمین) در ترمینال، دنبال خطوط
+  sync.notify بگردید: fetch (دریافت از سرور) / applied (ذخیره در دستگاه) /
+  receipt (گزارش دریافت به سرور) / skip (پیام تکراری). لاگ‌ها در فایل زیر هم هستند:
 
 برنامه به کدام سرور وصل می‌شود؟
       $ServerUrl
@@ -389,8 +398,10 @@ A TERMINAL WINDOW STAYS OPEN — THIS IS NORMAL
   load, the query service, the dispatcher, the LOCAL SQL projection, and the
   sync pull/apply step — including whether a synced Owner/Pet row was actually
   materialised into the local tables. Grep these categories: patients,
-  svc.patients, sql.patients, dispatch, sync, sync.apply, sync.push. Everything
-  is also written to the app log file:
+  svc.patients, sql.patients, dispatch, sync, sync.apply, sync.push, notify,
+  sync.notify. To see message delivery status (admin-panel messages reaching
+  this PC) look for the sync.notify lines: fetch / applied / receipt / skip.
+  Everything is also written to the app log file:
 
 CONNECTION TROUBLESHOOTING
   * Make sure the server is running and port 5000 is open in the firewall.
@@ -429,7 +440,8 @@ Write-Host "   Trace  : ON — Run-Animora.cmd keeps a terminal open and logs ev
 Write-Host "            request/response/error to/from the server (ANIMORA_NET_LOG=1)"
 Write-Host "            PLUS the full patients/owners load trace (ANIMORA_TRACE_DEBUG=1):"
 Write-Host "            patients, svc.patients, sql.patients, dispatch, sync, sync.apply,"
-Write-Host "            sync.push — every step, query, read/return and error on this page."
+Write-Host "            sync.push, notify, sync.notify — every step, query, read/return and error on this page."
+Write-Host "            Message delivery status: grep sync.notify (fetch/applied/receipt/skip)."
 Write-Host ''
 Write-Host ' Give the ZIP (or folder) to the clinic PC. They unzip anywhere and'
 Write-Host ' double-click "Run-Animora.cmd" — no install needed. The app connects'

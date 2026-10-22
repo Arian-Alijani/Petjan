@@ -264,7 +264,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
   رشته‌های محلی‌سازی را در `AdminStrings.cs` اضافه کن (کلیدهای `notify.report.*`).
 - **پوش:** `feat(admin): delivery report + resend-to-undelivered for messages`
 
-### Task 8 — لاگ‌های publish-server-connected.ps1  — وضعیت: [ ] در انتظار
+### Task 8 — لاگ‌های publish-server-connected.ps1  — وضعیت: [x] انجام شد
 - فایل: `scripts/windows/publish-server-connected.ps1`.
 - کاری که این اسکریپت می‌کند: build/publish دسکتاپ و ساخت `Run-Animora.cmd`/`.ps1` که
   ترمینال را باز نگه می‌دارند و با `ANIMORA_NET_LOG=1`+`ANIMORA_TRACE_DEBUG=1`
