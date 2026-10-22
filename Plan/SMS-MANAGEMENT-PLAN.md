@@ -280,7 +280,7 @@ public interface ISmsService
   - اطمینان از اینکه آیکون‌کلید در `Resources/Theme/Icons.axaml` واقعاً وجود دارد.
   → push: `feat(ui): register SMS page in DI and sidebar navigation`.
 
-- [ ] **T8 — بیلد و تأیید نهایی.** فقط `scripts/sandbox/build.sh` (0/0). چون DI/shell دست خورد،
+- [x] **T8 — بیلد و تأیید نهایی.** فقط `scripts/sandbox/build.sh` (0/0). چون DI/shell دست خورد،
   در صورت امکان `scripts/sandbox/run.sh` (SMOKE RUN OK). رفعِ هر warning/error.
   → push: `fix(ui): resolve build issues for SMS management (0 warn/0 err)` (اگر فیکسی لازم شد).
 
