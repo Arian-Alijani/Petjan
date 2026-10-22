@@ -119,6 +119,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
     public DbSet<FileObject> FileObjects => Set<FileObject>();
     public DbSet<FileUploadChunk> FileUploadChunks => Set<FileUploadChunk>();
     public DbSet<BlobRef> BlobRefs => Set<BlobRef>();
+    public DbSet<Animora.Persistence.PostgreSql.Operator.TenantNotification> TenantNotifications => Set<Animora.Persistence.PostgreSql.Operator.TenantNotification>();
+    public DbSet<Animora.Persistence.PostgreSql.Operator.TenantNotificationDelivery> TenantNotificationDeliveries => Set<Animora.Persistence.PostgreSql.Operator.TenantNotificationDelivery>();
 
     /// <inheritdoc />
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -208,6 +210,8 @@ public sealed class AnimoraServerDbContext(DbContextOptions<AnimoraServerDbConte
 
         // RefreshToken / SecurityAuditEntry are not SyncableEntity, so the convention skips them: scope
         // them to the tenant in context here (accessor stays rooted on this context instance).
+        modelBuilder.Entity<Animora.Persistence.PostgreSql.Operator.TenantNotificationDelivery>()
+            .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<DocumentCounter>()
             .HasQueryFilter(ServerModelConventions.TenantFilterName, e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<RefreshToken>()

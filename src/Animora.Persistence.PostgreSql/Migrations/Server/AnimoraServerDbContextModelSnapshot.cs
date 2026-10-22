@@ -2191,6 +2191,20 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.ToTable("TenantNotifications", "public");
             });
 
+            modelBuilder.Entity("Animora.Persistence.PostgreSql.Operator.TenantNotificationDelivery", b =>
+            {
+                b.Property<string>("Id").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<string>("TenantId").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<string>("NotificationId").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<string>("DeviceId").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<string>("UserId").HasMaxLength(26).HasColumnType("character varying(26)").IsRequired();
+                b.Property<DateTimeOffset>("ReceivedUtc").HasColumnType("timestamp(6) with time zone");
+                b.HasKey("Id");
+                b.HasIndex("NotificationId", "DeviceId").IsUnique().HasDatabaseName("UX_TenantNotificationDeliveries_NotificationId_DeviceId");
+                b.HasIndex("TenantId", "NotificationId").HasDatabaseName("IX_TenantNotificationDeliveries_TenantId_NotificationId");
+                b.ToTable("TenantNotificationDeliveries", "public");
+            });
+
             modelBuilder.Entity("Animora.Persistence.PostgreSql.Subscriptions.ProvisioningLedger", b =>
             {
                 b.Property<string>("IdempotencyKey").HasMaxLength(128).HasColumnType("character varying(128)") .IsRequired();

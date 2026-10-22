@@ -20,6 +20,7 @@ public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbC
     public DbSet<OperatorAccount> Accounts => Set<OperatorAccount>();
     public DbSet<OperatorAudit> Audit => Set<OperatorAudit>();
     public DbSet<TenantNotification> TenantNotifications => Set<TenantNotification>();
+    public DbSet<TenantNotificationDelivery> TenantNotificationDeliveries => Set<TenantNotificationDelivery>();
     public DbSet<ProvisioningLedger> ProvisioningLedger => Set<ProvisioningLedger>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<StaffMembership> StaffMemberships => Set<StaffMembership>();
@@ -43,6 +44,7 @@ public sealed class AnimoraOperatorDbContext(DbContextOptions<AnimoraOperatorDbC
         b.ApplyConfiguration(new OperatorAccountConfiguration());
         b.ApplyConfiguration(new OperatorAuditConfiguration());
         b.ApplyConfiguration(new TenantNotificationConfiguration());
+        b.ApplyConfiguration(new TenantNotificationDeliveryConfiguration());
         b.ApplyConfiguration(new ProvisioningLedgerConfiguration());
         b.ApplyConfiguration(new TenantConfiguration());
         b.ApplyConfiguration(new StaffMembershipConfiguration());

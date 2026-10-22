@@ -164,7 +164,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
 - چک: نام‌گذاری با بقیهٔ فایل‌های `Sync/` هماهنگ باشد.
 - **پوش:** `feat(contracts): add notification feed/receipt wire DTOs`
 
-### Task 2 — جدول تحویل سرور + migration  — وضعیت: [ ] در انتظار
+### Task 2 — جدول تحویل سرور + migration  — وضعیت: [x] انجام شد
 - entity `TenantNotificationDelivery` + `IEntityTypeConfiguration` (الگوی Task از بخش ۳).
 - map در `AnimoraServerDbContext` (`src/Animora.Persistence.PostgreSql/Context/AnimoraServerDbContext.cs`،
   کنار بقیهٔ DbSetها) + `ApplyConfiguration`.
