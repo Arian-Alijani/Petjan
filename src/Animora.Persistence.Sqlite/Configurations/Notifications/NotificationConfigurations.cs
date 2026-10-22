@@ -42,3 +42,9 @@ public sealed class RewardGrantConfiguration : IEntityTypeConfiguration<RewardGr
             .HasDatabaseName("IX_RewardGrants_TenantId_TargetUserId");
     }
 }
+
+/// <summary>Vendor-message pull cursor: one row per tenant.</summary>
+public sealed class NotificationFeedCursorConfiguration : IEntityTypeConfiguration<NotificationFeedCursor>
+{
+    public void Configure(EntityTypeBuilder<NotificationFeedCursor> builder) => builder.HasKey(e => e.TenantId);
+}

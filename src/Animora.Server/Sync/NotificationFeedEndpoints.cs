@@ -10,7 +10,7 @@ namespace Animora.Server.Sync;
 
 /// <summary>
 /// Vendor-message delivery. <c>GET /notifications?since={ticks}&amp;take={n}</c> hands a desktop device the
-/// admin-authored messages addressed to its signed-in user (the generic state feed deliberately excludes the
+/// admin-authored messages addressed to its clinic (the generic state feed deliberately excludes the
 /// vendor-global <c>TenantNotification</c> rows), and <c>POST /notifications/receipts</c> records which messages the
 /// device actually stored so the admin panel can report REAL delivery. Read-mostly side channel: nothing here
 /// crosses into the command pipeline.
@@ -39,7 +39,7 @@ internal static class NotificationFeedEndpoints
     internal static async Task<IResult> FeedAsync(
         HttpContext http, IRequestAuthorizationState state, INotificationFeedStore store, CancellationToken ct)
     {
-        if (state.Membership is not { } member) return Unauthorized(http);
+        if (state.Membership is null) return Unauthorized(http);
 
         long since = 0;
         if (http.Request.Query.TryGetValue("since", out var sinceRaw)
@@ -59,7 +59,7 @@ internal static class NotificationFeedEndpoints
 
         try
         {
-            var page = await store.GetFeedAsync(since, take, member.UserId, member.Role.ToString(), ct).ConfigureAwait(false);
+            var page = await store.GetFeedAsync(since, take, ct).ConfigureAwait(false);
             return Results.Json(page);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

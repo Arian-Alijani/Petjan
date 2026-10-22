@@ -4292,6 +4292,23 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.ToTable("LoginAttemptLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.NotificationFeedCursor", b =>
+                {
+                    b.Property<string>("TenantId")
+                        .HasMaxLength(26)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CursorTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ReportedTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TenantId");
+
+                    b.ToTable("NotificationFeedCursors", (string)null);
+                });
+
             modelBuilder.Entity("Animora.Persistence.Sqlite.Entities.NotificationReceiptRow", b =>
                 {
                     b.Property<string>("TenantId")

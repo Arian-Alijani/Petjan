@@ -16,7 +16,7 @@ public sealed class NotificationFeedStore(AnimoraServerDbContext db, IClock cloc
     /// <summary>Hard ceiling on one window / one receipt batch.</summary>
     internal const int MaxWindow = 200;
 
-    public async Task<NotificationFeedPage> GetFeedAsync(long sinceTicks, int take, string userId, string roleName, CancellationToken ct)
+    public async Task<NotificationFeedPage> GetFeedAsync(long sinceTicks, int take, CancellationToken ct)
     {
         take = take <= 0 ? 100 : Math.Min(take, MaxWindow);
         var tenantId = db.CurrentTenantId;
@@ -25,10 +25,7 @@ public sealed class NotificationFeedStore(AnimoraServerDbContext db, IClock cloc
 
         IQueryable<TenantNotification> Visible() => db.TenantNotifications.AsNoTracking()
             .Where(n => n.TenantId == tenantId
-                && (n.ExpiresAtUtc == null || n.ExpiresAtUtc > now)
-                && (n.AudienceKind == 0
-                    || (n.AudienceKind == 1 && n.AudienceValue == roleName)
-                    || (n.AudienceKind == 2 && n.AudienceValue == userId)));
+                && (n.ExpiresAtUtc == null || n.ExpiresAtUtc > now));
 
         // take+1 detects "more" without a count; ordering by (CreatedAtUtc, Id) is a stable total order.
         var rows = await Visible().Where(n => n.CreatedAtUtc > since)

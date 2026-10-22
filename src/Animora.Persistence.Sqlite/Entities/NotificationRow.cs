@@ -89,6 +89,25 @@ public sealed class NotificationRow
         };
     }
 
+    /// <summary>Author id stamped on rows delivered from the vendor server (the admin panel operator is not a clinic user).</summary>
+    public const string VendorAuthor = "vendor";
+
+    /// <summary>
+    /// Materialises a vendor message delivered by the server pull, KEEPING the server's stable id (the idempotent upsert
+    /// key across devices and re-pulls). A message with no future schedule is visible on arrival (published at its creation
+    /// time); one scheduled for later stays unpublished until the local due-sweep publishes it.
+    /// </summary>
+    public static NotificationRow FromServer(string id, string tenantId, int audienceKind, string? audienceValue, int kind,
+        string? tag, string title, string body, DateTimeOffset createdAtUtc, DateTimeOffset? scheduledForUtc,
+        DateTimeOffset? expiresAtUtc, DateTimeOffset nowUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        var row = Create(tenantId, audienceKind, audienceValue, kind, tag, title, body, VendorAuthor, createdAtUtc,
+            scheduledForUtc, scheduledForUtc is { } at && at > nowUtc ? null : (scheduledForUtc ?? createdAtUtc), expiresAtUtc);
+        row.Id = id;
+        return row;
+    }
+
     /// <summary>Makes a scheduled message visible (idempotent: the first publish time wins).</summary>
     public void Publish(DateTimeOffset nowUtc) => PublishedAtUtc ??= nowUtc;
 }

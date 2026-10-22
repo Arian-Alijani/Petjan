@@ -203,7 +203,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
 - از `NewRequest`+`SendAsync`+`MapStatus`+`ReadJsonAsync`/serialize موجود استفاده کن.
 - **پوش:** `feat(sync): SyncFeedClient notification pull + receipt calls`
 
-### Task 5 — مصرف‌کنندهٔ کلاینت (HttpPeerNotificationSync)  — وضعیت: [ ] در انتظار
+### Task 5 — مصرف‌کنندهٔ کلاینت (HttpPeerNotificationSync)  — وضعیت: [x] انجام شد
 - فایل جدید: `src/Animora.Sync.Custom/Notifications/HttpPeerNotificationSync.cs`
   (الگوی `Finance/HttpPeerFinanceSync.cs`).
 - Port جدید در Application (الگوی `src/Animora.Application/Ports/IPeerFinanceSync.cs`):
