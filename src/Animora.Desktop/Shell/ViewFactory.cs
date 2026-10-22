@@ -75,6 +75,9 @@ public static class ViewFactory
         // Cashier.
         Register<global::Animora.Desktop.Pages.Cashier.CashierPageViewModel, global::Animora.Desktop.Pages.Cashier.CashierPageView>(factories);
 
+        // Customer club («باشگاه مشتریان»).
+        Register<global::Animora.Desktop.Pages.CustomerClub.CustomerClubPageViewModel, global::Animora.Desktop.Pages.CustomerClub.CustomerClubPageView>(factories);
+
         // Dashboard.
         Register<global::Animora.Desktop.Pages.Dashboard.DashboardPageViewModel, global::Animora.Desktop.Pages.Dashboard.DashboardPageView>(factories);
 
