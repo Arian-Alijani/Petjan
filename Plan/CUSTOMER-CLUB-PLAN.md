@@ -231,7 +231,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
 - build سریع → 0/0.
 - پوش: `scripts/git/push.sh "feat(app): customer-club dispatcher queries + handlers"`
 
-### [ ] T4 — Contracts (seam دیتا)
+### [x] T4 — Contracts (seam دیتا)
 - پوشهٔ جدید `src/Animora.Contracts/CustomerClub/`:
   - `CustomerClubModels.cs`: `BirthdayPet(string PetId, string PetName, string Species, string OwnerId, string OwnerName, string Phone, int AgeYears)`. `TopClient` را از `Animora.Contracts.Statistics` import و بازاستفاده کن (DTO تکراری نساز).
   - `ICustomerClubQueryService.cs`:
@@ -243,7 +243,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
   - exception: از `Animora.Contracts.Statistics.StatisticsQueryException` استفاده کن (import) تا کد تکراری نسازی؛ یا در صورت namespace نامناسب، یک `CustomerClubQueryException` کپی‌کن. **ترجیح: بازاستفاده از StatisticsQueryException.**
 - پوش: `scripts/git/push.sh "feat(contracts): customer-club query seam"`
 
-### [ ] T5 — Client.Services (adapter روی dispatcher)
+### [x] T5 — Client.Services (adapter روی dispatcher)
 - پوشهٔ جدید `src/Animora.Client.Services/CustomerClub/CustomerClubQueryService.cs`:
   - پیاده‌سازی `ICustomerClubQueryService`.
   - plumbing `QueryAsync` را **عیناً** از `StatisticsQueryService` کپی کن (`Task.Run`, `scopes.CreateAsyncScope`, `ICurrentUserProvider.BuildQueryContext`, `IDispatcher.QueryAsync`, map، و `Failure/Unexpected` با `ErrorMapping.FromException`).
