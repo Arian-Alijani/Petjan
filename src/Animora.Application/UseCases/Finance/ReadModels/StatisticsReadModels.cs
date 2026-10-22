@@ -60,5 +60,12 @@ public sealed record TopClientReadModel(string OwnerId, string FullName, string 
 /// <summary>Active patients of one species.</summary>
 public sealed record SpeciesSliceReadModel(string Species, int Count);
 
+/// <summary>
+/// A patient whose birthday falls on the clinic-local "today", with its owner's contact for the
+/// «باشگاه مشتریان» greeting list. <see cref="AgeYears"/> is the whole-year age reached today.
+/// </summary>
+public sealed record BirthdayPetReadModel(string PetId, string PetName, string Species, string OwnerId,
+    string OwnerName, string Phone, int AgeYears);
+
 /// <summary>Client mix of the window: new registrations and the new / returning split of paying clients.</summary>
 public sealed record ClientStatsReadModel(int NewOwners, int ActiveOwners, int ReturningOwners, int TotalOwners);

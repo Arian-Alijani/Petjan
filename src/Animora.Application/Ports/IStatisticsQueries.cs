@@ -39,4 +39,11 @@ public interface IStatisticsQueries
 
     /// <summary>New vs returning paying clients of the window.</summary>
     Task<ClientStatsReadModel> GetClientStatsAsync(FinanceDayRange range, CancellationToken ct);
+
+    // ── باشگاه مشتریان (Customer Club) ─────────────────────────────────────────
+    /// <summary>The <paramref name="take"/> clients with the most invoices (visit frequency leaderboard).</summary>
+    Task<IReadOnlyList<TopClientReadModel>> GetTopVisitorsAsync(int take, CancellationToken ct);
+
+    /// <summary>Active patients whose birthday is the clinic-local day <paramref name="todayLocalDay"/> (<c>yyyyMMdd</c>).</summary>
+    Task<IReadOnlyList<BirthdayPetReadModel>> GetTodaysBirthdaysAsync(int todayLocalDay, CancellationToken ct);
 }
