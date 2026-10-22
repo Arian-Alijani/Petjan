@@ -915,7 +915,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
             var filtered = _invoices.Where(inv => MatchesInvoice(inv, query)).ToList();
             var rows = new List<SaleSidebarRowViewModel>(filtered.Count + 3);
             AddGroup(rows, "باز و در انتظار", filtered.Where(i => i.State is InvoiceState.Draft or InvoiceState.Partial));
-            AddGroup(rows, "تسویه‌شده", filtered.Where(i => i.State == InvoiceState.Settled));
+            // «فاکتورهای اخیر»: the five most recently issued invoices (any state), newest first.
+            AddGroup(rows, "فاکتورهای اخیر", filtered.OrderByDescending(i => i.IssuedAt ?? DateTime.MinValue).Take(5));
             AddGroup(rows, "ابطال و عودت", filtered.Where(i => i.State is InvoiceState.Void or InvoiceState.Refunded));
             InvoiceRows.ReplaceAll(rows);
         }
