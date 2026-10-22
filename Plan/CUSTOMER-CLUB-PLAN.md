@@ -200,7 +200,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
 > وضعیت‌ها: `[ ]` انجام‌نشده · `[~]` درحال‌انجام · `[x]` انجام‌شده
 > **بعد از هر تسک: `scripts/git/push.sh "..."`**
 
-### [ ] T1 — Read-models + Port (Application)
+### [x] T1 — Read-models + Port (Application)
 - فایل `src/Animora.Application/UseCases/Finance/ReadModels/StatisticsReadModels.cs`:
   اضافه کن `BirthdayPetReadModel(string PetId, string PetName, string Species, string OwnerId, string OwnerName, string Phone, int AgeYears)`.
 - فایل `src/Animora.Application/Ports/IStatisticsQueries.cs`: دو امضای جدید
@@ -208,7 +208,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
 - **build سریع نزن هنوز** (پیاده‌سازی port ناقص است) → مستقیم T2.
 - پوش: `scripts/git/push.sh "feat(app): add customer-club read models and query ports"`
 
-### [ ] T2 — Persistence (SQLite queries)
+### [x] T2 — Persistence (SQLite queries)
 - فایل `src/Animora.Persistence.Sqlite/Queries/StatisticsQueries.cs`:
   - `GetTopVisitorsAsync`: کپی بدنهٔ `GetTopClientsAsync` ولی `OrderByDescending(g => g.Count).ThenByDescending(g => g.Spend)` و فیلتر `g.Count > 0`.
   - `GetTodaysBirthdaysAsync(int todayLocalDay, ct)`: 
