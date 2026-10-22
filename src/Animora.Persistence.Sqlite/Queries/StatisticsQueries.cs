@@ -173,6 +173,48 @@ public sealed class StatisticsQueries(AnimoraLocalDbContext db, IClinicTimeZoneP
         return new ClientStatsReadModel(registered, activeCount, returning, total);
     }
 
+    public async Task<IReadOnlyList<TopClientReadModel>> GetTopVisitorsAsync(int take, CancellationToken ct)
+    {
+        take = Math.Clamp(take, 1, MaxTake);
+        var top = await FinanceAnalytics.Invoices(db).Where(i => i.OwnerId != null)
+            .GroupBy(i => i.OwnerId).Select(g => new { OwnerId = g.Key, Spend = g.Sum(i => i.TotalMinor),
+                Count = g.Count(), Last = g.Max(i => i.PostedUtc) })
+            .Where(g => g.Count > 0).OrderByDescending(g => g.Count).ThenByDescending(g => g.Spend)
+            .ThenBy(g => g.OwnerId).Take(take).ToListAsync(ct);
+        var ids = top.Select(t => t.OwnerId).ToArray();
+        var owners = await db.Set<Owner>().AsNoTracking().Where(o => ids.Contains(o.Id))
+            .Select(o => new { o.Id, o.FullName, o.PhonePrimary }).ToDictionaryAsync(o => o.Id, ct);
+        return top.Where(t => t.OwnerId != null && owners.ContainsKey(t.OwnerId)).Select(t =>
+            new TopClientReadModel(t.OwnerId!, owners[t.OwnerId!].FullName, owners[t.OwnerId!].PhonePrimary,
+                t.Spend, t.Count, t.Last)).ToArray();
+    }
+
+    public async Task<IReadOnlyList<BirthdayPetReadModel>> GetTodaysBirthdaysAsync(int todayLocalDay, CancellationToken ct)
+    {
+        var zone = zones.GetClinicTimeZone();
+        var today = Parse(todayLocalDay);
+        // Pet count per clinic is bounded; project the few needed columns and match the clinic-local month/day in memory
+        // (SQLite date functions are deliberately never used for the finance/patient projections — see class summary).
+        var pets = await db.Set<Pet>().AsNoTracking()
+            .Where(p => p.Status == PetStatus.Active && p.BirthDateUtc != null)
+            .Select(p => new { p.Id, p.Name, p.Species, p.OwnerId, p.BirthDateUtc })
+            .ToListAsync(ct);
+        var matches = pets
+            .Select(p => new { p, Local = ClinicCalendar.LocalDay(p.BirthDateUtc!.Value.UtcTicks, zone) })
+            .Where(x => x.Local.Month == today.Month && x.Local.Day == today.Day)
+            .ToArray();
+        if (matches.Length == 0) return [];
+        var ids = matches.Select(m => m.p.OwnerId).Distinct().ToArray();
+        var owners = await db.Set<Owner>().AsNoTracking().Where(o => ids.Contains(o.Id))
+            .Select(o => new { o.Id, o.FullName, o.PhonePrimary }).ToDictionaryAsync(o => o.Id, ct);
+        return matches
+            .Where(m => owners.ContainsKey(m.p.OwnerId))
+            .Select(m => new BirthdayPetReadModel(m.p.Id, m.p.Name, m.p.Species.ToString(), m.p.OwnerId,
+                owners[m.p.OwnerId].FullName, owners[m.p.OwnerId].PhonePrimary,
+                Math.Max(0, today.Year - m.Local.Year)))
+            .OrderBy(b => b.OwnerName, StringComparer.Ordinal).ThenBy(b => b.PetName, StringComparer.Ordinal).ToArray();
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private async Task<FinanceTotalsReadModel> TotalsAsync(FinanceDayRange range, CancellationToken ct)
