@@ -164,7 +164,10 @@ internal sealed class TimeGridDragController
 
         if (session.Label is { } label)
         {
-            label.Text = $"{FormatTime(startMinutes)} – {FormatTime(startMinutes + durationMinutes)}";
+            // Show the time range plus the live minute count so the user sees exactly how long the
+            // dragged-out range is and watches it grow/shrink while dragging (e.g. «۰۹:۰۰ – ۰۹:۴۵ · ۴۵ دقیقه»).
+            label.Text = $"{FormatTime(startMinutes)} – {FormatTime(startMinutes + durationMinutes)} · " +
+                         $"{AppointmentsPresentation.Fa(durationMinutes)} دقیقه";
         }
     }
 
