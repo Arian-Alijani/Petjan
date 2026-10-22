@@ -40,16 +40,21 @@ public sealed class SessionLifecycleTests
     }
 
     [Fact]
-    public async Task ThirtyMinutesIdle_RestoresLocked()
+    public async Task LongInactivity_NeverLocks_WhileWithinAbsoluteLifetime()
     {
+        // Inactivity must NEVER lock the session (A-RULE 029, revised): leaving the app open and idle, or not
+        // interacting for a long stretch, must not drop the shell to the read-only/locked state. Only an explicit
+        // lock or the hard absolute lifetime may end usable access.
         await using var host = await StartedHostAsync();
 
-        host.Clock.Advance(TimeSpan.FromMinutes(30));
+        // Far past the old 30-minute idle window, but still inside the 12-hour absolute lifetime.
+        host.Clock.Advance(TimeSpan.FromHours(8));
         var restored = await host.RestoreAsync();
 
         Assert.True(restored.IsSuccess);
-        Assert.True(restored.Value!.IsLocked);
-        Assert.True(host.Cache.Current!.IsLocked);
+        Assert.False(restored.Value!.IsLocked);
+        Assert.False(host.Cache.Current!.IsLocked);
+        Assert.NotNull(restored.Value.UserId);
     }
 
     [Fact]

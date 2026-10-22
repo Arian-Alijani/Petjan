@@ -11,8 +11,9 @@ public sealed record SessionSnapshot(string? UserId, string? DisplayName, StaffR
 }
 
 /// <summary>
-/// Durable, policy-driven local session (A-RULE 029, R-B09): idle → lock, absolute lifetime →
-/// sign-out with <c>SESSION_EXPIRED</c>; never silently extended.
+/// Durable, policy-driven local session (A-RULE 029, R-B09): absolute lifetime → sign-out with
+/// <c>SESSION_EXPIRED</c>; never silently extended. Inactivity does <b>not</b> lock the session — only an
+/// explicit <see cref="LockAsync"/> or a hard-lifetime/online-entitlement failure may end usable access.
 /// </summary>
 public interface ISessionService
 {
@@ -21,9 +22,6 @@ public interface ISessionService
 
     /// <summary>Ends any active session and starts a new one for <paramref name="userId"/>.</summary>
     Task<Result<SessionSnapshot>> StartAsync(string userId, string deviceId, CancellationToken ct = default);
-
-    /// <summary>Records activity; throttled to at most one write per 60 s.</summary>
-    Task<Result> TouchAsync(CancellationToken ct = default);
 
     Task<Result> LockAsync(CancellationToken ct = default);
 
