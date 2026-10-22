@@ -1,6 +1,7 @@
 using Animora.Application.Ports;
 using Animora.Persistence.Sqlite.Context;
 using Animora.Application.Security;
+using Animora.Client.Services.Notifications;
 using Animora.Contracts.Diagnostics;
 using Animora.Domain.Results;
 using Animora.Sync.Abstractions;
@@ -100,7 +101,12 @@ public sealed class SyncOrchestrator(
         // server) — otherwise this is a no-op and offline behaviour is untouched. It is a display feed, so its failure never turns a
         // healthy state pull into a failed pass; it is logged and simply retried from the same cursor on the next pass.
         if (worst is SyncOutcome.Applied or SyncOutcome.UpToDate)
+        {
             await PullPeerFinanceAsync(ct).ConfigureAwait(false);
+            // Vendor messages composed in the admin panel (GET /notifications) + their real delivery receipts: same best-effort
+            // contract as the finance cache — a failure here is logged under sync.notify and never fails the pass.
+            await PullPeerNotificationsAsync(ct).ConfigureAwait(false);
+        }
         return Result<SyncOutcome>.Ok(worst);
     }
 
@@ -125,6 +131,36 @@ public sealed class SyncOrchestrator(
         catch (Exception ex)
         {
             TraceLog.Error("SyncOrchestrator.PullPeerFinance faulted; the state pull result is unaffected.", ex, "sync");
+        }
+    }
+
+    private async Task PullPeerNotificationsAsync(CancellationToken ct)
+    {
+        try
+        {
+            if (!await HasSessionAsync(ct).ConfigureAwait(false)) return;
+            using var di = scopes.CreateScope();
+            if (di.ServiceProvider.GetService<IPeerNotificationSync>() is not { } notifications) return;
+            var state = di.ServiceProvider.GetService<LocalInstallationState>();
+            if (state is not null) await state.TransitionGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var pulled = await notifications.PullAsync(ct).ConfigureAwait(false);
+                if (pulled.IsFailure)
+                    TraceLog.Warn($"SyncOrchestrator.PullPeerNotifications → {pulled.Error} ('{pulled.Detail}'); the feed keeps its last cursor.", "sync.notify");
+                else if (pulled.Value > 0)
+                {
+                    TraceLog.Info($"SyncOrchestrator.PullPeerNotifications ← {pulled.Value} new message(s); refreshing the feed.", "sync.notify");
+                    // The pull wrote rows straight into the local store; tell the (optional) notification service to re-read.
+                    di.ServiceProvider.GetService<NotificationService>()?.NotifyFeedChanged();
+                }
+            }
+            finally { state?.TransitionGate.Release(); }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            TraceLog.Error("SyncOrchestrator.PullPeerNotifications faulted; the state pull result is unaffected.", ex, "sync.notify");
         }
     }
 

@@ -229,7 +229,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
 - `TraceLog.Info/Warn` با دستهٔ `sync.notify` در تمام مراحل (fetch/applied/receipt).
 - **پوش:** `feat(sync): client notification pull/apply + real receipt report`
 
-### Task 6 — اتصال به Orchestrator + DI کلاینت  — وضعیت: [ ] در انتظار
+### Task 6 — اتصال به Orchestrator + DI کلاینت  — وضعیت: [x] انجام شد
 - `src/Animora.Client.Services/Sync/SyncOrchestrator.cs`: بعد از
   `PullPeerFinanceAsync` (خط ~103) یک `PullPeerNotificationsAsync(ct)` مشابه اضافه کن
   (همان gate/session/best-effort pattern).

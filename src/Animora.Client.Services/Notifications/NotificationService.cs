@@ -56,6 +56,12 @@ public sealed class NotificationService(
     /// <inheritdoc />
     public event EventHandler? FeedChanged;
 
+    /// <summary>
+    /// Raises <see cref="FeedChanged"/> on behalf of the vendor-message sync: new rows were written straight into the local
+    /// store by the pull (not through this service), so the badge/feed must be told to re-read.
+    /// </summary>
+    public void NotifyFeedChanged() => FeedChanged?.Invoke(this, EventArgs.Empty);
+
     /// <summary>Starts the once-a-minute due-sweep (idempotent). Called by the composition root after start-up.</summary>
     public void Start() => _loop ??= Task.Run(() => RunAsync(_stop.Token));
 
