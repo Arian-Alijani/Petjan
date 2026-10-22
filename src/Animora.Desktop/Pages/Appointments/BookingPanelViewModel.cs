@@ -180,6 +180,22 @@ public sealed partial class BookingPanelViewModel : ObservableObject
     [ObservableProperty]
     private int _firstFreeMinutes;
 
+    /// <summary>
+    /// The free-text box next to the duration chips: the user may type any whole number of minutes
+    /// (e.g. ۴۵ or ۱۲۳) to book a non-standard length. Accepts Persian or ASCII digits; applied on
+    /// Enter / explicit apply via <see cref="ApplyCustomDurationCommand"/>, then clamped to a sane range.
+    /// </summary>
+    [ObservableProperty]
+    private string _customDurationText = string.Empty;
+
+    /// <summary>Hint under the custom-duration box so the user knows the accepted range.</summary>
+    public string CustomDurationHint =>
+        $"هر مدت دلخواه بین {AppointmentsPresentation.Fa(MinCustomDuration)} تا {AppointmentsPresentation.Fa(MaxCustomDuration)} دقیقه";
+
+    /// <summary>Smallest / largest custom duration (minutes) the user may type in the free-text box.</summary>
+    public const int MinCustomDuration = 5;
+    public const int MaxCustomDuration = 600;
+
     // ── section 2 · patient picker ───────────────────────────────────────────
     public string PatientSearchPlaceholder => "نام بیمار، سرپرست، شماره تماس یا شناسه پرونده…";
 
@@ -680,6 +696,20 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         {
             DurationOptions.Add(new BookingDurationOptionViewModel(m, m == _dur));
         }
+
+        // A non-standard length (typed by hand or produced by a calendar drag, e.g. ۴۵ already exists but
+        // ۱۲۳ does not) surfaces as its own trailing, pre-selected chip so the current duration is always
+        // visible/selectable. The free-text box mirrors the live value so re-opening it shows what is set.
+        if (!DurationChoices.Contains(_dur))
+        {
+            DurationOptions.Add(new BookingDurationOptionViewModel(_dur, isSelected: true));
+        }
+
+        var liveText = PersianNumberFormatter.ToPersianDigits(_dur);
+        if (CustomDurationText != liveText)
+        {
+            CustomDurationText = liveText;
+        }
     }
 
     // ---------------- summary aside ----------------
@@ -762,6 +792,26 @@ public sealed partial class BookingPanelViewModel : ObservableObject
         }
 
         _dur = minutes;
+        await ReloadAvailableAsync();
+    }
+
+    /// <summary>
+    /// Applies the free-text custom duration (e.g. ۴۵ / 123) the user typed. Persian or ASCII digits are
+    /// accepted; a bad or out-of-range value is snapped back to the current duration so the box never leaves
+    /// the panel in an invalid state. Mirrors <see cref="SelectDuration"/> but for an arbitrary minute count.
+    /// </summary>
+    [RelayCommand]
+    private async Task ApplyCustomDuration()
+    {
+        var normalized = PersianNumberFormatter.ToAsciiDigits(CustomDurationText ?? string.Empty).Trim();
+        if (int.TryParse(normalized, System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var minutes)
+            && minutes >= MinCustomDuration && minutes <= MaxCustomDuration)
+        {
+            _dur = minutes;
+        }
+
+        // Always re-render: a valid value is applied, an invalid one is reverted to the live duration.
         await ReloadAvailableAsync();
     }
 

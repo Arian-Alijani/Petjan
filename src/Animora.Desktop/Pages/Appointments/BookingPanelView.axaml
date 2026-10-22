@@ -500,6 +500,28 @@
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
 
+                                        <!-- custom (free-text) duration: type any whole minute count, e.g. ۴۵ یا ۱۲۳ -->
+                                        <StackPanel Spacing="4">
+                                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                                <TextBlock Grid.Column="0" Text="مدت دلخواه" FontSize="11.5" FontWeight="Bold"
+                                                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                                                <TextBox Grid.Column="1" Text="{Binding CustomDurationText, Mode=TwoWay}"
+                                                         CornerRadius="10" Padding="10,7" MaxLength="4"
+                                                         PlaceholderText="مثلاً ۴۵ یا ۱۲۳">
+                                                    <TextBox.KeyBindings>
+                                                        <KeyBinding Gesture="Enter"
+                                                                    Command="{Binding ApplyCustomDurationCommand}" />
+                                                    </TextBox.KeyBindings>
+                                                </TextBox>
+                                                <Button Grid.Column="2" Classes="dur"
+                                                        Command="{Binding ApplyCustomDurationCommand}">
+                                                    <TextBlock Text="اعمال" />
+                                                </Button>
+                                            </Grid>
+                                            <TextBlock Text="{Binding CustomDurationHint}" FontSize="10.5"
+                                                       Foreground="{StaticResource MutedBrush}" />
+                                        </StackPanel>
+
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Grid.Column="0" Text="ساعت شروع" FontSize="11.5" FontWeight="Bold"
                                                        Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
