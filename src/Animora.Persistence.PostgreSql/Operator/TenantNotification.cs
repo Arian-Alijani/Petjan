@@ -6,12 +6,12 @@ namespace Animora.Persistence.PostgreSql.Operator;
 /// One vendor-authored message addressed to a clinic's users: the authoritative server-side store behind the admin
 /// panel's message composer. It is vendor-global (written only through <see cref="AnimoraOperatorDbContext"/>, never
 /// tenant-filtered), and mirrors the field semantics of the desktop's local <c>NotificationRow</c> so the future sync
-/// mapping is a straight copy. <c>AudienceKind</c>/<c>Kind</c> carry the numeric values of the Contracts enums
+/// delivery is a straight copy. <c>AudienceKind</c>/<c>Kind</c> carry the numeric values of the Contracts enums
 /// (audience: 0 all users, 1 staff role, 2 one user; kind: 0 info, 1 success, 2 warning, 3 promo, 4 system, 5 reward).
 /// </summary>
 /// <remarks>
-/// TODO(sync, Tracks D-E): deliver these rows to the desktop through the state-sync feed once it is wired; until then
-/// this table is the vendor's source of truth and nothing is pushed to clinics.
+/// Delivery: desktops pull these rows over <c>GET /notifications</c> (a dedicated read-only channel, not the journal-based
+/// state feed) and confirm each one with <see cref="TenantNotificationDelivery"/> receipts, which back the admin delivery report.
 /// </remarks>
 public sealed class TenantNotification
 {

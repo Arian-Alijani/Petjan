@@ -239,7 +239,7 @@ migration جدید (مثلاً `20261022..._122_TenantNotificationDeliveries.cs`
   (`src/Animora.Persistence.Sqlite/Context/AnimoraLocalDbContext.cs`).
 - **پوش:** `feat(sync): wire notification pull into the sync orchestrator`
 
-### Task 7 — گزارش ادمین + ارسال مجدد (Port/Model/Adapter/UI)  — وضعیت: [ ] در انتظار
+### Task 7 — گزارش ادمین + ارسال مجدد (Port/Model/Adapter/UI)  — وضعیت: [x] انجام شد
 - **Model** (`AdminModels.cs`):
   - `NotificationDeliveryReportRow(string NotificationId, string Title, int Kind, DateTimeOffset CreatedAtUtc, int TargetDevices, int DeliveredDevices, DateTimeOffset? FirstDeliveredUtc, DateTimeOffset? LastDeliveredUtc)`.
   - شاید `BroadcastReceipt` را با تعداد tenant/هدف غنی کن (اختیاری، سازگار با UI فعلی بمان).

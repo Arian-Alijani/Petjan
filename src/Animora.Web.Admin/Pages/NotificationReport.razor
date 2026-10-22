@@ -1,0 +1,38 @@
+@page "/admin/notifications/report"
+@attribute [Authorize(Policy="AdminOnly")]
+@inherits AdminPageComponent
+@inject IAdminNotificationReport Report
+<div class="dash-head"><h1>@Loc.T("notify.report.title")</h1></div><FormError Code="@Error" />
+<p><a href="/admin/notifications">@Loc.T("notify.report.back")</a></p>
+<p class="hint">@Loc.T("notify.report.hint")</p>
+@if (Resent) { <p class="notice" role="status" aria-live="polite">@Loc.T("notify.report.resent")</p> }
+@if (Rows is not null) {
+<div class="table-wrap"><table><caption>@Loc.T("notify.report.caption")</caption><thead><tr>
+<th scope="col">@Loc.T("notify.subject")</th><th scope="col">@Loc.T("notify.report.clinic")</th><th scope="col">@Loc.T("notify.kind")</th>
+<th scope="col">@Loc.T("notify.report.sentAt")</th><th scope="col">@Loc.T("notify.report.target")</th><th scope="col">@Loc.T("notify.report.delivered")</th>
+<th scope="col">@Loc.T("notify.report.first")</th><th scope="col">@Loc.T("notify.report.last")</th><th scope="col">@Loc.T("common.action")</th></tr></thead><tbody>
+@if (Rows.Count == 0) { <tr><td colspan="9" class="empty">@Loc.T("common.none")</td></tr> }
+@foreach (var row in Rows) { <tr>
+<td>@row.Title</td><td>@(row.TenantName ?? row.TenantId)</td><td>@Loc.T("notify.kind." + row.Kind)</td>
+<td dir="ltr">@Stamp(row.CreatedAtUtc)</td><td>@row.TargetDevices</td>
+<td><StatusBadge Status="@($"{row.DeliveredDevices} / {row.TargetDevices}")" Tone="@(row.TargetDevices == 0 ? "warn" : row.HasUndelivered ? "warn" : "ok")" /></td>
+<td dir="ltr">@(row.FirstDeliveredUtc is { } f ? Stamp(f) : "—")</td><td dir="ltr">@(row.LastDeliveredUtc is { } l ? Stamp(l) : "—")</td>
+<td>@if (row.HasUndelivered) { <EditForm Model="Action" FormName="@($"resend-{row.NotificationId}")" method="post" OnSubmit="Resend">
+<input type="hidden" name="Action.NotificationId" value="@row.NotificationId" /><button type="submit" class="secondary">@Loc.T("notify.report.resend")</button></EditForm> }</td></tr> }
+</tbody></table></div>
+}
+@code {
+    [SupplyParameterFromQuery] public string? Tenant { get; set; }
+    [SupplyParameterFromForm] public NotificationResendForm? Action { get; set; }
+    private const int Window = 50;
+    private IReadOnlyList<NotificationDeliveryReportRow>? Rows;
+    private bool Resent;
+    protected override async Task OnInitializedAsync() { Action??=new(); await LoadAsync(); }
+    private static string Stamp(DateTimeOffset value) => value.UtcDateTime.ToString("yyyy-MM-dd HH:mm") + " UTC";
+    private async Task LoadAsync() => Rows=Capture(await Report.RecentAsync(Tenant,Window,Cancellation));
+    private async Task Resend(EditContext _)
+    {
+        Resent=Capture(await Report.ResendUndeliveredAsync(Action!.NotificationId,Cancellation)) is not null;
+        var err=Error; await LoadAsync(); Error??=err;
+    }
+}

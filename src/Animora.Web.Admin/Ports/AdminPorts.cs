@@ -63,6 +63,17 @@ public interface IAdminNotificationCommands
 {
     Task<Result<MutationReceipt>> SendAsync(string tenantId,SendNotificationForm form,CancellationToken ct=default);
 }
+/// <summary>Real delivery report of the vendor messages (per-device receipts) and the resend-to-undelivered action.</summary>
+public interface IAdminNotificationReport
+{
+    /// <summary>The newest messages (optionally of one clinic) with how many active devices truly received each.</summary>
+    Task<Result<IReadOnlyList<NotificationDeliveryReportRow>>> RecentAsync(string? tenantId,int take,CancellationToken ct=default);
+    /// <summary>
+    /// Re-issues a message to its clinic as a fresh copy so devices that have not received it pick it up on their next pull. Refused
+    /// (validation) when every active device already confirmed it, or when the original has expired.
+    /// </summary>
+    Task<Result<MutationReceipt>> ResendUndeliveredAsync(string notificationId,CancellationToken ct=default);
+}
 /// <summary>Vendor message fan-out to many clinics. <see cref="BroadcastNotificationForm.Confirmed"/> is mandatory; each clinic is stored + audited independently.</summary>
 public interface IAdminBroadcastCommands
 {

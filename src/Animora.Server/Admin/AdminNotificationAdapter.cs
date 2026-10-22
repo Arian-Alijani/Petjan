@@ -6,8 +6,8 @@ namespace Animora.Server.Admin;
 
 /// <summary>
 /// Vendor message authoring for the operator console. The message is stored server-side (authoritative) by
-/// <see cref="OperatorNotificationAdministration"/>; the actor is always the cookie-authenticated operator.
-/// TODO(sync, Tracks D–E): deliver to the desktop via the state-sync feed once it is wired.
+/// <see cref="OperatorNotificationAdministration"/>; the actor is always the cookie-authenticated operator. Delivery to the
+/// desktop is pull-based (<c>GET /notifications</c>) and confirmed by client receipts — see <see cref="AdminNotificationReportAdapter"/>.
 /// </summary>
 internal sealed class AdminNotificationAdapter(OperatorNotificationAdministration notifications, AdminSession session,
     IHttpContextAccessor accessor) : IAdminNotificationCommands

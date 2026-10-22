@@ -93,6 +93,18 @@ public sealed class BroadcastNotificationForm
     public string? Title { get; set; } public string? Body { get; set; }
     public DateTime? ScheduledForUtc { get; set; } public DateTime? ExpiresAtUtc { get; set; } public bool Confirmed { get; set; }
 }
+/// <summary>
+/// One vendor message with its REAL delivery state: <c>TargetDevices</c> = the clinic's active devices at report time,
+/// <c>DeliveredDevices</c> = devices that confirmed (via the client receipt) they stored the message locally.
+/// </summary>
+public sealed record NotificationDeliveryReportRow(string NotificationId,string Title,int Kind,DateTimeOffset CreatedAtUtc,
+    int TargetDevices,int DeliveredDevices,DateTimeOffset? FirstDeliveredUtc,DateTimeOffset? LastDeliveredUtc,string TenantId,string? TenantName)
+{
+    /// <summary>True while at least one active device has not confirmed the message (the resend action is offered).</summary>
+    public bool HasUndelivered=>DeliveredDevices<TargetDevices;
+}
+/// <summary>Posted by the "resend to undelivered" button of the delivery report.</summary>
+public sealed class NotificationResendForm { public string NotificationId { get; set; } = string.Empty; }
 /// <summary>Broadcast outcome: clinics reached, clinics skipped, and up to 20 <c>clinic:ERROR_CODE</c> entries.</summary>
 public sealed record BroadcastReceipt(int Sent,int Skipped,IReadOnlyList<string> Errors);
 public sealed class CreateTenantForm

@@ -6,7 +6,7 @@ namespace Animora.Server.Admin;
 
 /// <summary>
 /// Bridges the operator console's broadcast composer to <see cref="OperatorNotificationBroadcast"/>. The actor is always the cookie-authenticated operator;
-/// delivery to the desktop stays a TODO(sync, Tracks D–E) exactly like the single-clinic message.
+/// delivery to the desktop is pull-based (GET /notifications) exactly like the single-clinic message.
 /// </summary>
 internal sealed class AdminBroadcastAdapter(OperatorNotificationBroadcast broadcast, AdminSession session, IHttpContextAccessor accessor) : IAdminBroadcastCommands
 {

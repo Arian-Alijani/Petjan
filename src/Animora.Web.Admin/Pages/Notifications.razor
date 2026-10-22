@@ -4,6 +4,7 @@
 @inject IAdminBroadcastCommands Commands
 @inject IAdminTenantQueries TenantQueries
 <div class="dash-head"><h1>@Loc.T("notify.broadcast.title")</h1></div><FormError Code="@Error" />
+<p><a href="/admin/notifications/report">@Loc.T("notify.report.link")</a></p>
 @if (Receipt is not null) {
 <section class="card" role="status" aria-live="polite">
 <p class="notice">@Loc.T("notify.result"): <strong>@Receipt.Sent</strong> · @Loc.T("notify.skipped"): <strong>@Receipt.Skipped</strong></p>
