@@ -304,7 +304,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
 - build سریع `scripts/sandbox/build.sh` → **0/0**. اگر لازم شد smoke-run (چون DI/nav تغییر کرد): `scripts/sandbox/run.sh` → `SMOKE RUN OK`.
 - پوش: `scripts/git/push.sh "feat(desktop): customer-club page UI (birthdays, top spenders/visitors)"`
 
-### [ ] T9 — بازبینی یکپارچگی + build نهایی سبک
+### [x] T9 — بازبینی یکپارچگی + build نهایی سبک
 - چک‌لیست سریع (بدون full test):
   - [ ] ViewModel فقط به interface Contracts وابسته است (نه concrete/EF).
   - [ ] آیکن‌ها همه از Icons.axaml موجودند (گرپ سریع روی keyهای استفاده‌شده).
