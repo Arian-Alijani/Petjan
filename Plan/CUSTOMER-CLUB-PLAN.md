@@ -223,7 +223,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
 - build سریع: `scripts/sandbox/build.sh` → باید 0/0. اگر خطای ترجمهٔ LINQ، به in-memory filter سوییچ کن.
 - پوش: `scripts/git/push.sh "feat(persistence): top-visitors + today's birthdays queries"`
 
-### [ ] T3 — Application query records + handlers
+### [x] T3 — Application query records + handlers
 - فایل جدید `src/Animora.Application/UseCases/Finance/CustomerClubQueries.cs` (کنار StatisticsQueries):
   - `TopVisitorsQuery(int Take=10) : IQuery<IReadOnlyList<TopClientReadModel>>` + handler (مثل `TopClientsQueryHandler`) با `[RequiresPermission(PermissionCodes.ReportsRead)]`.
   - `TodaysBirthdaysQuery : IQuery<IReadOnlyList<BirthdayPetReadModel>>` + handler با `[RequiresPermission(PermissionCodes.PatientsRead)]` که today را از `IClock`+`IClinicTimeZoneProvider` resolve و به port پاس می‌دهد (از `StatisticsWindowResolver`/`StatisticsQuerySupport` الگو بگیر یا today-day را مستقیم بساز).

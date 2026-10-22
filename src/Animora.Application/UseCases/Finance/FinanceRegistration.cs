@@ -19,6 +19,8 @@ public static class FinanceRegistration
             .AddQuery<ExpenseStatsQuery, ExpenseStatsReadModel, ExpenseStatsQueryHandler>()
             .AddQuery<TopProductsQuery, IReadOnlyList<TopProductReadModel>, TopProductsQueryHandler>()
             .AddQuery<TopClientsQuery, IReadOnlyList<TopClientReadModel>, TopClientsQueryHandler>()
+            .AddQuery<TopVisitorsQuery, IReadOnlyList<TopClientReadModel>, TopVisitorsQueryHandler>()
+            .AddQuery<TodaysBirthdaysQuery, IReadOnlyList<BirthdayPetReadModel>, TodaysBirthdaysQueryHandler>()
             .AddQuery<SpeciesDistributionQuery, IReadOnlyList<SpeciesSliceReadModel>, SpeciesDistributionQueryHandler>()
             .AddQuery<ClientStatsQuery, ClientStatsReadModel, ClientStatsQueryHandler>()
             .AddQuery<RecurringExpensesQuery, RecurringExpensesReadModel, RecurringExpensesQueryHandler>()
