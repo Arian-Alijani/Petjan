@@ -567,7 +567,7 @@ public sealed partial class SalePageViewModel : PageViewModelBase
 
         _dialogs.ShowModal(
             new CatalogModalViewModel(_service, _toast, _dialogs, SelectedInvoice.Id, RefreshAfterMutation),
-            500);
+            CatalogModalViewModel.DrawerWidth);
     }
 
     [RelayCommand]

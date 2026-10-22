@@ -414,7 +414,7 @@ public sealed partial class AddVaccineModalViewModel : ObservableObject
                     IsVaccine ? "انتخاب واکسن از انبار" : "انتخاب دارو از انبار",
                     "جستجوی نام یا دستهٔ کالا…",
                     "فقط برای یادآوری انتخاب می‌شود؛ موجودی انبار کم نمی‌شود.")),
-            maxWidth: 500);
+            maxWidth: CatalogModalViewModel.DrawerWidth);
     }
 
     private void Reopen() => _dialogs.ShowModal(this, maxWidth: 580);
