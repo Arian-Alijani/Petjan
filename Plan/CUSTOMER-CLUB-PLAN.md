@@ -268,7 +268,7 @@ Task SetAutoBirthdaySmsAsync(bool enabled, CancellationToken ct = default); // �
 - **هنوز build نزن** (View/VM وجود ندارند) → T7.
 - پوش: `scripts/git/push.sh "feat(desktop): register customer-club page + nav entry"`
 
-### [ ] T7 — ViewModel (Desktop)
+### [x] T7 — ViewModel (Desktop)
 - `src/Animora.Desktop/Pages/CustomerClub/CustomerClubPageViewModel.cs`:
   - `: PageViewModelBase`، ctor تزریق: `ICustomerClubQueryService service, IStoreReadinessGate readiness, IToastService toast, IDataChangeNotifier changes, ICapabilityGate capabilities`.
   - `Title="باشگاه مشتریان"`, `Eyebrow="وفاداری و ارتباط با مشتری"`, Breadcrumbs `"مدیریت کلینیک"` + `"باشگاه مشتریان"`.
