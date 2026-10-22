@@ -226,6 +226,8 @@ public sealed class AppointmentColumnViewModel
         double? nowTop,
         TimeGridWindow window,
         IReadOnlyList<HourRowViewModel> hourRows,
+        DateOnly date,
+        string? doctorId,
         bool isFirst = false)
     {
         GridHeight = window.TotalHeight;
@@ -236,11 +238,26 @@ public sealed class AppointmentColumnViewModel
         NowTop = nowTop;
         HasNow = nowTop.HasValue;
         IsFirst = isFirst;
+        Date = date;
+        DoctorId = doctorId;
+        Window = window;
         NowMargin = new Thickness(0, nowTop ?? 0, 0, 0);
     }
 
     public AppointmentColumnHeaderViewModel Header { get; }
     public IReadOnlyList<AppointmentEventViewModel> Events { get; }
+
+    /// <summary>The calendar day this column represents (same for every doctor column in day view).</summary>
+    public DateOnly Date { get; }
+
+    /// <summary>
+    /// The doctor this column represents in day view, or <c>null</c> in week view (where a column is a day and
+    /// the doctor is carried by each event instead). Drives drag-create / drag-move target resolution.
+    /// </summary>
+    public string? DoctorId { get; }
+
+    /// <summary>The grid geometry window this column was laid out with — the single minute↔pixel source for drag math.</summary>
+    public TimeGridWindow Window { get; }
 
     /// <summary>Body height of this column - the shared window geometry (A25).</summary>
     public double GridHeight { get; }
