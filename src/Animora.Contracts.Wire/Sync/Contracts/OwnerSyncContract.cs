@@ -16,4 +16,6 @@ public sealed record OwnerSyncContract
     public DateTimeOffset RegisteredUtc { get; init; }
     public bool IsBlocked { get; init; }
     public string? BlockReason { get; init; }
+    public string? DeletedByUserId { get; init; }
+    public DateTimeOffset? DeletedUtc { get; init; }
 }

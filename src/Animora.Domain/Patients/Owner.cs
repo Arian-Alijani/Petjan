@@ -77,6 +77,29 @@ public sealed class Owner : AggregateRoot
     /// on every write (C01). Derived data — the domain never reads it and a merge never writes it.</summary>
     public string SearchKey { get; set; } = string.Empty;
 
+    /// <summary>Who soft-deleted this owner; replicated so peers can show the actor. <see langword="null"/> while live.</summary>
+    public string? DeletedByUserId { get; private set; }
+
+    /// <summary>When the owner was soft-deleted, UTC; replicated so peers show the same instant. <see langword="null"/> while live.</summary>
+    public DateTimeOffset? DeletedUtc { get; private set; }
+
+    /// <summary>
+    /// Soft-deletes the owner and records the actor + instant (the audit trail that replicates to peers).
+    /// Idempotent: an already-deleted owner keeps its original actor/time.
+    /// </summary>
+    public void MarkDeleted(string userId, DateTimeOffset whenUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        if (Deleted)
+        {
+            return;
+        }
+
+        Deleted = true;
+        DeletedByUserId = userId;
+        DeletedUtc = whenUtc;
+    }
+
     /// <summary>Registers a new, unblocked owner. <paramref name="id"/> is the deterministic id derived from the creating command's
     /// operation (<see cref="IdGenerator.ForOperation"/>) so client and server agree; <see langword="null"/> mints a fresh ULID.
     /// <paramref name="phonePrimary"/> may be absent for an imported record whose source has no contact number — see

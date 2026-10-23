@@ -194,7 +194,7 @@ Prefer the **lowest-churn standards-compliant** route — see Task 3 decision.
 - **Push:** `scripts/git/push.sh "fix(patients): ensure owner-delete cascades journal each pet tombstone for sync"`
   (If no code change is needed, still push a `chore(plan)` status update for T2.)
 
-### [ ] T3 — Carry delete actor/time on the wire (RC-4 / D-C)
+### [x] T3 — Carry delete actor/time on the wire (RC-4 / D-C)
 - **Domain:** add `DeletedByUserId (string?)` + `DeletedUtc (DateTimeOffset?)` to `SyncableEntity`
   (`src/Animora.Domain/Primitives/SyncableEntity.cs`) OR only to Owner/Pet aggregates if narrower
   scope is preferred. Prefer `SyncableEntity` for uniform convergence of the audit trail. Add a

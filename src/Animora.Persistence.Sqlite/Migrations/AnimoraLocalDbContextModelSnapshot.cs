@@ -2354,6 +2354,13 @@ namespace Animora.Persistence.Sqlite.Migrations
                     b.Property<bool>("Deleted")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("DeletedByUserId")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("DeletedUtc")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Email")
                         .HasMaxLength(400)
                         .HasColumnType("TEXT");
@@ -2468,6 +2475,13 @@ namespace Animora.Persistence.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("Deleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DeletedByUserId")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("DeletedUtc")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Diet")

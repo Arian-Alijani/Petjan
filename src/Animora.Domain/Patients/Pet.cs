@@ -141,6 +141,29 @@ public sealed class Pet : AggregateRoot
     /// on every write (C01). Derived data — the domain never reads it and a merge never writes it.</summary>
     public string SearchKey { get; set; } = string.Empty;
 
+    /// <summary>Who soft-deleted this patient; replicated so peers can show the actor. <see langword="null"/> while live.</summary>
+    public string? DeletedByUserId { get; private set; }
+
+    /// <summary>When the patient was soft-deleted, UTC; replicated so peers show the same instant. <see langword="null"/> while live.</summary>
+    public DateTimeOffset? DeletedUtc { get; private set; }
+
+    /// <summary>
+    /// Soft-deletes the patient and records the actor + instant (the audit trail that replicates to peers).
+    /// Idempotent: an already-deleted patient keeps its original actor/time.
+    /// </summary>
+    public void MarkDeleted(string userId, DateTimeOffset whenUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+        if (Deleted)
+        {
+            return;
+        }
+
+        Deleted = true;
+        DeletedByUserId = userId;
+        DeletedUtc = whenUtc;
+    }
+
     /// <summary>
     /// Registers an active patient and raises <see cref="PetRegisteredEvent"/> so A10 can append the
     /// opening medical-history entry.

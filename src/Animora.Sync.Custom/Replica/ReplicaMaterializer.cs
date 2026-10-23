@@ -143,13 +143,14 @@ internal static class ReplicaMaterializer
             new("FullName", Kind.Text, true), new("PhonePrimary", Kind.Text, true), new("PhoneSecondary", Kind.Text), new("NationalId", Kind.Text),
             new("Email", Kind.Text), new("Address", Kind.Text), new("City", Kind.Text), new("Gender", Kind.Int), new("Notes", Kind.Text),
             new("RegisteredUtc", Kind.Time, true), new("IsBlocked", Kind.Bool), new("BlockReason", Kind.Text),
+            new("DeletedByUserId", Kind.Text), new("DeletedUtc", Kind.Time),
         ], v => OwnerSearchKeyProvider.Compose(Str(v, "FullName")!, Str(v, "PhonePrimary")!, Str(v, "PhoneSecondary"), Str(v, "NationalId"))),
         new("Pet", "Pets",
         [
             new("OwnerId", Kind.Text, true), new("Name", Kind.Text, true), new("Species", Kind.Int), new("Breed", Kind.Text), new("Gender", Kind.Int),
             new("BirthDateUtc", Kind.Time), new("IsNeutered", Kind.Bool), new("Color", Kind.Text), new("MicrochipCode", Kind.Text),
             new("MicrochipImplantUtc", Kind.Time), new("Status", Kind.Int), new("AllergyNotes", Kind.Text), new("ChronicNotes", Kind.Text),
-            new("RegisteredUtc", Kind.Time, true),
+            new("RegisteredUtc", Kind.Time, true), new("DeletedByUserId", Kind.Text), new("DeletedUtc", Kind.Time),
         ], v => PetSearchKeyProvider.Compose(Str(v, "Name")!, Str(v, "Breed"), Str(v, "MicrochipCode"))),
         new("Appointment", "Appointments",
         [

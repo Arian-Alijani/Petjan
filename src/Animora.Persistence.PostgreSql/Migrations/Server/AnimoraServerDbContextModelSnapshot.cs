@@ -792,6 +792,8 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
                 b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
                 b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("DeletedByUserId").HasColumnType("text");
+                b.Property<DateTimeOffset?>("DeletedUtc").HasColumnType("timestamp with time zone");
                 b.Property<string>("FullName").IsRequired().HasColumnType("text");
                 b.Property<string>("PhonePrimary").IsRequired().HasColumnType("text");
                 b.Property<string>("PhoneSecondary").HasColumnType("text");
@@ -821,6 +823,8 @@ namespace Animora.Persistence.PostgreSql.Migrations.Server
                 b.Property<DateTimeOffset>("UpdatedAt").HasPrecision(6).HasColumnType("timestamp with time zone");
                 b.Property<Guid>("Version").ValueGeneratedOnAddOrUpdate().IsConcurrencyToken().HasDefaultValueSql("gen_random_uuid()").HasColumnType("uuid");
                 b.Property<bool>("Deleted").ValueGeneratedOnAdd().HasDefaultValue(false).HasColumnType("boolean");
+                b.Property<string>("DeletedByUserId").HasColumnType("text");
+                b.Property<DateTimeOffset?>("DeletedUtc").HasColumnType("timestamp with time zone");
                 b.Property<string>("OwnerId").IsRequired().HasColumnType("text");
                 b.Property<string>("Name").IsRequired().HasColumnType("text");
                 b.Property<int>("Species").HasColumnType("integer");

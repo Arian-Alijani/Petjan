@@ -18,4 +18,6 @@ public sealed record PetSyncContract
     public string? AllergyNotes { get; init; }
     public string? ChronicNotes { get; init; }
     public DateTimeOffset RegisteredUtc { get; init; }
+    public string? DeletedByUserId { get; init; }
+    public DateTimeOffset? DeletedUtc { get; init; }
 }

@@ -8,6 +8,7 @@ using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
 using Animora.Domain.Patients;
 using Animora.Domain.Results;
+using Animora.Domain.Time;
 
 namespace Animora.Application.UseCases.Patients;
 
@@ -35,13 +36,13 @@ public sealed class DeletePetCommandValidator : IValidator<DeletePetCommand>
     }
 }
 
-public sealed class DeletePetCommandHandler(IPetRepository pets) : ICommandHandler<DeletePetCommand, Unit>
+public sealed class DeletePetCommandHandler(IPetRepository pets, IClock clock) : ICommandHandler<DeletePetCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(DeletePetCommand c, CommandContext context, CancellationToken ct)
     {
         var pet = await pets.FindAsync(c.PetId, ct);
         if (pet is null) return Result<Unit>.Fail(ErrorCodes.PetNotFound);
-        pet.Deleted = true;
+        pet.MarkDeleted(context.UserId, clock.UtcNow);
         return Result<Unit>.Ok(Unit.Value);
     }
 }
@@ -70,7 +71,7 @@ public sealed class DeleteOwnerCommandValidator : IValidator<DeleteOwnerCommand>
     }
 }
 
-public sealed class DeleteOwnerCommandHandler(IOwnerRepository owners, IPetRepository pets)
+public sealed class DeleteOwnerCommandHandler(IOwnerRepository owners, IPetRepository pets, IClock clock)
     : ICommandHandler<DeleteOwnerCommand, Unit>
 {
     public async Task<Result<Unit>> HandleAsync(DeleteOwnerCommand c, CommandContext context, CancellationToken ct)
@@ -78,10 +79,11 @@ public sealed class DeleteOwnerCommandHandler(IOwnerRepository owners, IPetRepos
         var owner = await owners.FindAsync(c.OwnerId, ct);
         if (owner is null) return Result<Unit>.Fail(ErrorCodes.OwnerNotFound);
 
+        var now = clock.UtcNow;
         foreach (var pet in await pets.ListByOwnerAsync(c.OwnerId, ct))
-            pet.Deleted = true;
+            pet.MarkDeleted(context.UserId, now);
 
-        owner.Deleted = true;
+        owner.MarkDeleted(context.UserId, now);
         return Result<Unit>.Ok(Unit.Value);
     }
 }
