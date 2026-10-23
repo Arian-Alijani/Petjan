@@ -62,6 +62,21 @@ public sealed class ReplicaMaterializerTests
     }
 
     [Fact]
+    public async Task SoftDeleteUpsert_WithPayload_WhenRowAbsent_InsertsDeleted()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        // A soft-delete travels as an upsert (Op='U', Deleted=true) with the full image; the peer never had the row.
+        var softDeleted = new SyncRecord("Owner", "O9", 'U', "v3", FeedFixtures.Now, true, JsonDocument.Parse(OwnerJson).RootElement.Clone());
+        Assert.True((await ApplyAsync(store, Batch("b1", 1, 0, 10), Page("b1", 0, 1, softDeleted))).IsSuccess);
+
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        Assert.False(await db.Set<Owner>().AnyAsync(x => x.Id == "O9")); // hidden by the soft-delete filter
+        Assert.True(await db.Set<Owner>().IgnoreQueryFilters(["SoftDelete"]).AnyAsync(x => x.Id == "O9" && x.Deleted));
+    }
+
+    [Fact]
     public async Task RecordMissingRequiredField_IsSkipped_AndBatchStillCommits()
     {
         using var fixture = await NewFixtureAsync();

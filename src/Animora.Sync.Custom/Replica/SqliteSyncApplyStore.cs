@@ -119,7 +119,9 @@ public sealed class SqliteSyncApplyStore(IServiceScopeFactory scopes) : ISyncApp
             foreach (var record in page.Records)
             {
                 var deleted = record.Op == 'D' || record.Deleted;
-                var payload = deleted ? null : record.Payload?.GetRawText();
+                // Only a genuine hard tombstone ('D') drops its image. A soft-delete is an upsert carrying Deleted=true:
+                // keep its full payload so the materializer can upsert-as-deleted even when this peer never had the row.
+                var payload = record.Op == 'D' ? null : record.Payload?.GetRawText();
                 if (payload is { Length: > MaxPayloadLength })
                     return Result.Fail(ErrorCodes.SyncProtocolViolation, $"Record {record.Entity}/{record.EntityId} payload exceeds the replica bound.");
                 long? updated = record.UpdatedAt?.UtcTicks;

@@ -158,7 +158,7 @@ Prefer the **lowest-churn standards-compliant** route — see Task 3 decision.
 > Status legend: `[ ]` pending · `[~]` in progress · `[x]` done.
 > After finishing a task, set it `[x]` **and** push with the given message.
 
-### [ ] T1 — Delete convergence fix (RC-2 / D-D): retain payload for soft-delete upserts
+### [x] T1 — Delete convergence fix (RC-2 / D-D): retain payload for soft-delete upserts
 - **Edit** `src/Animora.Sync.Custom/Replica/SqliteSyncApplyStore.cs` `AcceptPageAsync` (~line 121):
   - Separate a genuine hard tombstone from a soft-delete upsert:
     - `var isHardTombstone = record.Op == 'D';`
