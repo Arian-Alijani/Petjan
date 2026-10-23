@@ -21,6 +21,23 @@ namespace Animora.Desktop.Pages.Sales;
 /// </summary>
 public sealed partial class CatalogModalViewModel : ObservableObject
 {
+    /// <summary>
+    /// Shared width (in DIPs) of the «افزودن اقلام» catalog drawer. Every surface that opens this picker
+    /// (Sales, Cashier, Boarding stay, Vaccination reminder, Visit encounter) passes this to
+    /// <see cref="IDialogService.ShowModal"/> and the <c>CatalogModalView</c> matches it, so the drawer is
+    /// one consistent, roomy width everywhere instead of each call site hard-coding its own number.
+    /// </summary>
+    public const double DrawerWidth = 640;
+
+    /// <summary>
+    /// Cap on how many catalog rows are materialised at once. A clinic's catalog can hold hundreds of
+    /// services/goods; building a full <see cref="CatalogRowViewModel"/> (icon tile, highlight split,
+    /// brushes) for every one makes the drawer slow to open and to type in. We only ever build the first
+    /// <see cref="MaxVisibleRows"/> matches — the search box narrows the rest down — which keeps opening and
+    /// each keystroke fast and the memory footprint flat regardless of catalog size.
+    /// </summary>
+    private const int MaxVisibleRows = 20;
+
     private readonly IToastService _toast;
     private readonly IDialogService _dialogs;
     private readonly Action? _onChanged;
@@ -257,8 +274,19 @@ public sealed partial class CatalogModalViewModel : ObservableObject
                                 || PersianText.Contains(PersianText.Normalize(x.GroupLabel), norm));
         }
 
+        // Materialise the filtered matches once, then keep only the first MaxVisibleRows for display. The
+        // full count is kept so the footer can say how many were hidden; capping the built rows is the
+        // performance guard that keeps the drawer fast to open and to type in no matter how large the
+        // catalog grows.
+        var matches = list as IReadOnlyList<CatalogItem> ?? list.ToList();
+        var totalMatches = matches.Count;
+
         _visible.Clear();
-        _visible.AddRange(list);
+        for (var i = 0; i < matches.Count && _visible.Count < MaxVisibleRows; i++)
+        {
+            _visible.Add(matches[i]);
+        }
+
         HighlightIndex = Math.Clamp(HighlightIndex, 0, Math.Max(0, _visible.Count - 1));
 
         var built = new List<CatalogRowViewModel>(_visible.Count);
@@ -291,7 +319,21 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         Recent.ReplaceAll(chips);
 
         OnPropertyChanged(nameof(HasRecent));
-        CountText = Rows.Count > 0 ? $"{SalePresentation.Fa(Rows.Count)} نتیجه" : string.Empty;
+
+        // Footer count: when the display cap hides matches, show «۲۰ از ۳۵ نتیجه — برای دیدن بقیه جستجو کنید»
+        // so the user knows more exist and that typing narrows them down; otherwise the plain «N نتیجه».
+        if (totalMatches == 0)
+        {
+            CountText = string.Empty;
+        }
+        else if (totalMatches > Rows.Count)
+        {
+            CountText = $"{SalePresentation.Fa(Rows.Count)} از {SalePresentation.Fa(totalMatches)} نتیجه — برای دیدن بقیه جستجو کنید";
+        }
+        else
+        {
+            CountText = $"{SalePresentation.Fa(Rows.Count)} نتیجه";
+        }
     }
 
     [ObservableProperty]

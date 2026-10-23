@@ -408,7 +408,7 @@ public sealed partial class StayDetailModalViewModel : ObservableObject
                 onChanged: _onChanged,
                 onBack: _onReopen,
                 addedToLabel: $"اقلام «{PetName}»"),
-            maxWidth: 500);
+            maxWidth: Animora.Desktop.Pages.Sales.CatalogModalViewModel.DrawerWidth);
     }
 
     /// <summary>Opens the stay bill (fresh read, so it matches the persisted state) in the print preview (X13).</summary>

@@ -526,7 +526,7 @@ public sealed partial class VisitEncounterViewModel : PageViewModelBase
                 dialogs: _dialogs,
                 onChanged: null,
                 initialFilter: initialFilter),
-            500);
+            Animora.Desktop.Pages.Sales.CatalogModalViewModel.DrawerWidth);
     }
 
     /// <summary>

@@ -4,8 +4,8 @@
              x:Class="Animora.Desktop.Pages.Sales.CatalogModalView"
              x:Name="Root"
              x:DataType="sales:CatalogModalViewModel"
-             Width="500"
-             MaxWidth="500"
+             Width="640"
+             MaxWidth="640"
              MaxHeight="720"
              FlowDirection="RightToLeft">
 
