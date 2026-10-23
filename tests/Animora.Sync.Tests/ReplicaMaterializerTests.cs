@@ -77,6 +77,28 @@ public sealed class ReplicaMaterializerTests
     }
 
     [Fact]
+    public async Task SoftDeletedOwner_AppendsExactlyOneDeletedHistoryRow_WithReplicatedActor_AndIsIdempotent()
+    {
+        using var fixture = await NewFixtureAsync();
+        var store = NewStore(fixture);
+        Assert.True((await ApplyAsync(store, Batch("b1", 1, 0, 10), Page("b1", 0, 1, Json("Owner", "O1", "v1", OwnerJson)))).IsSuccess);
+
+        const string deletedJson = """{"fullName":"Ali Rezaei","phonePrimary":"09120000000","gender":1,"registeredUtc":"2026-10-01T08:00:00+00:00","isBlocked":false,"deletedByUserId":"U-B","deletedUtc":"2026-10-05T10:30:00+00:00"}""";
+        var softDeleted = new SyncRecord("Owner", "O1", 'U', "v2", FeedFixtures.Now, true, JsonDocument.Parse(deletedJson).RootElement.Clone());
+        Assert.True((await ApplyAsync(store, Batch("b2", 1, 10, 20), Page("b2", 0, 1, softDeleted))).IsSuccess);
+        // Re-applying the same delete (a replayed/retried batch) must not duplicate the history row.
+        Assert.True((await ApplyAsync(store, Batch("b3", 1, 20, 30), Page("b3", 0, 1, softDeleted))).IsSuccess);
+
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AnimoraLocalDbContext>();
+        var rows = await db.Set<ActivityEvent>().AsNoTracking()
+            .Where(x => x.EntityType == "Owner" && x.EntityId == "O1" && x.Title == "history.owner.deleted").ToListAsync();
+        var row = Assert.Single(rows);
+        Assert.Equal("U-B", row.ActorUserId);
+        Assert.Equal(new DateTimeOffset(2026, 10, 5, 10, 30, 0, TimeSpan.Zero), row.OccurredUtc);
+    }
+
+    [Fact]
     public async Task RecordMissingRequiredField_IsSkipped_AndBatchStillCommits()
     {
         using var fixture = await NewFixtureAsync();

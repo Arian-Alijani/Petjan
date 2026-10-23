@@ -384,6 +384,8 @@ internal static class ReplicaMaterializer
                 TraceLog.Info($"ReplicaMaterializer.Apply — TOMBSTONE {row.Entity}/{row.EntityId} (wire delete) → {tombstoned} row(s) soft-deleted.", "sync.apply");
                 if (row.Entity == "StockLedgerEntry" && previousStockKeys.TryGetValue(row.EntityId, out var deletedStock))
                     stockKeys.Add((deletedStock.ProductId, deletedStock.VariantId));
+                if (tombstoned > 0 && await TryBuildTombstoneDraftAsync(db, tenant, row, ct).ConfigureAwait(false) is { } tombDraft)
+                    booked.Add(tombDraft);
                 written += tombstoned;
                 await ClearDeferredAsync(db, tenant, row, ct).ConfigureAwait(false);
                 continue;
@@ -454,6 +456,10 @@ internal static class ReplicaMaterializer
             TraceLog.Info($"ReplicaMaterializer.Apply — UPSERT {row.Entity}/{row.EntityId} → {affected} row(s) written to '{map.Table}' (deleted={row.Deleted}).", "sync.apply");
             if (affected > 0 && !row.Deleted && row.Entity == "Appointment" && TryBuildBookedDraft(tenant, row, values) is { } draft)
                 booked.Add(draft);
+            if (affected > 0 && row.Deleted && row.Entity is ("Owner" or "Pet")
+                && TryBuildDeletedDraft(tenant, row, row.Entity == "Pet" ? Str(values, "OwnerId") : null,
+                    Str(values, "DeletedByUserId"), values["DeletedUtc"] as long?) is { } deletedDraft)
+                booked.Add(deletedDraft);
             if (affected > 0 && !row.Deleted && row.Entity == "Visit"
                 && values["CompletedUtc"] is long completed && values["State"] is long state
                 && state is (long)Animora.Domain.Clinical.VisitState.Completed or (long)Animora.Domain.Clinical.VisitState.ReadyForInvoice or (long)Animora.Domain.Clinical.VisitState.Invoiced)
@@ -485,7 +491,7 @@ internal static class ReplicaMaterializer
             foreach (var draft in booked)
                 if (await SyncedActivityFeed.AppendAsync(db, draft, zone, batchId, ct).ConfigureAwait(false)) staged++;
             if (staged > 0) await db.SaveChangesAsync(ct).ConfigureAwait(false);
-            TraceLog.Info($"ReplicaMaterializer.Apply — appended {staged} 'booked' activity row(s).", "sync.apply");
+            TraceLog.Info($"ReplicaMaterializer.Apply — appended {staged} synced activity row(s) (booked/completed/deleted).", "sync.apply");
         }
 
         TraceLog.Info($"ReplicaMaterializer.Apply DONE — {written} typed business row(s) written for batch={batchId}.", "sync.apply");
@@ -520,6 +526,46 @@ internal static class ReplicaMaterializer
         var evt = new AppointmentBookedEvent(IdGenerator.NewId(occurred), tenant, occurred, row.EntityId,
             Str(v, "PetId")!, Str(v, "OwnerId")!, Str(v, "DoctorUserId"), start, (int)(v["DurationMinutes"] as long? ?? 0));
         return ActivityFeedMapper.Map(evt) is { } draft ? draft with { ActorUserId = author } : null;
+    }
+
+    /// <summary>
+    /// The «deleted» feed draft for a synced soft-delete of an Owner or Pet, attributed to the replicated
+    /// <c>DeletedByUserId</c> at the replicated <c>DeletedUtc</c> (falling back to the wire <c>UpdatedAt</c>). Null for any other entity.
+    /// Idempotent downstream (<see cref="SyncedActivityFeed.AppendAsync"/> keys on entity type + id + title), so the originating
+    /// client — which already wrote its own row — and re-applied batches never duplicate it.
+    /// </summary>
+    private static ActivityEventDraft? TryBuildDeletedDraft(string tenant, ReplicaStaging row, string? ownerId, string? actor, long? deletedTicks)
+    {
+        if (row.Entity is not ("Owner" or "Pet")) return null;
+        var occurred = deletedTicks is { } t ? new DateTimeOffset(t, TimeSpan.Zero) : row.UpdatedAtUtc ?? DateTimeOffset.UtcNow;
+        var user = actor ?? string.Empty;
+        DomainEvent evt = row.Entity == "Owner"
+            ? new OwnerDeletedEvent(IdGenerator.NewId(occurred), tenant, occurred, row.EntityId, user)
+            : new PetDeletedEvent(IdGenerator.NewId(occurred), tenant, occurred, row.EntityId, ownerId ?? string.Empty, user);
+        return ActivityFeedMapper.Map(evt);
+    }
+
+    /// <summary>Hard-tombstone variant: the wire carries no payload, so the actor/owner come from the (now soft-deleted) local row.</summary>
+    private static async Task<ActivityEventDraft?> TryBuildTombstoneDraftAsync(
+        AnimoraLocalDbContext db, string tenant, ReplicaStaging row, CancellationToken ct)
+    {
+        if (row.Entity == "Owner")
+        {
+            var owner = await db.Set<Animora.Domain.Patients.Owner>().AsNoTracking().IgnoreQueryFilters(["SoftDelete"])
+                .Where(o => o.TenantId == tenant && o.Id == row.EntityId)
+                .Select(o => new { o.DeletedByUserId, o.DeletedUtc }).FirstOrDefaultAsync(ct).ConfigureAwait(false);
+            return TryBuildDeletedDraft(tenant, row, null, owner?.DeletedByUserId, owner?.DeletedUtc?.UtcTicks);
+        }
+
+        if (row.Entity == "Pet")
+        {
+            var pet = await db.Set<Animora.Domain.Patients.Pet>().AsNoTracking().IgnoreQueryFilters(["SoftDelete"])
+                .Where(p => p.TenantId == tenant && p.Id == row.EntityId)
+                .Select(p => new { p.OwnerId, p.DeletedByUserId, p.DeletedUtc }).FirstOrDefaultAsync(ct).ConfigureAwait(false);
+            return TryBuildDeletedDraft(tenant, row, pet?.OwnerId, pet?.DeletedByUserId, pet?.DeletedUtc?.UtcTicks);
+        }
+
+        return null;
     }
 
     /// <summary>

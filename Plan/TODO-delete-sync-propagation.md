@@ -235,7 +235,7 @@ Prefer the **lowest-churn standards-compliant** route — see Task 3 decision.
   `src/Animora.Desktop/Localization/` or the resource store).
 - **Push:** `scripts/git/push.sh "feat(history): record owner/pet deletion with actor and time"`
 
-### [ ] T5 — History on PEER clients (RC-1 / D-B)
+### [x] T5 — History on PEER clients (RC-1 / D-B)
 - **Edit** `src/Animora.Sync.Custom/Replica/ReplicaMaterializer.cs`: when a tombstone/soft-delete is
   applied for `Owner`/`Pet` (and extend to other entities with a history kind as feasible),
   synthesize the delete draft (mirror `TryBuildBookedDraft`): build `OwnerDeletedEvent` /
