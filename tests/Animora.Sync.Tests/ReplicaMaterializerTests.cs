@@ -177,7 +177,7 @@ public sealed class ReplicaMaterializerTests
         string[] expected = ["Owner", "Pet", "Appointment", "ReceptionQueueEntry", "UnitOfMeasure", "ProductCategory", "Product",
             "Supplier", "Insurer", "LedgerAccount", "AccountingPeriod", "WeightEntry", "MedicalHistoryEntry", "VaccinationRecord",
             "VaccineCatalogItem", "Visit", "TreatmentPlan", "TreatmentOccurrence", "Room", "BoardingServiceDef", "BoardingStay",
-            "RoleDefinition", "StaffMembership"];
+            "RoleDefinition", "StaffMembership", "StockLedgerEntry"];
         Assert.Equal(expected.OrderBy(x => x), ReplicaMaterializer.SupportedEntities.OrderBy(x => x));
     }
 
