@@ -182,7 +182,8 @@ Prefer the **lowest-churn standards-compliant** route — see Task 3 decision.
   then asserts the row exists with `Deleted=1` under `IgnoreQueryFilters(["SoftDelete"])`.
 - **Push:** `scripts/git/push.sh "fix(sync): converge soft-delete across clients even when peer lacks the row"`
 
-### [ ] T2 — Verify owner-delete cascade journals every pet server-side (RC-3)
+### [x] T2 — Verify owner-delete cascade journals every pet server-side (RC-3)
+- **Result (verified, no code change needed):** `ListByOwnerAsync` (PG + SQLite) returns tracked `Pet` entities (`AsTracking`), no `ExecuteUpdate` on the cascade path, so each pet soft-delete fires the capture trigger per row.
 - **Read** `src/Animora.Application/UseCases/Patients/DeletePatientsCommands.cs`
   `DeleteOwnerCommandHandler` — it loops `foreach (var pet in await pets.ListByOwnerAsync(...)) pet.Deleted = true;`
   so each pet is a tracked `Modified` entity → each fires the capture trigger. CONFIRM
