@@ -218,7 +218,7 @@ Prefer the **lowest-churn standards-compliant** route — see Task 3 decision.
   `ReplicaMaterializer` (`Kind.Text` + `Kind.Time`) so the actor/time land in the typed row.
 - **Push:** `scripts/git/push.sh "feat(sync): carry delete actor and time on the replication wire"`
 
-### [ ] T4 — History on the ORIGINATING client (RC-1 / D-A)
+### [x] T4 — History on the ORIGINATING client (RC-1 / D-A)
 - **Domain events:** add `OwnerDeletedEvent` / `PetDeletedEvent` records in a Patients events file
   under `src/Animora.Domain/Events/` (follow `PetRegisteredEvent` shape: `EventId, TenantId,
   OccurredAtUtc, <ids>, ActorUserId`). Raise them from `MarkDeleted` (T3).

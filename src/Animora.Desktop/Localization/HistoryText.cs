@@ -9,6 +9,8 @@ public static class HistoryText
     private static readonly IReadOnlyDictionary<string, string> Titles = new Dictionary<string, string>
     {
         ["history.pet.registered"] = "بیمار جدید ثبت شد",
+        ["history.pet.deleted"] = "بیمار حذف شد",
+        ["history.owner.deleted"] = "سرپرست حذف شد",
         ["history.visit.completed"] = "ویزیت تکمیل شد",
         ["history.vaccine.administered"] = "واکسیناسیون انجام شد",
         ["history.appointment.booked"] = "نوبت ثبت شد",

@@ -19,6 +19,8 @@ public static class ActivityFeedMapper
     public static DomainEvent? Deserialize(string type, string payload) => type switch
     {
         nameof(PetRegisteredEvent) => JsonSerializer.Deserialize<PetRegisteredEvent>(payload),
+        nameof(PetDeletedEvent) => JsonSerializer.Deserialize<PetDeletedEvent>(payload),
+        nameof(OwnerDeletedEvent) => JsonSerializer.Deserialize<OwnerDeletedEvent>(payload),
         nameof(VisitCompletedEvent) => JsonSerializer.Deserialize<VisitCompletedEvent>(payload),
         nameof(VaccinationAdministeredEvent) => JsonSerializer.Deserialize<VaccinationAdministeredEvent>(payload),
         nameof(AppointmentBookedEvent) => JsonSerializer.Deserialize<AppointmentBookedEvent>(payload),
@@ -40,6 +42,10 @@ public static class ActivityFeedMapper
     {
         PetRegisteredEvent x => Draft(x, HistoryEventKind.Patient, ActivityEventKeys.PetRegistered,
             "Pet", x.PetId, args: new { x.OwnerId }, status: HistoryEventStatus.New),
+        PetDeletedEvent x => Draft(x, HistoryEventKind.Patient, ActivityEventKeys.PetDeleted,
+            "Pet", x.PetId, args: new { x.PetId, x.OwnerId }, status: HistoryEventStatus.Removed, actor: x.ActorUserId),
+        OwnerDeletedEvent x => Draft(x, HistoryEventKind.Patient, ActivityEventKeys.OwnerDeleted,
+            "Owner", x.OwnerId, args: new { x.OwnerId }, status: HistoryEventStatus.Removed, actor: x.ActorUserId),
         VisitCompletedEvent x => Draft(x, HistoryEventKind.Visit, ActivityEventKeys.VisitCompleted,
             "Visit", x.VisitId, args: new { x.PetId, x.OwnerId }, status: HistoryEventStatus.Done,
             actor: x.DoctorUserId),

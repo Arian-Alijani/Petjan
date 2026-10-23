@@ -93,6 +93,9 @@ public enum HistoryEventStatus
 
     /// <summary>«ورود» (info).</summary>
     CheckIn,
+
+    /// <summary>«حذف شد» (danger) — a record was deleted.</summary>
+    Removed,
 }
 
 /// <summary>

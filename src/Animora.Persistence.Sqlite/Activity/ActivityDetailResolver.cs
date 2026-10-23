@@ -56,7 +56,8 @@ internal static class ActivityDetailResolver
 
         if (args.TryGetValue("PetId", out var petId))
         {
-            var pet = await db.Set<Pet>().AsNoTracking().Where(p => p.Id == petId)
+            // A deleted pet/owner is exactly what a deletion row describes, so the soft-delete filter must not hide its name.
+            var pet = await db.Set<Pet>().AsNoTracking().IgnoreQueryFilters(["SoftDelete"]).Where(p => p.Id == petId)
                 .Select(p => new { p.Name, p.OwnerId }).FirstOrDefaultAsync(ct);
             if (pet is not null)
             {
@@ -67,7 +68,7 @@ internal static class ActivityDetailResolver
 
         if (ownerId is not null)
         {
-            var owner = await db.Set<Owner>().AsNoTracking().Where(o => o.Id == ownerId)
+            var owner = await db.Set<Owner>().AsNoTracking().IgnoreQueryFilters(["SoftDelete"]).Where(o => o.Id == ownerId)
                 .Select(o => o.FullName).FirstOrDefaultAsync(ct);
             if (owner is not null) lines.Add(("Owner", owner));
         }

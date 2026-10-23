@@ -23,6 +23,8 @@ namespace Animora.Domain.Events;
 [JsonSerializable(typeof(ChequeBouncedEvent))]
 [JsonSerializable(typeof(CashSessionClosedEvent))]
 [JsonSerializable(typeof(ExpensePostedEvent))]
+[JsonSerializable(typeof(PetDeletedEvent))]
+[JsonSerializable(typeof(OwnerDeletedEvent))]
 public sealed partial class OutboxEventJsonContext : JsonSerializerContext
 {
 }

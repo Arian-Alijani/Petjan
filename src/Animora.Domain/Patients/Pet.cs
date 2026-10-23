@@ -162,6 +162,7 @@ public sealed class Pet : AggregateRoot
         Deleted = true;
         DeletedByUserId = userId;
         DeletedUtc = whenUtc;
+        Raise(new PetDeletedEvent(IdGenerator.NewId(whenUtc), TenantId, whenUtc, Id, OwnerId, userId));
     }
 
     /// <summary>

@@ -96,6 +96,21 @@ public sealed class ActivityFeedTests
     }
 
     [Fact]
+    public void PatientDeletions_MapToRemovedRows_WithActor()
+    {
+        var pet = ActivityFeedMapper.Map(new PetDeletedEvent("E20", Tenant, Occurred, "PET1", "OWN1", "USR1"));
+        Assert.NotNull(pet);
+        Assert.Equal(ActivityEventKeys.PetDeleted, pet!.TitleKey);
+        Assert.Equal(("Pet", "PET1", HistoryEventStatus.Removed, "USR1"), (pet.EntityType, pet.EntityId, pet.Status, pet.ActorUserId));
+
+        var owner = ActivityFeedMapper.Map(new OwnerDeletedEvent("E21", Tenant, Occurred, "OWN1", "USR1"));
+        Assert.NotNull(owner);
+        Assert.Equal(ActivityEventKeys.OwnerDeleted, owner!.TitleKey);
+        Assert.Equal(("Owner", "OWN1", HistoryEventStatus.Removed, "USR1"), (owner.EntityType, owner.EntityId, owner.Status, owner.ActorUserId));
+        Assert.IsType<OwnerDeletedEvent>(ActivityFeedMapper.Deserialize(nameof(OwnerDeletedEvent), JsonSerializer.Serialize(new OwnerDeletedEvent("E21", Tenant, Occurred, "OWN1", "USR1"))));
+    }
+
+    [Fact]
     public void ChequeCleared_MapsToClearedStatus_AndSerializesFromToArgs()
     {
         var draft = ActivityFeedMapper.Map(

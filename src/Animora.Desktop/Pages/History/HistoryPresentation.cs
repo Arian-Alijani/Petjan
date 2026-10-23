@@ -144,6 +144,7 @@ public static class HistoryPresentation
         HistoryEventStatus.Normal => Tone.Neutral,
         HistoryEventStatus.Discharge => Tone.Ok,
         HistoryEventStatus.CheckIn => Tone.Info,
+        HistoryEventStatus.Removed => Tone.Danger,
         _ => Tone.Neutral,
     };
 
@@ -238,6 +239,7 @@ public static class HistoryPresentation
         HistoryEventStatus.Normal => "عادی",
         HistoryEventStatus.Discharge => "ترخیص",
         HistoryEventStatus.CheckIn => "ورود",
+        HistoryEventStatus.Removed => "حذف شد",
         _ => "عادی",
     };
 

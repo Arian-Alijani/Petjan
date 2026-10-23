@@ -1,3 +1,4 @@
+using Animora.Domain.Events;
 using Animora.Domain.Primitives;
 using Animora.Domain.Time;
 
@@ -98,6 +99,7 @@ public sealed class Owner : AggregateRoot
         Deleted = true;
         DeletedByUserId = userId;
         DeletedUtc = whenUtc;
+        Raise(new OwnerDeletedEvent(IdGenerator.NewId(whenUtc), TenantId, whenUtc, Id, userId));
     }
 
     /// <summary>Registers a new, unblocked owner. <paramref name="id"/> is the deterministic id derived from the creating command's

@@ -4,6 +4,8 @@ namespace Animora.Application.Activity;
 public static class ActivityEventKeys
 {
     public const string PetRegistered = "history.pet.registered";
+    public const string PetDeleted = "history.pet.deleted";
+    public const string OwnerDeleted = "history.owner.deleted";
     public const string VisitCompleted = "history.visit.completed";
     public const string VaccinationAdministered = "history.vaccine.administered";
     public const string AppointmentBooked = "history.appointment.booked";
