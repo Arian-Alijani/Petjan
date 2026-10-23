@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Animora.Contracts.Wire.Commands;
 using Animora.Domain.Identity;
+using Animora.Domain.Events;
 using Animora.Domain.Patients;
 using Animora.Domain.Results;
 using Animora.Domain.Time;
@@ -386,13 +387,16 @@ public sealed class PatientsUseCaseTests
         var pets = new FakePetRepository();
         var pet = Pet.Register("T-LOCAL-DEFAULT", "O-1", "رکس", PetSpecies.Dog, Clock);
         pets.Add(pet);
-        var handler = new DeletePetCommandHandler(pets);
+        var handler = new DeletePetCommandHandler(pets, Clock);
 
         var ok = await handler.HandleAsync(new DeletePetCommand(pet.Id), Context, default);
         var missing = await handler.HandleAsync(new DeletePetCommand("missing"), Context, default);
 
         Assert.True(ok.IsSuccess);
         Assert.True(pet.Deleted);
+        Assert.Equal(Context.UserId, pet.DeletedByUserId);
+        Assert.Equal(Clock.UtcNow, pet.DeletedUtc);
+        Assert.Contains(pet.DomainEvents, e => e is PetDeletedEvent d && d.ActorUserId == Context.UserId);
         Assert.True(missing.IsFailure);
         Assert.Equal(ErrorCodes.PetNotFound, missing.Error);
     }
@@ -408,13 +412,16 @@ public sealed class PatientsUseCaseTests
         var mine2 = Pet.Register("T-LOCAL-DEFAULT", owner.Id, "میشی", PetSpecies.Cat, Clock);
         var other = Pet.Register("T-LOCAL-DEFAULT", "O-OTHER", "لوکی", PetSpecies.Dog, Clock);
         pets.AddRange(new[] { mine1, mine2, other });
-        var handler = new DeleteOwnerCommandHandler(owners, pets);
+        var handler = new DeleteOwnerCommandHandler(owners, pets, Clock);
 
         var ok = await handler.HandleAsync(new DeleteOwnerCommand(owner.Id), Context, default);
         var missing = await handler.HandleAsync(new DeleteOwnerCommand("missing"), Context, default);
 
         Assert.True(ok.IsSuccess);
         Assert.True(owner.Deleted);
+        Assert.Equal(Context.UserId, owner.DeletedByUserId);
+        Assert.Contains(owner.DomainEvents, e => e is OwnerDeletedEvent);
+        Assert.Contains(mine1.DomainEvents, e => e is PetDeletedEvent);
         Assert.True(mine1.Deleted);
         Assert.True(mine2.Deleted);
         Assert.False(other.Deleted);

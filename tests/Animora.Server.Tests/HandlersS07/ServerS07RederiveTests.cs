@@ -28,7 +28,7 @@ public sealed class ServerS07RederiveTests
     {
         // Live C01 behavior supersedes the old OWNER_HAS_ACTIVE_PETS recipe: retain client/server parity.
         using var f = new ClinicalHandlerFixture();
-        var result = await new DeleteOwnerCommandHandler(f.Owners, f.Pets)
+        var result = await new DeleteOwnerCommandHandler(f.Owners, f.Pets, f.Intake.Clock)
             .HandleAsync(new DeleteOwnerCommand(f.Owner.Id), ReceptionTestDoubles.Context, default);
         Assert.True(result.IsSuccess); Assert.True(f.Owner.Deleted); Assert.True(f.Pet.Deleted);
     }
