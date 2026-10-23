@@ -249,7 +249,7 @@ Prefer the **lowest-churn standards-compliant** route — see Task 3 decision.
   Owner appends exactly one `history.owner.deleted` activity row, and is idempotent on re-apply.
 - **Push:** `scripts/git/push.sh "feat(history): surface synced deletions in peer-client history"`
 
-### [ ] T6 — Cross-check wire/contract/version counts & docs consistency
+### [x] T6 — Cross-check wire/contract/version counts & docs consistency
 - Confirm no `CommandTypes`/`ErrorCodes` additions are needed (delete command types already exist:
   `CommandTypes.PatientsOwnerDelete`, `CommandTypes.PatientsPetDelete`; handlers registered in
   `src/Animora.Server/Handlers/ServerHandlerModuleS07.cs`). If you added a new wire field/contract,
