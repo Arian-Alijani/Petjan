@@ -60,8 +60,10 @@ public sealed class InventoryQueries(AnimoraLocalDbContext db, IOptions<LocalSto
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
+            // Barcode is included so a scanned code resolves to its product (the item picker in the purchase
+            // invoice and the catalog list both rely on this search; a USB scanner types the code here).
             q = q.Where(p => EF.Functions.Like(p.Name, $"%{term}%") || EF.Functions.Like(p.Sku, $"%{term}%")
-                || p.Variants.Any(v => EF.Functions.Like(v.Sku, $"%{term}%")));
+                || p.Variants.Any(v => EF.Functions.Like(v.Sku, $"%{term}%") || v.Barcode == term));
         }
         if (!string.IsNullOrWhiteSpace(categoryId))
         {
