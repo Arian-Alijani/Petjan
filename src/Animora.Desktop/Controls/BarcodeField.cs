@@ -1,9 +1,9 @@
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Media;
+using AvaloniaPath = Avalonia.Controls.Shapes.Path;
 
 namespace Animora.Desktop.Controls;
 
@@ -91,9 +91,9 @@ public sealed class BarcodeField : UserControl
 
     private static Control BuildScanIcon()
     {
-        var path = new Path { Width = 14, Height = 14, VerticalAlignment = VerticalAlignment.Center };
+        var path = new AvaloniaPath { Width = 14, Height = 14, VerticalAlignment = VerticalAlignment.Center };
         path.Classes.Add("icon");
-        var app = Application.Current;
+        var app = global::Avalonia.Application.Current;
         if (app is not null && app.TryFindResource("IconScan", out var geometry) && geometry is Geometry g)
         {
             path.Data = g;
