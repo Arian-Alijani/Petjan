@@ -93,9 +93,14 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
         // (and the ledger) will reject anyway: a zero grand total yields a journal with no lines
         // (JOURNAL_TOO_FEW_LINES). Post() enforces the same invariant; this only answers earlier and cleaner.
         if (invoice.GrandTotal.Minor == 0L) return Result<Unit>.Fail(ErrorCodes.InvoiceNonPositiveTotal);
-        var number = await numbers.AllocateAsync(context.TenantId, invoice.IssuedUtc, ct);
-        var numbered = invoice.AssignInvoiceNumber(number);
-        if (numbered.IsFailure) return Result<Unit>.Fail(numbered.Error, numbered.Detail);
+        // PERF (DocumentCounters lock window): the sequential invoice number is allocated at the END of this
+        // handler (just before returning / SaveChanges), NOT here. Allocating it mid-transaction made the
+        // serialized counter row-lock the INSERT…ON CONFLICT DO UPDATE takes be held through the whole rest of
+        // the transaction (Post, the stock-movement loop, handoff, boarding checkout, event dispatch, ledger
+        // posting, save, commit), serializing every financial command of a clinic behind one row. The number
+        // is not read by Post(), the InvoicePostedEvent, the stock movements or the ledger rule, so deferring
+        // it keeps numbering identical and gapless while collapsing the lock hold to ~the save itself. All the
+        // fail-fast guards that must NOT consume a number (handoff, stock, zero-total) already ran above.
         var posted = invoice.Post(clock);
         if (posted.IsFailure) return Result<Unit>.Fail(posted.Error, posted.Detail);
         // D07: a permissive (offline) store may post below zero, but the authoritative server never does —
@@ -152,6 +157,13 @@ public sealed class PostInvoiceCommandHandler(IInvoiceRepository invoices, IInvo
                 if (checkedOut.IsFailure) return Result<Unit>.Fail(checkedOut.Error, checkedOut.Detail);
             }
         }
+        // Allocate the gapless sequential number LAST, after every other mutation of this transaction is
+        // staged, so the serialized DocumentCounters row-lock is held only across the imminent save/commit
+        // instead of the whole handler body (see the note above). Still inside the command transaction, so
+        // the number stays gapless: a rollback never advances the counter.
+        var number = await numbers.AllocateAsync(context.TenantId, invoice.IssuedUtc, ct);
+        var numbered = invoice.FinalizePostedInvoiceNumber(number);
+        if (numbered.IsFailure) return Result<Unit>.Fail(numbered.Error, numbered.Detail);
         // Journal and snapshot writes are automatic in the ambient unit-of-work transaction.
         return Result<Unit>.Ok(Unit.Value);
     }

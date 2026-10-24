@@ -498,6 +498,39 @@ public sealed class Invoice : AggregateRoot
     }
 
     /// <summary>
+    /// Stamps the gapless sequential number onto an invoice that has <b>just</b> been posted in this same
+    /// unit of work, still carries its device-provisional (<c>draft-…</c>) number and has had no money or
+    /// adjustment applied yet. This is the identical number-finalization <see cref="AssignInvoiceNumber"/>
+    /// performs on a draft, deliberately moved to run <i>after</i> <see cref="Post"/> so the Application
+    /// layer can allocate the serialized <c>DocumentCounters</c> value at the very end of the command
+    /// transaction (shrinking the counter row-lock hold window) without re-opening the draft.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A-RULE 002 is preserved: this touches only the still-provisional identity field, never the frozen
+    /// economics (lines, discount, tax, insurance, totals). It is refused once the invoice carries a
+    /// real number — <see cref="State"/> is not <see cref="InvoiceState.Posted"/>, a payment or adjustment
+    /// has already landed, or the number is no longer the provisional placeholder — so it can never rewrite
+    /// a settled or server-adopted number (that is <see cref="AdoptServerInvoiceNumber"/>'s sole job).
+    /// </para>
+    /// </remarks>
+    public Result FinalizePostedInvoiceNumber(string number)
+    {
+        if (string.IsNullOrWhiteSpace(number)) return Result.Fail(ErrorCodes.ValidationFailed);
+        if (State != InvoiceState.Posted)
+            return Result.Fail(ErrorCodes.InvoiceInvalidTransition,
+                $"Invoice '{Id}' is {State}; a sequential number is finalized only on a freshly posted invoice.");
+        if (!PaidTotal.IsZero || _adjustments.Count > 0)
+            return Result.Fail(ErrorCodes.InvoiceImmutable,
+                $"Invoice '{Id}' already has money or an adjustment applied; its number is fixed.");
+        if (!InvoiceNumber.StartsWith("draft-", StringComparison.Ordinal))
+            return Result.Fail(ErrorCodes.InvoiceImmutable,
+                $"Invoice '{Id}' already carries a sequential number; it is not re-numbered.");
+        InvoiceNumber = number.Trim();
+        return Result.Ok();
+    }
+
+    /// <summary>
     /// Issues the invoice: freezes it, stamps <see cref="PostedUtc"/> and raises
     /// <see cref="InvoicePostedEvent"/>. Refused for an empty invoice (<c>INVOICE_EMPTY</c>), when
     /// the stored totals disagree with a recomputation (<c>INVOICE_TOTAL_MISMATCH</c>) and when the
