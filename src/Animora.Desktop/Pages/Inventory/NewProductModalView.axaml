@@ -172,7 +172,7 @@
 
                 <!-- single-unit price/stock (default) -->
                 <Grid IsVisible="{Binding ShowSingleFields}" ColumnDefinitions="*,*" ColumnSpacing="12"
-                      Margin="0,12,0,0" RowDefinitions="Auto,Auto">
+                      Margin="0,12,0,0" RowDefinitions="Auto,Auto,Auto">
                     <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,10">
                         <TextBlock Classes="fld" Text="موجودی اولیه" />
                         <TextBox controls:InputGuard.Kind="Digits" MaxLength="9" Classes="inp" Text="{Binding StockText}" PlaceholderText="۰" />
@@ -188,6 +188,10 @@
                     <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,0,0,10">
                         <TextBlock Classes="fld" Text="قیمت فروش (تومان)" />
                         <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding PriceText}" PlaceholderText="۰" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,0,0,10">
+                        <TextBlock Classes="fld" Text="بارکد (اختیاری)" />
+                        <controls:BarcodeField Text="{Binding BarcodeText, Mode=TwoWay}" />
                     </StackPanel>
                 </Grid>
 

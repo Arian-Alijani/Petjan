@@ -26,6 +26,7 @@ public sealed partial class InventoryVariantCardViewModel : ObservableObject
         _costText = PersianNumberFormatter.FormatGrouped(variant.Cost);
         _priceText = PersianNumberFormatter.FormatGrouped(variant.Price);
         _expiryText = variant.Expiry ?? string.Empty;
+        _barcode = variant.Barcode ?? string.Empty;
         _isLow = StockStatus.IsLow(variant);
     }
 
@@ -49,6 +50,10 @@ public sealed partial class InventoryVariantCardViewModel : ObservableObject
 
     [ObservableProperty]
     private string _expiryText;
+
+    /// <summary>Scanner barcode of this variant (empty = none).</summary>
+    [ObservableProperty]
+    private string _barcode;
 
     [ObservableProperty]
     private bool _isLow;
@@ -88,7 +93,8 @@ public sealed partial class InventoryVariantCardViewModel : ObservableObject
         ReadReorder(),
         ReadCost(),
         ReadPrice(),
-        string.IsNullOrWhiteSpace(ExpiryText) ? null : ExpiryText.Trim());
+        string.IsNullOrWhiteSpace(ExpiryText) ? null : ExpiryText.Trim(),
+        Barcode: string.IsNullOrWhiteSpace(Barcode) ? null : Barcode.Trim());
 }
 
 /// <summary>

@@ -380,9 +380,13 @@
                                 <TextBox controls:InputGuard.Kind="Digits" MaxLength="15" Classes="inp" Text="{Binding SinglePriceText}" />
                             </StackPanel>
                         </Grid>
-                        <StackPanel Margin="0,0,0,4">
+                        <StackPanel Margin="0,0,0,10">
                             <TextBlock Classes="fld" Text="تاریخ انقضا (اختیاری)" />
                             <TextBox controls:InputGuard.Kind="Date" MaxLength="10" Classes="inp" Text="{Binding SingleExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,4">
+                            <TextBlock Classes="fld" Text="بارکد (اختیاری)" />
+                            <controls:BarcodeField Text="{Binding SingleBarcode, Mode=TwoWay}" />
                         </StackPanel>
 
                         <!-- convert hint (.convert-hint) -->
@@ -600,9 +604,13 @@
                                             </StackPanel>
                                         </Grid>
 
-                                        <StackPanel>
+                                        <StackPanel Margin="0,0,0,10">
                                             <TextBlock Classes="fld" Text="تاریخ انقضا (اختیاری)" />
                                             <TextBox controls:InputGuard.Kind="Date" MaxLength="10" Classes="inp" Text="{Binding ExpiryText}" PlaceholderText="۱۴۰۶/۰۱/۰۱" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Classes="fld" Text="بارکد (اختیاری)" />
+                                            <controls:BarcodeField Text="{Binding Barcode, Mode=TwoWay}" />
                                         </StackPanel>
                                     </StackPanel>
                                 </Border>

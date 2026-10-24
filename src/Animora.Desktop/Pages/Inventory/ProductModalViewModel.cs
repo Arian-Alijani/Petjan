@@ -129,6 +129,7 @@ public sealed partial class ProductModalViewModel : ObservableObject
     [ObservableProperty] private string _singleCostText = "۰";
     [ObservableProperty] private string _singlePriceText = "۰";
     [ObservableProperty] private string _singleExpiryText = string.Empty;
+    [ObservableProperty] private string _singleBarcode = string.Empty;
 
     // On-hand stock is a projection of stock movements: it is shown here read-only and changes only through
     // the «تغییر موجودی» modal (a reasoned movement), never through the product info save (P0-2).
@@ -470,6 +471,7 @@ public sealed partial class ProductModalViewModel : ObservableObject
             SingleCostText = single.CostText;
             SinglePriceText = single.PriceText;
             SingleExpiryText = single.ExpiryText;
+            SingleBarcode = single.Barcode;
         }
 
         RebuildKpis();
@@ -580,7 +582,8 @@ public sealed partial class ProductModalViewModel : ObservableObject
                     ParseInt(SingleReorderText),
                     ParseLong(SingleCostText),
                     ParseLong(SinglePriceText),
-                    string.IsNullOrWhiteSpace(SingleExpiryText) ? null : SingleExpiryText.Trim()),
+                    string.IsNullOrWhiteSpace(SingleExpiryText) ? null : SingleExpiryText.Trim(),
+                    Barcode: string.IsNullOrWhiteSpace(SingleBarcode) ? null : SingleBarcode.Trim()),
             ];
         }
 

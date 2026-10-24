@@ -51,6 +51,9 @@ public sealed partial class NewProductModalViewModel : ObservableObject
     [ObservableProperty] private string _brand = string.Empty;
     [ObservableProperty] private string _description = string.Empty;
 
+    /// <summary>Scanner barcode of the single-unit product (empty = none). Multi-variant barcodes are set per variant in the edit modal.</summary>
+    [ObservableProperty] private string _barcodeText = string.Empty;
+
     public ObservableCollection<CategoryOptionViewModel> CategoryOptions { get; } = [];
     [ObservableProperty] private CategoryOptionViewModel? _selectedCategory;
 
@@ -162,7 +165,8 @@ public sealed partial class NewProductModalViewModel : ObservableObject
                     reorder == 0 ? 5 : reorder,
                     ParseLong(CostText),
                     ParseLong(PriceText),
-                    null),
+                    null,
+                    Barcode: string.IsNullOrWhiteSpace(BarcodeText) ? null : BarcodeText.Trim()),
             ];
         }
 
