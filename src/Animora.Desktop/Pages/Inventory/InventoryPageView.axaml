@@ -727,6 +727,9 @@
                                         </ItemsControl>
                                     </StackPanel>
                                 </Border>
+
+                                <!-- thin divider between product rows -->
+                                <Border Height="1" Margin="12,0" Background="{StaticResource LineBrush}" />
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

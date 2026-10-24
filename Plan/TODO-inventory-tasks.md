@@ -120,7 +120,7 @@
   `cd /home/user/webapp && dotnet build src/Animora.Desktop/Animora.Desktop.csproj -clp:ErrorsOnly`
   (کامپایل XAML خطای ساختاری را می‌گیرد). اجرای GUI لازم نیست.
 
-### وضعیت: [ ] انجام نشده
+### وضعیت: [x] انجام شد — Border جداکنندهٔ 1px با LineBrush در انتهای قالب سطر اضافه شد.
 ### پوش بعد از اتمام: `scripts/git/push.sh "feat(inventory-ui): add thin divider line between product rows for readability"`
 
 ---
