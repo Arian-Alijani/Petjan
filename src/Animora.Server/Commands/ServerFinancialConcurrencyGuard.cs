@@ -27,13 +27,31 @@ internal sealed class ServerFinancialConcurrencyGuard(ServerSchedulingConcurrenc
         if (command is OpenCashSessionCommand or CloseCashSessionCommand or RecordCashMovementCommand
             or RegisterPaymentCommand or RefundInvoiceCommand or ReturnInvoiceLineCommand)
             resources.Add("cashier:" + execution.UserId);
-        // Global numbering/directory and ledger-period resources precede variant locks in every command.
+        // Numbering/directory locks precede the per-aggregate variant lock in every command.
         if (command is IJournaledCommand journaled)
         {
             if (journaled.CommandTypeName.StartsWith("purchasing.", StringComparison.Ordinal)) resources.Add("purchasing");
-            if (journaled.CommandTypeName.StartsWith("finance.", StringComparison.Ordinal)
-                || journaled.CommandTypeName is "sales.invoice.post" or "sales.invoice.void" or "sales.invoice.refund"
-                    or "sales.invoice.line.return" or "sales.payment.register" or "cashier.session.close") resources.Add("ledger-period");
+            // No clinic-wide "ledger-period" lock is taken any more. It previously queued EVERY financial
+            // command (sales.invoice.post / .void / .refund / .line.return, sales.payment.register,
+            // cashier.session.close and all finance.*) behind one constant key even though each merely appends
+            // one independent, self-balancing journal row — so with many concurrent cashiers the whole posting
+            // path ran strictly serially (the measured p95 was lock-wait, not CPU). Every invariant it appeared
+            // to protect is already enforced at finer granularity, so dropping it loses no safety:
+            //   • Journal numbers  — atomic INSERT … ON CONFLICT DO UPDATE counter (gap-free, per tenant+period
+            //                        row lock only); proven by DocumentCounterTests without any advisory lock.
+            //   • Lazy period open — atomic (TenantId, PeriodCode) upsert (IPeriodRepository.EnsureAsync); two
+            //                        concurrent first-posts into a new month converge instead of racing on an
+            //                        un-retried 23505 — the one race that formerly needed this lock.
+            //   • Commit ordering  — the deferred TenantFeedState ChangeSequence trigger, held only for the
+            //                        commit tail, not the whole transaction.
+            //   • Balance          — a per-entry invariant (ServerFinancialEventProcessor), no shared state.
+            // Each post still holds its own invoice:{id} / cashier:{user} fence plus the per-aggregate lock
+            // below, so concurrent invoices and payments now run in parallel instead of behind one global mutex.
+            //
+            // finance.period.close (a reserved, not-yet-implemented command) is the one deliberate "freeze the
+            // book" operation. When it is built it must fence against concurrent posting through the period's own
+            // aggregate lock (AccountingPeriod:{id}, added below) plus the period's optimistic Version token —
+            // NOT by reinstating a clinic-wide mutex on the hot path.
             if (journaled.AggregateIdOrNull is { } id) resources.Add(journaled.AggregateTypeName + ":" + id);
         }
         await locks.AcquireAsync(resources, ct);
