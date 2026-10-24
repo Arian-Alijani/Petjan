@@ -77,7 +77,14 @@ public sealed partial class DashboardPageViewModel : PageViewModelBase
         HasData, _refresh.IsBusy, !string.IsNullOrEmpty(LoadError), _presentation?.Snapshot);
 
     public string StateText => DashboardViewStateResolver.Describe(ViewState);
-    public bool IsStateVisible => ViewState != DashboardViewState.Ready;
+
+    // A background refresh over already-shown data must NOT toggle this top banner: it is a layout
+    // child at the top of the page's StackPanel, so showing/hiding it each refresh tick adds/removes
+    // its height (+ the 20px spacing) and makes the whole page jump ("shake"). We therefore hide the
+    // banner for Refreshing (data is already on screen) as well as Ready. The refresh still runs and
+    // republishes data on every tick; Stale/Error/Empty/InitialLoading still surface their banner
+    // because those have no data or need the operator's attention.
+    public bool IsStateVisible => ViewState is not (DashboardViewState.Ready or DashboardViewState.Refreshing);
     public bool IsStale => ViewState == DashboardViewState.Stale;
     public bool IsInitialLoading => ViewState == DashboardViewState.InitialLoading;
     public bool ShowPrimaryEmpty => HasData && PrimaryList.Count == 0;
