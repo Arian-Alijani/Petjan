@@ -70,25 +70,26 @@ public sealed class LedgerPostingHandler(
     /// open period (A-RULE 003) instead of reaching here.
     /// </para>
     /// <para>
-    /// Idempotency guard: a row with the resolved code may already exist (a concurrent post that won
-    /// the <c>(TenantId, PeriodCode)</c> unique index, or a seeded row the resolver re-derives); it is
-    /// reused rather than inserting a duplicate that the index would reject.
+    /// Idempotency &amp; concurrency: a row with the resolved code may already exist (a concurrent post, or a
+    /// seeded row the resolver re-derives). Provisioning goes through
+    /// <see cref="IPeriodRepository.EnsureAsync"/>, an atomic <c>(TenantId, PeriodCode)</c> upsert, so two
+    /// concurrent first-posts into a brand-new month converge on one authoritative row instead of one hitting
+    /// an un-retried unique-violation. This is what lets the former clinic-wide pessimistic ledger lock be
+    /// dropped from the hot posting path.
     /// </para>
     /// </remarks>
     private async Task<Result<AccountingPeriod>> ProvisionContainingPeriodAsync(DomainEvent e, CancellationToken ct)
     {
         var boundary = periodBoundaries.Resolve(e.OccurredAtUtc);
 
-        // Idempotency: a period with this code may already exist (concurrent post, or a seeded row
-        // whose window the resolver re-derives); reuse it rather than inserting a duplicate.
-        var existingByCode = await periods.FindByCodeAsync(boundary.PeriodCode, ct).ConfigureAwait(false);
-        if (existingByCode is not null) return Result<AccountingPeriod>.Ok(existingByCode);
-
         var created = AccountingPeriod.Create(e.TenantId, boundary.PeriodCode, boundary.StartUtc, boundary.EndUtc);
         if (created.IsFailure) return created;
 
-        periods.Add(created.Value!);
-        return created;
+        // Race-free lazy open: EnsureAsync atomically inserts-or-reuses the period, returning the authoritative
+        // row (ours, or the concurrent winner's) exactly as the old find-first-then-add did, but without the
+        // 23505 race window between the SELECT and the COMMIT.
+        var ensured = await periods.EnsureAsync(created.Value!, ct).ConfigureAwait(false);
+        return Result<AccountingPeriod>.Ok(ensured);
     }
 
     public async Task<Result> HandleAsync(InvoicePostedEvent e, CancellationToken ct)
