@@ -70,6 +70,12 @@ public interface ISalesQueryService
     Task<CatalogSnapshot> GetCatalogAsync();
 
     /// <summary>
+    /// Resolves a scanned barcode to the sellable catalog item (the variant carrying it) so the cashier can add it
+    /// to the invoice without searching; null when no active product has that barcode.
+    /// </summary>
+    Task<CatalogItem?> FindCatalogItemByBarcodeAsync(string barcode);
+
+    /// <summary>
     /// Adds a catalog item to an invoice (mirrors <c>addToInvoice</c>): an
     /// existing matching line's quantity is incremented, otherwise a new line is
     /// appended; the item is pushed onto the recent strip. Returns the updated

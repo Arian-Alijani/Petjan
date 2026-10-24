@@ -21,6 +21,7 @@ public static class SalesRegistration
             .AddQuery<OwnerInvoicesQuery, IReadOnlyList<InvoiceSummaryReadModel>, OwnerInvoicesQueryHandler>()
             .AddQuery<InvoiceDetailQuery, InvoiceDetailReadModel?, InvoiceDetailQueryHandler>()
             .AddQuery<SalesCatalogQuery, SalesCatalogReadModel, SalesCatalogQueryHandler>()
+            .AddQuery<SalesCatalogByBarcodeQuery, SalesCatalogItemReadModel?, SalesCatalogByBarcodeQueryHandler>()
             .AddQuery<InsurersQuery, IReadOnlyList<InsurerReadModel>, InsurersQueryHandler>()
             .AddQuery<SaleKpiQuery, SaleKpiReadModel, SaleKpiQueryHandler>()
             .AddQuery<SalesHistoryQuery, CashierHistoryPageReadModel, SalesHistoryQueryHandler>()

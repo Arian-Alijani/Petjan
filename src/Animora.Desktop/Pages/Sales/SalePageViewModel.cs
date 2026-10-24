@@ -41,6 +41,8 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     private readonly IDialogService _dialogs;
     private readonly IPrintService _print;
     private readonly ICapabilityGate _capabilities;
+    private readonly BarcodeScannerService _scanner;
+    private bool _scanBusy;
 
     /// <summary>
     /// D08: taking a payment / posting an invoice requires <c>sales.post</c>. Without it the CTA is not offered at
@@ -87,8 +89,10 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     public SalePageViewModel(ISalesQueryService service, IStoreReadinessGate readiness,
         IToastService toast, IDialogService dialogs, IDataChangeNotifier changes, IPrintService print,
         IHistoryRecordOpener historyOpener, IServiceRateService serviceRates, IChequePrompt chequePrompt,
-        ICapabilityGate capabilities, ISyncStatusService sync, ISyncPendingLookup pending)
+        ICapabilityGate capabilities, ISyncStatusService sync, ISyncPendingLookup pending,
+        BarcodeScannerService scanner)
     {
+        _scanner = scanner;
         _sync = sync;
         _pending = pending;
         _chequePrompt = chequePrompt;
@@ -791,9 +795,76 @@ public sealed partial class SalePageViewModel : PageViewModelBase
     // Failures surface in the shell's load-state block, which also offers the manual refresh.
     public override void OnNavigatedTo()
     {
+        // Barcode scans add the scanned item to the open invoice only while this page is the current one.
+        _scanner.BarcodeScanned -= OnBarcodeScanned;
+        _scanner.BarcodeScanned += OnBarcodeScanned;
         if (!IsLoadInFlight) _ = ReloadPageAsync();
         if (IsHistoryTab) History.Refresh();
         if (IsInvoicesTab) Invoices.Refresh();
+    }
+
+    public override void OnNavigatedFrom() => _scanner.BarcodeScanned -= OnBarcodeScanned;
+
+    /// <summary>
+    /// A barcode was scanned anywhere on the page: resolve it to its catalog variant and add one unit to the open
+    /// invoice (the same <see cref="ISalesQueryService.AddLineAsync"/> path as the catalog picker, including its
+    /// stock ceiling). Ignored while an overlay is open or when there is no editable invoice on the cashier tab.
+    /// </summary>
+    private async void OnBarcodeScanned(string barcode)
+    {
+        if (!IsCashierTab || _dialogs.IsOverlayOpen || _scanBusy)
+        {
+            return;
+        }
+
+        if (SelectedInvoice is not { CanEdit: true } invoice)
+        {
+            _toast.Show("برای افزودن کالا با اسکنر، ابتدا یک فاکتور بازِ قابل‌ویرایش انتخاب کنید", Tone.Warn);
+            return;
+        }
+
+        _scanBusy = true;
+        try
+        {
+            var item = await _service.FindCatalogItemByBarcodeAsync(barcode);
+            if (item is null)
+            {
+                _toast.Show("کالایی با این بارکد یافت نشد", Tone.Warn);
+                return;
+            }
+
+            if (item.TracksStock)
+            {
+                var inInvoice = 0;
+                foreach (var line in invoice.Detail.Lines)
+                {
+                    if (string.Equals(line.Ref, item.Id, StringComparison.Ordinal)) inInvoice += line.Quantity;
+                }
+
+                if (item.AvailableUnits - inInvoice <= 0)
+                {
+                    _toast.Show(InvoiceStockCaps.ExceedsMessage(item.Title, Math.Max(0, item.AvailableUnits - inInvoice)), Tone.Warn);
+                    return;
+                }
+            }
+
+            await _service.AddLineAsync(invoice.Id, item, 1);
+            _toast.Show($"«{item.Title}» به فاکتور افزوده شد", Tone.Ok);
+            RefreshAfterMutation();
+        }
+        catch (InvalidOperationException ex)
+        {
+            ShowFailure(ex, "افزودن کالا با بارکد ناموفق بود؛ دوباره تلاش کنید");
+        }
+        catch (Exception ex)
+        {
+            Animora.Desktop.Diagnostics.AppTrace.Error("barcode add-to-invoice FAILED (unexpected)", ex, "sales");
+            _toast.Show("افزودن کالا با بارکد ناموفق بود؛ دوباره تلاش کنید", Tone.Danger);
+        }
+        finally
+        {
+            _scanBusy = false;
+        }
     }
 
     private bool _pageLoaded;

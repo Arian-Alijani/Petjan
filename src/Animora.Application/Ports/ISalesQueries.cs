@@ -12,6 +12,11 @@ public interface ISalesQueries
     Task<IReadOnlyList<InvoiceSummaryReadModel>> GetOwnerInvoicesAsync(string ownerId, int take, CancellationToken ct);
     Task<InvoiceDetailReadModel?> GetInvoiceAsync(string invoiceId, CancellationToken ct);
     Task<SalesCatalogReadModel> GetCatalogAsync(CancellationToken ct);
+    /// <summary>
+    /// The sellable catalog row of the active variant carrying <paramref name="barcode"/> (exact match, active product),
+    /// shaped like a <see cref="GetCatalogAsync"/> row (id = the variant id); null when no variant has that barcode.
+    /// </summary>
+    Task<SalesCatalogItemReadModel?> FindCatalogItemByBarcodeAsync(string barcode, CancellationToken ct);
     Task<IReadOnlyList<InsurerReadModel>> GetInsurersAsync(CancellationToken ct);
     Task<SaleKpiReadModel> GetKpisAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken ct);
     Task<CashierHistoryPageReadModel> GetHistoryAsync(DateTimeOffset? fromUtc, DateTimeOffset? toUtc,

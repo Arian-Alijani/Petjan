@@ -354,6 +354,25 @@ public sealed class SalesQueries(AnimoraLocalDbContext db, IOptions<LocalStoreOp
     private static bool IsTerminalRefusal(SettlementState status) =>
         status is SettlementState.Rejected or SettlementState.Conflict or SettlementState.NeedsAttention;
 
+    public async Task<SalesCatalogItemReadModel?> FindCatalogItemByBarcodeAsync(string barcode, CancellationToken ct)
+    {
+        // Same projection as a GetCatalogAsync variant row (id = VariantId, on-hand from the snapshot), narrowed to
+        // the one active variant of an active, non-service product that carries the scanned barcode.
+        return await (from p in db.Set<Product>().AsNoTracking()
+            where p.IsActive
+            join c in db.Set<ProductCategory>().AsNoTracking() on p.CategoryId equals c.Id into categories
+            from c in categories.DefaultIfEmpty()
+            from v in p.Variants
+            where v.IsActive && v.Barcode == barcode
+            orderby v.VariantId
+            select new SalesCatalogItemReadModel(v.VariantId, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
+                c == null ? "سایر" : c.DisplayName, v.SalePrice.Minor,
+                p.TrackStock && p.Kind != ProductKind.Service
+                    ? (db.Set<StockOnHandSnapshot>().Where(s => s.ProductId == p.Id && s.VariantId == v.VariantId)
+                        .Select(s => (long?)s.OnHandScaled).FirstOrDefault() ?? 0L) : (long?)null))
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<SalesCatalogReadModel> GetCatalogAsync(CancellationToken ct)
     {
         // Per-variant rows for products that have at least one active variant (the variant id is what an

@@ -79,6 +79,20 @@ public sealed class SalesCatalogQueryHandler(ISalesQueries queries)
         Result<SalesCatalogReadModel>.Ok(await queries.GetCatalogAsync(ct));
 }
 
+/// <summary>Resolves a scanned barcode to the sellable catalog item (variant) that carries it, or null.</summary>
+[RequiresPermission(PermissionCodes.SalesRead)]
+public sealed record SalesCatalogByBarcodeQuery(string Barcode) : IQuery<SalesCatalogItemReadModel?>;
+
+public sealed class SalesCatalogByBarcodeQueryHandler(ISalesQueries queries)
+    : IQueryHandler<SalesCatalogByBarcodeQuery, SalesCatalogItemReadModel?>
+{
+    public async Task<Result<SalesCatalogItemReadModel?>> HandleAsync(
+        SalesCatalogByBarcodeQuery query, QueryContext context, CancellationToken ct) =>
+        string.IsNullOrWhiteSpace(query.Barcode)
+            ? Result<SalesCatalogItemReadModel?>.Ok(null)
+            : Result<SalesCatalogItemReadModel?>.Ok(await queries.FindCatalogItemByBarcodeAsync(query.Barcode.Trim(), ct));
+}
+
 /// <summary>The reference insurers offered in the invoice's «پوشش بیمه» select.</summary>
 [RequiresPermission(PermissionCodes.SalesRead)]
 public sealed record InsurersQuery : IQuery<IReadOnlyList<InsurerReadModel>>;

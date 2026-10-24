@@ -47,6 +47,12 @@ public interface IDialogService
     /// </summary>
     Task<IReadOnlyList<PickedFile>> PickFilesAsync(string title, IReadOnlyList<string> patterns, bool allowMultiple = true);
 
+    /// <summary>
+    /// True while any overlay (modal, drawer or sheet) is showing. Global input shortcuts such as the barcode
+    /// scanner use it to stay out of the way of whatever the user is doing inside an overlay.
+    /// </summary>
+    bool IsOverlayOpen { get; }
+
     /// <summary>Closes every overlay (modal, drawer and sheet) at once.</summary>
     void Close();
 

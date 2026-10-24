@@ -135,6 +135,18 @@ public sealed class SalesQueries(AnimoraServerDbContext db) : ISalesQueries
             settlement, journal?.ErrorCode ?? scalar.SettlementErrorCode, journal?.ResponsibleRole);
     }
 
+    public async Task<SalesCatalogItemReadModel?> FindCatalogItemByBarcodeAsync(string barcode, CancellationToken ct) =>
+        await (from p in db.Set<Product>().AsNoTracking()
+            where p.IsActive
+            join c in db.Set<ProductCategory>().AsNoTracking() on p.CategoryId equals c.Id into categories
+            from c in categories.DefaultIfEmpty()
+            from v in p.Variants
+            where v.IsActive && v.Barcode == barcode
+            orderby v.VariantId
+            select new SalesCatalogItemReadModel(v.VariantId, p.Name, p.Kind == ProductKind.Service ? "Service" : "Item",
+                c == null ? "سایر" : c.DisplayName, v.SalePrice.Minor))
+            .FirstOrDefaultAsync(ct);
+
     public async Task<SalesCatalogReadModel> GetCatalogAsync(CancellationToken ct)
     {
         // Per-variant rows for products that have at least one active variant (the variant id is what an

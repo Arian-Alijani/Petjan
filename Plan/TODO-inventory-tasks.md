@@ -251,7 +251,7 @@
   - `dotnet build src/Animora.Desktop/Animora.Desktop.csproj -clp:ErrorsOnly`
 - اگر تست واحد سریع مرتبط موجود بود همان یکی را اجرا کن؛ در غیر این‌صورت بیلد کافی است.
 
-### وضعیت: [ ] در حال انجام — گام ۱ [x] (سیم‌کشی Contract/Mapping/Service) · گام ۲ [x] (BarcodeField در مودال‌های ساخت/ویرایش) · گام ۳ [x] (BarcodeScannerService + DI + تشخیص‌گر keyboard-wedge) · گام ۴ [ ]
+### وضعیت: [x] انجام شد — گام ۱ [x] (سیم‌کشی Contract/Mapping/Service) · گام ۲ [x] (BarcodeField در مودال‌های ساخت/ویرایش) · گام ۳ [x] (BarcodeScannerService + DI + تشخیص‌گر keyboard-wedge) · گام ۴ [x] (FindCatalogItemByBarcodeAsync در Port/Query/Sqlite/Pg/Contract/Service + هندل اسکن در SalePageViewModel)
 ### پوش‌ها (نمونه پیام‌ها):
 - `scripts/git/push.sh "feat(inventory): wire variant barcode through contracts/mapping/commands"`
 - `scripts/git/push.sh "feat(inventory-ui): add barcode field + scan button to product create/edit modals"`

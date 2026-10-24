@@ -146,6 +146,14 @@ public sealed class SalesQueryService(IServiceScopeFactory scopes) : ISalesQuery
         return result.Value?.ToContract() ?? new CatalogSnapshot([], [], []);
     }
 
+    public async Task<CatalogItem?> FindCatalogItemByBarcodeAsync(string barcode)
+    {
+        if (string.IsNullOrWhiteSpace(barcode)) return null;
+        var result = await QueryAsync(new SalesCatalogByBarcodeQuery(barcode.Trim()));
+        ThrowOnFailedRead(result);
+        return result.Value?.ToContract();
+    }
+
     public async Task<IReadOnlyList<OwnerRef>> GetOwnersAsync(string query)
     {
         var result = await QueryAsync(new OwnerLookupQuery(query));

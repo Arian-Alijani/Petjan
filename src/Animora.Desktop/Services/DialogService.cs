@@ -121,6 +121,10 @@ public sealed class DialogService : IDialogService
         return picked;
     }
 
+    public bool IsOverlayOpen =>
+        _modalHost?.IsVisible == true || _drawerHost?.IsVisible == true || _sheetHost?.IsVisible == true
+        || _fallbackWindow is not null;
+
     public void Close()
     {
         CloseModal();
