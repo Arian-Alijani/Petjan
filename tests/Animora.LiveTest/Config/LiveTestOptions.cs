@@ -46,8 +46,55 @@ public sealed class LiveTestOptions
     /// <summary>Concurrency levels (virtual clients) to ramp through during capacity runs.</summary>
     public int[] ConcurrencyLevels { get; set; } = [1, 2, 4, 8, 16, 32];
 
-    /// <summary>Operations per concurrency level per profile.</summary>
+    /// <summary>Operations per concurrency level per profile (used only when <see cref="LevelDurationSeconds"/> is 0).</summary>
     public int RequestsPerLevel { get; set; } = 60;
+
+    /// <summary>
+    /// Auto-ramp: ignore <see cref="ConcurrencyLevels"/> and climb <see cref="RampStart"/> → <see cref="RampMax"/>
+    /// in <see cref="RampStep"/> increments, stopping once the server has been unhealthy for
+    /// <see cref="BreakConfirmations"/> consecutive levels. This finds the real ceiling instead of testing one
+    /// hand-picked number.
+    /// </summary>
+    public bool AutoRamp { get; set; }
+
+    /// <summary>Auto-ramp: concurrency of the first level.</summary>
+    public int RampStart { get; set; } = 5;
+
+    /// <summary>Auto-ramp: how many virtual users each level adds.</summary>
+    public int RampStep { get; set; } = 5;
+
+    /// <summary>Auto-ramp: hard stop. The ramp also stops earlier as soon as the server breaks.</summary>
+    public int RampMax { get; set; } = 200;
+
+    /// <summary>
+    /// Auto-ramp: how many consecutive unhealthy levels confirm the ceiling. 2 avoids declaring a break on a single
+    /// noisy window (one cold-start GC pause, one disk flush).
+    /// </summary>
+    public int BreakConfirmations { get; set; } = 2;
+
+    /// <summary>
+    /// Length of each level's measurement window in seconds. Levels are time-boxed rather than request-counted so a
+    /// level at 5 users and a level at 150 users are directly comparable (and think time can be modelled at all).
+    /// Set to 0 to go back to fixed <see cref="RequestsPerLevel"/> budgets.
+    /// </summary>
+    public int LevelDurationSeconds { get; set; } = 20;
+
+    /// <summary>
+    /// Shortest pause a virtual user takes between two actions, in milliseconds. A real clerk reads the screen,
+    /// types, and moves the mouse between requests; a zero-pause loop models a bot, not a clinic, and inflates the
+    /// measured ceiling by an order of magnitude.
+    /// </summary>
+    public int ThinkTimeMinMs { get; set; } = 2000;
+
+    /// <summary>Longest pause between two actions (the distribution is log-uniform, so most pauses are short).</summary>
+    public int ThinkTimeMaxMs { get; set; } = 9000;
+
+    /// <summary>
+    /// Background state-feed poll per device session, in seconds — the cadence the production desktop uses
+    /// (<c>LiveAccessRefreshService</c> polls every 4–6 s). 0 disables it. Without it the server would see less
+    /// traffic per desktop than a real clinic generates.
+    /// </summary>
+    public int AmbientPollSeconds { get; set; } = 5;
 
     /// <summary>Seconds of cooldown between concurrency levels (lets the server settle).</summary>
     public int CooldownSeconds { get; set; } = 5;
@@ -127,6 +174,19 @@ public sealed class LiveTestOptions
         if (int.TryParse(Env("ANIMORA_LT_MAX_DEVICES", ""), out var devices) && devices > 0) o.MaxDevices = devices;
         if (double.TryParse(Env("ANIMORA_LT_P95_LIMIT_MS", ""), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var p95) && p95 > 0) o.P95LimitMs = p95;
         if (int.TryParse(Env("ANIMORA_LT_REQUESTS", ""), out var reqs) && reqs > 0) o.RequestsPerLevel = reqs;
+
+        // Auto-ramp + realistic pacing.
+        if (Env("ANIMORA_LT_AUTO_RAMP", "") is "1" or "true" or "yes") o.AutoRamp = true;
+        if (int.TryParse(Env("ANIMORA_LT_START_LEVEL", ""), out var start) && start > 0) o.RampStart = start;
+        if (int.TryParse(Env("ANIMORA_LT_STEP", ""), out var step) && step > 0) o.RampStep = step;
+        if (int.TryParse(Env("ANIMORA_LT_MAX_LEVEL", ""), out var maxLevel) && maxLevel > 0) o.RampMax = maxLevel;
+        if (int.TryParse(Env("ANIMORA_LT_BREAK_CONFIRM", ""), out var confirm) && confirm > 0) o.BreakConfirmations = confirm;
+        if (int.TryParse(Env("ANIMORA_LT_DURATION", ""), out var dur) && dur >= 0) o.LevelDurationSeconds = dur;
+        if (int.TryParse(Env("ANIMORA_LT_THINK_MIN_MS", ""), out var tmin) && tmin >= 0) o.ThinkTimeMinMs = tmin;
+        if (int.TryParse(Env("ANIMORA_LT_THINK_MAX_MS", ""), out var tmax) && tmax >= 0) o.ThinkTimeMaxMs = tmax;
+        if (int.TryParse(Env("ANIMORA_LT_AMBIENT_POLL_SECONDS", ""), out var poll) && poll >= 0) o.AmbientPollSeconds = poll;
+        if (int.TryParse(Env("ANIMORA_LT_COOLDOWN", ""), out var cooldown) && cooldown >= 0) o.CooldownSeconds = cooldown;
+
         var levels = Env("ANIMORA_LT_LEVELS", "");
         if (!string.IsNullOrWhiteSpace(levels))
         {

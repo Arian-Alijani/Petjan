@@ -64,6 +64,22 @@ param(
     [string]   $Levels   = "",
     # تعداد درخواست در هر سطح (بیشتر = پنجرهٔ طولانی‌تر = میانگین منابع دقیق‌تر).
     [int]      $Requests = 0,
+    # ── رمپ خودکار (بدون عدد ثابت) ─────────────────────────────────────────────
+    # با این سوئیچ، لیست -Levels نادیده گرفته می‌شود و تست از -StartLevel شروع می‌کند و
+    # هر بار -Step کاربر اضافه می‌کند تا وقتی سرور بشکند (یا به -MaxLevel برسد).
+    # یعنی خودش می‌فهمد «حداکثر چند کاربر» است، نه اینکه ما از قبل عدد بدهیم.
+    [switch]   $AutoRamp,
+    [int]      $StartLevel = 0,
+    [int]      $Step       = 0,
+    [int]      $MaxLevel   = 0,
+    # طول پنجرهٔ اندازه‌گیری هر سطح (ثانیه). همهٔ سطح‌ها یکسان ⇒ قابل مقایسه.
+    [int]      $Duration   = 0,
+    # مکث بین دو اقدام کاربر (میلی‌ثانیه). این همان چیزی است که تست را «واقعی» می‌کند:
+    # منشی بین دو کلیک ۲ تا ۹ ثانیه وقت صرف می‌کند، نه صفر.
+    [int]      $ThinkMin   = 0,
+    [int]      $ThinkMax   = 0,
+    # فاصلهٔ پول‌کردن فید همگام‌سازی در پس‌زمینه (ثانیه) — همان ۵ ثانیهٔ کلاینت واقعی.
+    [int]      $AmbientPollSeconds = -1,
     # حداکثر نشست دستگاه (سقف لایسنس را هم در نظر بگیر).
     [int]      $MaxDevices = 0,
     # آستانهٔ p95 برای «ناسالم» (میلی‌ثانیه).
@@ -164,11 +180,28 @@ if ([string]::IsNullOrWhiteSpace($Password)) {
 # ── پروفایل کامل تست ظرفیت (فقط حالت capacity) ────────────────────────────────
 if ($Mode -eq "capacity") {
     if ($Deep) {
-        if ([string]::IsNullOrWhiteSpace($Levels)) { $Levels = "1,8,16,24,32,36,40,48,64,96,128" }
-        if ($Requests -le 0)   { $Requests = 1200 }   # پنجرهٔ ~۲۰-۳۰ ثانیه در هر سطح
+        # Deep = رمپ خودکار واقع‌گرایانه: خودش بالا می‌رود تا سرور بشکند.
+        $AutoRamp = $true
+        if ($StartLevel -le 0) { $StartLevel = 5 }
+        if ($Step       -le 0) { $Step       = 5 }
+        if ($MaxLevel   -le 0) { $MaxLevel   = 200 }
+        if ($Duration   -le 0) { $Duration   = 20 }
         if ($MaxDevices -le 0) { $MaxDevices = 64 }
+        if ($ThinkMin   -le 0) { $ThinkMin   = 2000 }
+        if ($ThinkMax   -le 0) { $ThinkMax   = 9000 }
+        if ($AmbientPollSeconds -le 0) { $AmbientPollSeconds = 5 }
     }
     if (-not [string]::IsNullOrWhiteSpace($Levels)) { $env:ANIMORA_LT_LEVELS = $Levels }
+    if ($AutoRamp) {
+        $env:ANIMORA_LT_AUTO_RAMP = "1"
+        if ($StartLevel -gt 0) { $env:ANIMORA_LT_START_LEVEL = "$StartLevel" }
+        if ($Step       -gt 0) { $env:ANIMORA_LT_STEP        = "$Step" }
+        if ($MaxLevel   -gt 0) { $env:ANIMORA_LT_MAX_LEVEL   = "$MaxLevel" }
+    }
+    if ($Duration  -gt 0) { $env:ANIMORA_LT_DURATION             = "$Duration" }
+    if ($ThinkMin  -gt 0) { $env:ANIMORA_LT_THINK_MIN_MS         = "$ThinkMin" }
+    if ($ThinkMax  -gt 0) { $env:ANIMORA_LT_THINK_MAX_MS         = "$ThinkMax" }
+    if ($AmbientPollSeconds -ge 0) { $env:ANIMORA_LT_AMBIENT_POLL_SECONDS = "$AmbientPollSeconds" }
     if ($Requests -gt 0)   { $env:ANIMORA_LT_REQUESTS = "$Requests" }
     if ($MaxDevices -gt 0) { $env:ANIMORA_LT_MAX_DEVICES = "$MaxDevices" }
     if ($P95LimitMs -gt 0) { $env:ANIMORA_LT_P95_LIMIT_MS = "$P95LimitMs" }
@@ -207,7 +240,12 @@ Write-Info "مجموعه: $Tenant"
 Write-Info "کاربر : $User"
 Write-Info "حالت  : $Mode$(if ($Feature) { "  (فیلتر: $Feature)" })"
 if ($Mode -eq "capacity") {
-    Write-Info "سطح‌ها: $(if ($env:ANIMORA_LT_LEVELS) { $env:ANIMORA_LT_LEVELS } else { 'پیش‌فرض (1,2,4,8,16,32)' })"
+    if ($env:ANIMORA_LT_AUTO_RAMP -eq "1") {
+        Write-Info "رمپ خودکار: از $($env:ANIMORA_LT_START_LEVEL) کاربر، هر بار +$($env:ANIMORA_LT_STEP) تا سقف $($env:ANIMORA_LT_MAX_LEVEL) (زودتر می‌ایستد اگر سرور بشکند)"
+        Write-Info "پنجرهٔ هر سطح: $($env:ANIMORA_LT_DURATION) ثانیه   ·   مکث کاربر: $($env:ANIMORA_LT_THINK_MIN_MS)–$($env:ANIMORA_LT_THINK_MAX_MS) ms   ·   پول فید: $($env:ANIMORA_LT_AMBIENT_POLL_SECONDS) ثانیه"
+    } else {
+        Write-Info "سطح‌ها: $(if ($env:ANIMORA_LT_LEVELS) { $env:ANIMORA_LT_LEVELS } else { 'پیش‌فرض (1,2,4,8,16,32)' })"
+    }
     Write-Info "درخواست/سطح: $(if ($env:ANIMORA_LT_REQUESTS) { $env:ANIMORA_LT_REQUESTS } else { '60' })   ·   نشست دستگاه: $(if ($env:ANIMORA_LT_MAX_DEVICES) { $env:ANIMORA_LT_MAX_DEVICES } else { '8' })"
     Write-Info "رصد منابع: $(if ($env:ANIMORA_LT_SSH -eq '1') { "فعال (SSH → $env:ANIMORA_LT_SSH_HOST)" } else { 'خاموش — با -Monitor روشن کن' })"
 }

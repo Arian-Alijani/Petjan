@@ -17,6 +17,12 @@ public sealed class CapacityReport(string runId, string serverUrl, string tenant
 
     public string? MonitorProblem { get; set; }
 
+    /// <summary>
+    /// How realistically the virtual users behaved (think time, ambient polling). Rendered in the report so a reader
+    /// can tell a synthetic "no pauses" number from a real-desktop-equivalent one.
+    /// </summary>
+    public string? Pacing { get; set; }
+
     public int? PgMaxConnections { get; set; }
 
     public List<ProfileOutcome> Profiles { get; } = [];
@@ -49,8 +55,10 @@ public sealed class CapacityReport(string runId, string serverUrl, string tenant
         sb.AppendLine(recommended > 0
             ? $"- **Recommended maximum concurrent virtual users: {recommended}** (highest level every profile survived)."
             : "- **No level was healthy.** Even the lowest level broke: check connectivity/credentials first, then the hints below.");
-        if (recommended > 0)
+        if (recommended > 0 && string.IsNullOrEmpty(Pacing))
             sb.AppendLine($"- Planning estimate: ≈ **{recommended * CapacityAnalysis.ActivityFactor} real clinic desktops** — a virtual user never pauses, while a real desktop talks to the server ~1/{CapacityAnalysis.ActivityFactor} of the time (estimate, not measured).");
+        if (!string.IsNullOrEmpty(Pacing))
+            sb.AppendLine($"- **Load realism:** {Pacing}");
         foreach (var p in Profiles)
         {
             var broke = p.BrokeAtConcurrency is { } b ? $"broke at {b}" : "did not break";
@@ -96,6 +104,7 @@ public sealed class CapacityReport(string runId, string serverUrl, string tenant
     {
         runId = RunId, serverUrl, tenant, startedUtc, finishedUtc = FinishedUtc, devices = Devices, p95LimitMs,
         recommendedMaxConcurrentUsers = Recommended, activityFactor = CapacityAnalysis.ActivityFactor,
+        pacing = Pacing,
         sshEnabled, monitorProblem = MonitorProblem, pgMaxConnections = PgMaxConnections,
         profiles = Profiles, serverSeries = ServerSeries, healthSeries = HealthSeries,
         disclaimer = "Planning reference only (A-RULE 035).",

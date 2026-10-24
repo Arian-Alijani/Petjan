@@ -32,16 +32,27 @@ public static class CapacityRunner
             return 64;
         }
 
-        var levels = options.ConcurrencyLevels.Distinct().Order().ToArray();
+        var autoRamp = options.AutoRamp;
+        var fixedLevels = options.ConcurrencyLevels.Distinct().Order().ToArray();
+        var ceiling = autoRamp ? Math.Max(options.RampStart, options.RampMax) : fixedLevels[^1];
         var runId = Convert.ToHexStringLower(Guid.NewGuid().ToByteArray()).Substring(0, 6);
-        var report = new CapacityReport(runId, options.ServerBaseUrl, options.TenantCode, DateTimeOffset.UtcNow, options.P95LimitMs, options.Ssh.Enabled);
+        var report = new CapacityReport(runId, options.ServerBaseUrl, options.TenantCode, DateTimeOffset.UtcNow, options.P95LimitMs, options.Ssh.Enabled)
+        {
+            Pacing = options.ThinkTimeMaxMs > 0
+                ? $"every virtual user pauses {options.ThinkTimeMinMs}–{options.ThinkTimeMaxMs} ms between actions (log-uniform) and keeps a background sync poll every ~{options.AmbientPollSeconds}s — the cadence of the production desktop — so one virtual user ≈ one real clinic desktop. The ceiling is therefore a DESKTOP count, not a synthetic request rate."
+                : "virtual users run back-to-back with no think time (synthetic maximum throughput); multiply by the activity factor to estimate real desktops.",
+        };
 
         // Device pool: bounded by the licence's device cap; extra virtual users share sessions round-robin.
-        var devices = Math.Clamp(Math.Min(options.MaxDevices, levels.Max()), 1, 64);
+        var devices = Math.Clamp(Math.Min(options.MaxDevices, ceiling), 1, 64);
         var clients = new List<VirtualClient>();
         try
         {
-            Console.WriteLine($"Capacity run {runId}: profiles [{string.Join(", ", profiles.Select(p => p.Name))}], levels [{string.Join(",", levels)}], {devices} device session(s).");
+            Console.WriteLine(autoRamp
+                ? $"Capacity run {runId}: AUTO-RAMP {options.RampStart}→{options.RampMax} users by {Math.Max(1, options.RampStep)}, " +
+                  $"{options.LevelDurationSeconds}s/level, think {options.ThinkTimeMinMs}-{options.ThinkTimeMaxMs} ms, ambient poll {options.AmbientPollSeconds}s, " +
+                  $"{devices} device session(s), stop after {Math.Max(1, options.BreakConfirmations)} unhealthy level(s)."
+                : $"Capacity run {runId}: profiles [{string.Join(", ", profiles.Select(p => p.Name))}], levels [{string.Join(",", fixedLevels)}], {devices} device session(s).");
             for (var slot = 0; slot < devices; slot++)
             {
                 var client = VirtualClient.Create(options, $"w{slot:00}", slot);
@@ -61,6 +72,12 @@ public static class CapacityRunner
             report.Devices = clients.Count;
             var pool = clients.Select(c => new PoolClient(c)).ToArray();
             var context = new LoadContext(options, runId, pool, ct);
+
+            // Every logged-in desktop keeps polling the state feed in the background, exactly like the shipped client.
+            using AmbientPoller? ambient = options.AmbientPollSeconds > 0
+                ? new AmbientPoller(pool, options.AmbientPollSeconds, ct)
+                : null;
+            ambient?.Start();
 
             await using var monitor = new RemoteMonitor(options);
             if (options.Ssh.Enabled && !monitor.Start())
@@ -82,13 +99,46 @@ public static class CapacityRunner
                 }
 
                 var results = new List<LevelResult>();
-                foreach (var level in levels)
+                var confirmations = autoRamp ? Math.Max(1, options.BreakConfirmations) : 1;
+                var consecutiveUnhealthy = 0;
+                var level = autoRamp ? Math.Max(1, options.RampStart) : 0;
+                var index = 0;
+
+                while (!ct.IsCancellationRequested)
                 {
-                    if (ct.IsCancellationRequested) break;
-                    var requests = Math.Max(options.RequestsPerLevel, level * 2);
+                    if (autoRamp)
+                    {
+                        if (level > options.RampMax)
+                        {
+                            Console.WriteLine($"    ramp reached the configured ceiling ({options.RampMax} users) without breaking — raise ANIMORA_LT_MAX_LEVEL for a higher ceiling.");
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        if (index >= fixedLevels.Length) break;
+                        level = fixedLevels[index];
+                    }
+
+                    // Ambient polling follows the ramp: exactly `level` desktops are "on", like a clinic that grows.
+                    ambient?.SetActive(level);
+
                     var from = DateTimeOffset.UtcNow;
-                    var result = await LoadRunner.RunAsync(profile.Name, level, requests,
-                        (worker, iteration) => profile.Operation(context, worker, iteration)).ConfigureAwait(false);
+                    ProfileResult result;
+                    if (options.LevelDurationSeconds > 0)
+                    {
+                        // Time-boxed level: every level gets the same measurement window, so 5 users and 150 users are comparable.
+                        result = await LoadRunner.RunForAsync(profile.Name, level, TimeSpan.FromSeconds(options.LevelDurationSeconds),
+                            options.ThinkTimeMinMs, options.ThinkTimeMaxMs,
+                            (worker, iteration) => profile.Operation(context, worker, iteration), ct).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        var requests = Math.Max(options.RequestsPerLevel, level * 2);
+                        result = await LoadRunner.RunAsync(profile.Name, level, requests,
+                            (worker, iteration) => profile.Operation(context, worker, iteration)).ConfigureAwait(false);
+                    }
+
                     var to = DateTimeOffset.UtcNow;
 
                     var summary = MonitorAnalysis.Summarize(monitor.Snapshot(), health.Snapshot(), from, to, monitor.PgMaxConnections);
@@ -99,8 +149,24 @@ public static class CapacityRunner
                                       $"{(summary.ServiceCpuAveragePercent is { } appCpu ? $"app cpu {appCpu:0}%  " : string.Empty)}" +
                                       $"{(healthy ? "OK" : "BROKEN: " + reason)}");
 
-                    if (!healthy) break; // bounded load: never push a struggling server further.
-                    if (level != levels[^1]) await Task.Delay(TimeSpan.FromSeconds(options.CooldownSeconds), ct).ConfigureAwait(false);
+                    if (!healthy)
+                    {
+                        consecutiveUnhealthy++;
+                        if (consecutiveUnhealthy >= confirmations) break;
+
+                        // One noisy window (a GC pause, a disk flush) must not be mistaken for the ceiling.
+                        Console.WriteLine($"      … break not confirmed ({consecutiveUnhealthy}/{confirmations}) — climbing one more level to rule out a noisy window.");
+                    }
+                    else
+                    {
+                        consecutiveUnhealthy = 0;
+                    }
+
+                    if (autoRamp) level += Math.Max(1, options.RampStep);
+                    else index++;
+
+                    var more = autoRamp ? level <= options.RampMax : index < fixedLevels.Length;
+                    if (more) await Task.Delay(TimeSpan.FromSeconds(options.CooldownSeconds), ct).ConfigureAwait(false);
                 }
 
                 report.Profiles.Add(CapacityAnalysis.Conclude(profile.Name, profile.Description, results));
