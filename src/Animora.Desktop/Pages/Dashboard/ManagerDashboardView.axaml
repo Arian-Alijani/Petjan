@@ -52,7 +52,7 @@
         </Style>
         <!-- Center disc: the glossy gradient medallion inside the ring. -->
         <Style Selector="TextBlock.dc-val">
-            <Setter Property="FontSize" Value="25" />
+            <Setter Property="FontSize" Value="21" />
             <Setter Property="FontWeight" Value="ExtraBold" />
             <Setter Property="LetterSpacing" Value="-0.6" />
             <Setter Property="HorizontalAlignment" Value="Center" />
@@ -187,6 +187,11 @@
                     <Border Classes="card-header-rule" />
                     <TextBlock Margin="18,18,18,18" HorizontalAlignment="Center" Text="{Binding EmptyListText}" IsVisible="{Binding ShowPrimaryEmpty}"
                                Foreground="{StaticResource MutedBrush}" />
+                    <!-- Bounded, internally-scrolling list: the card no longer grows with the
+                         number of appointments, so on a standard monitor the whole «نوبت‌های امروز»
+                         box (and the equal-height species card beside it) is visible on first open
+                         without the page having to scroll. Extra rows scroll inside this area. -->
+                    <ScrollViewer MaxHeight="248" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl Margin="14,12,14,6" ItemsSource="{Binding PrimaryList}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dashboard:DashboardRowViewModel">
@@ -220,6 +225,7 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    </ScrollViewer>
                 </StackPanel>
             </Border>
 
@@ -231,60 +237,23 @@
                     </StackPanel>
                     <Border Classes="card-header-rule" />
 
-                    <StackPanel Margin="18,14,18,18">
-                        <!-- Donut + centre readout (.species-body donut + .donut-center).
-                             The ring is a single custom control (DonutRing) drawn
-                             directly on the DrawingContext — the previous
-                             ItemsControl-of-Paths measured its Canvas panel to zero
-                             so the coloured segments never rendered. A transparent,
-                             hit-testable border wraps it so the whole disc responds
-                             to the pointer for the cross-highlight. -->
-                        <Grid Width="200" Height="200" HorizontalAlignment="Center" Margin="0,0,0,14">
-                            <!-- A real Button: Tab-focusable, Enter/Space and left-click only (right/middle never navigate),
-                                 with a text equivalent of the chart for screen readers. -->
-                            <Button Background="Transparent" BorderThickness="0" Padding="0"
-                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
-                                    Cursor="Hand"
-                                    Command="{Binding OpenSpeciesPatientsCommand}"
-                                    AutomationProperties.Name="{Binding SpeciesAutomationName}"
-                                    PointerMoved="OnDonutPointerMoved"
-                                    PointerExited="OnDonutPointerExited"
-                                    GotFocus="OnDonutGotFocus"
-                                    LostFocus="OnDonutLostFocus"
-                                    KeyDown="OnSpeciesKeyDown">
-                                <controls:DonutRing x:Name="DonutRing"
-                                                       Slices="{Binding SpeciesSlices}"
-                                                       ActiveIndex="{Binding SpeciesActiveIndex}"
-                                                       TrackBrush="{StaticResource ChartTrackBrush}" />
-                            </Button>
+                    <!-- Side-by-side body: the donut sits on the LEFT and the species
+                         legend rows (سگ، گربه …) run down the RIGHT of it. In this
+                         RTL card column 0 renders on the right, so the legend is
+                         column 0 (right) and the donut column 1 (left). Laying the
+                         donut beside the legend — instead of stacked above it — is
+                         also what shrinks this card's height so it lines up with the
+                         «نوبت‌های امروز» card and both fit on screen without scroll. -->
+                    <Grid Margin="18,14,18,18" ColumnDefinitions="*,Auto" ColumnSpacing="16">
 
-                            <!-- glossy center medallion (.donut-center; inset 34/186 ≈ 36/200) -->
-                            <Border Margin="36" CornerRadius="999"
-                                    IsHitTestVisible="False"
-                                    BorderBrush="{StaticResource MedallionLineBrush}" BorderThickness="1"
-                                    BoxShadow="{StaticResource ShadowMedallion}">
-                                <Border.Background>
-                                    <RadialGradientBrush Center="50%,40%" GradientOrigin="50%,40%"
-                                                         RadiusX="0.75" RadiusY="0.75">
-                                        <GradientStop Color="{StaticResource PanelColor}" Offset="0.55" />
-                                        <GradientStop Color="{StaticResource MedallionEdgeColor}" Offset="1" />
-                                    </RadialGradientBrush>
-                                </Border.Background>
-                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3">
-                                    <TextBlock Classes="dc-val"
-                                               Text="{Binding SpeciesTotal}"
-                                               Foreground="{Binding SpeciesCenterBrush}" />
-                                    <TextBlock Classes="dc-lbl" Text="{Binding SpeciesTotalLabel}" />
-                                    <TextBlock Classes="dc-sub" Text="{Binding SpeciesTotalSub}" />
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-
-                        <!-- Legend rows (.species-legend / .legend-row) -->
-                        <TextBlock Margin="18,18,18,18" HorizontalAlignment="Center" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSpeciesEmpty}"
-                                   Foreground="{StaticResource MutedBrush}" />
-                        <ItemsControl ItemsSource="{Binding Species}">
+                        <!-- Legend rows (.species-legend / .legend-row) — right side (col 0 in RTL).
+                             Capped + internally scrolling so a long species list can never push this
+                             card taller than the «نوبت‌های امروز» card it shares the row with. -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Margin="18,18,18,18" HorizontalAlignment="Center" Text="{Binding EmptyListText}" IsVisible="{Binding ShowSpeciesEmpty}"
+                                       Foreground="{StaticResource MutedBrush}" />
+                            <ScrollViewer MaxHeight="216" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding Species}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="dashboard:DashboardSpeciesViewModel">
                                     <Button Background="Transparent" BorderThickness="0" Padding="0"
@@ -319,8 +288,57 @@
                                     </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
+                            </ItemsControl>
+                            </ScrollViewer>
+                        </StackPanel>
+
+                        <!-- Donut + centre readout (.species-body donut + .donut-center) — LEFT side (col 1 in RTL).
+                             The ring is a single custom control (DonutRing) drawn directly on the
+                             DrawingContext; a transparent, hit-testable Button wraps it so the whole disc
+                             responds to the pointer (and keyboard) for the cross-highlight. Sized 150×150
+                             (down from 200×200) so the card stays short and matches «نوبت‌های امروز». -->
+                        <Grid Grid.Column="1" Width="150" Height="150" VerticalAlignment="Center">
+                            <!-- A real Button: Tab-focusable, Enter/Space and left-click only (right/middle never navigate),
+                                 with a text equivalent of the chart for screen readers. -->
+                            <Button Background="Transparent" BorderThickness="0" Padding="0"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                    Cursor="Hand"
+                                    Command="{Binding OpenSpeciesPatientsCommand}"
+                                    AutomationProperties.Name="{Binding SpeciesAutomationName}"
+                                    PointerMoved="OnDonutPointerMoved"
+                                    PointerExited="OnDonutPointerExited"
+                                    GotFocus="OnDonutGotFocus"
+                                    LostFocus="OnDonutLostFocus"
+                                    KeyDown="OnSpeciesKeyDown">
+                                <controls:DonutRing x:Name="DonutRing"
+                                                       Slices="{Binding SpeciesSlices}"
+                                                       ActiveIndex="{Binding SpeciesActiveIndex}"
+                                                       TrackBrush="{StaticResource ChartTrackBrush}" />
+                            </Button>
+
+                            <!-- glossy center medallion (.donut-center; inset scaled 36/200 → 27/150) -->
+                            <Border Margin="27" CornerRadius="999"
+                                    IsHitTestVisible="False"
+                                    BorderBrush="{StaticResource MedallionLineBrush}" BorderThickness="1"
+                                    BoxShadow="{StaticResource ShadowMedallion}">
+                                <Border.Background>
+                                    <RadialGradientBrush Center="50%,40%" GradientOrigin="50%,40%"
+                                                         RadiusX="0.75" RadiusY="0.75">
+                                        <GradientStop Color="{StaticResource PanelColor}" Offset="0.55" />
+                                        <GradientStop Color="{StaticResource MedallionEdgeColor}" Offset="1" />
+                                    </RadialGradientBrush>
+                                </Border.Background>
+                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="2">
+                                    <TextBlock Classes="dc-val"
+                                               Text="{Binding SpeciesTotal}"
+                                               Foreground="{Binding SpeciesCenterBrush}" />
+                                    <TextBlock Classes="dc-lbl" Text="{Binding SpeciesTotalLabel}" />
+                                    <TextBlock Classes="dc-sub" Text="{Binding SpeciesTotalSub}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
                 </StackPanel>
             </Border>
 

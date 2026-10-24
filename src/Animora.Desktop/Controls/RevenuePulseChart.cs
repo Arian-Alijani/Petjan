@@ -52,6 +52,19 @@ public sealed class RevenuePulseChart : Control
         // points). The base Control has no Background, so hit-testing across the
         // full bounds is guaranteed by painting a transparent fill in Render
         // (see the transparent rectangle at the top of the draw pass).
+
+        // Opt OUT of the inherited app-wide FlowDirection=RightToLeft. A custom
+        // Control drawn directly on the DrawingContext is rendered through
+        // Avalonia's RTL *mirror transform*, which horizontally flips the entire
+        // render pass — including every FormattedText — so the axis numbers and
+        // Jalali dates came out mirror-imaged ("۰۰۱" instead of "۱۰۰") and the
+        // value axis landed on the wrong edge. The per-FormattedText FlowDirection
+        // only controls bidi reordering inside a text run; it cannot undo the
+        // outer mirror. Pinning the control to LeftToRight disables that mirror so
+        // all geometry and text draw in a natural, upright coordinate system. The
+        // Persian time-flow (newest day on the LEFT) is then produced explicitly
+        // by the x-mapping in EnsureCache, not by the mirror.
+        FlowDirection = Avalonia.Media.FlowDirection.LeftToRight;
     }
 
     /// <summary>The normalized revenue series + labels + real amounts (from the snapshot).</summary>
@@ -367,7 +380,13 @@ public sealed class RevenuePulseChart : Control
         var py = new double[n];
         for (var i = 0; i < n; i++)
         {
-            px[i] = PadL + (n <= 1 ? iw / 2 : iw * i / (n - 1));
+            // Persian time-flow: the series runs oldest → newest, but Persian
+            // reads right → left, so the NEWEST day (last index) sits on the LEFT
+            // edge and the oldest on the right. We map index i from the right-hand
+            // side inward. (Done here in code — not via the RTL mirror transform,
+            // which would also flip the axis text; see the ctor.)
+            var fromLeft = n <= 1 ? iw / 2 : iw * (n - 1 - i) / (n - 1);
+            px[i] = PadL + fromLeft;
             // Points are already normalized 0..1 in the (non-negative) pulse
             // domain; map them into the inset band so the line floats cleanly.
             py[i] = bandTop + bandH - (Math.Clamp(points[i], 0, 1) * bandH);
