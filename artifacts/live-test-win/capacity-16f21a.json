@@ -1,0 +1,212 @@
+{
+  "runId": "16f21a",
+  "serverUrl": "http://188.212.99.234:5000",
+  "tenant": "animora-loadtest",
+  "startedUtc": "2026-10-24T10:19:11.5107924+00:00",
+  "finishedUtc": "2026-10-24T10:20:05.285135+00:00",
+  "devices": 45,
+  "p95LimitMs": 2000,
+  "recommendedMaxConcurrentUsers": 0,
+  "activityFactor": 10,
+  "pacing": "every virtual user pauses 2000\u20139000 ms between actions (log-uniform) and keeps a background sync poll every ~5s \u2014 the cadence of the production desktop \u2014 so one virtual user \u2248 one real clinic desktop. The ceiling is therefore a DESKTOP count, not a synthetic request rate.",
+  "sshEnabled": false,
+  "monitorProblem": null,
+  "pgMaxConnections": null,
+  "profiles": [
+    {
+      "name": "sales-rush",
+      "description": "Write-heavy money path: each request = create invoice \u2192 add line \u2192 post \u2192 register payment (4 commands).",
+      "levels": [
+        {
+          "result": {
+            "name": "sales-rush",
+            "concurrency": 45,
+            "requests": 213,
+            "throughput": 8.475336771983045,
+            "p50": 1187.2422,
+            "p95": 2702.0516,
+            "p99": 2833.0725,
+            "unexpectedFailures": 0,
+            "expectedBusy": 0
+          },
+          "monitor": {
+            "serverMetrics": false,
+            "samples": 0,
+            "cpuPeakPct": 0,
+            "cpuAvgPct": 0,
+            "load1Peak": 0,
+            "memUsedPeakMb": 0,
+            "memAvailMinMb": 0,
+            "memTotalMb": 0,
+            "swapUsedPeakMb": 0,
+            "establishedPeak": 0,
+            "serviceRssPeakMb": null,
+            "serviceCpuPeakPct": null,
+            "serviceCpuAvgPct": null,
+            "serviceDownSamples": 0,
+            "pgConnectionsPeak": null,
+            "pgMaxConnections": null,
+            "healthProbes": 21,
+            "healthNotReady": 0,
+            "healthP95Ms": 391.3195
+          },
+          "healthy": false,
+          "reason": "p95 2702 ms \u003E limit 2000 ms"
+        }
+      ],
+      "maxHealthyConcurrency": 0,
+      "brokeAtConcurrency": 45,
+      "limiter": "unknown",
+      "hint": "Latency/failures broke but server hardware was not observed. Re-run with the SSH monitor (ANIMORA_LT_SSH=1) to learn which resource to upgrade."
+    }
+  ],
+  "serverSeries": [],
+  "healthSeries": [
+    {
+      "t": "2026-10-24T10:19:29.164428+00:00",
+      "status": 200,
+      "ms": 149.7563
+    },
+    {
+      "t": "2026-10-24T10:19:30.2208257+00:00",
+      "status": 200,
+      "ms": 49.4986
+    },
+    {
+      "t": "2026-10-24T10:19:31.2863649+00:00",
+      "status": 200,
+      "ms": 63.8977
+    },
+    {
+      "t": "2026-10-24T10:19:32.3393518+00:00",
+      "status": 200,
+      "ms": 49.3869
+    },
+    {
+      "t": "2026-10-24T10:19:33.3993153+00:00",
+      "status": 200,
+      "ms": 52.0212
+    },
+    {
+      "t": "2026-10-24T10:19:34.4677212+00:00",
+      "status": 200,
+      "ms": 63.9944
+    },
+    {
+      "t": "2026-10-24T10:19:35.6843983+00:00",
+      "status": 200,
+      "ms": 214.1901
+    },
+    {
+      "t": "2026-10-24T10:19:36.7491543+00:00",
+      "status": 200,
+      "ms": 59.3938
+    },
+    {
+      "t": "2026-10-24T10:19:38.1405048+00:00",
+      "status": 200,
+      "ms": 391.3195
+    },
+    {
+      "t": "2026-10-24T10:19:39.2379469+00:00",
+      "status": 200,
+      "ms": 96.5871
+    },
+    {
+      "t": "2026-10-24T10:19:40.5035843+00:00",
+      "status": 200,
+      "ms": 255.7945
+    },
+    {
+      "t": "2026-10-24T10:19:41.8281436+00:00",
+      "status": 200,
+      "ms": 321.6549
+    },
+    {
+      "t": "2026-10-24T10:19:43.3720088+00:00",
+      "status": 200,
+      "ms": 538.998
+    },
+    {
+      "t": "2026-10-24T10:19:44.4488754+00:00",
+      "status": 200,
+      "ms": 55.9719
+    },
+    {
+      "t": "2026-10-24T10:19:45.8297871+00:00",
+      "status": 200,
+      "ms": 377.5859
+    },
+    {
+      "t": "2026-10-24T10:19:47.1620179+00:00",
+      "status": 200,
+      "ms": 330.6478
+    },
+    {
+      "t": "2026-10-24T10:19:48.3423697+00:00",
+      "status": 200,
+      "ms": 169.2631
+    },
+    {
+      "t": "2026-10-24T10:19:49.4374648+00:00",
+      "status": 200,
+      "ms": 78.5266
+    },
+    {
+      "t": "2026-10-24T10:19:50.8023828+00:00",
+      "status": 200,
+      "ms": 360.1288
+    },
+    {
+      "t": "2026-10-24T10:19:52.0907615+00:00",
+      "status": 200,
+      "ms": 287.1744
+    },
+    {
+      "t": "2026-10-24T10:19:53.2880728+00:00",
+      "status": 200,
+      "ms": 198.1172
+    },
+    {
+      "t": "2026-10-24T10:19:54.4426809+00:00",
+      "status": 200,
+      "ms": 143.9107
+    },
+    {
+      "t": "2026-10-24T10:19:55.5048118+00:00",
+      "status": 200,
+      "ms": 57.7308
+    },
+    {
+      "t": "2026-10-24T10:19:56.5550967+00:00",
+      "status": 200,
+      "ms": 43.2136
+    },
+    {
+      "t": "2026-10-24T10:19:57.701465+00:00",
+      "status": 200,
+      "ms": 141.8472
+    },
+    {
+      "t": "2026-10-24T10:19:58.7765286+00:00",
+      "status": 200,
+      "ms": 61.7958
+    },
+    {
+      "t": "2026-10-24T10:19:59.8177502+00:00",
+      "status": 200,
+      "ms": 39.3474
+    },
+    {
+      "t": "2026-10-24T10:20:00.8785961+00:00",
+      "status": 200,
+      "ms": 60.3179
+    },
+    {
+      "t": "2026-10-24T10:20:01.9582624+00:00",
+      "status": 200,
+      "ms": 67.4086
+    }
+  ],
+  "disclaimer": "Planning reference only (A-RULE 035)."
+}
