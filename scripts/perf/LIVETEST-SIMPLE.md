@@ -195,6 +195,10 @@ dotnet run --project tests/Animora.LiveTest -c Release -- capacity
     -Duration 20 -ThinkMin 2000 -ThinkMax 9000 -Monitor -Password 'Test-Pass-1234'
 ```
 
+> حالت `capacity` حالا **به‌طور پیش‌فرض** رمپ ۵تایی است. اگر `-StartLevel` و `-MaxLevel` را
+> ندهی، اسکریپت همین دو را می‌پرسد (پیش‌فرض ۵ و ۱۰۰). فقط اگر `-Levels "5,10,20"` بدهی،
+> به حالت لیست ثابت برمی‌گردد.
+
 روی سرور (بدون شبکه، دقیق‌ترین عدد):
 
 ```bash

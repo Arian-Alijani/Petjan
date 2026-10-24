@@ -43,6 +43,14 @@
 .EXAMPLE
   # اجرای کامل بدون هیچ آرگومان — منو را نشان می‌دهد و رمز را می‌پرسد:
   .\run-livetest.ps1
+
+.EXAMPLE
+  # تست ظرفیت: رمپ ۵تایی از ۵ تا ۱۰۰ کاربر (شروع و پایان را خودت می‌دهی):
+  .\run-livetest.ps1 -Mode capacity -StartLevel 5 -MaxLevel 100 -Password 'Test-Pass-1234'
+
+.EXAMPLE
+  # تست ظرفیت با گام و پنجرهٔ دلخواه:
+  .\run-livetest.ps1 -Mode capacity -StartLevel 10 -Step 5 -MaxLevel 150 -Duration 30 -Password 'Test-Pass-1234'
 #>
 [CmdletBinding()]
 param(
@@ -179,18 +187,38 @@ if ([string]::IsNullOrWhiteSpace($Password)) {
 
 # ── پروفایل کامل تست ظرفیت (فقط حالت capacity) ────────────────────────────────
 if ($Mode -eq "capacity") {
-    if ($Deep) {
-        # Deep = رمپ خودکار واقع‌گرایانه: خودش بالا می‌رود تا سرور بشکند.
-        $AutoRamp = $true
+    # پیش‌فرضِ capacity = رمپ خودکار ۵تایی. فقط اگر خودت -Levels بدهی، لیست ثابت اجرا می‌شود.
+    if ([string]::IsNullOrWhiteSpace($Levels) -and -not $AutoRamp) { $AutoRamp = $true }
+
+    if ($AutoRamp) {
+        # اگر شروع/پایان را نداد و می‌توان پرسید، همین‌جا می‌پرسیم.
+        if ($CanPrompt -and $StartLevel -le 0 -and $MaxLevel -le 0) {
+            Write-Host ""
+            Write-Host "رمپ ظرفیت: از چند کاربر شروع کند و تا چند کاربر بالا برود؟" -ForegroundColor Cyan
+            Write-Host "  (هر سطح ۵ کاربر اضافه می‌شود و اگر سرور بشکند، خودش زودتر می‌ایستد)" -ForegroundColor DarkGray
+            $sIn = Read-Host "کاربر شروع (Enter = 5)"
+            $eIn = Read-Host "کاربر پایان (Enter = 100)"
+            $n = 0
+            if ([int]::TryParse($sIn.Trim(), [ref]$n) -and $n -gt 0) { $StartLevel = $n }
+            $n = 0
+            if ([int]::TryParse($eIn.Trim(), [ref]$n) -and $n -gt 0) { $MaxLevel = $n }
+        }
+
         if ($StartLevel -le 0) { $StartLevel = 5 }
         if ($Step       -le 0) { $Step       = 5 }
-        if ($MaxLevel   -le 0) { $MaxLevel   = 200 }
+        if ($MaxLevel   -le 0) { $MaxLevel   = 100 }
         if ($Duration   -le 0) { $Duration   = 20 }
         if ($MaxDevices -le 0) { $MaxDevices = 64 }
         if ($ThinkMin   -le 0) { $ThinkMin   = 2000 }
         if ($ThinkMax   -le 0) { $ThinkMax   = 9000 }
-        if ($AmbientPollSeconds -le 0) { $AmbientPollSeconds = 5 }
+        if ($AmbientPollSeconds -lt 0) { $AmbientPollSeconds = 5 }
+
+        if ($MaxLevel -le $StartLevel) {
+            Write-Err "کاربر پایان ($MaxLevel) باید بزرگ‌تر از کاربر شروع ($StartLevel) باشد."
+            exit 64
+        }
     }
+
     if (-not [string]::IsNullOrWhiteSpace($Levels)) { $env:ANIMORA_LT_LEVELS = $Levels }
     if ($AutoRamp) {
         $env:ANIMORA_LT_AUTO_RAMP = "1"
