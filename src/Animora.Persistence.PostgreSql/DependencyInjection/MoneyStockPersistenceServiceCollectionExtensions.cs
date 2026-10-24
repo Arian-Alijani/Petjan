@@ -1,3 +1,4 @@
+using Animora.Application.Finance;
 using Animora.Application.Ports;
 using Animora.Persistence.PostgreSql.Repositories;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ public static class MoneyStockPersistenceServiceCollectionExtensions
         services.TryAddScoped<ILedgerRepository, LedgerRepository>();
         services.TryAddScoped<IPeriodRepository, PeriodRepository>();
         services.TryAddScoped<IJournalNumberAllocator, JournalNumberAllocator>();
+        services.TryAddScoped<IJournalNumberFinalizer, JournalNumberFinalizer>();
         services.TryAddScoped<IChequeRepository, ChequeRepository>();
         services.TryAddScoped<IExpenseRepository, ExpenseRepository>();
         services.TryAddScoped<IExpenseNumberAllocator, ExpenseNumberAllocator>();

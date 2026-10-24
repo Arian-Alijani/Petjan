@@ -89,8 +89,20 @@ public sealed class JournalEntry : AggregateRoot
     {
     }
 
+    /// <summary>
+    /// The provisional entry number a freshly built entry carries until the Application layer stamps the
+    /// gapless sequential value on it. It is deliberately a reserved, non-sequential marker that can never
+    /// collide with a real <c>PREFIX-YY-NNNNNN</c> number, so <see cref="FinalizeEntryNumber"/> can tell an
+    /// un-numbered entry apart from a settled one and never re-number a real value. An entry must never reach
+    /// the store still carrying it — the finalize pass runs on every write path before save.
+    /// </summary>
+    public const string PendingNumber = "PENDING";
+
     /// <summary>Per-tenant sequential entry number, assigned by the Application layer.</summary>
-    public string EntryNumber { get; private init; } = string.Empty;
+    public string EntryNumber { get; private set; } = string.Empty;
+
+    /// <summary><see langword="true"/> while the entry still carries its provisional <see cref="PendingNumber"/>.</summary>
+    public bool HasPendingNumber => string.Equals(EntryNumber, PendingNumber, StringComparison.Ordinal);
 
     /// <summary>When the entry was written to the ledger, UTC.</summary>
     public DateTimeOffset PostedUtc { get; private init; }
@@ -306,9 +318,13 @@ public sealed class JournalEntry : AggregateRoot
             mirrored[i] = original._lines[i].Mirror(IdGenerator.NewId(now));
         }
 
+        // The reversal's own number is normally allocated by the deferred finalize pass just before save
+        // (its caller leaves entryNumber null), so it is built with the provisional placeholder — exactly like
+        // every other posting rule — and stamped gapless at the end of the transaction. A caller that already
+        // holds a number (a self-contained correction with no allocator at hand) may still pass it explicitly.
         return Create(
             original.TenantId,
-            string.IsNullOrWhiteSpace(entryNumber) ? $"{original.EntryNumber}-R" : entryNumber,
+            string.IsNullOrWhiteSpace(entryNumber) ? PendingNumber : entryNumber,
             string.IsNullOrWhiteSpace(periodId) ? original.PeriodId : periodId,
             JournalSource.Reversal,
             mirrored,
@@ -320,6 +336,38 @@ public sealed class JournalEntry : AggregateRoot
             original.SourceEntityId,
             Clean(operationId),
             original.Id);
+    }
+
+    /// <summary>
+    /// Stamps the gapless sequential number onto an entry that was built in this same unit of work with the
+    /// provisional <see cref="PendingNumber"/>, deliberately deferred so the Application layer can allocate the
+    /// serialized <c>DocumentCounters</c> value at the very end of the command transaction — shrinking the
+    /// counter row-lock hold window to the imminent save/commit instead of the whole event-dispatch body.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A-RULE 002 (append-only) is preserved: this touches only the provisional identity field, never the
+    /// frozen economics (lines, totals, period, source, memo). It is refused once the entry already carries a
+    /// real number — <see cref="HasPendingNumber"/> is <see langword="false"/> — so a persisted, numbered entry
+    /// can never be silently renumbered, and a double finalize is a loud failure rather than a silent gap.
+    /// </para>
+    /// <para>
+    /// The number is not read by <see cref="Create"/>'s validation, the <see cref="JournalEntryPostedEvent"/>
+    /// (which never carries it) or the entry's identity (<see cref="AggregateRoot.Id"/> is time-derived), so
+    /// deferring and then stamping it keeps numbering identical, gapless and append-safe.
+    /// </para>
+    /// </remarks>
+    /// <param name="number">The real gapless sequential number to stamp; never the placeholder.</param>
+    public Result FinalizeEntryNumber(string number)
+    {
+        if (string.IsNullOrWhiteSpace(number)) return Result.Fail(ErrorCodes.ValidationFailed);
+        if (string.Equals(number, PendingNumber, StringComparison.Ordinal))
+            return Result.Fail(ErrorCodes.ValidationFailed, "The provisional placeholder is not a settleable entry number.");
+        if (!HasPendingNumber)
+            return Result.Fail(ErrorCodes.JournalImmutable,
+                $"Journal entry '{Id}' already carries sequential number '{EntryNumber}'; it is never renumbered.");
+        EntryNumber = number.Trim();
+        return Result.Ok();
     }
 
     private static string? Clean(string? value) =>

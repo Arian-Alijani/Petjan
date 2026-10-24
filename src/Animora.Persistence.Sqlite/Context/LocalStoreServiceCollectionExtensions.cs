@@ -107,6 +107,7 @@ public static class LocalStoreServiceCollectionExtensions
         services.TryAddScoped<ISalesPostingData, SalesPostingData>();
         services.TryAddScoped<IInvoiceNumberAllocator, InvoiceNumberAllocator>();
         services.TryAddScoped<IJournalNumberAllocator, JournalNumberAllocator>();
+        services.TryAddScoped<IJournalNumberFinalizer, JournalNumberFinalizer>();
         services.TryAddScoped<IExpenseNumberAllocator, ExpenseNumberAllocator>();
         services.TryAddScoped<IFinanceProjectionStore, FinanceProjectionStore>();
         services.TryAddScoped<IActivityFeedQueries, ActivityFeedQueries>();
