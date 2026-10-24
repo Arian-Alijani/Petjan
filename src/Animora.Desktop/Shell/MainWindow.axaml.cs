@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Animora.Desktop.Services;
 using Avalonia;
@@ -29,7 +30,8 @@ public partial class MainWindow : Window
     public MainWindow(
         MainWindowViewModel viewModel,
         ToastService toastService,
-        DialogService dialogService)
+        DialogService dialogService,
+        BarcodeScannerService barcodeScanner)
     {
         InitializeComponent();
         DataContext = viewModel;
@@ -39,6 +41,17 @@ public partial class MainWindow : Window
         // Global hotkeys are handled by tunneling so they fire regardless of
         // which descendant currently holds focus.
         AddHandler(KeyDownEvent, OnShellKeyDown, RoutingStrategies.Tunnel);
+
+        // Central keyboard-wedge scanner: pages subscribe to BarcodeScanned while they are current.
+        _scannerWatch = barcodeScanner.Attach(this);
+    }
+
+    private readonly IDisposable? _scannerWatch;
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _scannerWatch?.Dispose();
+        base.OnClosed(e);
     }
 
     private bool _closeForReal;

@@ -397,6 +397,7 @@ public partial class App : global::Avalonia.Application
         services.AddSingleton<DialogService>();
         services.AddSingleton<IDialogService>(sp => sp.GetRequiredService<DialogService>());
         services.AddSingleton<IPrintService, PrintService>();
+        services.AddSingleton<BarcodeScannerService>();
         services.AddSingleton<IFileLauncher, FileLauncher>();
 
         // B05c: presentation-neutral notifications are adapted to the existing toast/modal hosts.
