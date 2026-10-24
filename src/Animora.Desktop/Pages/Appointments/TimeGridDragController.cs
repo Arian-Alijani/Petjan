@@ -113,15 +113,22 @@ internal sealed class TimeGridDragController
         }
 
         _session = null;
-        HideBox(session);
-        e.Pointer.Capture(null);
 
         if (!session.IsDragging)
         {
-            // A click, not a drag: let the existing commands handle it (do not mark handled).
+            // A click, not a drag: do NOT clear the pointer capture and do NOT mark handled.
+            // The press never captured here (capture is only taken once the drag threshold trips
+            // in OnPointerMoved), so releasing capture now would run in the tunnel phase *before*
+            // the event-card Button's bubbling release and drop the Button's own capture — which
+            // cancels its Click and prevents OpenBookingCommand (card → detail) from ever firing.
+            // Leaving everything untouched lets the Button raise Click normally (empty space is
+            // intentionally inert: creation happens via drag-to-create or the toolbar button).
             return;
         }
 
+        // Real drag: we own the gesture (surface captured in OnPointerMoved) — tear it down here.
+        HideBox(session);
+        e.Pointer.Capture(null);
         e.Handled = true;
 
         var (startMinutes, durationMinutes) = session.ResolveRange(e.GetPosition(session.Surface));
