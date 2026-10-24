@@ -30,7 +30,7 @@ internal static class InventoryMapping
             var v = variants[i];
             rows[i] = new ContractVariant(
                 v.VariantId, v.AttributeValue, v.Sku, ScaledToInt(v.OnHandScaled),
-                ScaledToInt(v.ReorderLevelScaled), v.CostMinor, v.PriceMinor, null, v.OnHandScaled);
+                ScaledToInt(v.ReorderLevelScaled), v.CostMinor, v.PriceMinor, null, v.OnHandScaled, v.Barcode);
         }
         return rows;
     }

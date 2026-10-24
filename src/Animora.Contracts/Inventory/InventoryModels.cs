@@ -50,7 +50,7 @@ public sealed record UnitInfo(
 /// One purchasable variant of a product, mirroring the fields the reference's
 /// <c>renderProductRow</c> / inline sub-row render from a
 /// <c>PRODUCTS[].variants[]</c> entry: its own SKU, stock, reorder point, cost,
-/// sale price and (Jalali) expiry. <see cref="Stock"/> is the source of truth;
+/// sale price, (Jalali) expiry and optional scanner <c>Barcode</c>. <see cref="Stock"/> is the source of truth;
 /// product totals are derived from it (see <c>MockInventoryQueryService</c>).
 /// </summary>
 public sealed record ProductVariant(
@@ -62,7 +62,8 @@ public sealed record ProductVariant(
     long Cost,
     long Price,
     string? Expiry,
-    long? OnHandScaled = null)
+    long? OnHandScaled = null,
+    string? Barcode = null)
 {
     /// <summary>Exact stock for availability checks; keep whole-unit Stock for existing editors.</summary>
     public long EffectiveOnHandScaled => OnHandScaled ?? (long)Stock * 1000;

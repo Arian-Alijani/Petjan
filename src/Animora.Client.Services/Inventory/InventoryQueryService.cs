@@ -238,6 +238,7 @@ public sealed class InventoryQueryService(IServiceScopeFactory scopes) : IInvent
                 string.IsNullOrWhiteSpace(variant.Sku) ? SkuFor(variant.Label, (i + 1).ToString()) : variant.Sku,
                 attributeName, variant.Label, variant.Cost, variant.Price,
                 InventoryMapping.IntToScaled(variant.ReorderPoint),
+                Barcode: string.IsNullOrWhiteSpace(variant.Barcode) ? null : variant.Barcode.Trim(),
                 OpeningStockScaled: withOpeningStock ? InventoryMapping.IntToScaled(Math.Max(0, variant.Stock)) : 0L);
         }
         return inputs;
