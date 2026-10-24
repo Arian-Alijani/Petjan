@@ -87,7 +87,7 @@
 - اگر تست واحد مرتبط برای import موجود بود (`tests/` را grep کن: `ClinicBundleImport`)، همان یک فایل تست را اجرا کن؛
   در غیر این‌صورت فقط بیلد کافی است. تست طولانی/full ممنوع.
 
-### وضعیت: [ ] انجام نشده
+### وضعیت: [x] انجام شد — helperهای ExtractLegacyBool/Int اضافه و حلقهٔ محصولات اصلاح شد؛ build PostgreSql موفق (0 error).
 ### پوش بعد از اتمام: `scripts/git/push.sh "fix(import): map legacy fInActive/fIsDrugStore to product active-state/kind instead of dumping raw json into description"`
 
 ---

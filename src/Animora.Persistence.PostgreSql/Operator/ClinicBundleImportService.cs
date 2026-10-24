@@ -432,12 +432,19 @@ public static class ClinicBundleImportService
             var sale = Money.Irt(Math.Max(0L, prod.SalePriceMinor));
             var reorderVal = prod.ReorderPoint is > 0 ? Math.Round((decimal)prod.ReorderPoint.Value, 3) : 0m;
             var reorder = new Quantity(reorderVal, DefaultUnitCode);
+            // Map the well-known legacy SQL-Server flags to real product fields and strip them from the
+            // legacy blob, so the description is no longer polluted with raw JSON like
+            // `legacy: {"fInActive":false,"fIsDrugStore":0}`. `fInActive` → inactive product;
+            // `fIsDrugStore` (1) → a medicine, otherwise a pet-shop retail good.
+            var isActive = !ExtractLegacyBool(prod.Legacy, "fInActive", false);
+            var kind = ExtractLegacyInt(prod.Legacy, "fIsDrugStore", 0) == 1 ? ProductKind.Medicine : ProductKind.PetShop;
             var notes = LegacyNote(prod.Legacy);
 
             if (existingProducts.TryGetValue(productId, out var existing))
             {
                 existing.Describe(name, existing.Brand, notes);
                 existing.SetPrices(cost, sale);
+                if (isActive) existing.Activate(); else existing.Deactivate();
                 var vId = existing.Variants.Count > 0 ? existing.Variants[0].VariantId : variantId;
                 productInfoBySource[prod.SourceId] = (productId, vId, name, sale.Minor, cost.Minor);
             }
@@ -458,7 +465,7 @@ public static class ClinicBundleImportService
                     sku,
                     name,
                     categoryId,
-                    ProductKind.Medicine,
+                    kind,
                     DefaultUnitCode,
                     cost,
                     sale,
@@ -469,6 +476,7 @@ public static class ClinicBundleImportService
                     id: productId);
                 if (created.IsSuccess)
                 {
+                    if (!isActive) created.Value!.Deactivate();
                     tenant.ProductSet.Add(created.Value!);
                     existingProducts[productId] = created.Value!;
                     productInfoBySource[prod.SourceId] = (productId, variantId, name, sale.Minor, cost.Minor);
@@ -1636,6 +1644,43 @@ public static class ClinicBundleImportService
 
     private static string? LegacyNote(Dictionary<string, JsonElement>? legacy) =>
         legacy is { Count: > 0 } ? "legacy: " + JsonSerializer.Serialize(legacy) : null;
+
+    /// <summary>
+    /// Reads a well-known boolean flag out of a legacy dictionary and <b>removes</b> it, so the
+    /// remaining legacy blob (serialised by <see cref="LegacyNote"/>) never dumps that mapped flag
+    /// into the product's description as raw JSON (e.g. <c>legacy: {"fInActive":false}</c>).
+    /// </summary>
+    private static bool ExtractLegacyBool(Dictionary<string, JsonElement>? legacy, string key, bool fallback)
+    {
+        if (legacy is null || !legacy.TryGetValue(key, out var value)) return fallback;
+        legacy.Remove(key);
+        return value.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Number => value.TryGetInt64(out var n) && n != 0,
+            JsonValueKind.String => bool.TryParse(value.GetString(), out var b) ? b : fallback,
+            _ => fallback,
+        };
+    }
+
+    /// <summary>
+    /// Reads a well-known integer flag out of a legacy dictionary and <b>removes</b> it (see
+    /// <see cref="ExtractLegacyBool"/>), so it is mapped to a real field instead of polluting notes.
+    /// </summary>
+    private static int ExtractLegacyInt(Dictionary<string, JsonElement>? legacy, string key, int fallback)
+    {
+        if (legacy is null || !legacy.TryGetValue(key, out var value)) return fallback;
+        legacy.Remove(key);
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number => value.TryGetInt32(out var n) ? n : fallback,
+            JsonValueKind.True => 1,
+            JsonValueKind.False => 0,
+            JsonValueKind.String => int.TryParse(value.GetString(), out var n) ? n : fallback,
+            _ => fallback,
+        };
+    }
 
     private static string? CombineNotes(params string?[] parts)
     {
