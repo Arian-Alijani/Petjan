@@ -1,4 +1,5 @@
 using Animora.Application.Abstractions;
+using Animora.Application.Ports;
 using Animora.Domain.Primitives;
 using Animora.Domain.Events;
 using Animora.Domain.Inventory;
@@ -15,7 +16,8 @@ namespace Animora.Persistence.Sqlite.Repositories;
 /// Domain events are cleared only after commit; on any failure the transaction is rolled back, pending
 /// events stay on the aggregates and the change tracker is cleared so a retry reloads fresh state.
 /// </summary>
-public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispatcher dispatcher) : IUnitOfWork
+public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispatcher dispatcher,
+    IJournalNumberFinalizer journalNumbers) : IUnitOfWork
 {
     // Audit and other ports may flush inside the ambient transaction. Preserve movement
     // events before those flushes reset Added state; dispatch exactly once at commit.
@@ -66,6 +68,10 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
             if ((step = await StoreAsync(() => db.SaveChangesAsync(ct))).IsFailure) return Fail<T>(step);
             foreach (var domainEvent in events)
                 if ((step = await dispatcher.DispatchAsync(domainEvent, ct)).IsFailure) return Fail<T>(step);
+            // Deferred gapless numbering: journal entries the dispatch staged were built with the reserved
+            // placeholder; stamp their real sequential numbers in one pass now, after dispatch and before the
+            // handler-write save, still inside this transaction so the number stays gapless on rollback.
+            if ((step = await journalNumbers.FinalizeAsync(ct)).IsFailure) return Fail<T>(step);
             if ((step = await StoreAsync(() => db.SaveChangesAsync(ct))).IsFailure) return Fail<T>(step);
             if ((step = await StoreAsync(() => transaction!.CommitAsync(ct))).IsFailure) return Fail<T>(step);
 

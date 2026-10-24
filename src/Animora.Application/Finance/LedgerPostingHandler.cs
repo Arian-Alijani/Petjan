@@ -13,7 +13,7 @@ namespace Animora.Application.Finance;
 
 /// <summary>The only application writer of journal entries. Runs within the source document's UoW.</summary>
 public sealed class LedgerPostingHandler(
-    IPeriodRepository periods, IJournalNumberAllocator numbers, ILedgerRepository ledger,
+    IPeriodRepository periods, ILedgerRepository ledger,
     IInvoiceRepository invoices, IPurchasingRepository purchasing, IStockMovementRepository movements,
     IPaymentRepository payments, IAccountingPeriodBoundaryResolver periodBoundaries,
     ICorrelationContext correlation, IClock clock) :
@@ -46,9 +46,16 @@ public sealed class LedgerPostingHandler(
             if (period is null)
                 return Result.Fail(ErrorCodes.PeriodClosed, "No subsequent open period accepts this late event.");
         }
-        var number = await numbers.AllocateAsync(e.TenantId, period.PeriodCode, ct).ConfigureAwait(false);
+        // PERF (DocumentCounters lock window): the gapless sequential journal number is NOT allocated here.
+        // The counter row-lock that INSERT…ON CONFLICT DO UPDATE takes is held until COMMIT, and this handler
+        // runs mid-dispatch — before the balance re-check, the event clear and the save. Allocating here made
+        // that serialized "journal" counter row the clinic-wide gate every financial command (invoice, payment,
+        // expense, cheque, stock) queued behind, exactly the tail the invoice-number fix left behind. The number
+        // is not read by the posting rule, the JournalEntryPostedEvent or the entry's identity, so the entry is
+        // built with a reserved placeholder and the real gapless value is stamped by IJournalNumberFinalizer in
+        // one deterministic pass at the very end of the transaction (collapsing the lock hold to ~the save).
         var actor = correlation.Current?.UserId;
-        var context = new PostingContext(number, period.PeriodCode,
+        var context = new PostingContext(JournalEntry.PendingNumber, period.PeriodCode,
             string.IsNullOrWhiteSpace(actor) ? "SYSTEM" : actor, correlation.Current?.OperationId);
         var posted = rule(context);
         if (posted.IsFailure) return posted.ToResult();

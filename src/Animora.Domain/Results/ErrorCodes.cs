@@ -544,6 +544,13 @@ public static class ErrorCodes
     public static readonly ErrorCode JournalCurrencyMixed =
         new("JOURNAL_CURRENCY_MIXED", ErrorCode.Validation);
 
+    /// <summary>
+    /// An append-only invariant of the ledger was violated: an attempt to mutate a journal entry that is
+    /// already settled — e.g. re-numbering an entry that no longer carries its provisional placeholder.
+    /// </summary>
+    public static readonly ErrorCode JournalImmutable =
+        new("JOURNAL_IMMUTABLE", ErrorCode.Conflict);
+
     /// <summary>The line names a roll-up header account, which takes no direct posting.</summary>
     public static readonly ErrorCode AccountNotPostable =
         new("ACCOUNT_NOT_POSTABLE", ErrorCode.Integrity);

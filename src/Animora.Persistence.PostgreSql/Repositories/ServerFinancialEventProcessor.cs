@@ -1,5 +1,6 @@
 using Animora.Application.Abstractions;
 using Animora.Application.Correlation;
+using Animora.Application.Ports;
 using Animora.Domain.Events;
 using Animora.Domain.Primitives;
 using Animora.Domain.Inventory;
@@ -16,7 +17,8 @@ public interface IServerFinancialEventProcessor
 
 /// <summary>Expands source events into journal inserts before effect-id capture and the single save.</summary>
 public sealed class ServerFinancialEventProcessor(AnimoraServerDbContext db,
-    IDomainEventDispatcher dispatcher, ICorrelationContext correlation) : IServerFinancialEventProcessor
+    IDomainEventDispatcher dispatcher, ICorrelationContext correlation,
+    IJournalNumberFinalizer journalNumbers) : IServerFinancialEventProcessor
 {
     public async Task<Result> ProcessAsync(CommandContext command, CancellationToken ct)
     {
@@ -39,6 +41,12 @@ public sealed class ServerFinancialEventProcessor(AnimoraServerDbContext db,
             var result = await dispatcher.DispatchAsync(domainEvent, ct);
             if (result.IsFailure) return result;
         }
+        // Deferred gapless numbering: every journal entry staged above was built with the reserved placeholder
+        // so the serialized DocumentCounters row-lock is not held across the whole dispatch. Stamp the real
+        // sequential numbers now, in one deterministic pass, immediately before the imminent save/commit — still
+        // inside this transaction, so the counter stays gapless (a rollback never advances it).
+        var numbered = await journalNumbers.FinalizeAsync(ct).ConfigureAwait(false);
+        if (numbered.IsFailure) return numbered;
         foreach (var entry in db.ChangeTracker.Entries<JournalEntry>().Where(e => e.State == EntityState.Added))
         {
             // JournalEntry.Create is the authoritative validation boundary; verify persisted lines

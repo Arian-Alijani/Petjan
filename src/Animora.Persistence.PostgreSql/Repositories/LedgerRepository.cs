@@ -21,4 +21,13 @@ public sealed class LedgerRepository(AnimoraServerDbContext db) : TenantReposito
 
     public new void Add(JournalEntry entity) => Context.Set<JournalEntry>().Add(entity);
     public void AddRange(IEnumerable<JournalEntry> entities) => Context.Set<JournalEntry>().AddRange(entities);
+
+    // Read from the change tracker's Local view, not the store: these entries were just staged by the
+    // event dispatch and are not yet saved. Order is deterministic (accounting instant, then time-derived id)
+    // so the deferred finalize pass stamps numbers gaplessly and reproducibly regardless of enumeration order.
+    public IReadOnlyList<JournalEntry> PendingEntries() =>
+        Context.Set<JournalEntry>().Local
+            .Where(e => e.HasPendingNumber)
+            .OrderBy(e => e.PostedUtc).ThenBy(e => e.Id, StringComparer.Ordinal)
+            .ToArray();
 }
