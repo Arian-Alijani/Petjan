@@ -2193,7 +2193,11 @@ public sealed partial class AppointmentsCalendarViewModel : PageViewModelBase
             onOpenVisit: OpenLinkedVisitAsync);
         if (await detail.LoadAsync(ev.Id))
         {
-            _dialogs.ShowDrawer(new BookingDetailView { DataContext = detail });
+            // Every appointment item opens its details as a small CENTERED dialog
+            // (not a side drawer), so clicking any card/row on the queue, calendar,
+            // month or history behaves the same. The view is 420 wide; cap the modal
+            // a touch above that so it never stretches.
+            _dialogs.ShowModal(new BookingDetailView { DataContext = detail }, maxWidth: 440);
         }
     }
 
