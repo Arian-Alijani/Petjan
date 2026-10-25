@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
@@ -131,17 +132,77 @@ internal sealed class TimeGridDragController
         e.Pointer.Capture(null);
         e.Handled = true;
 
+        // Vertical (time) position is always resolved against the *origin* surface — all columns share the
+        // same hour window/geometry, so the Y maths is column-independent. For a MOVE we additionally
+        // resolve which column the pointer ended over, so a card can be dragged across to another day/doctor.
         var (startMinutes, durationMinutes) = session.ResolveRange(e.GetPosition(session.Surface));
 
         if (session.Mode == DragMode.Move && session.Card is { } card)
         {
+            var target = ResolveTargetColumn(session, e.GetPosition(_host)) ?? session.Column;
             _ = session.ViewModel.MoveAppointmentFromDragAsync(
-                card, session.Column.Date, session.Column.DoctorId, startMinutes);
+                card, target.Date, target.DoctorId, startMinutes);
         }
         else
         {
             _ = session.ViewModel.CreateBookingFromDragAsync(
                 session.Column.Date, session.Column.DoctorId, startMinutes, durationMinutes);
+        }
+    }
+
+    /// <summary>
+    /// Finds the column VM whose drag surface sits under the release point so a card can be moved
+    /// across days (week view) or doctors (day view). Only the horizontal axis matters — the columns
+    /// are laid out side-by-side in a <c>UniformGrid</c> — so we test each sibling surface's X span at
+    /// the host-relative pointer X. Returns <c>null</c> when the pointer is outside every column, letting
+    /// the caller fall back to the origin column (no cross-column move).
+    /// </summary>
+    private AppointmentColumnViewModel? ResolveTargetColumn(DragSession session, Point hostPoint)
+    {
+        AppointmentColumnViewModel? best = null;
+        var bestDistance = double.MaxValue;
+
+        foreach (var surface in EnumerateColumnSurfaces())
+        {
+            if (surface.DataContext is not AppointmentColumnViewModel column)
+            {
+                continue;
+            }
+
+            if (surface.TranslatePoint(new Point(0, 0), _host) is not { } topLeft)
+            {
+                continue;
+            }
+
+            var left = topLeft.X;
+            var right = left + surface.Bounds.Width;
+
+            if (hostPoint.X >= left && hostPoint.X < right)
+            {
+                return column; // direct hit
+            }
+
+            // Track the nearest column so a release just past the last column still lands sensibly.
+            var distance = hostPoint.X < left ? left - hostPoint.X : hostPoint.X - right;
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = column;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>Yields every column drag surface (Tag="drag-surface") currently in the host's visual tree.</summary>
+    private IEnumerable<Panel> EnumerateColumnSurfaces()
+    {
+        foreach (var descendant in _host.GetVisualDescendants())
+        {
+            if (descendant is Panel { Tag: "drag-surface" } panel)
+            {
+                yield return panel;
+            }
         }
     }
 
