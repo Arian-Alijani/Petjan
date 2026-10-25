@@ -57,30 +57,82 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
-    <!-- event card -->
+    <!-- ═══ event card ═══
+         The Button is a transparent, borderless hit target; the painted body is the
+         inner "ev-surface" Border, which carries the tinted background, rounded
+         corners and the elevation/separator ring. (BoxShadow is a Border property,
+         not a Button property, so the shadow must live on the surface.) The white
+         ring + soft drop shadow lift each card off the grid; the .overlap variant
+         strengthens them so several cards sharing one row read as distinct cards. -->
     <Style Selector="Button.ev-card">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="CornerRadius" Value="10" />
-        <Setter Property="BorderThickness" Value="1,1,0,1" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
         <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+        <Setter Property="ClipToBounds" Value="False" />
     </Style>
-    <Style Selector="Button.ev-card.tier-xs">
+    <!-- the Button's own hover wash must stay off so the tinted surface shows through unchanged -->
+    <Style Selector="Button.ev-card:pointerover">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- painted card body: rounded, clipped, with a hairline white ring + gentle drop
+         shadow (offsetX offsetY blur spread colour). -->
+    <Style Selector="Border.ev-surface">
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="ClipToBounds" Value="True" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="BoxShadow" Value="0 0 0 1 #FFFFFFFF, 0 1 3 0 #22101828" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.14" Easing="CubicEaseOut" />
+            </Transitions>
+        </Setter>
+    </Style>
+    <!-- hover: lift the card so the one under the pointer stands out from its neighbours -->
+    <Style Selector="Button.ev-card:pointerover Border.ev-surface">
+        <Setter Property="BoxShadow" Value="0 0 0 1.5 #FFFFFFFF, 0 6 14 -3 #33101828" />
+    </Style>
+    <Style Selector="Button.ev-card:pressed Border.ev-surface">
+        <Setter Property="BoxShadow" Value="0 0 0 1 #FFFFFFFF, 0 2 5 -1 #28101828" />
+    </Style>
+
+    <!-- tier paddings live on the surface (inside the ring) so the shadow is never clipped -->
+    <Style Selector="Button.ev-card.tier-xs Border.ev-surface">
         <Setter Property="Padding" Value="7,2" />
     </Style>
-    <Style Selector="Button.ev-card.tier-sm">
+    <Style Selector="Button.ev-card.tier-sm Border.ev-surface">
         <Setter Property="Padding" Value="8,3" />
     </Style>
-    <Style Selector="Button.ev-card.tier-md">
+    <Style Selector="Button.ev-card.tier-md Border.ev-surface">
         <Setter Property="Padding" Value="9,4" />
     </Style>
+
     <Style Selector="Button.ev-card.booster">
         <Setter Property="FontStyle" Value="Italic" />
         <Setter Property="Opacity" Value="0.92" />
     </Style>
     <Style Selector="Button.ev-card.cancelled">
         <Setter Property="Opacity" Value="0.62" />
+    </Style>
+
+    <!-- ═══ overlap: a card that shares its time slot with others (multi-lane cluster) ═══
+         Give its surface a bolder white separator ring (2px) and a deeper shadow so
+         adjacent cards in the same row read as clearly separate, layered cards rather
+         than one crowded block. The hover state lifts the focused card above the cluster. -->
+    <Style Selector="Button.ev-card.overlap Border.ev-surface">
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="BoxShadow" Value="0 0 0 2 #FFFFFFFF, 0 3 8 -1 #30101828" />
+    </Style>
+    <Style Selector="Button.ev-card.overlap:pointerover Border.ev-surface">
+        <Setter Property="BoxShadow" Value="0 0 0 2 #FFFFFFFF, 0 10 20 -4 #40101828" />
+    </Style>
+    <Style Selector="Button.ev-card.overlap:pressed Border.ev-surface">
+        <Setter Property="BoxShadow" Value="0 0 0 2 #FFFFFFFF, 0 3 8 -2 #30101828" />
     </Style>
 
     <!-- ═══ drag/selection box (drag-to-create a new range / drag-to-move a card) ═══

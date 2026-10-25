@@ -21,6 +21,16 @@ public sealed class TimeGridEventsPanel : Panel
     /// <summary>Smallest readable card width in a crowded lane cluster (A22).</summary>
     private const double MinCardWidth = 44;
 
+    /// <summary>Gap carved out of a lane's width for a single (non-overlapping) card.</summary>
+    private const double SingleGap = 8;
+
+    /// <summary>
+    /// Wider gap between cards that share a time slot (a multi-lane cluster): a clearer
+    /// channel of empty grid between adjacent cards so several appointments in one row
+    /// read as distinct cards rather than one crowded block.
+    /// </summary>
+    private const double OverlapGap = 12;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         var width = double.IsInfinity(availableSize.Width) ? 0 : availableSize.Width;
@@ -58,9 +68,12 @@ public sealed class TimeGridEventsPanel : Panel
             }
 
             var laneWidth = finalSize.Width / Math.Max(1, vm.Lanes);
-            var rightInset = (vm.Lane * laneWidth) + 4;
+            // Overlapping cards get a wider inter-lane channel so adjacent cards separate clearly;
+            // a single card keeps its original tight inset against the column edge.
+            var gap = vm.Lanes > 1 ? OverlapGap : SingleGap;
+            var rightInset = (vm.Lane * laneWidth) + (gap / 2);
             // A22: never shrink a card to nothing in a dense cluster; keep a readable minimum and clamp inside.
-            var width = Math.Min(Math.Max(MinCardWidth, laneWidth - 8), Math.Max(0, finalSize.Width - 8));
+            var width = Math.Min(Math.Max(MinCardWidth, laneWidth - gap), Math.Max(0, finalSize.Width - SingleGap));
             var x = Math.Max(0, finalSize.Width - rightInset - width);
             child.Arrange(new Rect(x, vm.Top, width, vm.Height));
         }
