@@ -103,6 +103,12 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
     private static Result<T> Fail<T>(Result failure) => Result<T>.Fail(failure.Error, failure.Detail);
 
     /// <summary>Maps store failures to results; cancellation and programming errors propagate.</summary>
+    /// <remarks>
+    /// <c>CONCURRENCY_CONFLICT</c> is kept for constraint violations so the upstream conflict handling still runs,
+    /// but the underlying store message travels in <c>Detail</c>: collapsing "UNIQUE constraint failed:
+    /// Invoices.TenantId, Invoices.InvoiceNumber" into a bare concurrency code sent everyone hunting a race that
+    /// did not exist.
+    /// </remarks>
     private static async Task<Result> StoreAsync(Func<Task> operation)
     {
         try
@@ -116,13 +122,22 @@ public sealed class LocalUnitOfWork(AnimoraLocalDbContext db, IDomainEventDispat
         // the misleading "store unavailable" message that would trigger pointless retries.
         catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 19 })
         {
-            return Result.Fail(ErrorCodes.ConcurrencyConflict);
+            return Result.Fail(ErrorCodes.ConcurrencyConflict, Detail(ex.InnerException));
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqliteException)
         {
-            return Result.Fail(ErrorCodes.StoreUnavailable);
+            return Result.Fail(ErrorCodes.StoreUnavailable, Detail(ex.InnerException));
         }
-        catch (SqliteException ex) when (ex.SqliteErrorCode == 19) { return Result.Fail(ErrorCodes.ConcurrencyConflict); }
-        catch (SqliteException) { return Result.Fail(ErrorCodes.StoreUnavailable); }
+        catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+        {
+            return Result.Fail(ErrorCodes.ConcurrencyConflict, Detail(ex));
+        }
+        catch (SqliteException ex) { return Result.Fail(ErrorCodes.StoreUnavailable, Detail(ex)); }
     }
+
+    /// <summary>One short line of the store's own message (never a stack trace), so the real cause is visible.</summary>
+    private static string Detail(Exception ex) =>
+        ex.Message.ReplaceLineEndings(" ").Trim() is { Length: > 0 } message
+            ? message[..Math.Min(message.Length, 300)]
+            : ex.GetType().Name;
 }
