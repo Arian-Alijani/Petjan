@@ -78,6 +78,34 @@ public static class IdGenerator
     }
 
     /// <summary>
+    /// Deterministic ULID derived solely from a stable <paramref name="naturalKey"/> — for rows that both the
+    /// offline client and the server provision independently (not inside one replayed command) yet must converge
+    /// on the <b>same</b> id. The 48-bit timestamp prefix comes from <paramref name="at"/> (keeping ULIDs
+    /// sortable), and the 80-bit random component is replaced by the leading bytes of
+    /// <c>SHA-256(naturalKey)</c>, so every node that resolves the same key mints the byte-for-byte same id.
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="ForOperation"/> (keyed on a command's operation id), this is for lazily-opened rows whose
+    /// identity is a business key rather than a creating command — e.g. an <c>AccountingPeriod</c> keyed on
+    /// <c>(TenantId, PeriodCode)</c>, which the ledger opens on first post on whichever node posts first. Deriving
+    /// the id from the key makes the client's locally-opened row and the server's replicated row share one id, so
+    /// the replica upserts in place (<c>ON CONFLICT ("Id")</c>) instead of colliding on the unique business-key
+    /// index and stalling sync.
+    /// </remarks>
+    /// <param name="naturalKey">The stable business key, pre-composed by the caller (e.g. <c>tenantId + ':' + periodCode</c>).</param>
+    /// <param name="at">The instant whose millisecond becomes the sortable ULID timestamp prefix.</param>
+    public static string ForNaturalKey(string naturalKey, DateTimeOffset at)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(naturalKey);
+        var ms = at.ToUnixTimeMilliseconds();
+        ArgumentOutOfRangeException.ThrowIfNegative(ms);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(ms, MaxTimestampMs);
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(naturalKey), hash);
+        return Encode(ms, hash[..RandomBytes]);
+    }
+
+    /// <summary>
     /// Deterministic <paramref name="length"/>-char code suffix for a human-visible code (SKU/category/supplier code) a command mints.
     /// Uses the tail of the operation id so client and server agree; falls back to a random suffix when the operation id is absent/not ULID-shaped.
     /// </summary>

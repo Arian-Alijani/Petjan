@@ -128,6 +128,22 @@ internal static class ReplicaMaterializer
     private const string StaffMembershipPurgeSql =
         "DELETE FROM \"StaffMemberships\" WHERE \"TenantId\" = {0} AND \"UserId\" = {1} AND \"Role\" = {2} AND \"Id\" <> {3}";
 
+    /// <summary>
+    /// Supersedes a local <c>AccountingPeriod</c> stored under a different id for the same business key before the
+    /// server's row is inserted. The ledger lazily opens the containing period on first post on whichever node
+    /// posts first; a period opened offline on the client (legacy builds minted a random id — see
+    /// <c>AccountingPeriod.Create</c>, now deterministic) shares its <c>(TenantId, PeriodCode)</c> with the
+    /// replicated server row but not its id, and the local UNIQUE index
+    /// <c>IX_AccountingPeriods_TenantId_PeriodCode</c> forbids both. Without this purge the server row's INSERT
+    /// trips that index on every pull and is skipped forever (SQLITE_CONSTRAINT), stalling sync and surfacing as a
+    /// CONCURRENCY_CONFLICT on the next financial command that opens the ledger. Deleting the mismatched-id row
+    /// first lets the authoritative server row win. Safe: a period's postable state (code + UTC bounds) is
+    /// re-derived identically everywhere and journal entries reference the period by code, not by this id, so no
+    /// posted entry is orphaned. Same-id rows are left to the ON CONFLICT ("Id") upsert path.
+    /// </summary>
+    private const string AccountingPeriodPurgeSql =
+        "DELETE FROM \"AccountingPeriods\" WHERE \"TenantId\" = {0} AND \"PeriodCode\" = {1} AND \"Id\" <> {2}";
+
     /// <summary>Currency assumed for a money value object the wire omitted (the product's single supported currency).</summary>
     private const string DefaultCurrency = "IRT";
 
@@ -422,6 +438,12 @@ internal static class ReplicaMaterializer
                 if (row.Entity == "StaffMembership" && !row.Deleted && Str(values, "UserId") is { } staffUserId)
                     await db.Database.ExecuteSqlRawAsync(StaffMembershipPurgeSql,
                         new object[] { tenant, staffUserId, Nullable(values["Role"]), row.EntityId }, ct).ConfigureAwait(false);
+                // The server's AccountingPeriod shares (TenantId, PeriodCode) with a period a legacy build opened
+                // offline under a random id; retire that mismatched-id row first so the server row's INSERT does not
+                // trip the UNIQUE business-key index and stall sync (see AccountingPeriodPurgeSql).
+                if (row.Entity == "AccountingPeriod" && !row.Deleted && Str(values, "PeriodCode") is { } periodCode)
+                    await db.Database.ExecuteSqlRawAsync(AccountingPeriodPurgeSql,
+                        new object[] { tenant, periodCode, row.EntityId }, ct).ConfigureAwait(false);
                 affected = await db.Database.ExecuteSqlRawAsync(map.UpsertSql, args, ct).ConfigureAwait(false);
                 if (affected > 0 && map.Children.Length > 0)
                     await ReplaceChildrenAsync(db, map, row.EntityId, row.Payload, ct).ConfigureAwait(false);
