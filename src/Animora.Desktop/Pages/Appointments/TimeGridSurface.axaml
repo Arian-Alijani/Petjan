@@ -210,15 +210,20 @@
                                                         Classes.tier-md="{Binding IsMedium}"
                                                         Classes.cancelled="{Binding IsCancelled}"
                                                         Classes.booster="{Binding IsBooster}"
+                                                        Classes.overlap="{Binding IsOverlapping}"
                                                         MinHeight="{Binding Height}"
                                                         RenderTransform="{x:Null}"
-                                                        Background="{Binding BackgroundBrush}"
-                                                        BorderBrush="{Binding AccentBrush}"
-                                                        BorderThickness="0,0,0,0"
                                                         CommandParameter="{Binding}"
                                                         Command="{Binding #Root.((ap:AppointmentsCalendarViewModel)DataContext).OpenBookingCommand}"
                                                         ToolTip.Tip="{Binding TooltipText}">
-                                                    <Grid ColumnDefinitions="*,3">
+                                                    <!-- ev-surface: the painted card body. It carries the tinted
+                                                         background, rounded corners and the elevation/separator ring
+                                                         (BoxShadow lives on a Border, not the Button), so overlapping
+                                                         cards in one row stay visually distinct. -->
+                                                    <Border Classes="ev-surface"
+                                                            Background="{Binding BackgroundBrush}"
+                                                            MinHeight="{Binding Height}">
+                                                    <Grid ColumnDefinitions="*,Auto">
                                                         <StackPanel Grid.Column="0" Spacing="1"
                                                                     VerticalAlignment="Center"
                                                                     Margin="6,0,6,0">
@@ -303,9 +308,11 @@
                                                                        IsVisible="{Binding IsMedium}" />
                                                         </StackPanel>
 
-                                                        <Border Grid.Column="1" Width="3"
+                                                        <Border Grid.Column="1"
+                                                                Width="{Binding AccentBarWidth}"
                                                                 Background="{Binding AccentBrush}" />
                                                     </Grid>
+                                                    </Border>
                                                 </Button>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>

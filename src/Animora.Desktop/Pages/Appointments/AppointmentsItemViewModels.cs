@@ -55,6 +55,19 @@ public sealed class AppointmentEventViewModel
     /// <summary>Total lanes in the overlap cluster.</summary>
     public int Lanes { get; set; } = 1;
 
+    /// <summary>
+    /// True when this card shares its time slot with at least one other card (packed into
+    /// a multi-lane cluster). Drives the clearer, lifted "overlap" card styling so several
+    /// appointments in one row stay visually distinct instead of blending together.
+    /// </summary>
+    public bool IsOverlapping => Lanes > 1;
+
+    /// <summary>
+    /// Width (px) of the card's inline accent spine. A bolder spine on overlapping cards makes
+    /// each card's type colour unmistakable when several narrow cards sit in one row.
+    /// </summary>
+    public double AccentBarWidth => IsOverlapping ? 4.0 : 3.0;
+
     /// <summary>Right inset percentage: <c>lane * (100/lanes)</c>.</summary>
     public double LanePercent => Lane * (100.0 / Lanes);
 
