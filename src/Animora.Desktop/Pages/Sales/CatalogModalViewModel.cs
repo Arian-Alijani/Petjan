@@ -56,6 +56,11 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     private readonly Func<Task<CatalogSnapshot>> _loadCatalog;
     private readonly Func<CatalogItem, Task> _addItem;
 
+    // Optional barcode seam (Sales/Cashier only): resolves a scanned code to a catalog item so the keyboard-wedge
+    // scanner keeps working while this drawer is open — a scan adds the matching good straight to the invoice,
+    // exactly as it would on the sales page itself. Null when the host surface has no barcode catalog (e.g. visit).
+    private readonly Func<string, Task<CatalogItem?>>? _findByBarcode;
+
     private readonly List<CatalogItem> _all = [];
     private readonly List<CatalogFilterRef> _filterRefs = [];
     private readonly List<RecentItemRef> _recent = [];
@@ -74,6 +79,12 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     private string _filterKey;
     private int _loadGeneration;
 
+    // Zero-based index of the first match shown on the current page. The row list is capped at MaxVisibleRows for
+    // performance, so instead of forcing the user to search to reach the rest, «بعدی»/«قبلی» page the full match set
+    // through that same window. Reset to 0 whenever the match set changes (search, filter, reload).
+    private int _pageOffset;
+    private int _totalMatches;
+
     /// <summary>
     /// Sales/Cashier constructor: the picker loads the sales catalog and adds a
     /// chosen row to the open invoice through <see cref="ISalesQueryService"/>.
@@ -89,7 +100,8 @@ public sealed partial class CatalogModalViewModel : ObservableObject
             item => service.AddLineAsync(invoiceId, item, 1),
             toast,
             dialogs,
-            onChanged)
+            onChanged,
+            findByBarcode: service.FindCatalogItemByBarcodeAsync)
     {
     }
 
@@ -111,9 +123,11 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         string initialFilter = "all",
         Action? onBack = null,
         string addedToLabel = "فاکتور",
-        CatalogPickerOptions? picker = null)
+        CatalogPickerOptions? picker = null,
+        Func<string, Task<CatalogItem?>>? findByBarcode = null)
     {
         _picker = picker;
+        _findByBarcode = findByBarcode;
         Title = picker?.Title ?? "افزودن خدمت یا کالا";
         SearchPlaceholder = picker?.SearchPlaceholder ?? "جستجوی نام، دستهٔ خدمت یا کالا…";
         FooterHint = picker?.FooterHint
@@ -245,6 +259,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
         _filterKey = key;
         HighlightIndex = 0;
+        _pageOffset = 0;
         foreach (var f in Filters)
         {
             f.IsActive = f.Key == key;
@@ -274,15 +289,20 @@ public sealed partial class CatalogModalViewModel : ObservableObject
                                 || PersianText.Contains(PersianText.Normalize(x.GroupLabel), norm));
         }
 
-        // Materialise the filtered matches once, then keep only the first MaxVisibleRows for display. The
-        // full count is kept so the footer can say how many were hidden; capping the built rows is the
-        // performance guard that keeps the drawer fast to open and to type in no matter how large the
-        // catalog grows.
+        // Materialise the filtered matches once, then show one MaxVisibleRows-sized window of them. The full
+        // count is kept so the footer can report the current page; capping the built rows is the performance
+        // guard that keeps the drawer fast no matter how large the catalog grows — and «بعدی»/«قبلی» slide the
+        // window so every match is reachable without having to search for it.
         var matches = list as IReadOnlyList<CatalogItem> ?? list.ToList();
         var totalMatches = matches.Count;
+        _totalMatches = totalMatches;
+
+        // Keep the page offset inside the valid range (a shorter new match set may leave it past the end).
+        var maxOffset = Math.Max(0, ((totalMatches - 1) / MaxVisibleRows) * MaxVisibleRows);
+        _pageOffset = Math.Clamp(_pageOffset, 0, maxOffset);
 
         _visible.Clear();
-        for (var i = 0; i < matches.Count && _visible.Count < MaxVisibleRows; i++)
+        for (var i = _pageOffset; i < matches.Count && _visible.Count < MaxVisibleRows; i++)
         {
             _visible.Add(matches[i]);
         }
@@ -320,20 +340,67 @@ public sealed partial class CatalogModalViewModel : ObservableObject
 
         OnPropertyChanged(nameof(HasRecent));
 
-        // Footer count: when the display cap hides matches, show «۲۰ از ۳۵ نتیجه — برای دیدن بقیه جستجو کنید»
-        // so the user knows more exist and that typing narrows them down; otherwise the plain «N نتیجه».
+        // Footer count: when the matches span more than one page, show which slice is on screen
+        // («۲۱ تا ۴۰ از ۳۵ نتیجه») so the user can page through with «بعدی»/«قبلی»; otherwise the plain «N نتیجه».
         if (totalMatches == 0)
         {
             CountText = string.Empty;
         }
-        else if (totalMatches > Rows.Count)
+        else if (totalMatches > MaxVisibleRows)
         {
-            CountText = $"{SalePresentation.Fa(Rows.Count)} از {SalePresentation.Fa(totalMatches)} نتیجه — برای دیدن بقیه جستجو کنید";
+            var from = _pageOffset + 1;
+            var to = _pageOffset + Rows.Count;
+            CountText = $"{SalePresentation.Fa(from)} تا {SalePresentation.Fa(to)} از {SalePresentation.Fa(totalMatches)} نتیجه";
         }
         else
         {
             CountText = $"{SalePresentation.Fa(Rows.Count)} نتیجه";
         }
+
+        UpdatePaging();
+    }
+
+    /// <summary>Recomputes whether paging is available and which direction buttons are enabled.</summary>
+    private void UpdatePaging()
+    {
+        HasPaging = _totalMatches > MaxVisibleRows;
+        CanPagePrevious = _pageOffset > 0;
+        CanPageNext = _pageOffset + MaxVisibleRows < _totalMatches;
+    }
+
+    [ObservableProperty]
+    private bool _hasPaging;
+
+    [ObservableProperty]
+    private bool _canPagePrevious;
+
+    [ObservableProperty]
+    private bool _canPageNext;
+
+    [RelayCommand]
+    private void PageNext()
+    {
+        if (_pageOffset + MaxVisibleRows >= _totalMatches)
+        {
+            return;
+        }
+
+        _pageOffset += MaxVisibleRows;
+        HighlightIndex = 0;
+        Render();
+    }
+
+    [RelayCommand]
+    private void PagePrevious()
+    {
+        if (_pageOffset == 0)
+        {
+            return;
+        }
+
+        _pageOffset = Math.Max(0, _pageOffset - MaxVisibleRows);
+        HighlightIndex = 0;
+        Render();
     }
 
     [ObservableProperty]
@@ -342,6 +409,7 @@ public sealed partial class CatalogModalViewModel : ObservableObject
     partial void OnQueryChanged(string value)
     {
         HighlightIndex = 0;
+        _pageOffset = 0;
         Render();
     }
 
@@ -467,6 +535,53 @@ public sealed partial class CatalogModalViewModel : ObservableObject
         {
             await AddAsync(_visible[HighlightIndex].Id);
         }
+    }
+
+    /// <summary>
+    /// True when this drawer can accept a keyboard-wedge barcode scan: the Sales/Cashier picker (which supplies the
+    /// barcode seam) in its normal add mode. The «pick one item» mode does not add to an invoice, so it stays off.
+    /// The View subscribes to the shared scanner only while this is true and feeds scans to <see cref="TryAddByBarcodeAsync"/>.
+    /// </summary>
+    public bool SupportsBarcode => _findByBarcode is not null && _picker is null;
+
+    /// <summary>
+    /// A barcode was scanned while this drawer is open: resolve it to its catalog item and add one unit through the
+    /// exact same add path (stock gate, toast, recent strip) a click uses — so the user can keep scanning goods into
+    /// the invoice without leaving the «افزودن اقلام» drawer. An unknown code just raises an informational toast.
+    /// </summary>
+    public async Task TryAddByBarcodeAsync(string barcode)
+    {
+        if (_findByBarcode is null || string.IsNullOrWhiteSpace(barcode))
+        {
+            return;
+        }
+
+        CatalogItem? item;
+        try
+        {
+            item = await _findByBarcode(barcode.Trim());
+        }
+        catch (Exception)
+        {
+            _toast.Show("جستجوی بارکد ناموفق بود؛ دوباره تلاش کنید", Tone.Danger);
+            return;
+        }
+
+        if (item is null)
+        {
+            _toast.Show("کالایی با این بارکد یافت نشد", Tone.Warn);
+            return;
+        }
+
+        // Make sure the freshly scanned item is part of the in-memory catalog so the shared add path (which looks the
+        // item up by id, applies the stock gate and updates the recent strip) can find it even if it sits outside the
+        // currently filtered/visible window.
+        if (_all.All(x => x.Id != item.Id))
+        {
+            _all.Add(item);
+        }
+
+        await AddAsync(item.Id);
     }
 
     /// <summary>
