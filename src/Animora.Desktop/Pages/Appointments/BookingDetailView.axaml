@@ -5,7 +5,7 @@
              x:Class="Animora.Desktop.Pages.Appointments.BookingDetailView"
              x:Name="Root"
              x:DataType="ap:BookingDetailViewModel"
-             Width="420" FlowDirection="RightToLeft">
+             Width="420" MaxHeight="760" FlowDirection="RightToLeft">
     <UserControl.Styles>
         <StyleInclude Source="avares://Animora.Desktop/Pages/Appointments/BookingPanelStyles.axaml" />
         <Style Selector="Border.dtl-top">

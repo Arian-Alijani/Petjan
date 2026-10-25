@@ -1,3 +1,4 @@
+using Animora.Desktop.Shell;
 using Avalonia.Controls;
 
 namespace Animora.Desktop.Pages.Login;
@@ -13,5 +14,7 @@ public partial class LoginWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        // Always open (and re-reveal) centered on the active monitor; see WindowCentering.
+        WindowCentering.Enable(this);
     }
 }

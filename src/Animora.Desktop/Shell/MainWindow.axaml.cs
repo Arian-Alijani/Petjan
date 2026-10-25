@@ -35,6 +35,8 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        // Always open (and re-reveal) centered on the active monitor; see WindowCentering.
+        WindowCentering.Enable(this);
         Toast.Attach(toastService);
         dialogService.Attach(Modal, Drawer, Sheet);
 
