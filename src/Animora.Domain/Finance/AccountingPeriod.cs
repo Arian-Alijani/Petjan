@@ -109,11 +109,20 @@ public sealed class AccountingPeriod : AggregateRoot
                 $"Period '{periodCode}' ends at or before it starts ({startUtc:O} → {endUtc:O}).");
         }
 
+        var code = periodCode.Trim();
         return new AccountingPeriod
         {
-            Id = IdGenerator.NewId(startUtc),
+            // Deterministic id keyed on (TenantId, PeriodCode): the ledger lazily opens the containing period on
+            // first post on whichever node posts first (offline client or server), independently — not inside one
+            // replayed command — so a random id would make the two diverge. The unique (TenantId, PeriodCode)
+            // index then rejects the server's replicated row (same code, different id) forever, stalling sync and
+            // surfacing as a CONCURRENCY_CONFLICT on the next financial command that touches the ledger. Deriving
+            // the id from the natural key makes client, server and seeder converge on one id, so the replica
+            // upserts in place (ON CONFLICT "Id") instead of colliding. The seeder opens the same period the same
+            // way, so a seeded and a lazily-opened period are byte-for-byte identical, id included.
+            Id = IdGenerator.ForNaturalKey(tenantId + ":" + code, startUtc),
             TenantId = tenantId,
-            PeriodCode = periodCode.Trim(),
+            PeriodCode = code,
             StartUtc = startUtc,
             EndUtc = endUtc,
             State = PeriodState.Open,
