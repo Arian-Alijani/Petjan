@@ -52,7 +52,11 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
         // id, so re-delivery is idempotent. Draft invoices (never posted, no money) are excluded — they are
         // the owning device's private work until posted; a peer only needs posted/void financial state.
         // Phase 1 selects ONLY (id, effective tick) so the window filter/order is one simple translatable query.
-        var window = await (
+        // It reads a full window (not just `take`) so a page can be cut on a timestamp BOUNDARY: every imported
+        // invoice shares one UpdatedAt, so cutting inside that group made the cursor land on the group's own tick,
+        // the next poll asked for `>= that tick` again and got the identical page — the peer re-applied the same
+        // rows on every pass forever (and collided with whatever command was writing).
+        var windowQuery =
             from i in db.Set<Invoice>().AsNoTracking()
             where i.State != InvoiceState.Draft
             let posted = i.PostedUtc ?? i.IssuedUtc
@@ -62,10 +66,13 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
             let effective = i.UpdatedAt > lifecycle ? i.UpdatedAt : lifecycle
             where effective >= since
             orderby effective, i.Id
-            select new { i.Id, Effective = effective })
-            .Take(take + 1).ToListAsync(ct).ConfigureAwait(false);
+            select new { i.Id, Effective = effective };
 
-        var paymentRows = await (
+        var wideWindow = await windowQuery.Take(MaxWindow + 1).ToListAsync(ct).ConfigureAwait(false);
+        var window = TrimToTickBoundary(wideWindow, take, w => w.Effective.UtcTicks);
+        var invoicesMore = wideWindow.Count > window.Count;
+
+        var paymentQuery =
             from p in db.Set<Payment>().AsNoTracking()
             where p.ReceivedUtc >= since
             orderby p.ReceivedUtc, p.Id
@@ -74,14 +81,11 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
                 p.InvoiceId,
                 (int)p.Method,
                 p.Amount.Minor,
-                p.ReceivedUtc))
-            .Take(take + 1).ToListAsync(ct).ConfigureAwait(false);
+                p.ReceivedUtc);
 
-        // One extra row per collection signals "there is more past this window"; trim it back off before returning.
-        var invoicesMore = window.Count > take;
-        var paymentsMore = paymentRows.Count > take;
-        if (invoicesMore) window.RemoveAt(window.Count - 1);
-        if (paymentsMore) paymentRows.RemoveAt(paymentRows.Count - 1);
+        var widePayments = await paymentQuery.Take(MaxWindow + 1).ToListAsync(ct).ConfigureAwait(false);
+        var paymentRows = TrimToTickBoundary(widePayments, take, r => r.ReceivedUtc.UtcTicks);
+        var paymentsMore = widePayments.Count > paymentRows.Count;
 
         // A payment changes its invoice's paid/due totals but not necessarily any lifecycle timestamp (a partial
         // payment leaves Posted/Settled untouched), so every invoice that received a payment in this window is
@@ -114,11 +118,29 @@ public sealed class FinanceLedgerReader(AnimoraServerDbContext db) : IFinanceLed
         if (ceiling is { } cap) next = Math.Max(next, cap);
         else
         {
-            if (window.Count > 0) next = Math.Max(next, window[^1].Effective.UtcTicks);
-            if (paymentRows.Count > 0) next = Math.Max(next, paymentRows[^1].ReceivedUtc.UtcTicks);
+            // Nothing was truncated, so every row at the newest tick is already in this page: step PAST it.
+            // Landing on it (the old behaviour) made the next poll re-deliver the same rows indefinitely.
+            if (window.Count > 0) next = Math.Max(next, window[^1].Effective.UtcTicks + 1);
+            if (paymentRows.Count > 0) next = Math.Max(next, paymentRows[^1].ReceivedUtc.UtcTicks + 1);
         }
 
         return new FinanceReadPage(invoices, paymentRows, next, invoicesMore || paymentsMore);
+    }
+
+    /// <summary>
+    /// Trims an over-fetched window down to <paramref name="take"/> rows **without cutting a group of equal
+    /// timestamps in half**. A page that ends inside such a group cannot move the cursor (the next poll asks for
+    /// <c>&gt;=</c> the group's own tick and gets the same rows back), so the group is extended to its natural end
+    /// when it still fits the hard window ceiling. Bulk imports stamp thousands of invoices with one timestamp, so
+    /// this is the normal case there, not an edge case.
+    /// </summary>
+    private static List<T> TrimToTickBoundary<T>(List<T> rows, int take, Func<T, long> tick)
+    {
+        if (rows.Count <= take) return rows;
+        var boundary = tick(rows[take - 1]);
+        var end = take;
+        while (end < rows.Count && tick(rows[end]) == boundary) end++;
+        return end <= MaxWindow ? rows.GetRange(0, end) : rows.GetRange(0, take);
     }
 
     /// <summary>Phase 2: the display-shaped rows for a set of invoice ids (owner/pet names joined in).</summary>
